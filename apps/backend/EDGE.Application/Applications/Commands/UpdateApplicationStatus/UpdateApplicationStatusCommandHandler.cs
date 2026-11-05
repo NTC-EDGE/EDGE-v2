@@ -147,6 +147,31 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                         Timestamp = DateTime.UtcNow
                     }, cancellationToken);
                 }
+
+                // If any dangling Orders of Payment exist from prior transitions (e.g. if the application transitioned back from an accountant or prior cycle),
+                // withdraw them to prevent active billing in cashier queues
+                if (app.OrdersOfPayment != null)
+                {
+                    foreach (var op in app.OrdersOfPayment.Where(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing))
+                    {
+                        var prevOpStatus = op.Status;
+                        op.Status = OpStatus.Returned;
+                        op.Remarks = "Withdrawn: Completed as Pre-Assessment without Order of Payment.";
+                        await _applicationRepository.AddOpHistoryAsync(new OpHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderOfPaymentId = op.Id,
+                            Action = "Order of Payment withdrawn. Assessment released directly without payment.",
+                            FromStatus = prevOpStatus,
+                            ToStatus = OpStatus.Returned,
+                            PerformedByUserId = actingUserId,
+                            StaffName = staffName,
+                            StaffRole = staffRole,
+                            Remarks = op.Remarks,
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
+                    }
+                }
             }
             // When Evaluator approves official application:
             // SOA status changes to FOR Order of Payment, and Order of Payment is initialized for Accountant review
@@ -173,7 +198,7 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                     }, cancellationToken);
 
                     var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == latestSoa.Id)
-                                     ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing);
+                                     ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Returned);
 
                     if (existingOp == null)
                     {
@@ -205,7 +230,8 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                     }
                     else
                     {
-                        existingOp.Status = OpStatus.Returned;
+                        var prevOpStatus = existingOp.Status;
+                        existingOp.Status = OpStatus.Billed;
                         existingOp.AmountDue = latestSoa.TotalAmount;
                         existingOp.AmountReceived = 0;
                         existingOp.PaymentMethod = null;
@@ -215,6 +241,20 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                         existingOp.PaidAt = null;
                         existingOp.OfficialReceiptNumber = null;
                         existingOp.Remarks = request.Remarks;
+
+                        await _applicationRepository.AddOpHistoryAsync(new OpHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderOfPaymentId = existingOp.Id,
+                            Action = "Order of Payment re-submitted for Accountant review.",
+                            FromStatus = prevOpStatus,
+                            ToStatus = OpStatus.Billed,
+                            PerformedByUserId = actingUserId,
+                            StaffName = staffName,
+                            StaffRole = staffRole,
+                            Remarks = request.Remarks ?? "Re-submitted for Order of Payment review",
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
                     }
                 }
             }
