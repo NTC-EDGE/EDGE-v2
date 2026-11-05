@@ -804,7 +804,7 @@ export function generateSoaPrintableHtml(
       <tr>
         <!-- Left: Conditions & O.R. Stamp -->
         <td style="width: 48%; padding-top: 4px;">
-          <div style="font-size: 8.5px; margin-bottom: 4px; padding: 2px 6px; background-color: #f1f5f9; border: 0.5px solid #cbd5e1; border-radius: 3px; display: flex; gap: 12px;">
+          <div style="font-size: 8.5px; margin-bottom: 4px; padding: 2px 6px; background-color: #ffffff; border: 0.5px solid #cbd5e1; border-radius: 3px; display: flex; gap: 12px;">
             <span style="${isForAssessmentOnly ? 'font-weight: bold; color: #7c3aed;' : 'color: #64748b;'}"><strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only</span>
             <span style="${isOfficialApplication ? 'font-weight: bold; color: #1e40af;' : 'color: #64748b;'}"><strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application</span>
           </div>
