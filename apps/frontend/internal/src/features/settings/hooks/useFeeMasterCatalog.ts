@@ -44,12 +44,12 @@ export const DEFAULT_FEE_CATALOG: FeeMasterEntity[] = [
     defaultAmount: 300,
   },
   {
-    id: 'fee_exam_registration',
-    code: 'EXAM_REG_FEE',
-    name: 'Operator Competency Exam Fee',
-    description: 'Registration fee for commercial and amateur radio operator examinations.',
+    id: 'fee_exam',
+    code: 'EXAM',
+    name: 'Examination Fee',
+    description: 'Radio Operator Examination Admission Fee.',
     feeType: 'Exam Fee',
-    defaultAmount: 250,
+    defaultAmount: 50,
   },
   {
     id: 'fee_surcharge_late',

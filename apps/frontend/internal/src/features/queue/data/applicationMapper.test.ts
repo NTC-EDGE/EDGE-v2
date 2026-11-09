@@ -633,6 +633,9 @@ describe('applicationMapper', () => {
         fieldOffice: 'Region VII',
         submittedAt: '2026-11-05T09:00:00Z',
         createdAt: '2026-11-05T09:00:00Z',
+        submissionMode: 'Single',
+        isPinned: false,
+        isArchived: false,
       };
 
       const ui = mapActivityDtoToUI(dto);

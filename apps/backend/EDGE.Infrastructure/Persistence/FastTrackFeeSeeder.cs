@@ -97,6 +97,58 @@ public static class FastTrackFeeSeeder
                 }
             }
 
+            // 1.1 Self-heal: Clean up legacy duplicate exam fees (e.g. EXAM_REG_FEE)
+            var legacyExamFees = existingFees
+                .Where(f => f.Code.Equals("EXAM_REG_FEE", StringComparison.OrdinalIgnoreCase) ||
+                            (f.Id == Guid.Parse("f0000000-0000-0000-0000-000000000005") && !f.Code.Equals(FeeConstants.Codes.Exam, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            if (legacyExamFees.Count > 0)
+            {
+                feeMap.TryGetValue(FeeConstants.Codes.Exam, out var canonicalExamFee);
+                canonicalExamFee ??= existingFees.FirstOrDefault(f => f.Code.Equals(FeeConstants.Codes.Exam, StringComparison.OrdinalIgnoreCase));
+
+                foreach (var legacyFee in legacyExamFees)
+                {
+                    if (canonicalExamFee != null && canonicalExamFee.Id != legacyFee.Id)
+                    {
+                        var linkedVariantFees = await context.ServiceVariantFees.IgnoreQueryFilters()
+                            .Where(vf => vf.FeeId == legacyFee.Id).ToListAsync();
+                        foreach (var vf in linkedVariantFees)
+                        {
+                            vf.FeeId = canonicalExamFee.Id;
+                        }
+
+                        var linkedElementFees = await context.ServiceVariantElementFees.IgnoreQueryFilters()
+                            .Where(ef => ef.FeeId == legacyFee.Id).ToListAsync();
+                        foreach (var ef in linkedElementFees)
+                        {
+                            ef.FeeId = canonicalExamFee.Id;
+                        }
+
+                        var linkedServiceFees = await context.ServiceFees.IgnoreQueryFilters()
+                            .Where(sf => sf.FeeId == legacyFee.Id).ToListAsync();
+                        foreach (var sf in linkedServiceFees)
+                        {
+                            sf.FeeId = canonicalExamFee.Id;
+                        }
+                    }
+
+                    context.Fees.Remove(legacyFee);
+                    existingFees.Remove(legacyFee);
+                    logger?.LogInformation("Cleaned up legacy exam fee with code '{Code}' ({Id}).", legacyFee.Code, legacyFee.Id);
+                }
+
+                try
+                {
+                    await context.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex)
+                {
+                    logger?.LogWarning(ex, "Failed to persist removal of legacy exam fee records.");
+                }
+            }
+
             // 2. Map ServiceVariantFees (Certificates + Permits)
             var variantFeesToSeed = new List<(Guid VariantId, string FeeCode, decimal Amount)>
             {

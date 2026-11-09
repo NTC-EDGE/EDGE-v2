@@ -219,6 +219,16 @@ export const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
     lower === 'f0100000 0000 0000 0000 000000000001' ||
     rawLower === 'f0100000-0000-0000-0000-000000000002' ||
     lower === 'f0100000 0000 0000 0000 000000000002' ||
+    rawLower === 'fd000000-0000-0000-0000-000000000200' ||
+    lower === 'fd000000 0000 0000 0000 000000000200' ||
+    lower === 'form name' ||
+    lower === 'forms name' ||
+    lower === 'form title' ||
+    lower === 'canonical form' ||
+    lower === 'application form' ||
+    lower === 'application title' ||
+    lower.includes('application type') ||
+    lower.includes('type of application') ||
     lower.includes('permit / license type') ||
     lower.includes('permit/license type') ||
     lower.includes('permit / certificate type') ||
