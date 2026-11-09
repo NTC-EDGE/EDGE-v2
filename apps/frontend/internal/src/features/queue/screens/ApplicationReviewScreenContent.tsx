@@ -596,11 +596,6 @@ export function ApplicationReviewScreenContent({
       remarks: isReturned ? 'Evaluation re-submitted. Forwarded to Accountant.' : 'Evaluation approved. Forwarded to Accountant.',
     });
     if (err !== null) { toast.error('Failed to approve application.'); return; }
-    await updateApplication(app.id, {
-      status: 'ForAccountant',
-      assignedTo: app.office || 'Unassigned',
-      accountingOfficer: undefined,
-    });
     toast.success(isReturned ? 'Evaluation re-submitted and forwarded to Accountant.' : 'Evaluation approved (Requirements & SOA). Forwarded to Accountant.');
     await mutateApplications(app.id);
     await refetch();

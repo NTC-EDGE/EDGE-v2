@@ -907,7 +907,15 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 },
                 HasSoa = app.StatementsOfAccount.Any(),
                 HasOp = app.OrdersOfPayment.Any(),
-                HasAccountantHistory = app.Histories.Any(h => h.StaffRole == "Accountant" || (h.Action != null && h.Action.Contains("Accountant")) || (h.Remarks != null && h.Remarks.Contains("Accountant"))),
+                HasAccountantHistory = app.Histories.Any(h =>
+                    h.StaffRole == "Accountant" ||
+                    (h.Action != null && h.Action.Contains("Accountant") &&
+                     !h.Action.Contains("Forwarded") &&
+                     !h.Action.Contains("Forward") &&
+                     !h.Action.Contains("Status updated to ForAccountant")) ||
+                    (h.Remarks != null && h.Remarks.Contains("Accountant") &&
+                     !h.Remarks.Contains("Forwarded") &&
+                     !h.Remarks.Contains("Forward"))),
                 HasCashierHistory = app.Histories.Any(h => h.StaffRole == "Cashier" || (h.Action != null && h.Action.Contains("Cashier")) || (h.Remarks != null && h.Remarks.Contains("Cashier")))
             })
             .ToListAsync(cancellationToken);
@@ -1219,7 +1227,15 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                 HasSoa = app.StatementsOfAccount.Any(),
                 HasOp = app.OrdersOfPayment.Any(),
-                HasAccountantHistory = app.Histories.Any(h => h.StaffRole == "Accountant" || (h.Action != null && h.Action.Contains("Accountant")) || (h.Remarks != null && h.Remarks.Contains("Accountant"))),
+                HasAccountantHistory = app.Histories.Any(h =>
+                    h.StaffRole == "Accountant" ||
+                    (h.Action != null && h.Action.Contains("Accountant") &&
+                     !h.Action.Contains("Forwarded") &&
+                     !h.Action.Contains("Forward") &&
+                     !h.Action.Contains("Status updated to ForAccountant")) ||
+                    (h.Remarks != null && h.Remarks.Contains("Accountant") &&
+                     !h.Remarks.Contains("Forwarded") &&
+                     !h.Remarks.Contains("Forward"))),
                 HasCashierHistory = app.Histories.Any(h => h.StaffRole == "Cashier" || (h.Action != null && h.Action.Contains("Cashier")) || (h.Remarks != null && h.Remarks.Contains("Cashier"))),
                 RecentHistories = app.Histories
                     .OrderByDescending(h => h.Timestamp)
@@ -1271,8 +1287,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
             string? accountingOfficer = x.RecentHistories
                 .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
                             (h.StaffRole == null || (!h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) &&
-                            (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase))) &&
-                            (h.Remarks == null || !h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase)) &&
+                            (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Status updated to ForAccountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Order of Payment initialized", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Assessment approved by Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+                            (h.Remarks == null || (!h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Remarks.Contains("Endorsed for Order of Payment review", StringComparison.OrdinalIgnoreCase))) &&
                             ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
                              (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase)))) ||
                              (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))))
@@ -1886,8 +1902,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
         item.AccountingOfficer = reversedHistories
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
                         (h.StaffRole == null || (!h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) &&
-                        (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase))) &&
-                        (h.Remarks == null || !h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase)) &&
+                        (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Status updated to ForAccountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Order of Payment initialized", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Assessment approved by Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Remarks == null || (!h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Remarks.Contains("Endorsed for Order of Payment review", StringComparison.OrdinalIgnoreCase))) &&
                         ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
                          (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase)))) ||
                          (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))))

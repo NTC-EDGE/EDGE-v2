@@ -72,11 +72,13 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             .ToList();
 
         var evaluatorHistory = allHistories.FirstOrDefault(h =>
-            h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant ||
-            (h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase)) ||
-            ((h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
-                                   h.Action.Contains("SOA", StringComparison.OrdinalIgnoreCase))) &&
-             (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)))));
+            !string.IsNullOrWhiteSpace(h.StaffName) &&
+            (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))) &&
+            (h.Action == null || (!h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase))) &&
+            (h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant ||
+             (h.StaffRole != null && (h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) || h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) ||
+             (h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
+                                   h.Action.Contains("SOA", StringComparison.OrdinalIgnoreCase)))));
 
         var resolvedEvaluatorName = evaluatorHistory?.StaffName;
         var resolvedEvaluatorTitle = regionalSignatories.GetResolvedEvaluatorTitle(evaluatorHistory?.StaffRole);
@@ -86,7 +88,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         var accountantHistory = allHistories.FirstOrDefault(h =>
             !string.IsNullOrWhiteSpace(h.StaffName) &&
             (h.StaffRole == null || (!h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) &&
-            (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase))) &&
+            (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Status updated to ForAccountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Order of Payment initialized", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Assessment approved by Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+            (h.Remarks == null || (!h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Remarks.Contains("Endorsed for Order of Payment review", StringComparison.OrdinalIgnoreCase))) &&
             ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
              (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant))) ||
              (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))));

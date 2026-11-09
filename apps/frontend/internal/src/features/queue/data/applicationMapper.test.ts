@@ -563,6 +563,85 @@ describe('applicationMapper', () => {
       expect(acctState.isStageClaimedByOther).toBe(false);
       expect(acctState.isStageClaimedByMe).toBe(false);
     });
+
+    it('correctly transitions to claimed by Accountant when Accountant takes application (Financial Review Started)', () => {
+      const claimedDto: ApplicationDto = {
+        id: 'app-fwd-2',
+        tenantId: 'tenant-1',
+        submissionMode: 'Single',
+        isGuest: false,
+        referenceNumber: 'REF-2026-FWD2',
+        applicationNumber: 'APP-2026-FWD2',
+        status: 'ForAccountant',
+        office: 'NTC Central Office',
+        createdAt: '2026-03-30T10:00:00.000Z',
+        lastModifiedAt: '2026-03-30T10:30:00.000Z',
+        intent: 'Regular',
+        services: [],
+        applicants: [],
+        histories: [
+          {
+            id: 'h1',
+            action: 'Evaluation Started',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            timestamp: '2026-03-30T10:00:00.000Z',
+            fromStatus: 'Submitted',
+            toStatus: 'Evaluating',
+          },
+          {
+            id: 'h2',
+            action: 'Approved & Forwarded to Accountant',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            remarks: 'Approved and forwarded to Accountant for review.',
+            timestamp: '2026-03-30T10:15:00.000Z',
+            fromStatus: 'Evaluating',
+            toStatus: 'ForAccountant',
+          },
+          {
+            id: 'h3',
+            action: 'Financial Review Started',
+            staffName: 'Ann Accountant',
+            staffRole: 'Accountant',
+            remarks: 'Financial review started by Ann Accountant. Authority claimed.',
+            timestamp: '2026-03-30T10:30:00.000Z',
+            fromStatus: 'ForAccountant',
+            toStatus: 'ForAccountant',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(claimedDto, 'Accountant');
+
+      // 1. Evaluating officer is still Engr. Maria Santos
+      expect(ui.evaluatingOfficer).toBe('Engr. Maria Santos');
+      // 2. Accounting officer is now Ann Accountant
+      expect(ui.accountingOfficer).toBe('Ann Accountant');
+      // 3. Assigned to is Ann Accountant
+      expect(ui.assignedTo).toBe('Ann Accountant');
+
+      // 4. Test stage evaluation state for Ann Accountant: Must be claimed by me!
+      const acctState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['ann accountant', 'accountant@ntc.gov.ph'],
+      });
+      expect(acctState.isStageUnclaimed).toBe(false);
+      expect(acctState.isStageClaimedByOther).toBe(false);
+      expect(acctState.isStageClaimedByMe).toBe(true);
+
+      // 5. Test stage evaluation state for another user: Must be locked / claimed by other!
+      const otherState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['other accountant', 'other@ntc.gov.ph'],
+      });
+      expect(otherState.isStageUnclaimed).toBe(false);
+      expect(otherState.isStageClaimedByOther).toBe(true);
+      expect(otherState.isStageClaimedByMe).toBe(false);
+    });
   });
 
   describe('mapActivityDtoToUI', () => {

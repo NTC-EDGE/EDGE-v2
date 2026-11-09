@@ -273,7 +273,11 @@ export function resolveAccountingOfficer(reversedHistories: ApplicationHistoryLi
       actionLower.includes('re-submitted to accountant') ||
       actionLower.includes('resubmitted to accountant') ||
       actionLower.includes('approved & forwarded') ||
+      actionLower.includes('status updated to foraccountant') ||
+      actionLower.includes('order of payment initialized') ||
+      actionLower.includes('assessment approved by evaluator') ||
       remarksLower.includes('forwarded to accountant') ||
+      remarksLower.includes('endorsed for order of payment review') ||
       roleLower.includes('evaluat') ||
       roleLower.includes('engineer')
     ) {
@@ -443,7 +447,9 @@ export function resolveAssignedTo(
   cashierOfficer: string | undefined,
   issuingOfficer: string | undefined,
   endorsementState: EndorsementState,
-  office?: string
+  office?: string,
+  hasExplicitAccountantClaim = false,
+  hasExplicitCashierClaim = false
 ): string {
   if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
     return endorsementState.endorsedTo;
@@ -458,7 +464,7 @@ export function resolveAssignedTo(
     if (
       accountingOfficer &&
       !isGenericOfficer(accountingOfficer, office) &&
-      (!evaluatingOfficer || accountingOfficer.trim().toLowerCase() !== evaluatingOfficer.trim().toLowerCase())
+      (hasExplicitAccountantClaim || !evaluatingOfficer || accountingOfficer.trim().toLowerCase() !== evaluatingOfficer.trim().toLowerCase())
     ) {
       return accountingOfficer;
     }
@@ -468,7 +474,7 @@ export function resolveAssignedTo(
     if (
       cashierOfficer &&
       !isGenericOfficer(cashierOfficer, office) &&
-      (!accountingOfficer || cashierOfficer.trim().toLowerCase() !== accountingOfficer.trim().toLowerCase())
+      (hasExplicitCashierClaim || !accountingOfficer || cashierOfficer.trim().toLowerCase() !== accountingOfficer.trim().toLowerCase())
     ) {
       return cashierOfficer;
     }

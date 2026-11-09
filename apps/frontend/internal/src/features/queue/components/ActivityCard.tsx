@@ -189,22 +189,42 @@ export function ActivityCard({
     }
 
     if (st === "foraccountant") {
+      const hasExplicitAccountantClaim = Boolean(
+        application.history &&
+        application.history.some((h) => {
+          const act = (h.action || '').toLowerCase();
+          const rem = (h.remarks || '').toLowerCase();
+          const rol = (h.role || '').toLowerCase();
+          return (
+            rol.includes('accountant') ||
+            act.includes('financial review') ||
+            act.includes('soa approved by accountant') ||
+            act.includes('approved by accountant') ||
+            act.includes('returned by accountant') ||
+            (act.includes('take application') && (h.status === 'ForAccountant' || act.includes('accountant'))) ||
+            rem.includes('financial review started')
+          );
+        })
+      );
+
       const isAssignedEvaluator = Boolean(
+        !hasExplicitAccountantClaim &&
         application.assignedTo &&
         application.evaluatingOfficer &&
         application.assignedTo.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
       );
       const isAccountingEvaluator = Boolean(
+        !hasExplicitAccountantClaim &&
         application.accountingOfficer &&
         application.evaluatingOfficer &&
         application.accountingOfficer.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
       );
-      const validAccounting = isAccountingEvaluator ? undefined : application.accountingOfficer;
+      const validAccounting = isAccountingEvaluator ? undefined : (application.accountingOfficer || currentStageOfficer);
       const validAssigned = isAssignedEvaluator ? undefined : application.assignedTo;
 
       const name =
         validAccounting ||
-        (!isGenericOfficer(validAssigned, application.office)
+        (!isGenericOfficer(validAssigned, application.office) && hasExplicitAccountantClaim
           ? validAssigned
           : "Unassigned");
       return {
@@ -220,22 +240,42 @@ export function ActivityCard({
     }
 
     if (st === "pendingpayment") {
+      const hasExplicitCashierClaim = Boolean(
+        application.history &&
+        application.history.some((h) => {
+          const act = (h.action || '').toLowerCase();
+          const rem = (h.remarks || '').toLowerCase();
+          const rol = (h.role || '').toLowerCase();
+          return (
+            rol.includes('cashier') ||
+            act.includes('payment verification') ||
+            act.includes('official receipt') ||
+            act.includes('or issued') ||
+            act.includes('returned by cashier') ||
+            (act.includes('take application') && (h.status === 'PendingPayment' || act.includes('cashier'))) ||
+            rem.includes('payment verification started')
+          );
+        })
+      );
+
       const isAssignedAccountant = Boolean(
+        !hasExplicitCashierClaim &&
         application.assignedTo &&
         application.accountingOfficer &&
         application.assignedTo.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
       );
       const isCashierAccountant = Boolean(
+        !hasExplicitCashierClaim &&
         application.cashierOfficer &&
         application.accountingOfficer &&
         application.cashierOfficer.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
       );
-      const validCashier = isCashierAccountant ? undefined : application.cashierOfficer;
+      const validCashier = isCashierAccountant ? undefined : (application.cashierOfficer || currentStageOfficer);
       const validAssigned = isAssignedAccountant ? undefined : application.assignedTo;
 
       const name =
         validCashier ||
-        (!isGenericOfficer(validAssigned, application.office)
+        (!isGenericOfficer(validAssigned, application.office) && hasExplicitCashierClaim
           ? validAssigned
           : "Unassigned");
       return {
