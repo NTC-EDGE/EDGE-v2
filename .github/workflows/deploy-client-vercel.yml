@@ -66,7 +66,7 @@ jobs:
       - name: Clean Stale Vercel Cache
         run: rm -rf .vercel
 
-      - name: Validate Vercel Credentials
+      - name: Validate Vercel Credentials & Test API
         env:
           TOKEN: ${{ secrets.VERCEL_TOKEN }}
           ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -85,11 +85,34 @@ jobs:
             exit 1
           fi
 
-      - name: Link Vercel Project
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
-        run: npx --yes vercel link --yes --token=${{ secrets.VERCEL_TOKEN }}
+          echo "🔍 Checking Vercel Secret format lengths:"
+          echo "VERCEL_TOKEN length: ${#TOKEN}"
+          echo "VERCEL_ORG_ID length: ${#ORG_ID} (prefix: ${ORG_ID:0:5}...)"
+          echo "VERCEL_PROJECT_ID length: ${#PROJECT_ID} (prefix: ${PROJECT_ID:0:5}...)"
+
+          echo "🔍 Step 1: Testing Vercel Token validity against /v2/user..."
+          USER_RES=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.vercel.com/v2/user")
+          USER_HTTP=$(echo "$USER_RES" | grep "HTTP_STATUS" | cut -d':' -f2)
+          USER_BODY=$(echo "$USER_RES" | grep -v "HTTP_STATUS")
+          echo "User Auth Status: $USER_HTTP"
+          if [ "$USER_HTTP" != "200" ]; then
+            echo "::error::❌ Vercel Token authentication failed (HTTP $USER_HTTP)! Response: $USER_BODY"
+            echo "Action required: Regenerate VERCEL_TOKEN in Vercel Account Settings -> Tokens and update GitHub Repository Secrets."
+            exit 1
+          fi
+
+          echo "🔍 Step 2: Testing Vercel Project access against /v9/projects/$PROJECT_ID..."
+          PROJ_RES=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$ORG_ID")
+          PROJ_HTTP=$(echo "$PROJ_RES" | grep "HTTP_STATUS" | cut -d':' -f2)
+          PROJ_BODY=$(echo "$PROJ_RES" | grep -v "HTTP_STATUS")
+          echo "Project Query Status: $PROJ_HTTP"
+          if [ "$PROJ_HTTP" != "200" ]; then
+            echo "::error::❌ Project retrieval failed (HTTP $PROJ_HTTP)! Response: $PROJ_BODY"
+            echo "Action required: Check that VERCEL_CLIENT_PROJECT_ID and VERCEL_ORG_ID match the project and team on Vercel, and that the token has team access."
+            exit 1
+          fi
+
+          echo "✅ Authentication & Project Access Verified Successfully."
 
       - name: Pull Vercel Environment Information
         env:
