@@ -188,7 +188,7 @@ export function ApplicantRecordTab({
 
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} onScrollBeginDrag={() => setActiveReqMenuId(null)}>
         {/* 1. Profile */}
-        <SectionHeader title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"} />
+        <SectionHeader title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "1. APPLICANT PROFILE DETAILS"} />
         <View style={{ paddingHorizontal: SPACING[16] }}>
           {activeApplicant && (() => {
             const isCompanyRecord = activeApplicant.applicantType === 'Company' || (activeApplicant.applicantType !== 'Individual' && app.applicantType === 'Company');
@@ -278,6 +278,7 @@ export function ApplicantRecordTab({
                     (app.serviceCategory || app.category || '').toLowerCase().includes('exam') ||
                     (app.serviceName || app.permitTitle || '').toLowerCase().includes('exam')
                   )}
+                  showEquivalentFormHeader={false}
                   showApplicantCard={false}
                   showSignatureCard={true}
                   onPreviewFile={onPreviewFile}

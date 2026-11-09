@@ -4,6 +4,9 @@ import {
   ApiResponse,
   ApplicationDto,
   ApplicationSummaryDto,
+  PagedApplicationListDto,
+  ApplicationActivityDto,
+  PagedApplicationActivitiesDto,
   UpdateApplicationStatusRequest,
   CreateSoaRequest,
   VerifyPaymentRequest,
@@ -29,6 +32,28 @@ export const applicationService = {
         { params }
       );
       return response.data.data ?? [];
+    });
+  },
+
+  async getActivities(params?: {
+    queueTab?: string;
+    scope?: 'queue' | 'region';
+    status?: string;
+    pageNumber?: number;
+    pageSize?: number;
+    searchTerm?: string;
+    mode?: string;
+    tenantId?: string;
+    role?: string;
+    assignedTo?: string;
+    fieldOffice?: string;
+  }) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<ApiResponse<PagedApplicationActivitiesDto>>(
+        '/api/v2/applications/activities',
+        { params }
+      );
+      return response.data.data;
     });
   },
 

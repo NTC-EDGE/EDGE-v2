@@ -25,6 +25,7 @@ using EDGE.Application.Applications.Commands.UpdateApplication;
 using EDGE.Application.Applications.Commands.UpdateApplicationApplicant;
 using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
+using EDGE.Application.Applications.Queries.GetApplicationActivities;
 using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetMyApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
@@ -78,6 +79,12 @@ public static class ApplicationEndpoints
             .WithName("GetAllApplications")
             .WithSummary("Retrieve all applications")
             .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
+
+        group.MapGet("/activities", GetApplicationActivities)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("GetApplicationActivities")
+            .WithSummary("Retrieve lightweight application activities feed")
+            .WithDescription("Retrieves paged application cards for the activities feed without heavy global metrics.");
 
         group.MapGet("/me", GetMyApplications)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
@@ -393,6 +400,41 @@ public static class ApplicationEndpoints
         IMediator mediator)
     {
         var result = await mediator.Send(new GetAllApplicationsQuery(
+            Status: status,
+            QueueTab: queueTab,
+            Scope: scope,
+            PageNumber: pageNumber,
+            PageSize: pageSize,
+            SearchTerm: searchTerm,
+            Mode: mode,
+            TenantId: tenantId,
+            FieldOffice: fieldOffice,
+            AssignedTo: assignedTo,
+            Role: role));
+        if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
+        {
+            return Results.Unauthorized();
+        }
+
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> GetApplicationActivities(
+        [FromQuery] ApplicationStatus? status,
+        [FromQuery] string? queueTab,
+        [FromQuery] string? scope,
+        [FromQuery] int? pageNumber,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? searchTerm,
+        [FromQuery] string? mode,
+        [FromQuery] Guid? tenantId,
+        [FromQuery] string? role,
+        [FromQuery] string? assignedTo,
+        [FromQuery] string? fieldOffice,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetApplicationActivitiesQuery(
             Status: status,
             QueueTab: queueTab,
             Scope: scope,

@@ -1320,6 +1320,45 @@ export interface PagedApplicationListDto {
   statistics?: ApplicationStatisticsDto;
 }
 
+export interface ApplicationActivityDto {
+  id: string;
+  referenceNumber: string;
+  applicationNumber?: string;
+  applicantName: string;
+  applicantType: string;
+  submissionMode: string;
+  serviceName: string;
+  serviceCategory?: string;
+  serviceVariantName?: string;
+  element?: string;
+  status: string;
+  queueTab?: string;
+  fieldOffice?: string;
+  officerInCharge?: string;
+  assignedTo?: string;
+  evaluatingOfficer?: string;
+  accountingOfficer?: string;
+  cashierOfficer?: string;
+  issuingOfficer?: string;
+  endorsedTo?: string;
+  submittedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  isPinned: boolean;
+  isArchived: boolean;
+  officialReceiptNumber?: string;
+}
+
+export interface PagedApplicationActivitiesDto {
+  items: ApplicationActivityDto[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
 export interface UpdateApplicationStatusRequest {
   status: string;
   remarks?: string;
