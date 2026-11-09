@@ -90,27 +90,51 @@ jobs:
           echo "VERCEL_ORG_ID length: ${#ORG_ID} (prefix: ${ORG_ID:0:5}...)"
           echo "VERCEL_PROJECT_ID length: ${#PROJECT_ID} (prefix: ${PROJECT_ID:0:5}...)"
 
+          check_http_status() {
+            local step_name="$1"
+            local status="$2"
+            local body="$3"
+            local remediation="$4"
+
+            if [ "$status" = "200" ]; then
+              echo "✅ $step_name verified (HTTP 200)."
+              return 0
+            fi
+
+            if [ "$status" = "401" ] || [ "$status" = "403" ]; then
+              echo "::error::❌ $step_name authentication/authorization failed (HTTP $status)! Response: $body"
+              echo "Action required: $remediation"
+              exit 1
+            fi
+
+            if [ "$status" = "404" ]; then
+              echo "::error::❌ $step_name target not found (HTTP 404)! Response: $body"
+              echo "Action required: $remediation"
+              exit 1
+            fi
+
+            if [ "$status" = "429" ]; then
+              echo "::warning::⚠️ $step_name hit Vercel API rate limit (HTTP 429). Response: $body. Skipping strict pre-flight gate to permit Vercel CLI native retries."
+              return 0
+            fi
+
+            echo "::warning::⚠️ $step_name returned transient or server status (HTTP $status). Response: $body. Skipping strict pre-flight gate to permit Vercel CLI to proceed."
+            return 0
+          }
+
           echo "🔍 Step 1: Testing Vercel Token validity against /v2/user..."
-          USER_RES=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.vercel.com/v2/user")
-          USER_HTTP=$(echo "$USER_RES" | grep "HTTP_STATUS" | cut -d':' -f2)
+          USER_RES=$(curl -s --connect-timeout 5 --max-time 15 -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.vercel.com/v2/user")
+          USER_HTTP=$(echo "$USER_RES" | grep "HTTP_STATUS" | cut -d':' -f2 | tr -d ' \r\n')
           USER_BODY=$(echo "$USER_RES" | grep -v "HTTP_STATUS")
           echo "User Auth Status: $USER_HTTP"
-          if [ "$USER_HTTP" != "200" ]; then
-            echo "::error::❌ Vercel Token authentication failed (HTTP $USER_HTTP)! Response: $USER_BODY"
-            echo "Action required: Regenerate VERCEL_TOKEN in Vercel Account Settings -> Tokens and update GitHub Repository Secrets."
-            exit 1
-          fi
+          check_http_status "Vercel Token" "$USER_HTTP" "$USER_BODY" "Regenerate VERCEL_TOKEN in Vercel Account Settings -> Tokens and update GitHub Repository Secrets."
 
           echo "🔍 Step 2: Testing Vercel Project access against /v9/projects/$PROJECT_ID..."
-          PROJ_RES=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$ORG_ID")
-          PROJ_HTTP=$(echo "$PROJ_RES" | grep "HTTP_STATUS" | cut -d':' -f2)
+          PROJ_RES=$(curl -s --connect-timeout 5 --max-time 15 -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$ORG_ID")
+          PROJ_HTTP=$(echo "$PROJ_RES" | grep "HTTP_STATUS" | cut -d':' -f2 | tr -d ' \r\n')
           PROJ_BODY=$(echo "$PROJ_RES" | grep -v "HTTP_STATUS")
           echo "Project Query Status: $PROJ_HTTP"
-          if [ "$PROJ_HTTP" != "200" ]; then
-            echo "::error::❌ Project retrieval failed (HTTP $PROJ_HTTP)! Response: $PROJ_BODY"
-            echo "Action required: Check that VERCEL_ADMIN_PROJECT_ID and VERCEL_ORG_ID match the project and team on Vercel, and that the token has team access."
-            exit 1
-          fi
+          check_http_status "Project Access" "$PROJ_HTTP" "$PROJ_BODY" "Check that VERCEL_ADMIN_PROJECT_ID and VERCEL_ORG_ID match the project and team on Vercel, and that the token has team access."
 
           echo "✅ Authentication & Project Access Verified Successfully."
 

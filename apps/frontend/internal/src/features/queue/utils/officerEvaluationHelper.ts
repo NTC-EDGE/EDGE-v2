@@ -1,4 +1,8 @@
 import { ApplicationData, ApplicantItem, AuditTrailEntry } from "../../../types/application";
+import {
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
+} from "../data/officerResolutionHelpers";
 
 export interface AuthUserLike {
   id?: string | null;
@@ -131,26 +135,10 @@ export function computeOfficerEvaluationState(params: {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "foraccountant") {
-    const hasExplicitAccountantClaim = Boolean(
-      application.history &&
-      application.history.some((h) => {
-        const act = (h.action || '').toLowerCase();
-        const rem = (h.remarks || '').toLowerCase();
-        const rol = (h.role || '').toLowerCase();
-        return (
-          rol.includes('accountant') ||
-          act.includes('financial review') ||
-          act.includes('soa approved by accountant') ||
-          act.includes('approved by accountant') ||
-          act.includes('returned by accountant') ||
-          (act.includes('take application') && (h.status === 'ForAccountant' || act.includes('accountant'))) ||
-          rem.includes('financial review started')
-        );
-      })
-    );
+    const hasAccountantClaim = hasExplicitAccountantClaim(application.history);
 
     const isAccountingByEvaluator = Boolean(
-      !hasExplicitAccountantClaim &&
+      !hasAccountantClaim &&
       application.accountingOfficer &&
       application.evaluatingOfficer &&
       application.accountingOfficer.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
@@ -164,26 +152,10 @@ export function computeOfficerEvaluationState(params: {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "pendingpayment") {
-    const hasExplicitCashierClaim = Boolean(
-      application.history &&
-      application.history.some((h) => {
-        const act = (h.action || '').toLowerCase();
-        const rem = (h.remarks || '').toLowerCase();
-        const rol = (h.role || '').toLowerCase();
-        return (
-          rol.includes('cashier') ||
-          act.includes('payment verification') ||
-          act.includes('official receipt') ||
-          act.includes('or issued') ||
-          act.includes('returned by cashier') ||
-          (act.includes('take application') && (h.status === 'PendingPayment' || act.includes('cashier'))) ||
-          rem.includes('payment verification started')
-        );
-      })
-    );
+    const hasCashierClaim = hasExplicitCashierClaim(application.history);
 
     const isCashierByAccountant = Boolean(
-      !hasExplicitCashierClaim &&
+      !hasCashierClaim &&
       application.cashierOfficer &&
       application.accountingOfficer &&
       application.cashierOfficer.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()

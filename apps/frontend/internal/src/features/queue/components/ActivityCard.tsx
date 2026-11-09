@@ -25,6 +25,10 @@ import {
   computeOfficerEvaluationState,
   isGenericOfficer,
 } from "../utils/officerEvaluationHelper";
+import {
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
+} from "../data/officerResolutionHelpers";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -189,32 +193,16 @@ export function ActivityCard({
     }
 
     if (st === "foraccountant") {
-      const hasExplicitAccountantClaim = Boolean(
-        application.history &&
-        application.history.some((h) => {
-          const act = (h.action || '').toLowerCase();
-          const rem = (h.remarks || '').toLowerCase();
-          const rol = (h.role || '').toLowerCase();
-          return (
-            rol.includes('accountant') ||
-            act.includes('financial review') ||
-            act.includes('soa approved by accountant') ||
-            act.includes('approved by accountant') ||
-            act.includes('returned by accountant') ||
-            (act.includes('take application') && (h.status === 'ForAccountant' || act.includes('accountant'))) ||
-            rem.includes('financial review started')
-          );
-        })
-      );
+      const hasAccountantClaim = hasExplicitAccountantClaim(application.history);
 
       const isAssignedEvaluator = Boolean(
-        !hasExplicitAccountantClaim &&
+        !hasAccountantClaim &&
         application.assignedTo &&
         application.evaluatingOfficer &&
         application.assignedTo.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
       );
       const isAccountingEvaluator = Boolean(
-        !hasExplicitAccountantClaim &&
+        !hasAccountantClaim &&
         application.accountingOfficer &&
         application.evaluatingOfficer &&
         application.accountingOfficer.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
@@ -224,7 +212,7 @@ export function ActivityCard({
 
       const name =
         validAccounting ||
-        (!isGenericOfficer(validAssigned, application.office) && hasExplicitAccountantClaim
+        (!isGenericOfficer(validAssigned, application.office) && hasAccountantClaim
           ? validAssigned
           : "Unassigned");
       return {
@@ -240,32 +228,16 @@ export function ActivityCard({
     }
 
     if (st === "pendingpayment") {
-      const hasExplicitCashierClaim = Boolean(
-        application.history &&
-        application.history.some((h) => {
-          const act = (h.action || '').toLowerCase();
-          const rem = (h.remarks || '').toLowerCase();
-          const rol = (h.role || '').toLowerCase();
-          return (
-            rol.includes('cashier') ||
-            act.includes('payment verification') ||
-            act.includes('official receipt') ||
-            act.includes('or issued') ||
-            act.includes('returned by cashier') ||
-            (act.includes('take application') && (h.status === 'PendingPayment' || act.includes('cashier'))) ||
-            rem.includes('payment verification started')
-          );
-        })
-      );
+      const hasCashierClaim = hasExplicitCashierClaim(application.history);
 
       const isAssignedAccountant = Boolean(
-        !hasExplicitCashierClaim &&
+        !hasCashierClaim &&
         application.assignedTo &&
         application.accountingOfficer &&
         application.assignedTo.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
       );
       const isCashierAccountant = Boolean(
-        !hasExplicitCashierClaim &&
+        !hasCashierClaim &&
         application.cashierOfficer &&
         application.accountingOfficer &&
         application.cashierOfficer.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
@@ -275,7 +247,7 @@ export function ActivityCard({
 
       const name =
         validCashier ||
-        (!isGenericOfficer(validAssigned, application.office) && hasExplicitCashierClaim
+        (!isGenericOfficer(validAssigned, application.office) && hasCashierClaim
           ? validAssigned
           : "Unassigned");
       return {

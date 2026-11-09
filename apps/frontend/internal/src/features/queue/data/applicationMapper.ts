@@ -19,6 +19,8 @@ import {
   resolveCashierOfficer,
   resolveIssuingOfficer,
   resolveAssignedTo,
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
 } from './officerResolutionHelpers';
 import { buildAuditTrailList } from './auditTrailHelpers';
 
@@ -33,6 +35,8 @@ export {
   isCashierRole,
   isEvaluatorOrSupervisorRole,
   deriveQueueTab,
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
 };
 
 const GENERIC_NAMES = new Set([
@@ -425,35 +429,8 @@ export function mapApplicationDtoToUI(
       })[0]
     : undefined;
 
-  const hasExplicitAccountantClaim = histories.some((h) => {
-    const act = (h.action || '').toLowerCase();
-    const rem = (h.remarks || '').toLowerCase();
-    const rol = (h.staffRole || '').toLowerCase();
-    return (
-      rol.includes('accountant') ||
-      act.includes('financial review') ||
-      act.includes('soa approved by accountant') ||
-      act.includes('approved by accountant') ||
-      act.includes('returned by accountant') ||
-      (act.includes('take application') && (h.toStatus === 'ForAccountant' || act.includes('accountant'))) ||
-      rem.includes('financial review started')
-    );
-  });
-
-  const hasExplicitCashierClaim = histories.some((h) => {
-    const act = (h.action || '').toLowerCase();
-    const rem = (h.remarks || '').toLowerCase();
-    const rol = (h.staffRole || '').toLowerCase();
-    return (
-      rol.includes('cashier') ||
-      act.includes('payment verification') ||
-      act.includes('official receipt') ||
-      act.includes('or issued') ||
-      act.includes('returned by cashier') ||
-      (act.includes('take application') && (h.toStatus === 'PendingPayment' || act.includes('cashier'))) ||
-      rem.includes('payment verification started')
-    );
-  });
+  const hasAccountantClaim = hasExplicitAccountantClaim(histories);
+  const hasCashierClaim = hasExplicitCashierClaim(histories);
 
   const evaluatingOfficer =
     ('evaluatingOfficer' in dto && typeof dto.evaluatingOfficer === 'string' && dto.evaluatingOfficer.trim().length > 0)
@@ -466,7 +443,7 @@ export function mapApplicationDtoToUI(
       : resolveAccountingOfficer(reversedHistories);
 
   const accountingOfficer =
-    !hasExplicitAccountantClaim &&
+    !hasAccountantClaim &&
     rawAccountingOfficer &&
     evaluatingOfficer &&
     rawAccountingOfficer.trim().toLowerCase() === evaluatingOfficer.trim().toLowerCase()
@@ -491,8 +468,8 @@ export function mapApplicationDtoToUI(
     issuingOfficer,
     endorsementState,
     dto.office,
-    hasExplicitAccountantClaim,
-    hasExplicitCashierClaim
+    hasAccountantClaim,
+    hasCashierClaim
   );
 
   const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0

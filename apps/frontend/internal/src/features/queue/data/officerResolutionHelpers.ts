@@ -255,9 +255,64 @@ export type ApplicationHistoryLike = {
   remarks?: string | null;
   staffName?: string | null;
   staffRole?: string | null;
+  role?: string | null;
   toStatus?: string | null;
-  timestamp: string;
+  status?: string | null;
+  timestamp?: string;
 };
+
+export type GenericHistoryEntry = ApplicationHistoryLike;
+
+/**
+ * Checks whether an explicit claim or official review action has been performed by an Accountant.
+ * Consolidates duplicated string checks across queue cards, mapper, and evaluation utilities.
+ */
+export function hasExplicitAccountantClaim(histories?: readonly GenericHistoryEntry[] | null): boolean {
+  if (!histories || histories.length === 0) return false;
+  return histories.some((h) => {
+    const act = (h.action || '').toLowerCase();
+    const rem = (h.remarks || '').toLowerCase();
+    const rol = (h.staffRole || h.role || '').toLowerCase();
+    const st = (h.toStatus || h.status || '').toLowerCase();
+
+    return (
+      rol.includes('accountant') ||
+      act.includes('financial review') ||
+      act.includes('soa approved by accountant') ||
+      act.includes('approved by accountant') ||
+      act.includes('returned by accountant') ||
+      (act.includes('take application') && (st === 'foraccountant' || act.includes('accountant'))) ||
+      rem.includes('financial review started') ||
+      rem.includes('approved by accountant') ||
+      rem.includes('returned by accountant')
+    );
+  });
+}
+
+/**
+ * Checks whether an explicit claim or official verification action has been performed by a Cashier.
+ * Consolidates duplicated string checks across queue cards, mapper, and evaluation utilities.
+ */
+export function hasExplicitCashierClaim(histories?: readonly GenericHistoryEntry[] | null): boolean {
+  if (!histories || histories.length === 0) return false;
+  return histories.some((h) => {
+    const act = (h.action || '').toLowerCase();
+    const rem = (h.remarks || '').toLowerCase();
+    const rol = (h.staffRole || h.role || '').toLowerCase();
+    const st = (h.toStatus || h.status || '').toLowerCase();
+
+    return (
+      rol.includes('cashier') ||
+      act.includes('payment verification') ||
+      act.includes('official receipt') ||
+      act.includes('or issued') ||
+      act.includes('returned by cashier') ||
+      (act.includes('take application') && (st === 'pendingpayment' || act.includes('cashier'))) ||
+      rem.includes('payment verification started') ||
+      rem.includes('payment verified')
+    );
+  });
+}
 
 export function resolveAccountingOfficer(reversedHistories: ApplicationHistoryLike[]): string | undefined {
   const match = reversedHistories.find((h) => {
