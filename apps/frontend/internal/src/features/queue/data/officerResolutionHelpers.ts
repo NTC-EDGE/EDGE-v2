@@ -264,132 +264,224 @@ export type ApplicationHistoryLike = {
 export type GenericHistoryEntry = ApplicationHistoryLike;
 
 /**
+ * Checks whether a history entry represents a release or un-take action.
+ */
+export function isReleaseOrUntakeAction(h?: ApplicationHistoryLike | null): boolean {
+  if (!h) return false;
+  const act = (h.action || '').toLowerCase();
+  const rem = (h.remarks || '').toLowerCase();
+  return (
+    act.includes('released') ||
+    act.includes('un-take') ||
+    act.includes('untake') ||
+    act.includes('un-claim') ||
+    act.includes('unclaim') ||
+    act.includes('returned to queue') ||
+    act.includes('relinquished') ||
+    rem.includes('released by') ||
+    rem.includes('returned to queue') ||
+    rem.includes('un-taken') ||
+    rem.includes('untaken')
+  );
+}
+
+/**
+ * Checks whether a history entry represents an accountant releasing an application back to the queue.
+ */
+export function isAccountantReleaseAction(h?: ApplicationHistoryLike | null): boolean {
+  if (!h || !isReleaseOrUntakeAction(h)) return false;
+  const rol = (h.staffRole || h.role || '').toLowerCase();
+  const act = (h.action || '').toLowerCase();
+  const rem = (h.remarks || '').toLowerCase();
+  const st = (h.toStatus || h.status || '').toLowerCase();
+  return (
+    rol.includes('accountant') ||
+    act.includes('financial') ||
+    act.includes('accountant') ||
+    rem.includes('financial review released') ||
+    rem.includes('accountant queue') ||
+    st === 'foraccountant'
+  );
+}
+
+/**
+ * Checks whether a history entry represents an active claim or processing action by an accountant.
+ */
+export function isAccountantClaimAction(h?: ApplicationHistoryLike | null): boolean {
+  if (!h || isReleaseOrUntakeAction(h)) return false;
+  const act = (h.action || '').toLowerCase();
+  const rem = (h.remarks || '').toLowerCase();
+  const rol = (h.staffRole || h.role || '').toLowerCase();
+  const st = (h.toStatus || h.status || '').toLowerCase();
+
+  // Exclude actions that are forwarding/re-submitting TO accountant or performed by evaluators/engineers
+  if (
+    act.includes('forwarded to accountant') ||
+    act.includes('forward to accountant') ||
+    act.includes('re-submitted to accountant') ||
+    act.includes('resubmitted to accountant') ||
+    act.includes('approved & forwarded') ||
+    act.includes('status updated to foraccountant') ||
+    act.includes('order of payment initialized') ||
+    act.includes('assessment approved by evaluator') ||
+    rem.includes('forwarded to accountant') ||
+    rem.includes('endorsed for order of payment review') ||
+    rol.includes('evaluat') ||
+    rol.includes('engineer')
+  ) {
+    return false;
+  }
+
+  return (
+    rol.includes('accountant') ||
+    act.includes('financial review') ||
+    act.includes('soa approved by accountant') ||
+    act.includes('approved by accountant') ||
+    act.includes('returned by accountant') ||
+    (act.includes('take application') && (st === 'foraccountant' || rol.includes('accountant'))) ||
+    rem.includes('financial review started') ||
+    rem.includes('approved by accountant') ||
+    rem.includes('returned by accountant')
+  );
+}
+
+/**
+ * Checks whether a history entry represents a cashier releasing an application back to the queue.
+ */
+export function isCashierReleaseAction(h?: ApplicationHistoryLike | null): boolean {
+  if (!h || !isReleaseOrUntakeAction(h)) return false;
+  const rol = (h.staffRole || h.role || '').toLowerCase();
+  const act = (h.action || '').toLowerCase();
+  const rem = (h.remarks || '').toLowerCase();
+  const st = (h.toStatus || h.status || '').toLowerCase();
+  return (
+    rol.includes('cashier') ||
+    act.includes('payment') ||
+    act.includes('cashier') ||
+    rem.includes('payment verification released') ||
+    rem.includes('cashier queue') ||
+    st === 'pendingpayment'
+  );
+}
+
+/**
+ * Checks whether a history entry represents an active claim or processing action by a cashier.
+ */
+export function isCashierClaimAction(h?: ApplicationHistoryLike | null): boolean {
+  if (!h || isReleaseOrUntakeAction(h)) return false;
+  const act = (h.action || '').toLowerCase();
+  const rem = (h.remarks || '').toLowerCase();
+  const rol = (h.staffRole || h.role || '').toLowerCase();
+  const st = (h.toStatus || h.status || '').toLowerCase();
+
+  // Exclude actions that are forwarding TO cashier or performed by accountants/evaluators
+  if (
+    act.includes('forwarded to cashier') ||
+    act.includes('forward to cashier') ||
+    act.includes('order of payment generated') ||
+    act.includes('approved & forward') ||
+    rem.includes('forwarded to cashier') ||
+    rol.includes('evaluat') ||
+    rol.includes('engineer') ||
+    (rol.includes('accountant') && !act.includes('official receipt'))
+  ) {
+    return false;
+  }
+
+  return (
+    rol.includes('cashier') ||
+    act.includes('payment verification') ||
+    act.includes('payment verified') ||
+    act.includes('official receipt') ||
+    act.includes('or issued') ||
+    act.includes('returned by cashier') ||
+    (act.includes('take application') && (st === 'pendingpayment' || rol.includes('cashier'))) ||
+    rem.includes('payment verification started') ||
+    rem.includes('payment verified') ||
+    rem.includes('official receipt') ||
+    rem.includes('returned by cashier')
+  );
+}
+
+/**
+ * Checks whether a history entry represents an evaluator releasing an application back to the queue.
+ */
+export function isEvaluatorReleaseAction(h?: ApplicationHistoryLike | null): boolean {
+  if (!h || !isReleaseOrUntakeAction(h)) return false;
+  const rol = (h.staffRole || h.role || '').toLowerCase();
+  const act = (h.action || '').toLowerCase();
+  const rem = (h.remarks || '').toLowerCase();
+  const st = (h.toStatus || h.status || '').toLowerCase();
+  return (
+    rol.includes('evaluat') ||
+    act.includes('evaluat') ||
+    rem.includes('evaluation released') ||
+    st === 'submitted' ||
+    st === 'evaluating'
+  );
+}
+
+/**
  * Checks whether an explicit claim or official review action has been performed by an Accountant.
  * Consolidates duplicated string checks across queue cards, mapper, and evaluation utilities.
+ * Iterates in reverse chronological order (newest first) to ensure releases properly un-claim authority.
  */
 export function hasExplicitAccountantClaim(histories?: readonly GenericHistoryEntry[] | null): boolean {
   if (!histories || histories.length === 0) return false;
-  return histories.some((h) => {
-    const act = (h.action || '').toLowerCase();
-    const rem = (h.remarks || '').toLowerCase();
-    const rol = (h.staffRole || h.role || '').toLowerCase();
-    const st = (h.toStatus || h.status || '').toLowerCase();
-
-    return (
-      rol.includes('accountant') ||
-      act.includes('financial review') ||
-      act.includes('soa approved by accountant') ||
-      act.includes('approved by accountant') ||
-      act.includes('returned by accountant') ||
-      (act.includes('take application') && (st === 'foraccountant' || act.includes('accountant'))) ||
-      rem.includes('financial review started') ||
-      rem.includes('approved by accountant') ||
-      rem.includes('returned by accountant')
-    );
-  });
+  for (let i = histories.length - 1; i >= 0; i--) {
+    const h = histories[i];
+    if (isAccountantReleaseAction(h)) {
+      return false;
+    }
+    if (isAccountantClaimAction(h)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
  * Checks whether an explicit claim or official verification action has been performed by a Cashier.
  * Consolidates duplicated string checks across queue cards, mapper, and evaluation utilities.
+ * Iterates in reverse chronological order (newest first) to ensure releases properly un-claim authority.
  */
 export function hasExplicitCashierClaim(histories?: readonly GenericHistoryEntry[] | null): boolean {
   if (!histories || histories.length === 0) return false;
-  return histories.some((h) => {
-    const act = (h.action || '').toLowerCase();
-    const rem = (h.remarks || '').toLowerCase();
-    const rol = (h.staffRole || h.role || '').toLowerCase();
-    const st = (h.toStatus || h.status || '').toLowerCase();
-
-    return (
-      rol.includes('cashier') ||
-      act.includes('payment verification') ||
-      act.includes('official receipt') ||
-      act.includes('or issued') ||
-      act.includes('returned by cashier') ||
-      (act.includes('take application') && (st === 'pendingpayment' || act.includes('cashier'))) ||
-      rem.includes('payment verification started') ||
-      rem.includes('payment verified')
-    );
-  });
+  for (let i = histories.length - 1; i >= 0; i--) {
+    const h = histories[i];
+    if (isCashierReleaseAction(h)) {
+      return false;
+    }
+    if (isCashierClaimAction(h)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function resolveAccountingOfficer(reversedHistories: ApplicationHistoryLike[]): string | undefined {
-  const match = reversedHistories.find((h) => {
-    if (!h.staffName || h.staffName.trim().length === 0) return false;
-    const actionLower = (h.action || '').toLowerCase();
-    const remarksLower = (h.remarks || '').toLowerCase();
-    const roleLower = (h.staffRole || '').toLowerCase();
-
-    // Exclude actions that are forwarding/re-submitting TO accountant or performed by evaluators/engineers
-    if (
-      actionLower.includes('forwarded to accountant') ||
-      actionLower.includes('forward to accountant') ||
-      actionLower.includes('re-submitted to accountant') ||
-      actionLower.includes('resubmitted to accountant') ||
-      actionLower.includes('approved & forwarded') ||
-      actionLower.includes('status updated to foraccountant') ||
-      actionLower.includes('order of payment initialized') ||
-      actionLower.includes('assessment approved by evaluator') ||
-      remarksLower.includes('forwarded to accountant') ||
-      remarksLower.includes('endorsed for order of payment review') ||
-      roleLower.includes('evaluat') ||
-      roleLower.includes('engineer')
-    ) {
-      return false;
+  for (const h of reversedHistories) {
+    if (isAccountantReleaseAction(h)) {
+      return undefined;
     }
-
-    return (
-      roleLower.includes('accountant') ||
-      actionLower.includes('financial review') ||
-      actionLower.includes('soa approved by accountant') ||
-      actionLower.includes('approved by accountant') ||
-      actionLower.includes('returned by accountant') ||
-      (actionLower.includes('take application') && h.toStatus === 'ForAccountant') ||
-      remarksLower.includes('financial review started') ||
-      remarksLower.includes('approved by accountant') ||
-      remarksLower.includes('returned by accountant')
-    );
-  });
-  if (match?.staffName && match.staffName.trim().length > 0) return match.staffName.trim();
+    if (!h.staffName || h.staffName.trim().length === 0) continue;
+    if (isAccountantClaimAction(h)) {
+      return h.staffName.trim();
+    }
+  }
   return undefined;
 }
 
 export function resolveCashierOfficer(reversedHistories: ApplicationHistoryLike[]): string | undefined {
-  const match = reversedHistories.find((h) => {
-    if (!h.staffName || h.staffName.trim().length === 0) return false;
-    const actionLower = (h.action || '').toLowerCase();
-    const remarksLower = (h.remarks || '').toLowerCase();
-    const roleLower = (h.staffRole || '').toLowerCase();
-
-    // Exclude actions that are forwarding TO cashier or performed by accountants/evaluators
-    if (
-      actionLower.includes('forwarded to cashier') ||
-      actionLower.includes('forward to cashier') ||
-      actionLower.includes('order of payment generated') ||
-      actionLower.includes('approved & forward') ||
-      remarksLower.includes('forwarded to cashier') ||
-      roleLower.includes('evaluat') ||
-      roleLower.includes('engineer') ||
-      (roleLower.includes('accountant') && !actionLower.includes('official receipt'))
-    ) {
-      return false;
+  for (const h of reversedHistories) {
+    if (isCashierReleaseAction(h)) {
+      return undefined;
     }
-
-    return (
-      roleLower.includes('cashier') ||
-      actionLower.includes('payment verification') ||
-      actionLower.includes('payment verified') ||
-      actionLower.includes('official receipt') ||
-      actionLower.includes('or issued') ||
-      actionLower.includes('returned by cashier') ||
-      (actionLower.includes('take application') && h.toStatus === 'PendingPayment') ||
-      remarksLower.includes('payment verification started') ||
-      remarksLower.includes('official receipt') ||
-      remarksLower.includes('returned by cashier')
-    );
-  });
-  if (match?.staffName && match.staffName.trim().length > 0) return match.staffName.trim();
+    if (!h.staffName || h.staffName.trim().length === 0) continue;
+    if (isCashierClaimAction(h)) {
+      return h.staffName.trim();
+    }
+  }
   return undefined;
 }
 
@@ -423,6 +515,22 @@ export function resolveEvaluatingOfficer(
 ): string | undefined {
   if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
     return endorsementState.endorsedTo;
+  }
+
+  // If the latest evaluator-related entry was a release action, evaluation authority has been relinquished
+  for (const h of reversedHistories) {
+    if (isEvaluatorReleaseAction(h)) {
+      return undefined;
+    }
+    const roleLower = (h.staffRole || '').toLowerCase();
+    const actionLower = (h.action || '').toLowerCase();
+    const isEvaluatorTouch =
+      roleLower.includes('evaluat') ||
+      roleLower.includes('engineer') ||
+      actionLower.includes('evaluat');
+    if (isEvaluatorTouch) {
+      break;
+    }
   }
 
   // Find the latest evaluation entry by an Evaluator (excluding downstream return entries by accountant/cashier)
