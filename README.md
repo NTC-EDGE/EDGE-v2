@@ -8,6 +8,7 @@ Welcome to the **NTC-EDGE** monorepo. This repository contains both frontend and
 EDGE-v2/
 ├── apps/
 │   ├── frontend/
+│   │   ├── admin/       <-- System Administrator Web Portal (Next.js 16, App Router)
 │   │   ├── client/      <-- Cross-platform Client (React Native, Expo, Electron)
 │   │   └── internal/    <-- Internal Cross-platform App
 │   └── backend/         <-- Backend C# / .NET services
@@ -82,6 +83,36 @@ Run the internal cross-platform app using these scripts at the root level:
 - **Build Web Bundle**:
   ```bash
   bun internal:build:web
+  ```
+
+### Running the Admin Application
+
+Run the Next.js System Administrator Configuration portal using these scripts at the root level:
+
+- **Run Development Server (Auto-reloads on file save)**:
+  ```bash
+  bun admin:dev
+  ```
+  *(To avoid port collisions or specify a custom port, e.g. port 3001: `bun admin:dev -- -p 3001`)*
+
+- **Build Production Bundle**:
+  ```bash
+  bun admin:build
+  ```
+
+- **Serve Production Build**:
+  ```bash
+  bun admin:start
+  ```
+
+- **Rebuild and Start (Clean production build + serve in one command)**:
+  ```bash
+  bun admin:rebuild
+  ```
+
+- **Type Check**:
+  ```bash
+  bun admin:check-types
   ```
 
 ### Type Checking

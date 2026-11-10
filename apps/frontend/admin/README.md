@@ -83,3 +83,16 @@ Generates an optimized static next-build output.
 bun admin:start
 ```
 Runs the compiled server production bundle.
+
+### 5. Rebuild & Start (Single Command)
+```bash
+bun admin:rebuild
+```
+Executes a clean production build and immediately starts the production server with the latest changes.
+
+> **Port Tip**: If port `3000` is in use by another local process, append a custom port flag:
+> ```bash
+> bun admin:dev -- -p 3001
+> # or for production serve:
+> bun admin:start -- -p 3001
+> ```
