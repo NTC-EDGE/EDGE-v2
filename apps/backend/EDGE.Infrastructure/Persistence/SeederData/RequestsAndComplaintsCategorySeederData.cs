@@ -109,8 +109,8 @@ public static class RequestsAndComplaintsCategorySeederData
 
     public static List<ServiceVariantDef> GetVariantDefs() => new()
     {
-        new(VarReqBlocking, SvcReqBlockingId, ServiceVariantType.NA, "Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone", false),
-        new(VarReqUnblocking, SvcReqBlockingId, ServiceVariantType.NA, "Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone", false),
+        new(VarReqBlocking, SvcReqBlockingId, ServiceVariantType.NA, "Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone", true),
+        new(VarReqUnblocking, SvcReqBlockingId, ServiceVariantType.NA, "Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone", true),
         new(VarReqSpam, SvcReqCompId, ServiceVariantType.NA, "Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages", false),
         new(VarReqProvider, SvcReqCompId, ServiceVariantType.NA, "Complaints on Services Offered by Telecommunications or Broadcast Service Providers", false),
         new(VarReqTape, SvcReqCompId, ServiceVariantType.NA, "Request for Mandatory Tape Preservation", false)

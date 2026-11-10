@@ -292,7 +292,23 @@ export function GeneralFilingDetailsStep({
   }, [activeApplicant.selectedVariantId, activeApplicant.selectedVariantName, variants, form, dynamicValuesRecord, updateActiveApplicant]);
 
   const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
-  const allowCompany = matchedVariant?.isIndividual === false || (!matchedVariant && !isExamService);
+  const allowCompany = matchedVariant !== undefined ? matchedVariant.isIndividual === false : !isExamService;
+  const allowIndividual = matchedVariant !== undefined ? matchedVariant.isIndividual === true : true;
+
+  // Enforce applicantType based on the service variant / application type:
+  // If the variant is for an Individual (or Exam), applicantType MUST be "individual" so the form asks for First Name, Middle Name, Last Name, etc.
+  // If the variant is for a Company, applicantType MUST be "company".
+  useEffect(() => {
+    if (matchedVariant?.isIndividual === true || isExamService) {
+      if (activeApplicant.applicantType !== "individual") {
+        updateActiveApplicant({ applicantType: "individual" });
+      }
+    } else if (matchedVariant?.isIndividual === false) {
+      if (activeApplicant.applicantType !== "company") {
+        updateActiveApplicant({ applicantType: "company" });
+      }
+    }
+  }, [matchedVariant?.isIndividual, isExamService, activeApplicant.applicantType, updateActiveApplicant]);
 
   const renderBulkCohortBanner = () => {
     if (!isBulk) return null;
@@ -344,6 +360,7 @@ export function GeneralFilingDetailsStep({
         applicant={activeApplicant}
         onChange={(partial) => updateActiveApplicant(partial)}
         allowCompany={allowCompany}
+        allowIndividual={allowIndividual}
         isExamService={isExamService}
         includeSignature={false}
         errors={errors}
