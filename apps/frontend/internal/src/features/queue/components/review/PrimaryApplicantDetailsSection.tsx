@@ -11,6 +11,12 @@ interface PrimaryApplicantDetailsSectionProps {
   isEditingSection: boolean;
   emailDraft: string;
   setEmailDraft: (val: string) => void;
+  nameDraft?: string;
+  setNameDraft?: (val: string) => void;
+  contactDraft?: string;
+  setContactDraft?: (val: string) => void;
+  addressDraft?: string;
+  setAddressDraft?: (val: string) => void;
   editAction: React.ReactNode;
   onInspectApplicant?: (index: number) => void;
 }
@@ -21,6 +27,12 @@ export function PrimaryApplicantDetailsSection({
   isEditingSection,
   emailDraft,
   setEmailDraft,
+  nameDraft,
+  setNameDraft,
+  contactDraft,
+  setContactDraft,
+  addressDraft,
+  setAddressDraft,
   editAction,
   onInspectApplicant,
 }: PrimaryApplicantDetailsSectionProps) {
@@ -38,7 +50,13 @@ export function PrimaryApplicantDetailsSection({
           { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white },
         ]}
       >
-        <InfoRow label="Applicant Name:" value={app.applicant || "—"} />
+        <InfoRow
+          label="Applicant Name:"
+          value={app.applicant || "—"}
+          isEditing={!isCompanyApplication ? isEditingSection : false}
+          editValue={nameDraft ?? app.applicant ?? ""}
+          onEditChange={setNameDraft}
+        />
         <InfoRow label="Applicant Type:" value={app.applicantType || "Individual"} />
         <InfoRow
           label="Email Address:"
@@ -50,13 +68,17 @@ export function PrimaryApplicantDetailsSection({
         <InfoRow
           label="Contact Number:"
           value={app.contactDetails?.contactNumber || app.companyDetails?.contactNumber || "—"}
+          isEditing={!isCompanyApplication ? isEditingSection : false}
+          editValue={contactDraft ?? app.contactDetails?.contactNumber ?? ""}
+          onEditChange={setContactDraft}
         />
-        {app.address?.address || app.address?.streetAddress ? (
-          <InfoRow
-            label="Address:"
-            value={app.address?.address || app.address?.streetAddress || "—"}
-          />
-        ) : null}
+        <InfoRow
+          label="Address:"
+          value={app.address?.address || app.address?.streetAddress || "—"}
+          isEditing={!isCompanyApplication ? isEditingSection : false}
+          editValue={addressDraft ?? app.address?.address ?? app.address?.streetAddress ?? ""}
+          onEditChange={setAddressDraft}
+        />
         <Pressable
           style={{
             marginTop: SPACING[8],

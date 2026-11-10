@@ -28,4 +28,7 @@ public record AdminUpdateApplicantProfileCommand : IRequest<ApiResponse<Guid>>
     public string? CompanyAddress { get; init; }
     public string? CompanyContactNumber { get; init; }
     public string? CompanyEmail { get; init; }
+    public string? SchoolAttended { get; init; }
+    public string? CourseTaken { get; init; }
+    public string? YearGraduated { get; init; }
 }
