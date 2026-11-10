@@ -180,11 +180,18 @@ export function useServicesPage() {
     return (activeTab === "services" || activeTab === "service-requirements" || activeTab === "variant-elements") ? servicesSearch : "";
   }, [activeTab, servicesSearch]);
 
+  const shouldFetchServices =
+    activeTab === "services" ||
+    activeTab === "service-requirements" ||
+    activeTab === "variant-elements" ||
+    isServiceModalOpen;
+
   const { data: servicesResponse, error: svcErr, isLoading: loadingServices, mutate: mutSvc } = useServices(
     selectedCategoryId === "ALL" ? undefined : selectedCategoryId,
     activeTab === "services" ? servicesPage : 1,
     activeTab === "services" ? pageSize : 100,
-    servicesSearchTerm
+    servicesSearchTerm,
+    shouldFetchServices
   );
   const servicesRaw = servicesResponse?.data || [];
   const servicesTotalCount = servicesResponse?.totalCount || 0;
@@ -192,14 +199,21 @@ export function useServicesPage() {
   const { data: tenantsResponse } = useTenants(1, 50, undefined, isServiceModalOpen);
   const tenants = tenantsResponse?.data || [];
 
-  // Full list of variants for dialog lookups
+  // Full list of variants for dialog lookups and mapping tabs
+  const shouldFetchAllVariants =
+    activeTab === "service-requirements" ||
+    activeTab === "variant-elements" ||
+    activeTab === "variants" ||
+    isVariantModalOpen ||
+    isMappingFormOpen;
+
   const { data: allVariants = [], mutate: mutAllVariants } = useServiceVariants(
     1,
     9999,
     undefined,
     null,
     null,
-    true
+    shouldFetchAllVariants
   );
 
   // Paginated list of variants for the table

@@ -4,7 +4,10 @@ import { ApiResponse, Municipality, CreateMunicipalityCommand, UpdateMunicipalit
 export function useMunicipalityService() {
   const { useQuery, post, put, del } = useApi();
 
-  const useMunicipalities = (provinceId?: string | null, activeOnly?: boolean) => {
+  const useMunicipalities = (provinceId?: string | null, activeOnly?: boolean, enabled: boolean = true) => {
+    if (!enabled) {
+      return useQuery<ApiResponse<Municipality[]>>(null);
+    }
     const params = new URLSearchParams();
     if (provinceId) params.append('provinceId', provinceId);
     if (activeOnly !== undefined) params.append('activeOnly', String(activeOnly));
