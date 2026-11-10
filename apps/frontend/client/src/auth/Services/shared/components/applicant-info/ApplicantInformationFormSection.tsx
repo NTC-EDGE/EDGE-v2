@@ -12,6 +12,7 @@ export interface ApplicantInformationFormSectionProps {
   applicant: GeneralApplicantData;
   onChange: (fields: Partial<GeneralApplicantData>) => void;
   allowCompany?: boolean;
+  allowIndividual?: boolean;
   isExamService?: boolean;
   includeSignature?: boolean;
   errors?: Record<string, string>;
@@ -52,12 +53,23 @@ export function ApplicantInformationFormSection({
   applicant,
   onChange,
   allowCompany = true,
+  allowIndividual = true,
   isExamService = false,
   includeSignature = true,
   errors = {},
   title = "Applicant Details",
 }: ApplicantInformationFormSectionProps) {
-  const isCompany = applicant.applicantType === "company";
+  const effectiveAllowCompany = !isExamService && allowCompany;
+  const effectiveAllowIndividual = allowIndividual;
+  const isCompany = effectiveAllowCompany && (!effectiveAllowIndividual || applicant.applicantType === "company");
+
+  useEffect(() => {
+    if (!effectiveAllowCompany && applicant.applicantType === "company") {
+      onChange({ applicantType: "individual" });
+    } else if (!effectiveAllowIndividual && applicant.applicantType === "individual") {
+      onChange({ applicantType: "company" });
+    }
+  }, [effectiveAllowCompany, effectiveAllowIndividual, applicant.applicantType, onChange]);
 
   // Cascading Philippine Locations
   const [selectedRegionId, setSelectedRegionId] = useState<string | undefined>();
@@ -140,7 +152,7 @@ export function ApplicantInformationFormSection({
           </View>
         </View>
 
-        {allowCompany && (
+        {effectiveAllowCompany && effectiveAllowIndividual && (
           <View style={styles.toggleWrapper}>
             <TouchableOpacity
               style={[styles.toggleBtn, !isCompany && styles.toggleBtnActive]}

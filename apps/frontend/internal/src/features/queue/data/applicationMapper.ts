@@ -19,6 +19,8 @@ import {
   resolveCashierOfficer,
   resolveIssuingOfficer,
   resolveAssignedTo,
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
 } from './officerResolutionHelpers';
 import { buildAuditTrailList } from './auditTrailHelpers';
 
@@ -33,6 +35,8 @@ export {
   isCashierRole,
   isEvaluatorOrSupervisorRole,
   deriveQueueTab,
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
 };
 
 const GENERIC_NAMES = new Set([
@@ -425,10 +429,26 @@ export function mapApplicationDtoToUI(
       })[0]
     : undefined;
 
-  const accountingOfficer =
+  const hasAccountantClaim = hasExplicitAccountantClaim(histories);
+  const hasCashierClaim = hasExplicitCashierClaim(histories);
+
+  const evaluatingOfficer =
+    ('evaluatingOfficer' in dto && typeof dto.evaluatingOfficer === 'string' && dto.evaluatingOfficer.trim().length > 0)
+      ? dto.evaluatingOfficer.trim()
+      : resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
+
+  const rawAccountingOfficer =
     ('accountingOfficer' in dto && typeof dto.accountingOfficer === 'string' && dto.accountingOfficer.trim().length > 0)
       ? dto.accountingOfficer.trim()
       : resolveAccountingOfficer(reversedHistories);
+
+  const accountingOfficer =
+    !hasAccountantClaim &&
+    rawAccountingOfficer &&
+    evaluatingOfficer &&
+    rawAccountingOfficer.trim().toLowerCase() === evaluatingOfficer.trim().toLowerCase()
+      ? undefined
+      : rawAccountingOfficer;
 
   const cashierOfficer =
     ('cashierOfficer' in dto && typeof dto.cashierOfficer === 'string' && dto.cashierOfficer.trim().length > 0)
@@ -440,10 +460,6 @@ export function mapApplicationDtoToUI(
       ? dto.issuingOfficer.trim()
       : resolveIssuingOfficer(reversedHistories);
 
-  const evaluatingOfficer =
-    ('evaluatingOfficer' in dto && typeof dto.evaluatingOfficer === 'string' && dto.evaluatingOfficer.trim().length > 0)
-      ? dto.evaluatingOfficer.trim()
-      : resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
   const assignedTo = resolveAssignedTo(
     feStatus,
     evaluatingOfficer,
@@ -451,7 +467,9 @@ export function mapApplicationDtoToUI(
     cashierOfficer,
     issuingOfficer,
     endorsementState,
-    dto.office
+    dto.office,
+    hasAccountantClaim,
+    hasCashierClaim
   );
 
   const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
@@ -499,7 +517,26 @@ export function mapApplicationDtoToUI(
     queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role, {
       hasSoa: Boolean(activeSoa || (dto.statementsOfAccount && dto.statementsOfAccount.length > 0)),
       hasOp: Boolean(dto.ordersOfPayment && dto.ordersOfPayment.length > 0),
-      hasAccountantHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('accountant') || (h.action || '').toLowerCase().includes('accountant') || (h.remarks || '').toLowerCase().includes('accountant')),
+      hasAccountantHistory: histories.some((h) => {
+        const role = (h.staffRole || '').toLowerCase();
+        const act = (h.action || '').toLowerCase();
+        const rem = (h.remarks || '').toLowerCase();
+        if (
+          act.includes('forwarded to accountant') ||
+          act.includes('forward to accountant') ||
+          act.includes('status updated to foraccountant') ||
+          act.includes('approved & forwarded') ||
+          act.includes('order of payment initialized') ||
+          act.includes('assessment approved by evaluator') ||
+          rem.includes('forwarded to accountant') ||
+          rem.includes('endorsed for order of payment review') ||
+          role.includes('evaluat') ||
+          role.includes('engineer')
+        ) {
+          return false;
+        }
+        return role.includes('accountant') || act.includes('accountant') || rem.includes('accountant') || act.includes('financial review');
+      }),
       hasCashierHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('cashier') || (h.action || '').toLowerCase().includes('cashier') || (h.remarks || '').toLowerCase().includes('cashier')),
       remarks: dto.remarks ?? undefined,
       category: resolvedCategory,

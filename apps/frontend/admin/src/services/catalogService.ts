@@ -102,8 +102,12 @@ export function useCatalogService() {
     serviceCategoryId?: string,
     pageNumber: number = 1,
     pageSize: number = 10,
-    searchTerm: string = ''
+    searchTerm: string = '',
+    enabled: boolean = true
   ) => {
+    if (!enabled) {
+      return useQuery<PaginatedApiResponse<ServiceItem>>(null);
+    }
     const params = new URLSearchParams();
     if (serviceCategoryId) params.append('serviceCategoryId', serviceCategoryId);
     params.append('pageNumber', pageNumber.toString());

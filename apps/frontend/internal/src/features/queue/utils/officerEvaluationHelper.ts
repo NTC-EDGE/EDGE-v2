@@ -1,4 +1,8 @@
 import { ApplicationData, ApplicantItem, AuditTrailEntry } from "../../../types/application";
+import {
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
+} from "../data/officerResolutionHelpers";
 
 export interface AuthUserLike {
   id?: string | null;
@@ -123,29 +127,35 @@ export function computeOfficerEvaluationState(params: {
     isStageUnclaimed = true;
   } else if (statusLower === "evaluating" || statusLower === "returned") {
     currentStageOfficer = evaluatingOfficer || (!isGenericOfficer(application.assignedTo, application.office) ? application.assignedTo : undefined);
-    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
-      isStageUnclaimed = true;
-    } else if (isEvaluatedByMe) {
+    if (isEvaluatedByMe || matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;
+    } else if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+      isStageUnclaimed = true;
     } else {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "foraccountant") {
+    const hasAccountantClaim = hasExplicitAccountantClaim(application.history);
+
     const isAccountingByEvaluator = Boolean(
+      !hasAccountantClaim &&
       application.accountingOfficer &&
       application.evaluatingOfficer &&
       application.accountingOfficer.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
     );
     currentStageOfficer = isAccountingByEvaluator ? undefined : application.accountingOfficer;
-    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
-      isStageUnclaimed = true;
-    } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
+    if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;
+    } else if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+      isStageUnclaimed = true;
     } else {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "pendingpayment") {
+    const hasCashierClaim = hasExplicitCashierClaim(application.history);
+
     const isCashierByAccountant = Boolean(
+      !hasCashierClaim &&
       application.cashierOfficer &&
       application.accountingOfficer &&
       application.cashierOfficer.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
@@ -155,19 +165,19 @@ export function computeOfficerEvaluationState(params: {
       isStageClaimedByMe = true;
     } else if (isEndorsedAwayFromMe) {
       isStageClaimedByOther = true;
-    } else if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
-      isStageUnclaimed = true;
     } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;
+    } else if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+      isStageUnclaimed = true;
     } else {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "forissuance") {
     currentStageOfficer = application.issuingOfficer;
-    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
-      isStageUnclaimed = true;
-    } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
+    if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;
+    } else if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+      isStageUnclaimed = true;
     } else {
       isStageClaimedByOther = true;
     }

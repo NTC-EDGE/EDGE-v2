@@ -25,6 +25,10 @@ import {
   computeOfficerEvaluationState,
   isGenericOfficer,
 } from "../utils/officerEvaluationHelper";
+import {
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
+} from "../data/officerResolutionHelpers";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -189,22 +193,26 @@ export function ActivityCard({
     }
 
     if (st === "foraccountant") {
+      const hasAccountantClaim = hasExplicitAccountantClaim(application.history);
+
       const isAssignedEvaluator = Boolean(
+        !hasAccountantClaim &&
         application.assignedTo &&
         application.evaluatingOfficer &&
         application.assignedTo.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
       );
       const isAccountingEvaluator = Boolean(
+        !hasAccountantClaim &&
         application.accountingOfficer &&
         application.evaluatingOfficer &&
         application.accountingOfficer.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
       );
-      const validAccounting = isAccountingEvaluator ? undefined : application.accountingOfficer;
+      const validAccounting = isAccountingEvaluator ? undefined : (application.accountingOfficer || currentStageOfficer);
       const validAssigned = isAssignedEvaluator ? undefined : application.assignedTo;
 
       const name =
         validAccounting ||
-        (!isGenericOfficer(validAssigned, application.office)
+        (!isGenericOfficer(validAssigned, application.office) && hasAccountantClaim
           ? validAssigned
           : "Unassigned");
       return {
@@ -220,22 +228,26 @@ export function ActivityCard({
     }
 
     if (st === "pendingpayment") {
+      const hasCashierClaim = hasExplicitCashierClaim(application.history);
+
       const isAssignedAccountant = Boolean(
+        !hasCashierClaim &&
         application.assignedTo &&
         application.accountingOfficer &&
         application.assignedTo.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
       );
       const isCashierAccountant = Boolean(
+        !hasCashierClaim &&
         application.cashierOfficer &&
         application.accountingOfficer &&
         application.cashierOfficer.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
       );
-      const validCashier = isCashierAccountant ? undefined : application.cashierOfficer;
+      const validCashier = isCashierAccountant ? undefined : (application.cashierOfficer || currentStageOfficer);
       const validAssigned = isAssignedAccountant ? undefined : application.assignedTo;
 
       const name =
         validCashier ||
-        (!isGenericOfficer(validAssigned, application.office)
+        (!isGenericOfficer(validAssigned, application.office) && hasCashierClaim
           ? validAssigned
           : "Unassigned");
       return {

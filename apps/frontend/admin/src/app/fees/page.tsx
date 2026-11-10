@@ -184,14 +184,14 @@ function FeesNotesContent() {
     activeTab === "fees" ? currentPage : 1,
     activeTab === "fees" ? pageSize : 9999,
     activeTab === "fees" ? debouncedSearch : undefined,
-    activeTab === "fees" || activeTab === "service-fees" || isCreateOpen || isEditOpen
+    activeTab === "fees" || isCreateOpen || isEditOpen
   );
   const { groups: serviceFeeGroups = [], data: serviceFees = [], totalCount: serviceFeesTotalCount, mutate: mutateServiceFees, isLoading: loadingSFees, error: errorSFees } = useServiceFees(
     activeTab === "service-fees" && serviceFilter ? serviceFilter : undefined,
     activeTab === "service-fees" ? currentPage : 1,
     activeTab === "service-fees" ? pageSize : 9999,
     activeTab === "service-fees" ? debouncedSearch : undefined,
-    activeTab === "service-fees" || activeTab === "fees" || isCreateOpen || isEditOpen
+    activeTab === "service-fees" || isCreateOpen || isEditOpen
   );
   const { groups: serviceVariantFeeGroups = [], totalCount: serviceVariantFeesTotalCount, mutate: mutateServiceVariantFees, isLoading: loadingSVFees, error: errorSVFees } = useServiceVariantFees(
     undefined,
@@ -225,7 +225,9 @@ function FeesNotesContent() {
 
   const error = errorFees || errorSFees || errorSVFees || errorSVEFees;
 
-  const { data: services = [] } = useServices(true);
+  const { data: services = [] } = useServices(
+    activeTab !== "fees" || isCreateOpen || isEditOpen || manageDialog.open
+  );
 
   const invalidatePrefix = (prefix: string) => {
     globalMutate((key: unknown) => typeof key === "string" && key.startsWith(prefix));

@@ -255,9 +255,64 @@ export type ApplicationHistoryLike = {
   remarks?: string | null;
   staffName?: string | null;
   staffRole?: string | null;
+  role?: string | null;
   toStatus?: string | null;
-  timestamp: string;
+  status?: string | null;
+  timestamp?: string;
 };
+
+export type GenericHistoryEntry = ApplicationHistoryLike;
+
+/**
+ * Checks whether an explicit claim or official review action has been performed by an Accountant.
+ * Consolidates duplicated string checks across queue cards, mapper, and evaluation utilities.
+ */
+export function hasExplicitAccountantClaim(histories?: readonly GenericHistoryEntry[] | null): boolean {
+  if (!histories || histories.length === 0) return false;
+  return histories.some((h) => {
+    const act = (h.action || '').toLowerCase();
+    const rem = (h.remarks || '').toLowerCase();
+    const rol = (h.staffRole || h.role || '').toLowerCase();
+    const st = (h.toStatus || h.status || '').toLowerCase();
+
+    return (
+      rol.includes('accountant') ||
+      act.includes('financial review') ||
+      act.includes('soa approved by accountant') ||
+      act.includes('approved by accountant') ||
+      act.includes('returned by accountant') ||
+      (act.includes('take application') && (st === 'foraccountant' || act.includes('accountant'))) ||
+      rem.includes('financial review started') ||
+      rem.includes('approved by accountant') ||
+      rem.includes('returned by accountant')
+    );
+  });
+}
+
+/**
+ * Checks whether an explicit claim or official verification action has been performed by a Cashier.
+ * Consolidates duplicated string checks across queue cards, mapper, and evaluation utilities.
+ */
+export function hasExplicitCashierClaim(histories?: readonly GenericHistoryEntry[] | null): boolean {
+  if (!histories || histories.length === 0) return false;
+  return histories.some((h) => {
+    const act = (h.action || '').toLowerCase();
+    const rem = (h.remarks || '').toLowerCase();
+    const rol = (h.staffRole || h.role || '').toLowerCase();
+    const st = (h.toStatus || h.status || '').toLowerCase();
+
+    return (
+      rol.includes('cashier') ||
+      act.includes('payment verification') ||
+      act.includes('official receipt') ||
+      act.includes('or issued') ||
+      act.includes('returned by cashier') ||
+      (act.includes('take application') && (st === 'pendingpayment' || act.includes('cashier'))) ||
+      rem.includes('payment verification started') ||
+      rem.includes('payment verified')
+    );
+  });
+}
 
 export function resolveAccountingOfficer(reversedHistories: ApplicationHistoryLike[]): string | undefined {
   const match = reversedHistories.find((h) => {
@@ -273,7 +328,11 @@ export function resolveAccountingOfficer(reversedHistories: ApplicationHistoryLi
       actionLower.includes('re-submitted to accountant') ||
       actionLower.includes('resubmitted to accountant') ||
       actionLower.includes('approved & forwarded') ||
+      actionLower.includes('status updated to foraccountant') ||
+      actionLower.includes('order of payment initialized') ||
+      actionLower.includes('assessment approved by evaluator') ||
       remarksLower.includes('forwarded to accountant') ||
+      remarksLower.includes('endorsed for order of payment review') ||
       roleLower.includes('evaluat') ||
       roleLower.includes('engineer')
     ) {
@@ -443,7 +502,9 @@ export function resolveAssignedTo(
   cashierOfficer: string | undefined,
   issuingOfficer: string | undefined,
   endorsementState: EndorsementState,
-  office?: string
+  office?: string,
+  hasExplicitAccountantClaim = false,
+  hasExplicitCashierClaim = false
 ): string {
   if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
     return endorsementState.endorsedTo;
@@ -458,7 +519,7 @@ export function resolveAssignedTo(
     if (
       accountingOfficer &&
       !isGenericOfficer(accountingOfficer, office) &&
-      (!evaluatingOfficer || accountingOfficer.trim().toLowerCase() !== evaluatingOfficer.trim().toLowerCase())
+      (hasExplicitAccountantClaim || !evaluatingOfficer || accountingOfficer.trim().toLowerCase() !== evaluatingOfficer.trim().toLowerCase())
     ) {
       return accountingOfficer;
     }
@@ -468,7 +529,7 @@ export function resolveAssignedTo(
     if (
       cashierOfficer &&
       !isGenericOfficer(cashierOfficer, office) &&
-      (!accountingOfficer || cashierOfficer.trim().toLowerCase() !== accountingOfficer.trim().toLowerCase())
+      (hasExplicitCashierClaim || !accountingOfficer || cashierOfficer.trim().toLowerCase() !== accountingOfficer.trim().toLowerCase())
     ) {
       return cashierOfficer;
     }

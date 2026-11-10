@@ -1,5 +1,6 @@
-import { GeneralApplicantData, initialGeneralApplicant } from "../hooks/useGeneralServiceWizard";
+import { GeneralApplicantData, initialGeneralApplicant } from "../types/generalApplicantTypes";
 import { NTCService } from "../../data/servicesData";
+import { FormDto, FieldDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
 
 export interface ParsedRowResult {
   rowNumber: number;
@@ -45,7 +46,8 @@ export function parseCsvLine(line: string): string[] {
 
 export function parseSpreadsheetContent(
   csvContent: string,
-  service: NTCService
+  service: NTCService,
+  form?: FormDto | null
 ): CsvParseResult {
   const lines = csvContent
     .split(/\r\n|\n|\r/)
@@ -64,6 +66,60 @@ export function parseSpreadsheetContent(
 
   const rawHeaders = parseCsvLine(lines[0] || "");
   const headers = rawHeaders.map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+
+  const formFields: FieldDto[] = [];
+  if (form && Array.isArray(form.sections)) {
+    for (const sec of form.sections) {
+      const secFields = Array.isArray(sec.fields) ? sec.fields : [];
+      for (const f of secFields) {
+        if (typeof f.label === "string" && f.label.trim().length > 0) {
+          formFields.push(f);
+        }
+      }
+    }
+  }
+
+  interface HeaderFieldMapping {
+    colIndex: number;
+    field: FieldDto;
+    normalizedLabel: string;
+  }
+
+  const headerFieldMappings: HeaderFieldMapping[] = [];
+
+  for (const f of formFields) {
+    const normLabel = typeof f.label === "string" ? f.label.toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+    const normId = typeof f.fieldId === "string" ? f.fieldId.toLowerCase().replace(/[^a-z0-9]/g, "") : (typeof f.id === "string" ? f.id.toLowerCase().replace(/[^a-z0-9]/g, "") : "");
+
+    let foundIndex = -1;
+    for (let h = 0; h < headers.length; h++) {
+      const hNorm = headers[h];
+      if (!hNorm) continue;
+      if (hNorm === normLabel || (normId.length > 0 && hNorm === normId)) {
+        foundIndex = h;
+        break;
+      }
+    }
+
+    if (foundIndex === -1 && normLabel.length > 3) {
+      for (let h = 0; h < headers.length; h++) {
+        const hNorm = headers[h];
+        if (!hNorm || hNorm.length <= 3) continue;
+        if (normLabel.includes(hNorm) || hNorm.includes(normLabel)) {
+          foundIndex = h;
+          break;
+        }
+      }
+    }
+
+    if (foundIndex !== -1) {
+      headerFieldMappings.push({
+        colIndex: foundIndex,
+        field: f,
+        normalizedLabel: normLabel,
+      });
+    }
+  }
 
   const results: ParsedRowResult[] = [];
   const applicants: GeneralApplicantData[] = [];
@@ -162,7 +218,6 @@ export function parseSpreadsheetContent(
       if (!yearGraduated) remarks.push("Year Graduated is required.");
     }
 
-    const isValid = remarks.length === 0;
     const displayName = `${firstName} ${lastName}`.trim() || `Row ${i} Applicant`;
 
     // Parse date components
@@ -226,6 +281,74 @@ export function parseSpreadsheetContent(
       birthYear,
       notes: notes,
     };
+
+    // Extract dynamic fields configured in the Form Builder
+    const dynamicFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+
+    for (const mapping of headerFieldMappings) {
+      const cellRaw = cols[mapping.colIndex];
+      const cellVal = typeof cellRaw === "string" ? cellRaw.trim() : "";
+
+      const fieldId = typeof mapping.field.fieldId === "string" && mapping.field.fieldId.trim().length > 0
+        ? mapping.field.fieldId.trim()
+        : (typeof mapping.field.id === "string" && mapping.field.id.trim().length > 0 ? mapping.field.id.trim() : `field-${mapping.normalizedLabel}`);
+
+      const fieldLabel = typeof mapping.field.label === "string" && mapping.field.label.trim().length > 0
+        ? mapping.field.label.trim()
+        : mapping.normalizedLabel;
+
+      if (cellVal.length > 0) {
+        dynamicFieldValues.push({
+          fieldId,
+          fieldLabel,
+          value: cellVal,
+        });
+
+        // Bidirectional sync with standard applicant properties
+        const lblLower = fieldLabel.toLowerCase();
+        if (lblLower.includes("school") || lblLower.includes("university")) {
+          appObj.schoolName = cellVal;
+        } else if (lblLower.includes("course") || lblLower.includes("degree")) {
+          appObj.courseDegree = cellVal;
+        } else if (lblLower.includes("year") && lblLower.includes("grad")) {
+          appObj.yearGraduated = cellVal;
+        } else if (lblLower.includes("special order") || lblLower.includes("so no")) {
+          appObj.specialOrderNo = cellVal;
+        } else if (lblLower.includes("company name") || lblLower.includes("business name")) {
+          appObj.companyName = cellVal;
+        }
+      }
+
+      const isMandatory = mapping.field.isRequired === true;
+      if (isMandatory && cellVal.length === 0) {
+        remarks.push(`${fieldLabel} is required.`);
+      }
+    }
+
+    // Pre-fill educational fields into dynamicFieldValues if parsed from standard columns and not already added
+    if (appObj.schoolName && !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("school"))) {
+      dynamicFieldValues.push({
+        fieldId: "fd000000-0000-0000-0000-000000000061",
+        fieldLabel: "School / University Attended",
+        value: appObj.schoolName,
+      });
+    }
+    if (appObj.courseDegree && !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("course"))) {
+      dynamicFieldValues.push({
+        fieldId: "fd000000-0000-0000-0000-000000000062",
+        fieldLabel: "Course / Degree Program",
+        value: appObj.courseDegree,
+      });
+    }
+    if (appObj.yearGraduated && !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("graduated"))) {
+      dynamicFieldValues.push({
+        fieldId: "fd000000-0000-0000-0000-000000000063",
+        fieldLabel: "Year Graduated",
+        value: appObj.yearGraduated,
+      });
+    }
+
+    appObj.formFieldValues = dynamicFieldValues;
 
     // Populate Certificate Sub-objects if available
     if (appObj.radioCertData) {
@@ -306,6 +429,8 @@ export function parseSpreadsheetContent(
         appObj.vasData.valueAddedServices = vasSvcs.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
       }
     }
+
+    const isValid = remarks.length === 0;
 
     results.push({
       rowNumber: i,
