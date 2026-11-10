@@ -60,6 +60,7 @@ export function FormCanvas({
   selectedVariant,
   onSelectVariant,
   onResetFromBaseForm,
+  onRevertVariantToBase,
   customizedVariantNames = [],
 }: FormCanvasProps) {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -132,7 +133,17 @@ export function FormCanvas({
       <div className="flex-1 overflow-y-auto">
         <div className="w-full max-w-[1600px] mx-auto py-6 px-6 lg:px-10 min-h-full">
           <CanvasVersionBar form={form} onSwitchVersion={onSwitchVersion} onSetActive={onSetActive} onCreateNewVersion={onCreateNewVersion} onDeleteVersion={onDeleteVersion} />
-          <ServiceVariantToolbar variants={formVariants} selectedVariant={selectedVariant} onSelectVariant={onSelectVariant} onOpenLinkServiceModal={() => setIsLinkServiceModalOpen(true)} totalFieldsCount={baseFieldsCount} applicableFieldsCount={applicableFieldsCount} linkedServicesCount={effectiveLinkedServices.length} customizedVariantNames={customizedVariantNames} />
+          <ServiceVariantToolbar
+            variants={formVariants}
+            selectedVariant={selectedVariant}
+            onSelectVariant={onSelectVariant}
+            onOpenLinkServiceModal={() => setIsLinkServiceModalOpen(true)}
+            totalFieldsCount={baseFieldsCount}
+            applicableFieldsCount={applicableFieldsCount}
+            linkedServicesCount={effectiveLinkedServices.length}
+            customizedVariantNames={customizedVariantNames}
+            onRevertVariantToBase={onRevertVariantToBase}
+          />
           <CanvasSectionsControlBar sectionCount={sectionCount} totalFieldsCount={baseFieldsCount} applicableFieldsCount={applicableFieldsCount} selectedVariant={selectedVariant} hasSections={sectionGroups.length > 0} onCollapseAll={collapseAllSections} onExpandAll={expandAllSections} onOpenResetConfirm={() => setIsResetConfirmOpen(true)} onAddField={onAddField} canResetVariant={Boolean(onResetFromBaseForm)} />
           {form.fields.length === 0 ? (
             <CanvasEmptyFormState isDragOverCanvas={isDragOverCanvas} onDragOver={handleCanvasDragOver} onDragLeave={() => setIsDragOverCanvas(false)} onDrop={handleCanvasDrop} />

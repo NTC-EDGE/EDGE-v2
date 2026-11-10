@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
@@ -8,7 +8,7 @@ import { ApplicantInformationFormSection } from "./applicant-info/ApplicantInfor
 import { FormSignatureInput } from "../../../../shared/components/FormSignatureInput";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
-import { evaluateVisibilityCondition, FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { evaluateVisibilityCondition, FormEvaluationContext, parseOptions } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 import { initialCopyOfPermitData } from "../../permits";
 import { PERMIT_DETAILS_SERVICE_OPTIONS } from "../../../../shared/components/dynamic-form/dynamicFormConstants";
 
@@ -61,6 +61,33 @@ export function GeneralFilingDetailsStep({
     );
 
   const effectiveForm: FormDto | null = form && form.sections && form.sections.length > 0 ? form : null;
+
+  const { sexOptions, civilStatusOptions, suffixOptions } = useMemo(() => {
+    if (!effectiveForm?.sections) return { sexOptions: undefined, civilStatusOptions: undefined, suffixOptions: undefined };
+
+    let sOpts: Array<{ label: string; value: string }> | undefined;
+    let csOpts: Array<{ label: string; value: string }> | undefined;
+    let sufOpts: Array<{ label: string; value: string }> | undefined;
+
+    for (const sec of effectiveForm.sections) {
+      for (const f of sec.fields || []) {
+        const idLower = (f.fieldId || f.id || "").toLowerCase();
+        const lblLower = (f.label || "").toLowerCase();
+        const opts = parseOptions(f);
+        if (opts.length > 0) {
+          if (!sOpts && (idLower.includes("sex") || idLower.includes("gender") || lblLower === "sex" || lblLower === "gender")) {
+            sOpts = opts;
+          } else if (!csOpts && (idLower.includes("civilstatus") || idLower.includes("civil_status") || lblLower.includes("civil status"))) {
+            csOpts = opts;
+          } else if (!sufOpts && (idLower.includes("suffix") || lblLower.includes("suffix"))) {
+            sufOpts = opts;
+          }
+        }
+      }
+    }
+
+    return { sexOptions: sOpts, civilStatusOptions: csOpts, suffixOptions: sufOpts };
+  }, [effectiveForm]);
 
   const isBulk = appMode === "BULK" && applicants.length > 1;
 
@@ -365,6 +392,9 @@ export function GeneralFilingDetailsStep({
         includeSignature={false}
         errors={errors}
         title={isBulk ? `Applicant #${currentApplicantIndex + 1} Information` : "Applicant Details"}
+        sexOptions={sexOptions}
+        civilStatusOptions={civilStatusOptions}
+        suffixOptions={suffixOptions}
       />
 
       {/* 2. Dynamic Service Specifications Section (100% Schema-Driven from Form Builder) */}

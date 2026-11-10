@@ -1,8 +1,8 @@
 import { useCallback, MutableRefObject } from "react";
-import { FormSchema } from "../types";
+import { FormSchema, ServiceVariantToolbarItem } from "../types";
 import { convertBackendFormToSchema, convertSchemaToBackendSections, isRecord } from "../utils";
 import { ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
-import { useFormBuilderService } from "@/services/formBuilderService";
+import { useFormBuilderService, UpdateFormRequest } from "@/services/formBuilderService";
 
 export type PendingNavState =
   | { type: "list" }
@@ -33,16 +33,20 @@ export function useFormSaveAndNavigation(params: {
   originalFormRef: MutableRefObject<string | null>;
   formService: ReturnType<typeof useFormBuilderService>;
   mutate: () => Promise<unknown>;
-  executeSelectVariant: (variantName: string) => void;
+  executeSelectVariant: (variantName: string) => Promise<void> | void;
   executeSwitchVersion: (targetFormId: string) => Promise<void>;
   handleSetActive: (form: FormSchema) => Promise<void>;
+  selectedVariant?: string;
+  backendServiceVariants?: ServiceVariantToolbarItem[];
+  masterBaseForm?: FormSchema | null;
 }) {
   const {
     activeForm, setActiveForm, setMasterBaseForm, setSelectedFieldId, setIsDirty, setIsSaving,
     setIsSaveConfirmOpen, setIsUnsavedDialogOpen, pendingNav, setPendingNav, setView, setToast,
     originalFormRef, formService, mutate, executeSelectVariant, executeSwitchVersion, handleSetActive,
+    selectedVariant, backendServiceVariants, masterBaseForm,
   } = params;
-  const { getFormById, createForm, updateForm } = formService;
+  const { getFormById, createForm, updateForm, saveVariantForm } = formService;
 
   const persistFormToBackend = useCallback(
     async (formToSave: FormSchema): Promise<{ success: boolean; message: string; form: FormSchema }> => {
@@ -58,7 +62,60 @@ export function useFormSaveAndNavigation(params: {
         }
         const sections = convertSchemaToBackendSections(formToSave.fields);
         const resolvedKey = formToSave.key || (formToSave.serviceCode ? formToSave.serviceCode : undefined);
-        const payload = {
+
+        // Check if saving for a specific service variant
+        let targetVariantId: string | undefined = formToSave.serviceVariantId;
+        if (!targetVariantId && selectedVariant && selectedVariant !== "ALL") {
+          const matchedVariant = backendServiceVariants?.find(
+            (v) => v.name.toLowerCase().trim() === selectedVariant.toLowerCase().trim()
+          );
+          if (matchedVariant && matchedVariant.id && !matchedVariant.id.startsWith("var-")) {
+            targetVariantId = matchedVariant.id;
+          }
+        }
+
+        if (targetVariantId) {
+          const variantPayload: UpdateFormRequest = {
+            id: formToSave.id,
+            serviceId: formToSave.serviceId,
+            key: resolvedKey,
+            serviceVariantId: targetVariantId,
+            baseFormId: formToSave.baseFormId || masterBaseForm?.id || formToSave.id,
+            name: formToSave.name,
+            version: formToSave.version || "1.0",
+            isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
+            categorySelectionRequired: false,
+            sections,
+          };
+
+          const saveRes = await saveVariantForm(targetVariantId, variantPayload);
+          if (saveRes && saveRes.succeeded && saveRes.data) {
+            const freshSchema = convertBackendFormToSchema(saveRes.data);
+            current = {
+              ...freshSchema,
+              name: formToSave.name || freshSchema.name,
+              description: formToSave.description || freshSchema.description,
+              serviceName: formToSave.serviceName || freshSchema.serviceName,
+              serviceCode: formToSave.serviceCode || freshSchema.serviceCode,
+            };
+            setActiveForm(current);
+            await mutate();
+            return {
+              success: true,
+              message: saveRes.message || "Service variant form customized successfully.",
+              form: current,
+            };
+          }
+          return {
+            success: false,
+            message: saveRes?.message || "Failed to customize variant form.",
+            form: current,
+          };
+        }
+
+        // Base form save
+        const payload: UpdateFormRequest = {
+          id: formToSave.id,
           serviceId: formToSave.serviceId,
           key: resolvedKey,
           serviceVariantId: undefined,
@@ -71,7 +128,7 @@ export function useFormSaveAndNavigation(params: {
         };
 
         try {
-          const updateRes = await updateForm(formToSave.id, { id: formToSave.id, ...payload });
+          const updateRes = await updateForm(formToSave.id, payload);
           if (updateRes && updateRes.succeeded) {
             await mutate();
             setMasterBaseForm(current);
@@ -98,6 +155,7 @@ export function useFormSaveAndNavigation(params: {
             return { success: false, message: getErrorMessage(updateErr, "Failed to update form on backend."), form: current };
           }
         }
+
         return { success: true, message: "Form template saved successfully.", form: current };
       } catch (err: unknown) {
         return { success: false, message: getErrorMessage(err, "An error occurred while saving the form."), form: formToSave };
@@ -105,7 +163,18 @@ export function useFormSaveAndNavigation(params: {
         setIsSaving(false);
       }
     },
-    [updateForm, createForm, mutate, setActiveForm, setIsSaving, setMasterBaseForm]
+    [
+      updateForm,
+      createForm,
+      saveVariantForm,
+      mutate,
+      setActiveForm,
+      setIsSaving,
+      setMasterBaseForm,
+      selectedVariant,
+      backendServiceVariants,
+      masterBaseForm,
+    ]
   );
 
   const handleManualSave = async () => {

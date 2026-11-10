@@ -560,4 +560,59 @@ public class FormRepository : IFormRepository
             .ThenByDescending(f => f.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<Form?> GetActiveVariantFormAsync(Guid variantId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Forms
+            .IgnoreQueryFilters()
+            .Include(f => f.Service)
+            .Include(f => f.ServiceVariant)
+            .Include(f => f.BaseForm)
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
+                .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
+                    .ThenInclude(sf => sf.Field)
+            .Where(f => f.ServiceVariantId == variantId && !f.IsDeleted)
+            .OrderByDescending(f => f.IsActive)
+            .ThenByDescending(f => f.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> RevertVariantFormAsync(Guid variantId, CancellationToken cancellationToken = default)
+    {
+        var variantForms = await _context.Forms
+            .IgnoreQueryFilters()
+            .Where(f => f.ServiceVariantId == variantId && !f.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        if (variantForms.Count == 0) return true;
+
+        foreach (var form in variantForms)
+        {
+            form.IsDeleted = true;
+            form.IsActive = false;
+            form.LastModifiedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SetVariantFormActiveAsync(Guid variantId, bool isActive, CancellationToken cancellationToken = default)
+    {
+        var variantForms = await _context.Forms
+            .IgnoreQueryFilters()
+            .Where(f => f.ServiceVariantId == variantId && !f.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        if (variantForms.Count == 0) return false;
+
+        foreach (var form in variantForms)
+        {
+            form.IsActive = isActive;
+            form.LastModifiedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }

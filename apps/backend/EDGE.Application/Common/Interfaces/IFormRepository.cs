@@ -35,4 +35,7 @@ public interface IFormRepository
         CancellationToken cancellationToken = default);
     Task<Form?> SetFormActiveAsync(Guid formId, CancellationToken cancellationToken = default);
     Task<List<Form>> GetVersionsByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default);
+    Task<Form?> GetActiveVariantFormAsync(Guid variantId, CancellationToken cancellationToken = default);
+    Task<bool> RevertVariantFormAsync(Guid variantId, CancellationToken cancellationToken = default);
+    Task<bool> SetVariantFormActiveAsync(Guid variantId, bool isActive, CancellationToken cancellationToken = default);
 }

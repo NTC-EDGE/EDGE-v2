@@ -43,14 +43,30 @@ public static class FastTrackFormSeeder
             {
                 context.Fields.Add(f);
             }
-            else if (existing.Label != f.Label || existing.FieldType != f.FieldType || existing.ValidationRules != f.ValidationRules || existing.SyncBackOnSubmit != f.SyncBackOnSubmit || existing.IsDeleted)
+            else
             {
-                existing.IsDeleted = false;
-                existing.IsDeletedBy = string.Empty;
-                existing.Label = f.Label;
-                existing.FieldType = f.FieldType;
-                existing.ValidationRules = f.ValidationRules;
-                existing.SyncBackOnSubmit = f.SyncBackOnSubmit;
+                if (existing.IsDeleted)
+                {
+                    existing.IsDeleted = false;
+                    existing.IsDeletedBy = string.Empty;
+                }
+
+                // Preserve custom dropdown options and validation rules set by admin in Form Builder.
+                // Only seed default validation rules if the field currently has none.
+                if (string.IsNullOrWhiteSpace(existing.ValidationRules) || existing.ValidationRules == "{}" || existing.ValidationRules == "[]")
+                {
+                    existing.ValidationRules = f.ValidationRules;
+                }
+
+                if (string.IsNullOrWhiteSpace(existing.Label))
+                {
+                    existing.Label = f.Label;
+                }
+
+                if (string.IsNullOrWhiteSpace(existing.FieldType))
+                {
+                    existing.FieldType = f.FieldType;
+                }
             }
         }
         await context.SaveChangesAsync();
@@ -81,85 +97,6 @@ public static class FastTrackFormSeeder
             logger?.LogInformation("Self-healing: Cleaned up {Count} duplicate FormSection entries across existing forms.", totalRemoved);
         }
 
-        // 2b. Purge any legacy entity-backed sections (Personal Information, Declaration, and Payment)
-        // These are managed directly on first-class domain entities (Applicant, Application, OrderOfPayment, StatementOfAccount)
-        // and must never exist as dynamic FormSections in Form Builders.
-        var forbiddenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "applicant",
-            "applicantPerson",
-            "applicantAddress",
-            "applicantContact",
-            "applicantEducation",
-            "applicantParticulars",
-            "applicant_information",
-            "applicantInfo",
-            "personalInfo",
-            "personal_information",
-            "complainant",
-            "typeOfCertificate",
-            "permitType",
-            "typeOfApplication",
-            "applicationType",
-            "declaration",
-            "declarationAndUndertaking",
-            "declaration_section",
-            "payment",
-            "paymentDetails",
-            "fees",
-            "accounting",
-            "cashier",
-            "deviceParticulars",
-            "serviceProvider",
-            "incidentParticulars",
-            "natureOfComplaint",
-            "details",
-            "respondentParticulars",
-            "complaintParticulars",
-            "broadcastParticulars",
-            "assistanceRequest",
-            "bsd",
-            "vasRegistration"
-        };
-
-        var allSectionsForCleanup = await context.FormSections.IgnoreQueryFilters().ToListAsync();
-        var forbiddenSections = allSectionsForCleanup
-            .Where(s =>
-                forbiddenKeys.Contains((s.Key ?? string.Empty).Trim()) ||
-                (!string.IsNullOrWhiteSpace(s.Title) && (
-                    s.Title.Contains("Applicant", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Personal Information", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Address Information", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Contact Information", StringComparison.OrdinalIgnoreCase) ||
-                    false ||
-                    s.Title.Contains("Complainant", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Declaration", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Acknowledgement and Signature", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Payment", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Fee", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Accounting", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Cashier", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Type of Application", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Type of Certificate", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Permit Category", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Special Needs Assistance", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Broadcast Services Division", StringComparison.OrdinalIgnoreCase)
-                ))
-            )
-            .ToList();
-
-        if (forbiddenSections.Count > 0)
-        {
-            var forbiddenSecIds = forbiddenSections.Select(s => s.Id).ToList();
-            var forbiddenSecFields = await context.SectionFields
-                .Where(sf => forbiddenSecIds.Contains(sf.FormSectionId))
-                .ToListAsync();
-            if (forbiddenSecFields.Count > 0) context.SectionFields.RemoveRange(forbiddenSecFields);
-            context.FormSections.RemoveRange(forbiddenSections);
-            await context.SaveChangesAsync();
-            logger?.LogInformation("Form Seeder: Cleaned up {Count} legacy entity-backed sections (Personal Info, Declaration, Payment) from FormSections.", forbiddenSections.Count);
-        }
-
         // 3. Seed Form Builders & Sections per Service
         var services = new Dictionary<string, Service>();
         var formDefs = FastTrackSeederData.GetAllFormDefs();
@@ -176,11 +113,11 @@ public static class FastTrackFormSeeder
             );
         }
 
-        // 4. Purge any non-canonical redundant forms that are no longer part of the canonical form set
+        // 4. Purge any non-canonical redundant forms (strictly excluding variant and customized forms)
         var canonicalFormIds = formDefs.Select(f => f.FormId).ToHashSet();
         var obsoleteForms = await context.Forms
             .IgnoreQueryFilters()
-            .Where(f => !canonicalFormIds.Contains(f.Id))
+            .Where(f => !canonicalFormIds.Contains(f.Id) && f.ServiceVariantId == null && f.BaseFormId == null && (f.IsDeleted || string.IsNullOrWhiteSpace(f.Name)))
             .ToListAsync();
 
         if (obsoleteForms.Count > 0)
@@ -223,11 +160,11 @@ public static class FastTrackFormSeeder
 
         var existingForms = await context.Forms
             .IgnoreQueryFilters()
-            .Where(f => f.ServiceId == service.Id || f.Id == formId)
+            .Where(f => (f.ServiceId == service.Id && f.ServiceVariantId == null && f.BaseFormId == null) || f.Id == formId)
             .ToListAsync();
 
         var targetForm = existingForms.FirstOrDefault(f => f.Id == formId)
-                      ?? existingForms.FirstOrDefault(f => f.ServiceId == service.Id);
+                      ?? existingForms.FirstOrDefault(f => f.ServiceId == service.Id && f.ServiceVariantId == null && f.BaseFormId == null);
 
         var resolvedFormName = CanonicalFormDisplayNames.TryGetValue(serviceKey, out var displayName)
             ? displayName
@@ -257,7 +194,9 @@ public static class FastTrackFormSeeder
             if (string.IsNullOrWhiteSpace(targetForm.Key)) targetForm.Key = serviceKey;
             targetForm.IsActive = true;
 
-            var redundantForms = existingForms.Where(f => f.Id != targetForm.Id).ToList();
+            var redundantForms = existingForms
+                .Where(f => f.Id != targetForm.Id && f.ServiceVariantId == null && f.BaseFormId == null)
+                .ToList();
             if (redundantForms.Count > 0)
             {
                 var redundantFormIds = redundantForms.Select(f => f.Id).ToList();

@@ -17,6 +17,9 @@ export interface ApplicantInformationFormSectionProps {
   includeSignature?: boolean;
   errors?: Record<string, string>;
   title?: string;
+  sexOptions?: Array<{ label: string; value: string }>;
+  civilStatusOptions?: Array<{ label: string; value: string }>;
+  suffixOptions?: Array<{ label: string; value: string }>;
 }
 
 const SUFFIX_OPTIONS = [
@@ -58,10 +61,20 @@ export function ApplicantInformationFormSection({
   includeSignature = true,
   errors = {},
   title = "Applicant Details",
+  sexOptions,
+  civilStatusOptions,
+  suffixOptions,
 }: ApplicantInformationFormSectionProps) {
   const effectiveAllowCompany = !isExamService && allowCompany;
   const effectiveAllowIndividual = allowIndividual;
   const isCompany = effectiveAllowCompany && (!effectiveAllowIndividual || applicant.applicantType === "company");
+
+  const effectiveSexOptions =
+    sexOptions && sexOptions.length > 0 ? sexOptions : SEX_OPTIONS;
+  const effectiveCivilStatusOptions =
+    civilStatusOptions && civilStatusOptions.length > 0 ? civilStatusOptions : CIVIL_STATUS_OPTIONS;
+  const effectiveSuffixOptions =
+    suffixOptions && suffixOptions.length > 0 ? suffixOptions : SUFFIX_OPTIONS;
 
   useEffect(() => {
     if (!effectiveAllowCompany && applicant.applicantType === "company") {
@@ -246,7 +259,7 @@ export function ApplicantInformationFormSection({
               <FormCol span={3}>
                 <Select
                   label="Suffix"
-                  options={SUFFIX_OPTIONS}
+                  options={effectiveSuffixOptions}
                   value={applicant.representativeSuffix || ""}
                   onValueChange={(val) => {
                     const fullName = [applicant.representativeFirstName, applicant.representativeMiddleName, applicant.representativeLastName, val].filter(Boolean).join(" ");
@@ -301,7 +314,7 @@ export function ApplicantInformationFormSection({
           <FormCol span={3}>
             <Select
               label="Suffix"
-              options={SUFFIX_OPTIONS}
+              options={effectiveSuffixOptions}
               value={applicant.suffix || ""}
               onValueChange={(val) => onChange({ suffix: val })}
             />
@@ -342,7 +355,7 @@ export function ApplicantInformationFormSection({
             <Select
               label="Sex"
               required
-              options={SEX_OPTIONS}
+              options={effectiveSexOptions}
               value={applicant.sex || ""}
               onValueChange={(val) => onChange({ sex: val })}
               error={errors["sex"]}
@@ -352,7 +365,7 @@ export function ApplicantInformationFormSection({
             <Select
               label="Civil Status"
               required
-              options={CIVIL_STATUS_OPTIONS}
+              options={effectiveCivilStatusOptions}
               value={applicant.civilStatus || ""}
               onValueChange={(val) => onChange({ civilStatus: val })}
               error={errors["civilStatus"]}
