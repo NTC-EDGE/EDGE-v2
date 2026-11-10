@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Text,
   View,
@@ -27,6 +27,7 @@ import {
   downloadCsvFile,
   parseSpreadsheetContent,
 } from "./spreadsheet";
+import { useServiceForm } from "./hooks/useServiceForm";
 
 interface GeneralBulkApplicantsPanelProps {
   applicants: GeneralApplicantData[];
@@ -79,7 +80,8 @@ export function GeneralBulkApplicantsPanel({
   const completeCount = applicants.filter((app) => isGeneralApplicantComplete(app, service, variantRequirements)).length;
   const pendingCount = applicants.length - completeCount;
 
-  const templateConfig = getSpreadsheetTemplateForService(service);
+  const { form } = useServiceForm(service?.id);
+  const templateConfig = useMemo(() => getSpreadsheetTemplateForService(service, form), [service, form]);
 
   const handleDownloadTemplate = () => {
     const csvContent = generateCsvContent(templateConfig);
@@ -117,7 +119,7 @@ export function GeneralBulkApplicantsPanel({
       }
 
       if (fileText && fileText.trim().length > 0) {
-        const parseResult = parseSpreadsheetContent(fileText, service);
+        const parseResult = parseSpreadsheetContent(fileText, service, form);
         if (parseResult.totalRows === 0) {
           toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the template.");
           return;

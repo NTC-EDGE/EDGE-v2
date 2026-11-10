@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { Icon } from "@edge/ui";
@@ -9,6 +9,7 @@ import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
 import { getSpreadsheetTemplateForService, generateCsvContent } from "./spreadsheetTemplates";
 import { downloadCsvFile } from "./fileDownloadHelper";
 import { parseSpreadsheetContent, CsvParseResult } from "./csvParser";
+import { useServiceForm } from "../hooks/useServiceForm";
 
 interface BulkSpreadsheetImportSectionProps {
   service: NTCService;
@@ -39,7 +40,8 @@ export function BulkSpreadsheetImportSection({
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [parseResult, setParseResult] = useState<CsvParseResult | null>(null);
 
-  const templateConfig = getSpreadsheetTemplateForService(service);
+  const { form } = useServiceForm(service?.id);
+  const templateConfig = useMemo(() => getSpreadsheetTemplateForService(service, form), [service, form]);
   const toast = useToast();
 
   // ── Download Template Handler ───────────────────────────────────────────────
@@ -92,7 +94,7 @@ export function BulkSpreadsheetImportSection({
         return;
       }
 
-      const result = parseSpreadsheetContent(fileText, service);
+      const result = parseSpreadsheetContent(fileText, service, form);
       if (result.totalRows === 0) {
         toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the official template.");
         setLoading(false);

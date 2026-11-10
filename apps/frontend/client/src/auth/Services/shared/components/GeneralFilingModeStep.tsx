@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { View, Text, TouchableOpacity, Alert, Platform, ActivityIndicator } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
@@ -17,6 +17,7 @@ import {
   downloadCsvFile,
   parseSpreadsheetContent,
 } from "../spreadsheet";
+import { useServiceForm } from "../hooks/useServiceForm";
 
 export interface ServiceVariantItem {
   id: string;
@@ -176,7 +177,8 @@ export function GeneralFilingModeStep({
 
   const selectedClassId = selectedElementId || localSelectedClassId;
 
-  const templateConfig = getSpreadsheetTemplateForService(service);
+  const { form } = useServiceForm(service?.id, selectedVariantId);
+  const templateConfig = useMemo(() => getSpreadsheetTemplateForService(service, form), [service, form]);
 
   const displayVariants: ServiceVariantItem[] =
     variants.length > 0
@@ -405,7 +407,7 @@ export function GeneralFilingModeStep({
       }
 
       if (fileText && fileText.trim().length > 0) {
-        const parseResult = parseSpreadsheetContent(fileText, service);
+        const parseResult = parseSpreadsheetContent(fileText, service, form);
         if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }

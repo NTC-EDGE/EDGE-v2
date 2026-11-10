@@ -1,4 +1,6 @@
 import { NTCService } from "../../data/servicesData";
+import { FormDto, FieldDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
+import { parseOptions } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 export interface SpreadsheetTemplateConfig {
   filename: string;
@@ -7,7 +9,250 @@ export interface SpreadsheetTemplateConfig {
   description: string;
 }
 
-export function getSpreadsheetTemplateForService(service: NTCService): SpreadsheetTemplateConfig {
+function generateSampleValueForField(field: FieldDto, rowIndex: number): string {
+  const lbl = typeof field.label === "string" ? field.label.toLowerCase() : "";
+  const fType = typeof field.type === "string" ? field.type.toLowerCase() : "";
+
+  // If select or radio with options, pick one of the options
+  if (Array.isArray(field.options) && field.options.length > 0) {
+    const parsed = parseOptions(field);
+    if (parsed.length > 0) {
+      const opt = parsed[rowIndex % parsed.length];
+      if (opt && typeof opt.label === "string" && opt.label.length > 0) {
+        return opt.label;
+      }
+    }
+  }
+
+  if (fType === "date") {
+    return rowIndex === 0 ? "2026-12-31" : "2027-06-30";
+  }
+  if (fType === "number" || fType === "integer") {
+    return rowIndex === 0 ? "1" : "2";
+  }
+  if (fType === "email") {
+    return rowIndex === 0 ? "engineer1@example.ph" : "technician2@example.ph";
+  }
+  if (fType === "tel" || fType === "phone" || lbl.includes("contact") || lbl.includes("mobile") || lbl.includes("phone")) {
+    return rowIndex === 0 ? "09171234567" : "09189876543";
+  }
+  if (fType === "checkbox" || fType === "boolean") {
+    return rowIndex === 0 ? "Yes" : "No";
+  }
+
+  // Smart label keyword matching
+  if (lbl.includes("engineer") || lbl.includes("supervisor")) {
+    return rowIndex === 0 ? "Engr. Roberto Dela Cruz" : "Engr. Maria Santos";
+  }
+  if (lbl.includes("technician")) {
+    return rowIndex === 0 ? "Juan Santos" : "Pedro Reyes";
+  }
+  if (lbl.includes("ece") || (lbl.includes("license") && lbl.includes("no"))) {
+    return rowIndex === 0 ? "PECE-0012948" : "PECE-0044912";
+  }
+  if (lbl.includes("call sign") || lbl.includes("callsign")) {
+    return rowIndex === 0 ? "DX1ABC" : "DW1XYZ";
+  }
+  if (lbl.includes("power") || lbl.includes("watt")) {
+    return rowIndex === 0 ? "100W" : "50W";
+  }
+  if (lbl.includes("school") || lbl.includes("university")) {
+    return rowIndex === 0 ? "University of the Philippines" : "Polytechnic University of the Philippines";
+  }
+  if (lbl.includes("course") || lbl.includes("degree")) {
+    return rowIndex === 0 ? "BS Electronics Engineering" : "BS Information Technology";
+  }
+  if (lbl.includes("graduat")) {
+    return rowIndex === 0 ? "2022" : "2020";
+  }
+  if (lbl.includes("special order") || lbl.includes("so no")) {
+    return rowIndex === 0 ? "SO-2022-00412" : "SO-2020-00891";
+  }
+  if (lbl.includes("vessel") || lbl.includes("ship")) {
+    return rowIndex === 0 ? "MV Emerald Sea" : "MV Pacific Star";
+  }
+  if (lbl.includes("serial")) {
+    return rowIndex === 0 ? "SN-849201" : "SN-849202";
+  }
+  if (lbl.includes("model")) {
+    return rowIndex === 0 ? "TX-5000" : "RX-200";
+  }
+  if (lbl.includes("brand") || lbl.includes("manufacturer")) {
+    return rowIndex === 0 ? "Motorola" : "Icom";
+  }
+  if (lbl.includes("frequency")) {
+    return rowIndex === 0 ? "144.000 MHz" : "430.000 MHz";
+  }
+  if (lbl.includes("year")) {
+    return rowIndex === 0 ? "1" : "3";
+  }
+
+  const baseLabel = typeof field.label === "string" && field.label.trim().length > 0 ? field.label.trim() : "Field";
+  return rowIndex === 0 ? `Sample ${baseLabel}` : `Example ${baseLabel}`;
+}
+
+export function buildDynamicSpreadsheetTemplate(
+  service: NTCService,
+  form: FormDto
+): SpreadsheetTemplateConfig | null {
+  if (!Array.isArray(form.sections) || form.sections.length === 0) {
+    return null;
+  }
+
+  const excludedTypes = new Set([
+    "file",
+    "upload",
+    "attachment",
+    "document",
+    "signature",
+    "header",
+    "divider",
+    "button",
+    "label_only",
+    "static_text",
+  ]);
+
+  const sortedSections = [...form.sections].sort(
+    (a, b) => (typeof a.orderIndex === "number" ? a.orderIndex : 0) - (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+  );
+
+  const dynamicFields: FieldDto[] = [];
+  const seenDynamicLabels = new Set<string>();
+
+  for (const sec of sortedSections) {
+    const secKey = typeof sec.key === "string" ? sec.key.toLowerCase() : "";
+    const secTitle = typeof sec.title === "string" ? sec.title.toLowerCase() : "";
+    if (
+      secKey.includes("upload") ||
+      secKey.includes("document") ||
+      secKey.includes("file") ||
+      secKey.includes("signature") ||
+      secTitle.includes("upload") ||
+      secTitle.includes("document") ||
+      secTitle.includes("signature")
+    ) {
+      continue;
+    }
+
+    const fields = Array.isArray(sec.fields) ? sec.fields : [];
+    const sortedFields = [...fields].sort(
+      (a, b) => (typeof a.orderIndex === "number" ? a.orderIndex : 0) - (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+    );
+
+    for (const f of sortedFields) {
+      const fType = typeof f.type === "string" ? f.type.toLowerCase().trim() : "";
+      if (excludedTypes.has(fType)) continue;
+
+      const fLabel = typeof f.label === "string" ? f.label.trim() : "";
+      if (fLabel.length === 0) continue;
+
+      const norm = fLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (!seenDynamicLabels.has(norm)) {
+        seenDynamicLabels.add(norm);
+        dynamicFields.push(f);
+      }
+    }
+  }
+
+  if (dynamicFields.length === 0) {
+    return null;
+  }
+
+  const code = typeof service.code === "string" ? service.code.toUpperCase() : "";
+  const title = typeof service.title === "string" ? service.title.toUpperCase() : "";
+  const cat = typeof service.category === "string" ? service.category.toUpperCase() : "";
+
+  const isCorporateService =
+    code === "NTC_1_18" ||
+    title.includes("CUSTOMER PREMISES") ||
+    title.includes("ACCREDITATION") ||
+    title.includes("VALUE-ADDED") ||
+    title.includes("VAS") ||
+    title.includes("DEALER") ||
+    title.includes("MANUFACTURER") ||
+    cat.includes("ACCREDIT");
+
+  const baseCols: Array<{ header: string; sample1: string; sample2: string }> = isCorporateService
+    ? [
+        { header: "Business Name", sample1: "Acme Communications Corp.", sample2: "Metro Radio Supplies" },
+        { header: "Entity Type", sample1: "Corporation", sample2: "Single Proprietorship" },
+        { header: "DTI/SEC No", sample1: "SEC-CS202100982", sample2: "DTI-0981284" },
+        { header: "Contact Number", sample1: "09171234567", sample2: "09189876543" },
+        { header: "Email", sample1: "regulatory@acme.ph", sample2: "sales@metroradio.ph" },
+        { header: "Province", sample1: "Metro Manila", sample2: "Cebu" },
+        { header: "City", sample1: "Quezon City", sample2: "Cebu City" },
+        { header: "Barangay", sample1: "Diliman", sample2: "Mabolo" },
+        { header: "Street", sample1: "Commonwealth Ave", sample2: "MJ Cuenco Ave" },
+        { header: "Zip Code", sample1: "1101", sample2: "6000" },
+        { header: "Authorized Representative", sample1: "Juan Dela Cruz", sample2: "Maria Santos" },
+        { header: "Representative Position", sample1: "Managing Director", sample2: "General Manager" },
+      ]
+    : [
+        { header: "First Name", sample1: "Juan", sample2: "Maria" },
+        { header: "Middle Name", sample1: "Reyes", sample2: "Santos" },
+        { header: "Last Name", sample1: "Dela Cruz", sample2: "Aquino" },
+        { header: "Suffix", sample1: "", sample2: "Jr." },
+        { header: "Date of Birth", sample1: "1995-05-12", sample2: "1998-11-20" },
+        { header: "Sex", sample1: "Male", sample2: "Female" },
+        { header: "Nationality", sample1: "Filipino", sample2: "Filipino" },
+        { header: "Contact Number", sample1: "09171234567", sample2: "09189876543" },
+        { header: "Email", sample1: "juan.delacruz@example.ph", sample2: "maria.aquino@example.ph" },
+        { header: "Province", sample1: "Metro Manila", sample2: "Cebu" },
+        { header: "City", sample1: "Quezon City", sample2: "Cebu City" },
+        { header: "Barangay", sample1: "Diliman", sample2: "Mabolo" },
+        { header: "Street", sample1: "Commonwealth Ave", sample2: "MJ Cuenco Ave" },
+        { header: "Zip Code", sample1: "1101", sample2: "6000" },
+      ];
+
+  const headers: string[] = [];
+  const sampleRow1: string[] = [];
+  const sampleRow2: string[] = [];
+  const seenHeaderSlugs = new Set<string>();
+
+  for (const base of baseCols) {
+    const slug = base.header.toLowerCase().replace(/[^a-z0-9]/g, "");
+    headers.push(base.header);
+    sampleRow1.push(base.sample1);
+    sampleRow2.push(base.sample2);
+    seenHeaderSlugs.add(slug);
+  }
+
+  for (const f of dynamicFields) {
+    const rawLabel = typeof f.label === "string" ? f.label.trim() : "";
+    const slug = rawLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    if (seenHeaderSlugs.has(slug)) {
+      continue;
+    }
+
+    seenHeaderSlugs.add(slug);
+    headers.push(rawLabel);
+    sampleRow1.push(generateSampleValueForField(f, 0));
+    sampleRow2.push(generateSampleValueForField(f, 1));
+  }
+
+  const rawFilename = (code || title || "NTC_Service").replace(/[^a-zA-Z0-9_-]/g, "_");
+  const filename = `${rawFilename}_Bulk_Template.csv`;
+
+  return {
+    filename,
+    headers,
+    sampleRows: [sampleRow1, sampleRow2],
+    description: `Official batch filing template for ${service.title || "NTC Service"} generated dynamically from configured Form Builder fields.`,
+  };
+}
+
+export function getSpreadsheetTemplateForService(
+  service: NTCService,
+  form?: FormDto | null
+): SpreadsheetTemplateConfig {
+  if (form && Array.isArray(form.sections) && form.sections.length > 0) {
+    const dynamicTemplate = buildDynamicSpreadsheetTemplate(service, form);
+    if (dynamicTemplate) {
+      return dynamicTemplate;
+    }
+  }
+
   const code = (service.code || "").toUpperCase();
   const title = (service.title || "").toUpperCase();
 
