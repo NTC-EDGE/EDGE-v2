@@ -32,6 +32,7 @@ export function Services() {
     setViewingDraftsCategory,
     saveActiveAsDraft,
     deleteDraft,
+    deleteDrafts,
     isSavingDraft,
     draftErrorMessage,
     setDraftErrorMessage,
@@ -166,6 +167,7 @@ export function Services() {
         drafts={drafts}
         loadDraft={loadDraft}
         deleteDraft={deleteDraft}
+        deleteDrafts={deleteDrafts}
         backendCategories={backendCategories}
       />
     </ClientAppLayout>

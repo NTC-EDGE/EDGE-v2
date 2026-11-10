@@ -420,6 +420,28 @@ export function useServices() {
     }
   };
 
+  const deleteDrafts = async (draftIds: string[]): Promise<boolean> => {
+    if (!draftIds.length) return true;
+    try {
+      try {
+        await api.post(`/api/v2/applications/me/drafts/batch-delete`, { ids: draftIds });
+      } catch {
+        // Fallback to parallel single deletion
+        await Promise.all(draftIds.map((id) => api.del(`/api/v2/applications/me/drafts/${id}`)));
+      }
+      toast.success(
+        "Drafts Deleted",
+        `${draftIds.length} ${draftIds.length === 1 ? "draft has" : "drafts have"} been permanently removed.`
+      );
+      await refetchDrafts();
+      await refetchCategories();
+      return true;
+    } catch (err: unknown) {
+      toast.error("Failed to Delete Drafts", extractApiErrorMessage(err));
+      return false;
+    }
+  };
+
   const removeActiveDraftOnSubmit = async () => {
     if (activeDraftId) {
       setActiveDraftId(null);
@@ -1214,6 +1236,7 @@ export function useServices() {
     resetWizardState,
     saveActiveAsDraft,
     deleteDraft,
+    deleteDrafts,
     isSavingDraft,
     setIsSavingDraft,
     draftErrorMessage,
