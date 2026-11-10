@@ -245,9 +245,6 @@ export function ApplicantRecordTab({
                   companyContactNumber: isCompanyRecord ? (activeApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber) : undefined,
                   representativeName: isCompanyRecord ? app.filingUser?.name : undefined,
                   notes: activeApplicant.evaluationRemarks,
-                  schoolAttended: activeApplicant.schoolAttended,
-                  courseTaken: activeApplicant.courseTaken,
-                  yearGraduated: activeApplicant.yearGraduated,
                 }}
               />
             );

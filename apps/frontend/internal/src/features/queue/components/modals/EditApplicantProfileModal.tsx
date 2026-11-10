@@ -59,9 +59,6 @@ export function EditApplicantProfileModal({
   const [sex, setSex] = useState("");
   const [civilStatus, setCivilStatus] = useState("");
   const [nationality, setNationality] = useState("");
-  const [schoolAttended, setSchoolAttended] = useState("");
-  const [courseTaken, setCourseTaken] = useState("");
-  const [yearGraduated, setYearGraduated] = useState("");
 
   // Company fields
   const [companyName, setCompanyName] = useState("");
@@ -92,9 +89,6 @@ export function EditApplicantProfileModal({
       setSex(basic?.sex ?? "");
       setCivilStatus(basic?.civilStatus ?? "");
       setNationality(basic?.nationality ?? "Filipino");
-      setSchoolAttended(applicant.schoolAttended ?? "");
-      setCourseTaken(applicant.courseTaken ?? "");
-      setYearGraduated(applicant.yearGraduated ?? "");
 
       const comp = applicant.companyDetails;
       setCompanyName(comp?.name ?? "");
@@ -126,9 +120,6 @@ export function EditApplicantProfileModal({
       dob: dob.trim() || undefined,
       sex: sex.trim() || undefined,
       nationality: nationality.trim() || undefined,
-      schoolAttended: schoolAttended.trim() || undefined,
-      courseTaken: courseTaken.trim() || undefined,
-      yearGraduated: yearGraduated.trim() || undefined,
     };
 
     if (isCompany) {
@@ -462,56 +453,7 @@ export function EditApplicantProfileModal({
               </View>
             </View>
 
-            {/* 5. Educational Background */}
-            <Text
-              style={[
-                modalStyles.sectionHeader,
-                { color: isDark ? colors.brand[400] : colors.brand[700], marginTop: 16 },
-              ]}
-            >
-              5. Educational Background
-            </Text>
-            <View style={modalStyles.fieldGroup}>
-              <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                School / University Attended
-              </Text>
-              <TextInput
-                style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                value={schoolAttended}
-                onChangeText={setSchoolAttended}
-                placeholder="School name"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-            <View style={modalStyles.fieldRow}>
-              <View style={modalStyles.fieldCol}>
-                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  Course / Degree
-                </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                  value={courseTaken}
-                  onChangeText={setCourseTaken}
-                  placeholder="Degree program"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-              <View style={modalStyles.fieldCol}>
-                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  Year Graduated
-                </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                  value={yearGraduated}
-                  onChangeText={setYearGraduated}
-                  placeholder="e.g. 2024"
-                  keyboardType="numeric"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-            </View>
-
-            {/* 6. Company Details (if Company) */}
+            {/* 5. Company Details (if Company) */}
             {isCompany && (
               <>
                 <Text
@@ -520,7 +462,7 @@ export function EditApplicantProfileModal({
                     { color: isDark ? colors.brand[400] : colors.brand[700], marginTop: 16 },
                   ]}
                 >
-                  6. Corporate / Entity Information
+                  5. Corporate / Entity Information
                 </Text>
                 <View style={modalStyles.fieldGroup}>
                   <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
