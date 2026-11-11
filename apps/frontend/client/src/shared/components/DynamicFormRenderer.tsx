@@ -351,8 +351,11 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     }
 
     let dropdownOptions: Array<{ label: string; value: string }> = [];
-    if (isDetailsServiceField) {
-      dropdownOptions = dynamicPermitServices.length > 0 ? dynamicPermitServices : parsedFieldOptions.length > 0 ? parsedFieldOptions : PERMIT_DETAILS_SERVICE_OPTIONS;
+    if (parsedFieldOptions.length > 0) {
+      // 1. Highest priority: options explicitly configured by admin in Form Builder
+      dropdownOptions = parsedFieldOptions;
+    } else if (isDetailsServiceField) {
+      dropdownOptions = dynamicPermitServices.length > 0 ? dynamicPermitServices : PERMIT_DETAILS_SERVICE_OPTIONS;
     } else if (isPermitTypeField) {
       const currentDetailsService =
         values?.["detailsService"] ||
@@ -372,8 +375,6 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       dropdownOptions = municipalities.map((m: { id: string; name: string }) => ({ label: m.name, value: m.name }));
     } else if (labelLower === "barangay" || fIdLower === "barangay" || fIdLower.includes("barangay")) {
       dropdownOptions = barangays.map((b: { id: string; name: string }) => ({ label: b.name, value: b.name }));
-    } else if (parsedFieldOptions.length > 0) {
-      dropdownOptions = parsedFieldOptions;
     } else if (isNatureOfComplaintField) {
       const fallbackNatures = isSpamComplaint
         ? SPAM_COMPLAINT_NATURES

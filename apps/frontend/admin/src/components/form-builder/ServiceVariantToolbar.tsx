@@ -24,6 +24,7 @@ interface ServiceVariantToolbarProps {
   applicableFieldsCount: number;
   linkedServicesCount?: number;
   customizedVariantNames?: string[];
+  onRevertVariantToBase?: (variantName: string) => void;
 }
 
 export function ServiceVariantToolbar({
@@ -35,6 +36,7 @@ export function ServiceVariantToolbar({
   applicableFieldsCount,
   linkedServicesCount = 0,
   customizedVariantNames = [],
+  onRevertVariantToBase,
 }: ServiceVariantToolbarProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedServiceFilter, setSelectedServiceFilter] = useState("ALL");
@@ -278,13 +280,25 @@ export function ServiceVariantToolbar({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onSelectVariant("ALL")}
-            className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 ml-3"
-          >
-            Reset to All
-          </button>
+          <div className="flex items-center gap-2 shrink-0 ml-3">
+            {onRevertVariantToBase && customizedVariantNames.includes(selectedVariant) && (
+              <button
+                type="button"
+                onClick={() => onRevertVariantToBase(selectedVariant)}
+                className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                title="Revert this variant form to the base service template"
+              >
+                Revert to Base Form
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onSelectVariant("ALL")}
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 cursor-pointer"
+            >
+              Reset to All
+            </button>
+          </div>
         </div>
       )}
     </div>

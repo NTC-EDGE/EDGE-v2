@@ -47,6 +47,7 @@ export interface FormApiDto {
   categorySelectionRequired?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  isCustomized?: boolean;
   sections: FormSectionApiDto[];
   availableVersions?: FormVersionSummaryApiDto[];
 }
@@ -184,6 +185,34 @@ export function useFormBuilderService() {
     return post<FormApiResponse<FormApiDto>, Record<string, never>>(`/api/v2/forms/${id}/activate`, {});
   };
 
+  const getVariantForm = async (variantId: string): Promise<FormApiResponse<FormApiDto>> => {
+    return get<FormApiResponse<FormApiDto>>(`/api/v2/service-variants/${variantId}/form`);
+  };
+
+  const saveVariantForm = async (
+    variantId: string,
+    request: UpdateFormRequest
+  ): Promise<FormApiResponse<FormApiDto>> => {
+    return put<FormApiResponse<FormApiDto>, UpdateFormRequest>(
+      `/api/v2/service-variants/${variantId}/form`,
+      request
+    );
+  };
+
+  const activateVariantForm = async (
+    variantId: string,
+    isActive = true
+  ): Promise<FormApiResponse<boolean>> => {
+    return post<FormApiResponse<boolean>, { isActive: boolean }>(
+      `/api/v2/service-variants/${variantId}/form/activate`,
+      { isActive }
+    );
+  };
+
+  const revertVariantForm = async (variantId: string): Promise<FormApiResponse<boolean>> => {
+    return del<FormApiResponse<boolean>>(`/api/v2/service-variants/${variantId}/form`);
+  };
+
   return {
     useForms,
     useFormById,
@@ -195,5 +224,9 @@ export function useFormBuilderService() {
     deleteForm,
     duplicateForm,
     activateForm,
+    getVariantForm,
+    saveVariantForm,
+    activateVariantForm,
+    revertVariantForm,
   };
 }

@@ -30,6 +30,9 @@ export function ApplicationDetailsTab({
   const [refDraft, setRefDraft] = useState(app.referenceNumber);
   const [applicationDraft, setApplicationDraft] = useState(app.applicationNumber);
   const [emailDraft, setEmailDraft] = useState(app.contactDetails?.email ?? "");
+  const [nameDraft, setNameDraft] = useState(app.applicant ?? "");
+  const [contactDraft, setContactDraft] = useState(app.contactDetails?.contactNumber ?? "");
+  const [addressDraft, setAddressDraft] = useState(app.address?.address ?? app.address?.streetAddress ?? "");
   const [compNameDraft, setCompNameDraft] = useState(app.companyDetails?.name ?? app.applicant);
   const [compRegNoDraft, setCompRegNoDraft] = useState(app.companyDetails?.registrationNumber ?? "");
   const [compAddrDraft, setCompAddrDraft] = useState(app.companyDetails?.address ?? "");
@@ -122,7 +125,17 @@ export function ApplicationDetailsTab({
     updateApplication(app.id, {
       referenceNumber: refDraft,
       applicationNumber: applicationDraft,
-      contactDetails: { ...app.contactDetails, email: emailDraft },
+      applicant: nameDraft,
+      contactDetails: {
+        ...app.contactDetails,
+        email: emailDraft,
+        contactNumber: contactDraft,
+      },
+      address: {
+        ...app.address,
+        address: addressDraft,
+        streetAddress: addressDraft,
+      },
       companyDetails: app.companyDetails ? {
         ...app.companyDetails,
         name: compNameDraft,
@@ -244,6 +257,12 @@ export function ApplicationDetailsTab({
           isEditingSection={isEditingSection}
           emailDraft={emailDraft}
           setEmailDraft={setEmailDraft}
+          nameDraft={nameDraft}
+          setNameDraft={setNameDraft}
+          contactDraft={contactDraft}
+          setContactDraft={setContactDraft}
+          addressDraft={addressDraft}
+          setAddressDraft={setAddressDraft}
           editAction={editAction}
           onInspectApplicant={onInspectApplicant}
         />

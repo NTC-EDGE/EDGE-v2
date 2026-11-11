@@ -14,6 +14,7 @@ using EDGE.Application.Applications.Commands.AddApplicantToApplication;
 using EDGE.Application.Applications.Commands.AdminUpdateApplication;
 using EDGE.Application.Applications.Commands.AdminUpdateApplicantProfile;
 using EDGE.Application.Applications.Commands.AdminUpdateFormValues;
+using EDGE.Application.Applications.Commands.BatchDeleteDraftApplications;
 using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
 using EDGE.Application.Applications.Commands.PreviewCsvImport;
@@ -277,6 +278,12 @@ public static class ApplicationEndpoints
             .WithName("DeleteMyDraftApplication")
             .WithSummary("Delete user draft application")
             .WithDescription("Permanently removes a user's draft application and its associated entries.");
+
+        group.MapPost("/me/drafts/batch-delete", BatchDeleteDraftApplications)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("BatchDeleteMyDraftApplications")
+            .WithSummary("Batch delete user draft applications")
+            .WithDescription("Permanently removes multiple user draft applications and their associated entries.");
 
         group.MapDelete("/{id:guid}", DeleteDraftApplication)
             .WithName("DeleteDraftApplication")
@@ -549,6 +556,23 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
+    [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> BatchDeleteDraftApplications(
+        BatchDeleteDraftApplicationsRequest request,
+        IValidator<BatchDeleteDraftApplicationsCommand> validator,
+        IMediator mediator)
+    {
+        var command = new BatchDeleteDraftApplicationsCommand(request.Ids);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
     [HasPermission(Permissions.SubmitApplication)]
     public static async Task<IResult> FinalizeApplicationSubmission(Guid id, IMediator mediator)
     {
@@ -713,10 +737,18 @@ public static class ApplicationEndpoints
     public static async Task<IResult> AdminUpdateApplicationEndpoint(
         Guid id,
         [FromBody] AdminUpdateApplicationCommand command,
+        IValidator<AdminUpdateApplicationCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(command with { Id = id }, cancellationToken);
+        var effectiveCommand = command with { Id = id };
+        var validationResult = await validator.ValidateAsync(effectiveCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(effectiveCommand, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -726,10 +758,18 @@ public static class ApplicationEndpoints
         Guid id,
         Guid applicantId,
         [FromBody] AdminUpdateApplicantProfileCommand command,
+        IValidator<AdminUpdateApplicantProfileCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
+        var effectiveCommand = command with { ApplicationId = id, ApplicantId = applicantId };
+        var validationResult = await validator.ValidateAsync(effectiveCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(effectiveCommand, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -739,10 +779,18 @@ public static class ApplicationEndpoints
         Guid id,
         Guid applicantId,
         [FromBody] AdminUpdateFormValuesCommand command,
+        IValidator<AdminUpdateFormValuesCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
+        var effectiveCommand = command with { ApplicationId = id, ApplicantId = applicantId };
+        var validationResult = await validator.ValidateAsync(effectiveCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(effectiveCommand, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -1082,4 +1130,5 @@ public record SubmitPaymentRequest(
     string? CheckBank = null,
     DateTime? CheckDate = null
 );
+public record BatchDeleteDraftApplicationsRequest(List<Guid> Ids);
 

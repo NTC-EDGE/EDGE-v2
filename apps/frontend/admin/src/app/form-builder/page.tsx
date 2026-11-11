@@ -44,6 +44,9 @@ function FormBuilderContent() {
     activeForm, setActiveForm, selectedFieldId, setSelectedFieldId, selectedVariant,
     setSelectedVariant, setIsVariantEditMode, setIsDirty, setToast,
     allVariantNames: catalog.allVariantNames, originalFormRef,
+    masterBaseForm, backendServiceVariants: catalog.backendServiceVariants,
+    formService: catalog.formService, mutate: catalog.mutate,
+    setPendingNav, setIsUnsavedDialogOpen, isDirty,
   });
 
   const saveNav = useFormSaveAndNavigation({
@@ -53,6 +56,9 @@ function FormBuilderContent() {
     executeSelectVariant: fieldActions.executeSelectVariant,
     executeSwitchVersion: lifecycle.executeSwitchVersion,
     handleSetActive: lifecycle.handleSetActive,
+    selectedVariant,
+    backendServiceVariants: catalog.backendServiceVariants,
+    masterBaseForm,
   });
 
   useEffect(() => {

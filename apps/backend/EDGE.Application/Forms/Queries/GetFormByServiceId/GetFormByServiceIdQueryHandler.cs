@@ -99,6 +99,7 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
             Version = form.Version,
             IsActive = form.IsActive,
             CategorySelectionRequired = form.CategorySelectionRequired,
+            IsCustomized = form.ServiceVariantId != null || form.BaseFormId != null,
             CreatedAt = form.CreatedAt,
             UpdatedAt = form.LastModifiedAt,
             AvailableVersions = versionSummaries,

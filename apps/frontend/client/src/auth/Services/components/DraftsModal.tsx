@@ -62,6 +62,7 @@ interface DraftsModalProps {
   drafts?: ApplicationDraftItem[];
   loadDraft: (draft: ApplicationDraftItem) => void;
   deleteDraft?: (draftId: string) => Promise<boolean | void> | void;
+  deleteDrafts?: (draftIds: string[]) => Promise<boolean | void> | void;
   backendCategories: BackendCategoryItem[] | null;
 }
 
@@ -70,12 +71,16 @@ export function DraftsModal({
   onClose,
   loadDraft,
   deleteDraft,
+  deleteDrafts,
   backendCategories,
 }: DraftsModalProps) {
   const api = useApi();
   const [draftToDelete, setDraftToDelete] = useState<ApplicationDraftItem | null>(null);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
+
+  const [selectedDraftIds, setSelectedDraftIds] = useState<Set<string>>(new Set());
+  const [isBatchConfirmOpen, setIsBatchConfirmOpen] = useState(false);
 
   const [categoryDrafts, setCategoryDrafts] = useState<ApplicationDraftItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -104,11 +109,42 @@ export function DraftsModal({
       })
     : undefined;
 
-  // Reset page number and error on category change
+  // Reset page number, error, and selected items on category change
   useEffect(() => {
     setPageNumber(1);
     setFetchError(null);
+    setSelectedDraftIds(new Set());
   }, [viewingDraftsCategory]);
+
+  // Reset selection on page change
+  useEffect(() => {
+    setSelectedDraftIds(new Set());
+  }, [pageNumber]);
+
+  const allSelected =
+    categoryDrafts.length > 0 &&
+    categoryDrafts.every((d) => selectedDraftIds.has(d.id));
+  const someSelected = selectedDraftIds.size > 0 && !allSelected;
+
+  const handleToggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedDraftIds(new Set());
+    } else {
+      setSelectedDraftIds(new Set(categoryDrafts.map((d) => d.id)));
+    }
+  };
+
+  const handleToggleDraftSelection = (draftId: string) => {
+    setSelectedDraftIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(draftId)) {
+        next.delete(draftId);
+      } else {
+        next.add(draftId);
+      }
+      return next;
+    });
+  };
 
   const currentCategoryId = currentCategory?.id;
   const fetchCategoryDrafts = useCallback(async () => {
@@ -170,12 +206,64 @@ export function DraftsModal({
       if (result !== false) {
         setCategoryDrafts((prev) => prev.filter((d) => d.id !== draftToDelete.id));
         setTotalCount((prev) => Math.max(0, prev - 1));
+        setSelectedDraftIds((prev) => {
+          if (prev.has(draftToDelete.id)) {
+            const next = new Set(prev);
+            next.delete(draftToDelete.id);
+            return next;
+          }
+          return prev;
+        });
         setDraftToDelete(null);
       } else {
         setDeleteErrorMessage("Failed to delete draft from the server. Please try again.");
       }
     } catch (err: unknown) {
       const errMsg = extractApiErrorMessage(err) || "Failed to delete draft due to a network error.";
+      setDeleteErrorMessage(errMsg);
+    } finally {
+      setIsDeletingDraft(false);
+    }
+  };
+
+  const handleBatchDeleteConfirm = async () => {
+    if (selectedDraftIds.size === 0) {
+      setIsBatchConfirmOpen(false);
+      return;
+    }
+
+    setDeleteErrorMessage(null);
+    setIsDeletingDraft(true);
+    const idsToDelete = Array.from(selectedDraftIds);
+
+    try {
+      let succeeded = false;
+      if (deleteDrafts !== undefined) {
+        const result = await deleteDrafts(idsToDelete);
+        succeeded = result !== false;
+      } else if (deleteDraft !== undefined) {
+        const results = await Promise.all(idsToDelete.map((id) => deleteDraft(id)));
+        succeeded = results.every((r) => r !== false);
+      }
+
+      if (succeeded) {
+        setCategoryDrafts((prev) => prev.filter((d) => !selectedDraftIds.has(d.id)));
+        setTotalCount((prev) => Math.max(0, prev - idsToDelete.length));
+        setSelectedDraftIds(new Set());
+        setIsBatchConfirmOpen(false);
+
+        if (categoryDrafts.length === idsToDelete.length && pageNumber > 1) {
+          setPageNumber((p) => p - 1);
+        } else {
+          await fetchCategoryDrafts();
+        }
+      } else {
+        setDeleteErrorMessage("Failed to delete some or all selected drafts. Please try again.");
+        await fetchCategoryDrafts();
+        setSelectedDraftIds(new Set());
+      }
+    } catch (err: unknown) {
+      const errMsg = extractApiErrorMessage(err) || "Failed to delete selected drafts.";
       setDeleteErrorMessage(errMsg);
     } finally {
       setIsDeletingDraft(false);
@@ -235,6 +323,102 @@ export function DraftsModal({
               <Icon name="x" size={20} color={COLORS.neutral[500]} />
             </TouchableOpacity>
           </View>
+
+          {/* Select All & Batch Delete Toolbar */}
+          {!isLoading && fetchError === null && categoryDrafts.length > 0 && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                backgroundColor: COLORS.neutral[100] || "#F1F5F9",
+                borderRadius: 10,
+                marginBottom: 12,
+              }}
+            >
+              <TouchableOpacity
+                onPress={handleToggleSelectAll}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  paddingVertical: 4,
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: allSelected }}
+                accessibilityLabel="Select All Drafts on this page"
+              >
+                <Icon
+                  name={allSelected ? "check-square" : someSelected ? "minus-square" : "square"}
+                  size={18}
+                  color={allSelected || someSelected ? "#1D4ED8" : COLORS.neutral[500]}
+                />
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: COLORS.neutral[800],
+                  }}
+                >
+                  Select All ({categoryDrafts.length})
+                </Text>
+              </TouchableOpacity>
+
+              {selectedDraftIds.size > 0 && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => setSelectedDraftIds(new Set())}
+                    style={{ paddingVertical: 4, paddingHorizontal: 6 }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 12,
+                        fontWeight: "600",
+                        color: COLORS.neutral[500],
+                      }}
+                    >
+                      Deselect
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setDeleteErrorMessage(null);
+                      setIsBatchConfirmOpen(true);
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                      backgroundColor: "#FEE2E2",
+                      borderColor: "#FCA5A5",
+                      borderWidth: 1,
+                      paddingVertical: 6,
+                      paddingHorizontal: 10,
+                      borderRadius: 8,
+                    }}
+                    accessibilityLabel="Delete Selected Drafts"
+                  >
+                    <Icon name="trash-2" size={14} color="#DC2626" />
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 12,
+                        fontWeight: "700",
+                        color: "#DC2626",
+                      }}
+                    >
+                      Delete Selected ({selectedDraftIds.size})
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* List or Error View */}
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
@@ -326,12 +510,14 @@ export function DraftsModal({
                 const modeText = (draft.submissionMode?.toUpperCase() === "BULK" || draft.appMode === "BULK") ? "Bulk Filing" : "Single Applicant";
                 const variantText = [draft.serviceVariant, draft.serviceVariantElement].filter(Boolean).join(" • ");
 
+                const isSelected = selectedDraftIds.has(draft.id);
+
                 return (
                   <View
                     key={draft.id}
                     style={{
-                      backgroundColor: COLORS.neutral[50],
-                      borderColor: COLORS.neutral[200],
+                      backgroundColor: isSelected ? "#F0F7FF" : COLORS.neutral[50],
+                      borderColor: isSelected ? "#93C5FD" : COLORS.neutral[200],
                       borderWidth: 1,
                       borderRadius: 12,
                       padding: 14,
@@ -341,6 +527,26 @@ export function DraftsModal({
                       justifyContent: "space-between",
                     }}
                   >
+                    {/* Item Select Checkbox */}
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        if (typeof e.stopPropagation === "function") {
+                          e.stopPropagation();
+                        }
+                        handleToggleDraftSelection(draft.id);
+                      }}
+                      style={{ padding: 6, marginRight: 8 }}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isSelected }}
+                      accessibilityLabel={`Select draft for ${serviceTitle}`}
+                    >
+                      <Icon
+                        name={isSelected ? "check-square" : "square"}
+                        size={18}
+                        color={isSelected ? "#1D4ED8" : COLORS.neutral[400]}
+                      />
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                       onPress={() => loadDraft(draft)}
                       style={{ flex: 1, paddingRight: 12 }}
@@ -527,6 +733,41 @@ export function DraftsModal({
             loading: isDeletingDraft,
             disabled: isDeletingDraft,
             onPress: handleDeleteDraftConfirm,
+          },
+        ]}
+      />
+
+      {/* Batch Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        visible={isBatchConfirmOpen}
+        variant="destructive"
+        iconName="trash-2"
+        title={selectedDraftIds.size === categoryDrafts.length ? "Delete All Drafts?" : `Delete ${selectedDraftIds.size} Selected Drafts?`}
+        message={`Are you sure you want to permanently delete the ${selectedDraftIds.size} selected draft application${selectedDraftIds.size === 1 ? "" : "s"}? This action cannot be undone.`}
+        errorMessage={deleteErrorMessage}
+        onClose={() => {
+          if (!isDeletingDraft) {
+            setIsBatchConfirmOpen(false);
+            setDeleteErrorMessage(null);
+          }
+        }}
+        actions={[
+          {
+            text: "Cancel",
+            style: "cancel",
+            disabled: isDeletingDraft,
+            onPress: () => {
+              setIsBatchConfirmOpen(false);
+              setDeleteErrorMessage(null);
+            },
+          },
+          {
+            text: isDeletingDraft ? "Deleting..." : `Delete ${selectedDraftIds.size} Draft${selectedDraftIds.size === 1 ? "" : "s"}`,
+            style: "destructive",
+            iconName: "trash-2",
+            loading: isDeletingDraft,
+            disabled: isDeletingDraft,
+            onPress: handleBatchDeleteConfirm,
           },
         ]}
       />

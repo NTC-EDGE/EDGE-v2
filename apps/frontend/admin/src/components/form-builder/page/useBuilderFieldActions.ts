@@ -1,11 +1,13 @@
 import { useCallback, MutableRefObject } from "react";
-import { FormSchema, FormField, FieldType } from "../types";
+import { FormSchema, FormField, FieldType, ServiceVariantToolbarItem } from "../types";
 import {
   createDefaultField, generateId, reorderFieldsWithSections, duplicateFieldWithSection,
   deleteFieldOrSectionForVariant, resetVariantToBaseFields, isExclusiveToVariant,
-  excludeVariantFromField, isFormSchema,
+  excludeVariantFromField, isFormSchema, convertBackendFormToSchema,
 } from "../utils";
 import { ToastMessage } from "@/components/ui/toast-notification";
+import { useFormBuilderService } from "@/services/formBuilderService";
+import { PendingNavState } from "./useFormSaveAndNavigation";
 
 export function useBuilderFieldActions(params: {
   activeForm: FormSchema | null;
@@ -19,21 +21,90 @@ export function useBuilderFieldActions(params: {
   setToast: React.Dispatch<React.SetStateAction<ToastMessage | null>>;
   allVariantNames: string[];
   originalFormRef: MutableRefObject<string | null>;
+  masterBaseForm?: FormSchema | null;
+  backendServiceVariants?: ServiceVariantToolbarItem[];
+  formService?: ReturnType<typeof useFormBuilderService>;
+  mutate?: () => Promise<unknown>;
+  setPendingNav?: React.Dispatch<React.SetStateAction<PendingNavState>>;
+  setIsUnsavedDialogOpen?: React.Dispatch<React.SetStateAction<boolean>>;
+  isDirty?: boolean;
 }) {
   const {
     activeForm, setActiveForm, selectedFieldId, setSelectedFieldId, selectedVariant,
     setSelectedVariant, setIsVariantEditMode, setIsDirty, setToast, allVariantNames, originalFormRef,
+    masterBaseForm, backendServiceVariants, formService, mutate, setPendingNav, setIsUnsavedDialogOpen,
+    isDirty,
   } = params;
 
-  const executeSelectVariant = useCallback((variantName: string) => {
-    setSelectedVariant(variantName);
-    setIsVariantEditMode(variantName !== "ALL");
-    setSelectedFieldId(null);
-  }, [setSelectedVariant, setIsVariantEditMode, setSelectedFieldId]);
+  const executeSelectVariant = useCallback(
+    async (variantName: string) => {
+      setSelectedVariant(variantName);
+      setIsVariantEditMode(variantName !== "ALL");
+      setSelectedFieldId(null);
 
-  const handleSelectVariant = useCallback((v: string) => {
-    if (v !== selectedVariant) executeSelectVariant(v);
-  }, [selectedVariant, executeSelectVariant]);
+      if (variantName === "ALL") {
+        if (masterBaseForm) {
+          setActiveForm(masterBaseForm);
+          originalFormRef.current = JSON.stringify(masterBaseForm);
+          setIsDirty(false);
+        }
+        return;
+      }
+
+      // Check if we can fetch dedicated variant form from the dedicated endpoint
+      const matchedVariant = backendServiceVariants?.find(
+        (v) => v.name.toLowerCase().trim() === variantName.toLowerCase().trim()
+      );
+      if (matchedVariant?.id && !matchedVariant.id.startsWith("var-") && formService?.getVariantForm) {
+        try {
+          const res = await formService.getVariantForm(matchedVariant.id).catch(() => null);
+          if (res && res.succeeded && res.data) {
+            const freshSchema = convertBackendFormToSchema(res.data);
+            const combined: FormSchema = {
+              ...freshSchema,
+              name: activeForm?.name || freshSchema.name,
+              description: activeForm?.description || freshSchema.description,
+              serviceName: activeForm?.serviceName || freshSchema.serviceName,
+              serviceCode: activeForm?.serviceCode || freshSchema.serviceCode,
+            };
+            setActiveForm(combined);
+            originalFormRef.current = JSON.stringify(combined);
+            setIsDirty(false);
+          }
+        } catch {
+          // If variant form fails to load, preserve current active form
+        }
+      }
+    },
+    [
+      setSelectedVariant,
+      setIsVariantEditMode,
+      setSelectedFieldId,
+      masterBaseForm,
+      setActiveForm,
+      originalFormRef,
+      setIsDirty,
+      backendServiceVariants,
+      formService,
+      activeForm?.name,
+      activeForm?.description,
+      activeForm?.serviceName,
+      activeForm?.serviceCode,
+    ]
+  );
+
+  const handleSelectVariant = useCallback(
+    (v: string) => {
+      if (v === selectedVariant) return;
+      if (isDirty && setPendingNav && setIsUnsavedDialogOpen) {
+        setPendingNav({ type: "variant", variantName: v });
+        setIsUnsavedDialogOpen(true);
+        return;
+      }
+      void executeSelectVariant(v);
+    },
+    [selectedVariant, isDirty, setPendingNav, setIsUnsavedDialogOpen, executeSelectVariant]
+  );
 
   const handleCustomizeVariant = useCallback((v: string) => {
     if (!activeForm || v === "ALL") return;
@@ -54,11 +125,54 @@ export function useBuilderFieldActions(params: {
     });
   }, [activeForm, selectedVariant, allVariantNames, setActiveForm, setIsDirty, setSelectedFieldId, setToast]);
 
-  const handleRevertVariantToBase = useCallback((v: string) => {
-    if (!activeForm || v === "ALL") return;
-    setSelectedVariant("ALL");
-    setIsVariantEditMode(false);
-  }, [activeForm, setSelectedVariant, setIsVariantEditMode]);
+  const handleRevertVariantToBase = useCallback(
+    async (v: string) => {
+      if (!activeForm || v === "ALL") return;
+
+      const matchedVariant = backendServiceVariants?.find(
+        (item) => item.name.toLowerCase().trim() === v.toLowerCase().trim()
+      );
+
+      if (matchedVariant?.id && !matchedVariant.id.startsWith("var-") && formService?.revertVariantForm) {
+        try {
+          const res = await formService.revertVariantForm(matchedVariant.id);
+          if (res && res.succeeded) {
+            setToast({
+              message: `Variant "${v}" reverted to base form template.`,
+              type: "success",
+            });
+            await mutate?.();
+          }
+        } catch {
+          setToast({
+            message: "Failed to revert variant form on backend.",
+            type: "error",
+          });
+        }
+      }
+
+      if (masterBaseForm) {
+        setActiveForm(masterBaseForm);
+        originalFormRef.current = JSON.stringify(masterBaseForm);
+      }
+      setSelectedVariant("ALL");
+      setIsVariantEditMode(false);
+      setIsDirty(false);
+    },
+    [
+      activeForm,
+      backendServiceVariants,
+      formService,
+      setToast,
+      mutate,
+      masterBaseForm,
+      setActiveForm,
+      originalFormRef,
+      setSelectedVariant,
+      setIsVariantEditMode,
+      setIsDirty,
+    ]
+  );
 
   const handleUpdateForm = useCallback(
     (updates: Partial<FormSchema>) => {

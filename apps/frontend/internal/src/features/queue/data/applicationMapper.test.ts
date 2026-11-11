@@ -642,6 +642,160 @@ describe('applicationMapper', () => {
       expect(otherState.isStageClaimedByOther).toBe(true);
       expect(otherState.isStageClaimedByMe).toBe(false);
     });
+
+    it('correctly transitions to unclaimed when Accountant releases application (Financial Review Released)', () => {
+      const releasedDto: ApplicationDto = {
+        id: 'app-fwd-release',
+        tenantId: 'tenant-1',
+        submissionMode: 'Single',
+        isGuest: false,
+        referenceNumber: 'REF-2026-REL1',
+        applicationNumber: 'APP-2026-REL1',
+        status: 'ForAccountant',
+        office: 'NTC Central Office',
+        createdAt: '2026-03-30T10:00:00.000Z',
+        lastModifiedAt: '2026-03-30T10:45:00.000Z',
+        intent: 'Regular',
+        services: [],
+        applicants: [],
+        histories: [
+          {
+            id: 'h1',
+            action: 'Evaluation Started',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            timestamp: '2026-03-30T10:00:00.000Z',
+            fromStatus: 'Submitted',
+            toStatus: 'Evaluating',
+          },
+          {
+            id: 'h2',
+            action: 'Approved & Forwarded to Accountant',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            timestamp: '2026-03-30T10:15:00.000Z',
+            fromStatus: 'Evaluating',
+            toStatus: 'ForAccountant',
+          },
+          {
+            id: 'h3',
+            action: 'Financial Review Started',
+            staffName: 'Ann Accountant',
+            staffRole: 'Accountant',
+            remarks: 'Financial review started by Ann Accountant. Authority claimed.',
+            timestamp: '2026-03-30T10:30:00.000Z',
+            fromStatus: 'ForAccountant',
+            toStatus: 'ForAccountant',
+          },
+          {
+            id: 'h4',
+            action: 'Financial Review Released',
+            staffName: 'Ann Accountant',
+            staffRole: 'Accountant',
+            remarks: 'Financial review released by Ann Accountant. Returned to queue.',
+            timestamp: '2026-03-30T10:45:00.000Z',
+            fromStatus: 'ForAccountant',
+            toStatus: 'ForAccountant',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(releasedDto, 'Accountant');
+
+      // 1. Accounting officer should be undefined / cleared
+      expect(ui.accountingOfficer).toBeUndefined();
+      // 2. AssignedTo should be office (not Ann Accountant)
+      expect(ui.assignedTo).toBe('NTC Central Office');
+
+      // 3. Test stage evaluation state for Ann Accountant: Must be unclaimed!
+      const acctState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['ann accountant', 'accountant@ntc.gov.ph'],
+      });
+      expect(acctState.isStageUnclaimed).toBe(true);
+      expect(acctState.isStageClaimedByOther).toBe(false);
+      expect(acctState.isStageClaimedByMe).toBe(false);
+
+      // 4. Test stage evaluation state for another accountant: Must also be unclaimed so they can take it!
+      const otherState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['other accountant', 'other@ntc.gov.ph'],
+      });
+      expect(otherState.isStageUnclaimed).toBe(true);
+      expect(otherState.isStageClaimedByOther).toBe(false);
+      expect(otherState.isStageClaimedByMe).toBe(false);
+    });
+
+    it('correctly transitions to unclaimed when Cashier releases application (Payment Verification Released)', () => {
+      const cashierReleasedDto: ApplicationDto = {
+        id: 'app-cashier-release',
+        tenantId: 'tenant-1',
+        submissionMode: 'Single',
+        isGuest: false,
+        referenceNumber: 'REF-2026-REL2',
+        applicationNumber: 'APP-2026-REL2',
+        status: 'PendingPayment',
+        office: 'NTC Central Office',
+        createdAt: '2026-03-30T10:00:00.000Z',
+        lastModifiedAt: '2026-03-30T11:00:00.000Z',
+        intent: 'Regular',
+        services: [],
+        applicants: [],
+        histories: [
+          {
+            id: 'h1',
+            action: 'Payment Verification Started',
+            staffName: 'Carlos Cashier',
+            staffRole: 'Cashier',
+            remarks: 'Payment verification started by Carlos Cashier. Authority claimed.',
+            timestamp: '2026-03-30T10:45:00.000Z',
+            fromStatus: 'PendingPayment',
+            toStatus: 'PendingPayment',
+          },
+          {
+            id: 'h2',
+            action: 'Payment Verification Released',
+            staffName: 'Carlos Cashier',
+            staffRole: 'Cashier',
+            remarks: 'Payment verification released by Carlos Cashier. Returned to queue.',
+            timestamp: '2026-03-30T11:00:00.000Z',
+            fromStatus: 'PendingPayment',
+            toStatus: 'PendingPayment',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(cashierReleasedDto, 'Cashier');
+
+      // 1. Cashier officer should be undefined / cleared
+      expect(ui.cashierOfficer).toBeUndefined();
+      // 2. AssignedTo should be office
+      expect(ui.assignedTo).toBe('NTC Central Office');
+
+      // 3. Test stage evaluation state for Carlos: Must be unclaimed!
+      const cashierState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['carlos cashier', 'cashier@ntc.gov.ph'],
+      });
+      expect(cashierState.isStageUnclaimed).toBe(true);
+      expect(cashierState.isStageClaimedByOther).toBe(false);
+      expect(cashierState.isStageClaimedByMe).toBe(false);
+
+      // 4. Test stage evaluation state for another cashier: Must also be unclaimed so they can take it!
+      const otherCashierState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['other cashier', 'other.cashier@ntc.gov.ph'],
+      });
+      expect(otherCashierState.isStageUnclaimed).toBe(true);
+      expect(otherCashierState.isStageClaimedByOther).toBe(false);
+      expect(otherCashierState.isStageClaimedByMe).toBe(false);
+    });
   });
 
   describe('mapActivityDtoToUI', () => {

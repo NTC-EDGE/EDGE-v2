@@ -38,6 +38,7 @@ public class FormDto
     public string Version { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
     public bool CategorySelectionRequired { get; set; }
+    public bool IsCustomized { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public List<FormSectionDto> Sections { get; set; } = new();

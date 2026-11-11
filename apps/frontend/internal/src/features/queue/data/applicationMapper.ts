@@ -443,17 +443,24 @@ export function mapApplicationDtoToUI(
       : resolveAccountingOfficer(reversedHistories);
 
   const accountingOfficer =
-    !hasAccountantClaim &&
-    rawAccountingOfficer &&
-    evaluatingOfficer &&
-    rawAccountingOfficer.trim().toLowerCase() === evaluatingOfficer.trim().toLowerCase()
+    !hasAccountantClaim && feStatus === 'ForAccountant'
       ? undefined
-      : rawAccountingOfficer;
+      : (!hasAccountantClaim &&
+         rawAccountingOfficer &&
+         evaluatingOfficer &&
+         rawAccountingOfficer.trim().toLowerCase() === evaluatingOfficer.trim().toLowerCase()
+          ? undefined
+          : rawAccountingOfficer);
 
-  const cashierOfficer =
+  const rawCashierOfficer =
     ('cashierOfficer' in dto && typeof dto.cashierOfficer === 'string' && dto.cashierOfficer.trim().length > 0)
       ? dto.cashierOfficer.trim()
       : resolveCashierOfficer(reversedHistories);
+
+  const cashierOfficer =
+    !hasCashierClaim && feStatus === 'PendingPayment'
+      ? undefined
+      : rawCashierOfficer;
 
   const issuingOfficer =
     ('issuingOfficer' in dto && typeof dto.issuingOfficer === 'string' && dto.issuingOfficer.trim().length > 0)
