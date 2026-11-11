@@ -1,8 +1,48 @@
-import { FieldCondition, FormField } from "../types";
+import { FieldCondition, FormField, ServiceVariantToolbarItem } from "../types";
 import { parseFieldCondition } from "./fieldParsers";
 import { deleteFieldWithSection } from "./fieldOperations";
 
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+export function findMatchingVariant(
+  variants: ServiceVariantToolbarItem[] | undefined,
+  targetVariant: string | undefined
+): ServiceVariantToolbarItem | undefined {
+  if (!variants || variants.length === 0 || !targetVariant || targetVariant === "ALL") {
+    return undefined;
+  }
+  const trimmed = targetVariant.trim();
+  const trimmedLower = trimmed.toLowerCase();
+
+  // 1. Direct match by id
+  const byId = variants.find((v) => v.id && v.id.toLowerCase() === trimmedLower);
+  if (byId) return byId;
+
+  // 2. Exact match by name
+  const byName = variants.find((v) => v.name.toLowerCase().trim() === trimmedLower);
+  if (byName) return byName;
+
+  // 3. Match using variantNamesMatch
+  const byVariantNamesMatch = variants.find((v) => variantNamesMatch(v.name, trimmed));
+  if (byVariantNamesMatch) return byVariantNamesMatch;
+
+  // 4. Normalized alphanumeric match
+  const normTarget = normalize(trimmed);
+  const byNorm = variants.find((v) => normalize(v.name) === normTarget);
+  if (byNorm) return byNorm;
+
+  // 5. Substring / containment match
+  const byContainment = variants.find((v) => {
+    const normV = normalize(v.name);
+    return (
+      (normV.length >= 3 && normTarget.includes(normV)) ||
+      (normTarget.length >= 3 && normV.includes(normTarget))
+    );
+  });
+  if (byContainment) return byContainment;
+
+  return undefined;
+}
 
 export function variantNamesMatch(item: string, targetVariant: string): boolean {
   const normItem = normalize(item);

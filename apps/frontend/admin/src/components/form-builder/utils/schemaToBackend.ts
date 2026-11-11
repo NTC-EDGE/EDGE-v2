@@ -3,7 +3,7 @@ import { generateId } from "./fieldDefaults";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function convertSchemaToBackendSections(fields: FormField[]) {
+export function convertSchemaToBackendSections(fields: FormField[], scopedVariantId?: string) {
   type SectionItemOutput = {
     key: string;
     title: string;
@@ -88,8 +88,29 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
     }
     seenFieldIds.add(fieldId);
 
-    const resolvedFieldVisibility = field.condition
-      ? JSON.stringify(field.condition)
+    let cleanOptions = field.options;
+    if (field.type === "select" || field.type === "radio" || field.type === "checkbox") {
+      if (Array.isArray(field.options) && field.options.length > 0) {
+        cleanOptions = field.options.map((opt, idx) => ({
+          id: opt.id || generateId(),
+          label: opt.label || opt.value || `Option ${idx + 1}`,
+          value: opt.value || opt.label || `option_${idx + 1}`,
+        }));
+      }
+    }
+
+    let resolvedCondition = field.condition;
+    if (scopedVariantId && resolvedCondition?.variants && resolvedCondition.variants.length > 0) {
+      if (!resolvedCondition.variants.includes(scopedVariantId)) {
+        resolvedCondition = {
+          ...resolvedCondition,
+          variants: [...resolvedCondition.variants, scopedVariantId],
+        };
+      }
+    }
+
+    const resolvedFieldVisibility = resolvedCondition
+      ? JSON.stringify(resolvedCondition)
       : field.visibilityCondition || currentSection.visibilityCondition;
 
     const fieldDto = {
@@ -108,13 +129,13 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
         max: field.max,
         acceptedFileTypes: field.acceptedFileTypes,
         maxFileSizeMb: field.maxFileSizeMb,
-        options: field.options,
+        options: cleanOptions,
         cols: field.cols,
         repeaterColumns: field.repeaterColumns,
         minRows: field.minRows,
         maxRows: field.maxRows,
         addButtonLabel: field.addButtonLabel,
-        condition: field.condition,
+        condition: resolvedCondition,
         sectionVisibilityCondition: currentSection.visibilityCondition,
         sectionVariantTitles: currentSectionVariantTitles,
       }),
