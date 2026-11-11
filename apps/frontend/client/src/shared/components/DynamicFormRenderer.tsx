@@ -6,6 +6,7 @@ import {
   parseOptions,
   parseValidationRulesMetadata,
   evaluateVisibilityCondition,
+  isFieldRowVisible,
   FormEvaluationContext,
   buildFormVariantFlags,
 } from "./dynamic-form/dynamicFormUtils";
@@ -166,16 +167,22 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     }
   }
 
+  const effectiveVariantName =
+    matchedVariant?.name ||
+    (matchedVariant?.description && matchedVariant?.type
+      ? `${matchedVariant.description} (${matchedVariant.type})`
+      : matchedVariant?.description || matchedVariant?.type);
+
   const evaluationContext: FormEvaluationContext = {
     serviceCategory,
     serviceTitle,
     serviceName: form?.serviceName || serviceTitle,
     serviceCode: form?.serviceCode,
-    applicationType: matchedVariant?.type || matchedVariant?.name,
+    applicationType: matchedVariant?.type || effectiveVariantName,
     variantType: matchedVariant?.type ? String(matchedVariant.type) : undefined,
     variantId: selectedVariantId,
-    variantName: matchedVariant?.name,
-    variantDescription: matchedVariant?.description || matchedVariant?.name,
+    variantName: effectiveVariantName,
+    variantDescription: matchedVariant?.description || effectiveVariantName,
     elementCodes: resolvedElementCodes,
     elementNames: resolvedElementNames,
     applicantType,
@@ -550,7 +557,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       {visibleSections.map((section, sIdx) => {
         const rawFields = section.fields || [];
         const visibleFields = rawFields.filter((f) => {
-          return evaluateVisibilityCondition(f.visibilityCondition, evaluationContext);
+          return isFieldRowVisible(f, section, evaluationContext);
         });
 
         if (visibleFields.length === 0) {

@@ -22,6 +22,8 @@ interface ApiResponseEnvelope<T> {
  * - `loading`: True while the API request is in flight.
  * - `refetch`: Function to explicitly re-fetch the latest template from the server.
  */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function useServiceForm(
   serviceId: string | undefined,
   variantId?: string | null,
@@ -29,13 +31,20 @@ export function useServiceForm(
 ) {
   const api = useApi();
   const endpoint = useMemo(() => {
+    const trimmedVariantId = typeof variantId === "string" ? variantId.trim() : "";
+    const trimmedFormKey = typeof formKey === "string" ? formKey.trim() : "";
+
+    if (trimmedVariantId.length > 0 && UUID_REGEX.test(trimmedVariantId) && trimmedFormKey.length === 0) {
+      return `/api/v2/service-variants/${trimmedVariantId}/form`;
+    }
+
     if (!serviceId) return null;
     const params = new URLSearchParams();
-    if (variantId !== null && variantId !== undefined && variantId.trim().length > 0) {
-      params.append("variantId", variantId.trim());
+    if (trimmedVariantId.length > 0) {
+      params.append("variantId", trimmedVariantId);
     }
-    if (formKey !== null && formKey !== undefined && formKey.trim().length > 0) {
-      params.append("formKey", formKey.trim());
+    if (trimmedFormKey.length > 0) {
+      params.append("formKey", trimmedFormKey);
     }
     const qs = params.toString();
     return `/api/v2/services/${serviceId}/form${qs ? `?${qs}` : ""}`;

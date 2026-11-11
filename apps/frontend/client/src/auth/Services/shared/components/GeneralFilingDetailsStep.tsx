@@ -8,7 +8,13 @@ import { ApplicantInformationFormSection } from "./applicant-info/ApplicantInfor
 import { FormSignatureInput } from "../../../../shared/components/FormSignatureInput";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
-import { evaluateVisibilityCondition, FormEvaluationContext, parseOptions } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import {
+  evaluateVisibilityCondition,
+  isFieldContextVisible,
+  isFieldRowVisible,
+  FormEvaluationContext,
+  parseOptions,
+} from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 import { initialCopyOfPermitData } from "../../permits";
 import { PERMIT_DETAILS_SERVICE_OPTIONS } from "../../../../shared/components/dynamic-form/dynamicFormConstants";
 
@@ -65,12 +71,32 @@ export function GeneralFilingDetailsStep({
   const { sexOptions, civilStatusOptions, suffixOptions } = useMemo(() => {
     if (!effectiveForm?.sections) return { sexOptions: undefined, civilStatusOptions: undefined, suffixOptions: undefined };
 
+    const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const effectiveVariantName =
+      matchedVariantItem?.name ||
+      (matchedVariantItem?.description && matchedVariantItem?.type
+        ? `${matchedVariantItem.description} (${matchedVariantItem.type})`
+        : matchedVariantItem?.description || matchedVariantItem?.type || activeApplicant.selectedVariantName);
+
+    const ctx: FormEvaluationContext = {
+      serviceCategory: service.category,
+      serviceTitle: service.title,
+      serviceName: effectiveForm.serviceName || service.title,
+      serviceCode: effectiveForm.serviceCode || service.code,
+      variantType: matchedVariantItem?.type ? String(matchedVariantItem.type) : undefined,
+      variantId: activeApplicant.selectedVariantId || effectiveForm.serviceVariantId,
+      variantName: effectiveVariantName || effectiveForm.serviceVariantName,
+      variantDescription: matchedVariantItem?.description || effectiveVariantName || effectiveForm.serviceVariantName,
+      applicantType: activeApplicant.applicantType,
+    };
+
     let sOpts: Array<{ label: string; value: string }> | undefined;
     let csOpts: Array<{ label: string; value: string }> | undefined;
     let sufOpts: Array<{ label: string; value: string }> | undefined;
 
     for (const sec of effectiveForm.sections) {
       for (const f of sec.fields || []) {
+        if (!isFieldContextVisible(f, sec, ctx)) continue;
         const idLower = (f.fieldId || f.id || "").toLowerCase();
         const lblLower = (f.label || "").toLowerCase();
         const opts = parseOptions(f);
@@ -87,7 +113,16 @@ export function GeneralFilingDetailsStep({
     }
 
     return { sexOptions: sOpts, civilStatusOptions: csOpts, suffixOptions: sufOpts };
-  }, [effectiveForm]);
+  }, [
+    effectiveForm,
+    variants,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedVariantName,
+    activeApplicant.applicantType,
+    service.category,
+    service.title,
+    service.code,
+  ]);
 
   const isBulk = appMode === "BULK" && applicants.length > 1;
 
@@ -123,16 +158,22 @@ export function GeneralFilingDetailsStep({
     const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
     const matchedElementItem = variantElements.find((e) => String(e.id) === String(activeApplicant.selectedElementId));
 
+    const effectiveVariantName =
+      matchedVariantItem?.name ||
+      (matchedVariantItem?.description && matchedVariantItem?.type
+        ? `${matchedVariantItem.description} (${matchedVariantItem.type})`
+        : matchedVariantItem?.description || matchedVariantItem?.type);
+
     const evaluationContext: FormEvaluationContext = {
       serviceCategory: service.category,
       serviceTitle: service.title,
       serviceName: effectiveForm.serviceName || service.title,
       serviceCode: effectiveForm.serviceCode || service.code,
-      applicationType: matchedVariantItem?.type ? String(matchedVariantItem.type) : matchedVariantItem?.name,
+      applicationType: matchedVariantItem?.type ? String(matchedVariantItem.type) : effectiveVariantName,
       variantType: matchedVariantItem?.type ? String(matchedVariantItem.type) : undefined,
       variantId: activeApplicant.selectedVariantId,
-      variantName: matchedVariantItem?.name,
-      variantDescription: matchedVariantItem?.description || matchedVariantItem?.name,
+      variantName: effectiveVariantName,
+      variantDescription: matchedVariantItem?.description || effectiveVariantName,
       elementCodes: matchedElementItem?.code
         ? [matchedElementItem.code]
         : variantElements
@@ -177,7 +218,7 @@ export function GeneralFilingDetailsStep({
         if (!field || !field.isRequired) return;
 
         const rawTargetId = field.fieldId || field.id;
-        if (!evaluateVisibilityCondition(field.visibilityCondition, evaluationContext)) {
+        if (!isFieldRowVisible(field, sec, evaluationContext)) {
           return;
         }
 
