@@ -110,7 +110,13 @@ public static class IssuedDocumentPrintMapper
         model.AmountPaid = paidOp?.AmountDue;
         model.OrAmount = paidOp != null && paidOp.AmountDue > 0 ? paidOp.AmountDue.ToString("N2") : string.Empty;
         model.OrDate = paidOp?.PaidAt?.ToString("MM/dd/yyyy") ?? model.IssueDate.ToString("MM/dd/yyyy");
-        model.OrBy = "Special Collecting Officer";
+        var regionalOfficeLabel = !string.IsNullOrWhiteSpace(app?.Office)
+            ? app.Office
+            : (!string.IsNullOrWhiteSpace(app?.Region?.Name) ? $"NTC {app.Region.Name}" : null);
+
+        model.OrBy = !string.IsNullOrWhiteSpace(regionalOfficeLabel)
+            ? $"Special Collecting Officer, {regionalOfficeLabel}"
+            : "Special Collecting Officer";
 
         // 5. Regional & Signatories
         model.QrVerificationCode = doc.QrVerificationCode ?? $"NTC-VERIFY-{doc.Id.ToString("N")[..12].ToUpperInvariant()}";
@@ -129,6 +135,18 @@ public static class IssuedDocumentPrintMapper
         // 6. Template & Category Resolution (Exam, Accreditation, Certificates)
         var variantDesc = primaryVariant?.Description ?? primaryVariant?.Type.ToString();
         ResolveCategoryAndTemplate(model, serviceCode, serviceName, categoryName, variantDesc, allFieldValues);
+
+        var photoReq = app?.ApplicationRequirements?.FirstOrDefault(r =>
+            (r.Requirement != null && (r.Requirement.Name.Contains("1x1", StringComparison.OrdinalIgnoreCase) ||
+                                       r.Requirement.Name.Contains("photo", StringComparison.OrdinalIgnoreCase) ||
+                                       r.Requirement.Name.Contains("picture", StringComparison.OrdinalIgnoreCase))) ||
+            r.RequirementId == Guid.Parse("70000000-0000-0000-0000-000000000003") ||
+            r.RequirementId == Guid.Parse("70000000-0000-0000-0000-000000000033"));
+
+        if (photoReq != null)
+        {
+            model.ApplicantPhotoUrl = !string.IsNullOrWhiteSpace(photoReq.Url) ? photoReq.Url : null;
+        }
 
         return model;
     }
@@ -169,7 +187,8 @@ public static class IssuedDocumentPrintMapper
 
             var elementsField = FindField(fieldValues, "elements", "subjects", "exam element");
             model.ExamElements = elementsField?.Value ?? "Elements 1, 2, 3, 4";
-            return;
+
+return;
         }
 
         // ----------------------------------------------------

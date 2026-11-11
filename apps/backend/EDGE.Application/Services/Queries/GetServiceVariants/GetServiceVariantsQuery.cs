@@ -10,5 +10,6 @@ public record GetServiceVariantsQuery(
     Guid? ServiceId,
     int? PageNumber = 1,
     int? PageSize = 10,
-    string? SearchTerm = null
+    string? SearchTerm = null,
+    Guid? CategoryId = null
 ) : IRequest<PaginatedApiResponse<ServiceVariantDto>>;

@@ -1,4 +1,5 @@
 import { ApplicationData } from '../../../types/application';
+import { extractOrNumbers, formatOrDisplay } from '@edge/api';
 
 function safeString(val: unknown, fallback = 'N/A'): string {
   if (val === null || val === undefined) return fallback;
@@ -235,7 +236,7 @@ export function generateSoaPrintableHtml(
     .join('');
 
   const tenantName = isOptionsObj ? optionsOrTenantName.tenantName : (typeof optionsOrTenantName === 'string' ? optionsOrTenantName : undefined);
-  const officeName = safeString(app.office || app.assignedTo || tenantName, 'Regional Office No. VII');
+  const officeName = safeString(app.office || app.assignedTo || tenantName, 'National Telecommunications Commission');
   const payorName = safeString(app.applicant, 'Applicant');
   const payorAddress = formatAddress(app);
   const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-SOA');
@@ -264,7 +265,8 @@ export function generateSoaPrintableHtml(
   const isOfficialApplication = !isForAssessmentOnly;
   const isEndorsedForPayment = isOfficialApplication;
 
-  const orNumber = app.payment?.orNumber ?? '';
+  const orList = extractOrNumbers(app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber, app.officialReceiptNumber);
+  const orDisplay = formatOrDisplay(orList);
   const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0
     ? `₱ ${app.payment.amountReceived.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
     : (formattedTotal ? `₱ ${formattedTotal}` : '');
@@ -275,10 +277,15 @@ export function generateSoaPrintableHtml(
     : '';
   const orBy = app.issuingOfficer ?? app.evaluatingOfficer ?? '';
 
-  const prepName = safeString(preparerName || app.soaPreparedByName || app.evaluatingOfficer, 'AUTHORIZED EVALUATOR');
-  const apprvName = safeString(approverName || app.soaApprovedByName || app.issuingOfficer || app.endorsedTo, 'CHIEF, ENFORCEMENT & OPERATIONS DIVISION');
-  const prepTitle = safeString(app.soaPreparedByTitle, 'EVALUATOR, NTC');
-  const apprvTitle = safeString(app.soaApprovedByTitle, 'CHIEF, ENFORCEMENT & OPERATIONS DIV.');
+  const defaultEvaluatorTitle = app.office ? `EVALUATOR, ${app.office}` : 'EVALUATOR, NTC';
+  const defaultApproverTitle = app.office ? `CHIEF, ENFORCEMENT & OPERATIONS DIV., ${app.office}` : 'CHIEF, ENFORCEMENT & OPERATIONS DIV.';
+  const defaultEvaluatorName = app.office ? `AUTHORIZED EVALUATOR (${app.office})` : 'AUTHORIZED EVALUATOR';
+  const defaultApproverName = app.office ? `CHIEF, ENFORCEMENT & OPERATIONS DIVISION (${app.office})` : 'CHIEF, ENFORCEMENT & OPERATIONS DIVISION';
+
+  const prepName = safeString(preparerName || app.soaPreparedByName || app.evaluatingOfficer, defaultEvaluatorName);
+  const apprvName = safeString(approverName || app.soaApprovedByName || app.issuingOfficer || app.endorsedTo, defaultApproverName);
+  const prepTitle = safeString(app.soaPreparedByTitle, defaultEvaluatorTitle);
+  const apprvTitle = safeString(app.soaApprovedByTitle, defaultApproverTitle);
 
   return `<!DOCTYPE html>
 <html>
@@ -685,7 +692,7 @@ export function generateSoaPrintableHtml(
     <!-- Title & Series Subtitle -->
     <div class="title-banner">
       <div class="doc-main-title">Statement of Account</div>
-      <div class="doc-series-sub">(RC Code-Year of Issue-Mo. Of Issue-Series of the RC)</div>
+      <div class="doc-series-sub">(RC Code-Year of Issue-Mo. Of Issue-Series of the RC) • <strong style="${isForAssessmentOnly ? 'color: #7c3aed;' : 'color: #0284c7;'}">${isForAssessmentOnly ? 'PRE-ASSESSMENT ONLY' : 'OFFICIAL APPLICATION'}</strong></div>
     </div>
 
     <!-- Payor & Control Information Box -->
@@ -716,6 +723,18 @@ export function generateSoaPrintableHtml(
         <td colspan="2" style="border-top: 0.5px solid #cbd5e1; padding-top: 2px;">
           <span class="meta-label">Particular (App/Permit/Lic/Cert No.): </span>
           <span class="meta-val" style="font-weight: bold; color: #1e3a8a;">${particularNumber}</span>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="border-top: 0.5px solid #cbd5e1; padding-top: 2px;">
+          <span class="meta-label">Application Type: </span>
+          <span class="meta-val" style="font-weight: bold; ${isForAssessmentOnly ? 'color: #7c3aed;' : 'color: #1e3a8a;'}">
+            ${isForAssessmentOnly ? 'For Assessment Only' : 'Official Application'}
+          </span>
+          <span style="margin-left: 12px; font-size: 8px;">
+            <strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> Assessment Only
+            <strong style="margin-left: 8px;">${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application
+          </span>
         </td>
       </tr>
     </table>
@@ -770,26 +789,30 @@ export function generateSoaPrintableHtml(
     </div>
 
     <!-- Official SOA Remarks Box -->
-    ${(app.soaRemarks || app.remarks) ? `
+    ${(() => {
+      const remarksText = (app.soaRemarks || app.soaNoteText || app.remarks || '').trim();
+      if (!remarksText) return '';
+      return `
     <div style="border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'}; border-top: none; padding: 3px 8px; font-size: 8.5px; font-family: Arial, sans-serif; background: ${isOverlay ? 'transparent' : '#ffffff'};">
-      <span style="font-weight: bold;">REMARKS: </span><span>${safeString(app.soaRemarks || app.remarks, '')}</span>
+      <span style="font-weight: bold;">REMARKS: </span><span style="white-space: pre-line;">${safeString(remarksText, '')}</span>
     </div>
-    ` : ''}
+    `;
+    })()}
 
     <!-- Bottom Section: Assessment Stamp, O.R. Box, & Signatures -->
     <table class="bottom-grid">
       <tr>
         <!-- Left: Conditions & O.R. Stamp -->
         <td style="width: 48%; padding-top: 4px;">
-          <div style="font-size: 8px; margin-bottom: 3px; display: flex; gap: 10px;">
-            <span><strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only</span>
-            <span><strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application</span>
+          <div style="font-size: 8.5px; margin-bottom: 4px; padding: 2px 6px; background-color: #ffffff; border: 0.5px solid #cbd5e1; border-radius: 3px; display: flex; gap: 12px;">
+            <span style="${isForAssessmentOnly ? 'font-weight: bold; color: #7c3aed;' : 'color: #64748b;'}"><strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only</span>
+            <span style="${isOfficialApplication ? 'font-weight: bold; color: #1e40af;' : 'color: #64748b;'}"><strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application</span>
           </div>
 
           <table class="or-stamp-table">
             <tr>
               <td rowspan="4" class="or-header-cell">O.R.</td>
-              <td><span style="font-weight: bold;">No.</span> ${orNumber}</td>
+              <td><span style="font-weight: bold;">No.</span> ${orDisplay}${orList.length > 1 ? ` (${orList.length} Receipts)` : ''}</td>
             </tr>
             <tr>
               <td><span style="font-weight: bold;">AMOUNT:</span> <strong style="font-size: 11px; color: #15803d;">${orAmount}</strong></td>
@@ -853,18 +876,21 @@ export function generateOpPrintableHtml(
   const serviceName = safeString(app.serviceName, 'Application Services');
   const categoryName = safeString(app.category, 'General');
   const filingMode = safeString(app.mode, 'Single');
-  const orNumber = app.payment?.orNumber;
+  const orList = extractOrNumbers(app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber, app.officialReceiptNumber);
+  const orDisplay = formatOrDisplay(orList);
+  const singleOr = orList[0] ?? '';
+  const formattedSingleOr = singleOr.toUpperCase().startsWith('OR') ? singleOr : `OR #${singleOr}`;
 
   const applicantAddress = safeString(
     (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0)
       ? app.soaIssuedToAddress.trim()
       : formatAddress(app),
-    'Cebu City, Philippines'
+    'N/A'
   );
 
-  const paymentStatusText = orNumber
-    ? `Paid via OR #${orNumber}`
-    : 'Pending Cashier Collection';
+  const paymentStatusText = orList.length > 1
+    ? `Paid via ${orList.length} Official Receipts (${orDisplay})`
+    : (orList.length === 1 ? `Paid via ${formattedSingleOr}` : 'Pending Cashier Collection');
 
   const renderSingleVoucher = (copyTitle: string) => `
     <div class="voucher-wrapper">
@@ -873,7 +899,7 @@ export function generateOpPrintableHtml(
           <td style="width: 65%; vertical-align: top;">
             <div class="rep-title">Republic of the Philippines</div>
             <div class="ntc-title">NATIONAL TELECOMMUNICATIONS COMMISSION</div>
-            <div class="ro-title">Regional Office No. VII</div>
+            ${officeName && officeName !== 'National Telecommunications Commission' ? `<div class="ro-title">${officeName}</div>` : ''}
             <div class="fund-title">General Fund</div>
           </td>
           <td style="width: 35%; vertical-align: top; text-align: right;">
@@ -937,13 +963,13 @@ export function generateOpPrintableHtml(
         </thead>
         <tbody>
           <tr>
-            <td style="text-align: center;">1</td>
-            <td>Land Bank of the Philippines</td>
-            <td style="text-align: right; font-weight: bold;">PHP ${formatCurrency(app.totalAmountDue)}</td>
+            <td style="text-align: center;">&nbsp;</td>
+            <td>________________________________________</td>
+            <td style="text-align: right; font-weight: bold;">PHP ________________</td>
           </tr>
           <tr class="total-row">
             <td colspan="2" style="text-align: right; font-weight: bold;">TOTAL PHP</td>
-            <td style="text-align: right; font-weight: bold;">${formatCurrency(app.totalAmountDue)}</td>
+            <td style="text-align: right; font-weight: bold;">________________</td>
           </tr>
         </tbody>
       </table>
@@ -954,26 +980,26 @@ export function generateOpPrintableHtml(
             <table class="or-stamp-box">
               <tr>
                 <td style="width: 55px; font-weight: bold;">O.R. No.</td>
-                <td style="font-weight: bold; font-family: monospace;">${orNumber || '________________'}</td>
+                <td style="font-weight: bold; font-family: monospace;">${orDisplay || '________________'}${orList.length > 1 ? ` (${orList.length} Receipts)` : ''}</td>
               </tr>
               <tr>
                 <td style="font-weight: bold;">AMOUNT:</td>
-                <td style="font-weight: bold;">${app.payment?.amountReceived ? `PHP ${formatCurrency(app.payment.amountReceived)}` : (orNumber ? `PHP ${formatCurrency(app.totalAmountDue)}` : '________________')}</td>
+                <td style="font-weight: bold;">${app.payment?.amountReceived ? `PHP ${formatCurrency(app.payment.amountReceived)}` : (orDisplay ? `PHP ${formatCurrency(app.totalAmountDue)}` : '________________')}</td>
               </tr>
               <tr>
                 <td>Date:</td>
-                <td>${orNumber ? currentDate : '________________'}</td>
+                <td>${orDisplay ? currentDate : '________________'}</td>
               </tr>
               <tr>
                 <td>By:</td>
-                <td>${safeString(cashierName, 'Special Collecting Officer')}</td>
+                <td>${safeString(cashierName, app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer')}</td>
               </tr>
             </table>
           </td>
           <td style="width: 52%; vertical-align: bottom; text-align: center; padding-left: 20px;">
             <div class="officer-sig-line"></div>
-            <div class="officer-name">${safeString(cashierName, 'Special Collecting Officer')}</div>
-            <div class="officer-title">Special Collecting Officer / Cashier</div>
+            <div class="officer-name">${safeString(cashierName, app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer')}</div>
+            <div class="officer-title">${app.office ? `Special Collecting Officer / Cashier, ${app.office}` : 'Special Collecting Officer / Cashier'}</div>
             <div style="font-size: 8px; color: #64748b; margin-top: 2px;">${paymentStatusText}</div>
           </td>
         </tr>

@@ -26,8 +26,6 @@ import {
 } from "lucide-react";
 import { useRegionService } from "@/services/regionService";
 import { useProvinceService } from "@/services/provinceService";
-import { useMunicipalityService } from "@/services/municipalityService";
-import { useBarangayService } from "@/services/barangayService";
 import { useTenantService } from "@/services/tenantService";
 import { useCatalogService } from "@/services/catalogService";
 import { useRoleService } from "@/services/roleService";
@@ -122,8 +120,6 @@ export default function Dashboard() {
   // Geographic data
   const { useRegions } = useRegionService();
   const { useProvinces } = useProvinceService();
-  const { useMunicipalities } = useMunicipalityService();
-  const { useBarangays } = useBarangayService();
 
   // Admin entities
   const { useTenants } = useTenantService();
@@ -138,12 +134,10 @@ export default function Dashboard() {
   // Fetch all
   const { data: regionsData, isLoading: regionsLoading } = useRegions();
   const { data: provincesData, isLoading: provincesLoading } = useProvinces();
-  const { data: municipalitiesData, isLoading: municipalitiesLoading } = useMunicipalityService().useMunicipalities();
-  const { data: barangaysData, isLoading: barangaysLoading } = useBarangayService().useBarangays();
   const { data: tenantsData, isLoading: tenantsLoading } = useTenants(1, 1);
   const { data: categoriesResp } = useServiceCategories();
   const { data: servicesResp, isLoading: servicesLoading } = useServices(undefined, 1, 1);
-  const { data: rolesData, isLoading: rolesLoading } = useRoles(undefined, true);
+  const { data: rolesData, isLoading: rolesLoading } = useRoles(undefined, false);
   const { data: announcementsData, isLoading: announcementsLoading } = useAnnouncements(1, 1);
   const { data: schedulesData, isLoading: schedulesLoading } = useSchedules();
   const { data: supportUsersData, isLoading: supportUsersLoading } = useGlobalUsers();
@@ -171,8 +165,6 @@ export default function Dashboard() {
 
   const regionsCount = Array.isArray(regionsData?.data) ? regionsData.data.length : (typeof regionsData?.data === "number" ? regionsData.data : 0);
   const provincesCount = Array.isArray(provincesData?.data) ? provincesData.data.length : (typeof provincesData?.data === "number" ? provincesData.data : 0);
-  const municipalitiesCount = Array.isArray(municipalitiesData?.data) ? municipalitiesData.data.length : 0;
-  const barangaysCount = Array.isArray(barangaysData?.data) ? barangaysData.data.length : 0;
 
   const systemStats = [
     {
@@ -314,11 +306,18 @@ export default function Dashboard() {
     },
   ];
 
-  const geoStats = [
+  const geoStats: {
+    name: string;
+    count: string | number;
+    loading: boolean;
+    icon: React.ElementType;
+    textColor: string;
+    href: string;
+  }[] = [
     { name: "Regions", count: regionsCount, loading: regionsLoading, icon: MapPin, textColor: "text-cyan-600 dark:text-cyan-400", href: "/regions" },
     { name: "Provinces", count: provincesCount, loading: provincesLoading, icon: Building, textColor: "text-blue-600 dark:text-blue-400", href: "/provinces" },
-    { name: "Municipalities", count: municipalitiesCount, loading: municipalitiesLoading, icon: Building2, textColor: "text-indigo-600 dark:text-indigo-400", href: "/municipalities" },
-    { name: "Barangays", count: barangaysCount, loading: barangaysLoading, icon: Home, textColor: "text-purple-600 dark:text-purple-400", href: "/barangays" },
+    { name: "Municipalities", count: "1,634+", loading: false, icon: Building2, textColor: "text-indigo-600 dark:text-indigo-400", href: "/municipalities" },
+    { name: "Barangays", count: "42,000+", loading: false, icon: Home, textColor: "text-purple-600 dark:text-purple-400", href: "/barangays" },
   ];
 
   const quickLinks = [
@@ -417,7 +416,7 @@ export default function Dashboard() {
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
                   ) : (
                     <span className={`font-mono text-sm font-bold ${stat.textColor}`}>
-                      {(stat.count ?? 0).toLocaleString()}
+                      {typeof stat.count === "number" ? stat.count.toLocaleString() : stat.count}
                     </span>
                   )}
                   <ArrowRight className="w-3 h-3 text-slate-400 dark:text-slate-600 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors" />

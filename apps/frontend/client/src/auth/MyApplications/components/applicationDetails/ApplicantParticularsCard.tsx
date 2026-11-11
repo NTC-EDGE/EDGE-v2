@@ -27,8 +27,11 @@ interface ApplicantParticularsCardProps {
     representativeContactNumber?: string | null;
     notes: string | null;
     schoolAttended?: string | null;
+    schoolName?: string | null;
     courseTaken?: string | null;
+    courseDegree?: string | null;
     yearGraduated?: string | null;
+    specialOrderNo?: string | null;
   } | null;
   isDesktop?: boolean;
 }
@@ -48,6 +51,11 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
   const isIndividual = (singleApplicant.applicantType || '').toLowerCase() === 'individual';
   const isCompany = !isIndividual && ((singleApplicant.applicantType || '').toLowerCase() === 'company' || Boolean(singleApplicant.companyName));
 
+  const resolvedSchool = singleApplicant.schoolAttended || singleApplicant.schoolName || null;
+  const resolvedCourse = singleApplicant.courseTaken || singleApplicant.courseDegree || null;
+  const resolvedYear = singleApplicant.yearGraduated || null;
+  const resolvedSpecialOrderNo = singleApplicant.specialOrderNo || null;
+
   return (
     <ApplicantDetailsReviewCard
       activeApplicant={{
@@ -61,9 +69,12 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
         representativeEmail: isCompany ? (singleApplicant.representativeEmail || null) : null,
         representativeContactNumber: isCompany ? (singleApplicant.representativeContactNumber || null) : null,
         notes: singleApplicant.notes,
-        schoolAttended: singleApplicant.schoolAttended,
-        courseTaken: singleApplicant.courseTaken,
-        yearGraduated: singleApplicant.yearGraduated,
+        schoolAttended: resolvedSchool,
+        schoolName: resolvedSchool,
+        courseTaken: resolvedCourse,
+        courseDegree: resolvedCourse,
+        yearGraduated: resolvedYear,
+        specialOrderNo: resolvedSpecialOrderNo,
       }}
       resolvedFullName={singleApplicant.applicantName || null}
       resolvedEmail={singleApplicant.email && singleApplicant.email !== 'N/A' ? singleApplicant.email : ''}
@@ -73,9 +84,10 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
       resolvedSex={singleApplicant.sex && singleApplicant.sex !== 'N/A' ? singleApplicant.sex : null}
       resolvedCivilStatus={singleApplicant.civilStatus && singleApplicant.civilStatus !== 'N/A' ? singleApplicant.civilStatus : null}
       resolvedNationality={singleApplicant.nationality && singleApplicant.nationality !== 'N/A' ? singleApplicant.nationality : null}
-      schoolAttended={singleApplicant.schoolAttended}
-      courseTaken={singleApplicant.courseTaken}
-      yearGraduated={singleApplicant.yearGraduated}
+      schoolAttended={resolvedSchool}
+      courseTaken={resolvedCourse}
+      yearGraduated={resolvedYear}
+      specialOrderNo={resolvedSpecialOrderNo}
     />
   );
 }

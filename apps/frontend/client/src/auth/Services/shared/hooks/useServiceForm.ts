@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useApi } from "../../../../shared/hooks/useApi";
 import { FormDto } from "../../../../shared/components/DynamicFormRenderer";
 
@@ -9,63 +9,64 @@ interface ApiResponseEnvelope<T> {
 }
 
 /**
- * Lazily fetches the dynamic form layout for a given service (and optionally a variant)
- * from the backend API.
+ * Dynamically fetches the form layout for a given service from the backend API.
+ * Uses SWR with automatic revalidation on focus so that changes saved in the Admin
+ * Form Builder immediately reflect in the Client without requiring a hard page refresh.
+ *
+ * When variantId is provided, the API looks up the dedicated variant form if configured,
+ * or gracefully falls back to the master base form template.
  *
  * Returns:
  * - `form`: A fully resolved `FormDto` from the DB when the service has form records seeded,
- *           or `null` when none exist (triggering the hardcoded form fallback in GeneralFilingDetailsStep).
+ *           or `null` when none exist.
  * - `loading`: True while the API request is in flight.
- *
- * Endpoint priority:
- * 1. GET /api/v2/services/{serviceId}/variants/{variantId}/form  (variant-specific form)
- * 2. GET /api/v2/services/{serviceId}/form                       (base service form fallback)
- * 3. null                                                        (renders hardcoded form)
+ * - `refetch`: Function to explicitly re-fetch the latest template from the server.
  */
-export function useServiceForm(serviceId: string | undefined, variantId?: string | null) {
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function useServiceForm(
+  serviceId: string | undefined,
+  variantId?: string | null,
+  formKey?: string | null
+) {
   const api = useApi();
-  const [form, setForm] = useState<FormDto | null>(null);
-  const [loading, setLoading] = useState(false);
+  const endpoint = useMemo(() => {
+    const trimmedVariantId = typeof variantId === "string" ? variantId.trim() : "";
+    const trimmedFormKey = typeof formKey === "string" ? formKey.trim() : "";
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function fetchForm() {
-      if (!serviceId) {
-        if (isMounted) setForm(null);
-        return;
-      }
-
-      if (isMounted) setLoading(true);
-
-      try {
-        // Query the seeded form definition for the service
-        const endpoint = `/api/v2/services/${serviceId}/form`;
-        const rawRes = await api.get<ApiResponseEnvelope<FormDto>>(endpoint).catch(() => null);
-        const formDto = rawRes?.data ?? null;
-
-        if (isMounted) {
-          // Only set form when the response has meaningful seeded sections
-          // If no seeded form exists, fall back to null → hardcoded form renders instead
-          if (formDto && Array.isArray(formDto.sections) && formDto.sections.length > 0) {
-            setForm(formDto);
-          } else {
-            setForm(null);
-          }
-        }
-      } catch {
-        if (isMounted) setForm(null);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
+    if (trimmedVariantId.length > 0 && UUID_REGEX.test(trimmedVariantId) && trimmedFormKey.length === 0) {
+      return `/api/v2/service-variants/${trimmedVariantId}/form`;
     }
 
-    fetchForm();
+    if (!serviceId) return null;
+    const params = new URLSearchParams();
+    if (trimmedVariantId.length > 0) {
+      params.append("variantId", trimmedVariantId);
+    }
+    if (trimmedFormKey.length > 0) {
+      params.append("formKey", trimmedFormKey);
+    }
+    const qs = params.toString();
+    return `/api/v2/services/${serviceId}/form${qs ? `?${qs}` : ""}`;
+  }, [serviceId, variantId, formKey]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [serviceId, variantId]);
+  const { data: rawRes, isLoading, mutate } = api.useQuery<ApiResponseEnvelope<FormDto>>(endpoint, {
+    revalidateOnFocus: true,
+    revalidateIfStale: true,
+    dedupingInterval: 2000,
+  });
 
-  return { form, loading };
+  const form = useMemo(() => {
+    const formDto = rawRes?.data;
+    if (formDto && Array.isArray(formDto.sections) && formDto.sections.length > 0) {
+      return formDto;
+    }
+    return null;
+  }, [rawRes]);
+
+  return {
+    form,
+    loading: isLoading,
+    refetch: mutate,
+  };
 }

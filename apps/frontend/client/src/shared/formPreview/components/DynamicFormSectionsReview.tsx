@@ -12,8 +12,6 @@ export interface DynamicFormSectionsReviewProps {
 
 export function DynamicFormSectionsReview({
   dynamicSectionsToRender,
-  isExamService,
-  remainingFields,
   onPreviewFile,
 }: DynamicFormSectionsReviewProps) {
   return (
@@ -30,20 +28,6 @@ export function DynamicFormSectionsReview({
           ))}
         </SectionCard>
       ))}
-
-      {remainingFields.length > 0 ? (
-        <SectionCard icon="file-text" title="Application Particulars & Technical Details" accentColor="#0284C7">
-          {remainingFields.map((fv) => (
-            <SummaryRow
-              key={fv.fieldId || fv.fieldLabel}
-              label={fv.fieldLabel}
-              value={fv.value}
-              onPreviewFile={onPreviewFile}
-            />
-          ))}
-        </SectionCard>
-      ) : null}
-
     </>
   );
 }

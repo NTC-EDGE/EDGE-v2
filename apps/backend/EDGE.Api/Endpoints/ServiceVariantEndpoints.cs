@@ -10,6 +10,11 @@ using EDGE.Application.ServiceVariants.DTOs;
 using EDGE.Application.Services.Queries.GetServiceVariants;
 using EDGE.Application.Services.Dtos;
 using EDGE.Application.Common.Models;
+using EDGE.Application.Forms.Dtos;
+using EDGE.Application.Forms.Queries.GetFormByVariantId;
+using EDGE.Application.Forms.Commands.SaveVariantForm;
+using EDGE.Application.Forms.Commands.RevertVariantForm;
+using EDGE.Application.Forms.Commands.ActivateVariantForm;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 
@@ -18,6 +23,13 @@ namespace EDGE.Api.Endpoints;
 public record CreateServiceVariantRequest(Guid ServiceId, string Type, string? Description);
 public record UpdateServiceVariantRequest(Guid ServiceId, string Type, string? Description);
 public record SetServiceVariantFormulaRequest(string FormulaExpression, string? Description, bool ApplyLateRenewalSurcharge);
+public record SaveVariantFormRequest(
+    List<FormSectionDto>? Sections,
+    string? Name = null,
+    string? Version = null,
+    bool? IsActive = true
+);
+public record ActivateVariantFormRequest(bool IsActive);
 
 public static class ServiceVariantEndpoints
 {
@@ -75,6 +87,41 @@ public static class ServiceVariantEndpoints
             .WithDescription("Deletes a service variant record.")
             .Produces<ApiResponse<bool>>(StatusCodes.Status200OK)
             .Produces<ApiResponse<bool>>(StatusCodes.Status404NotFound);
+
+        // Dedicated Service Variant Form Endpoints
+        variants.MapGet("/{id:guid}/form", GetVariantForm)
+            .WithName("GetVariantForm")
+            .WithSummary("Get form schema for service variant")
+            .WithDescription("Retrieves the customized form schema for a service variant or falls back to the base form template.")
+            .Produces<ApiResponse<FormDto>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<FormDto>>(StatusCodes.Status404NotFound);
+
+        variants.MapPost("/{id:guid}/form", SaveVariantForm)
+            .WithName("CreateVariantForm")
+            .WithSummary("Save customized form for service variant")
+            .WithDescription("Creates or replaces the customized form schema for this specific service variant.")
+            .Produces<ApiResponse<FormDto>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
+
+        variants.MapPut("/{id:guid}/form", SaveVariantForm)
+            .WithName("UpdateVariantForm")
+            .WithSummary("Update customized form for service variant")
+            .WithDescription("Updates the customized form schema for this specific service variant.")
+            .Produces<ApiResponse<FormDto>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
+
+        variants.MapPost("/{id:guid}/form/activate", ActivateVariantForm)
+            .WithName("ActivateVariantForm")
+            .WithSummary("Activate or deactivate customized form for service variant")
+            .WithDescription("Toggles the activation status of the variant-specific form.")
+            .Produces<ApiResponse<bool>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
+
+        variants.MapDelete("/{id:guid}/form", RevertVariantForm)
+            .WithName("RevertVariantForm")
+            .WithSummary("Revert service variant form to base template")
+            .WithDescription("Deletes the customized form for this variant so it inherits the base form template.")
+            .Produces<ApiResponse<bool>>(StatusCodes.Status200OK);
 
         return group;
     }
@@ -204,15 +251,93 @@ public static class ServiceVariantEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceVariants(
         Guid? serviceId,
+        Guid? categoryId,
         int? pageNumber,
         int? pageSize,
         string? searchTerm,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetServiceVariantsQuery(serviceId, pageNumber, pageSize, searchTerm));
+        var result = await mediator.Send(new GetServiceVariantsQuery(serviceId, pageNumber, pageSize, searchTerm, categoryId));
         return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReadServices)]
+    public static async Task<IResult> GetVariantForm(
+        Guid id,
+        IValidator<GetFormByVariantIdQuery> validator,
+        IMediator mediator)
+    {
+        var query = new GetFormByVariantIdQuery(id);
+        var validationResult = await validator.ValidateAsync(query);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(query);
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+    }
+
+    [HasPermission(Permissions.SystemAdmin)]
+    public static async Task<IResult> SaveVariantForm(
+        Guid id,
+        SaveVariantFormRequest request,
+        IValidator<SaveVariantFormCommand> validator,
+        IMediator mediator)
+    {
+        var command = new SaveVariantFormCommand(
+            id,
+            request.Sections,
+            request.Name,
+            request.Version,
+            request.IsActive
+        );
+
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.SystemAdmin)]
+    public static async Task<IResult> ActivateVariantForm(
+        Guid id,
+        ActivateVariantFormRequest request,
+        IValidator<ActivateVariantFormCommand> validator,
+        IMediator mediator)
+    {
+        var command = new ActivateVariantFormCommand(id, request.IsActive);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.SystemAdmin)]
+    public static async Task<IResult> RevertVariantForm(
+        Guid id,
+        IValidator<RevertVariantFormCommand> validator,
+        IMediator mediator)
+    {
+        var command = new RevertVariantFormCommand(id);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 }

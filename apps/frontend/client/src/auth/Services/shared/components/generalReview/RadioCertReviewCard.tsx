@@ -6,7 +6,7 @@ import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 interface RadioCertReviewCardProps {
   isCertificateService: boolean;
   isAmateurCertService: boolean;
-  serviceTitle?: string;
+  serviceTitle?: string | null;
   radioCert?: RadioOperatorCertData | null;
 }
 
@@ -16,7 +16,7 @@ export function RadioCertReviewCard({
   serviceTitle = '',
   radioCert,
 }: RadioCertReviewCardProps) {
-  const titleLower = serviceTitle.toLowerCase();
+  const titleLower = (serviceTitle || '').toLowerCase();
   const isOtherCertService =
     titleLower.includes('vas') ||
     titleLower.includes('value-added') ||
@@ -50,44 +50,43 @@ export function RadioCertReviewCard({
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {radioCert.typeOfCertificate ? (
             <View style={{ flex: 1 }}>
-              <SummaryRow label="Certificate Type" value={radioCert.typeOfCertificate} />
+              <SummaryRow label="Type of Certificate" value={radioCert.typeOfCertificate} />
             </View>
           ) : null}
-          {radioCert.years ? (
-            <View style={{ flex: 1 }}>
-              <SummaryRow label="Validity Years" value={`${radioCert.years} Year(s)`} />
-            </View>
-          ) : null}
-        </View>
-        {radioCert.certificateNo ? (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          {radioCert.certificateNo ? (
             <View style={{ flex: 1 }}>
               <SummaryRow label="Certificate No." value={radioCert.certificateNo} />
             </View>
-            {radioCert.dateOfExpiry ? (
-              <View style={{ flex: 1 }}>
-                <SummaryRow label="Expiry Date" value={radioCert.dateOfExpiry} />
-              </View>
-            ) : null}
-          </View>
+          ) : null}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {radioCert.dateOfExpiry ? (
+            <View style={{ flex: 1 }}>
+              <SummaryRow label="Date of Expiry" value={radioCert.dateOfExpiry} />
+            </View>
+          ) : null}
+          {radioCert.employmentStatus ? (
+            <View style={{ flex: 1 }}>
+              <SummaryRow label="Employment Status" value={radioCert.employmentStatus} />
+            </View>
+          ) : null}
+        </View>
+
+        {radioCert.nameOfEmployer ? (
+          <SummaryRow label="Name of Employer" value={radioCert.nameOfEmployer} />
         ) : null}
-        {radioCert.modificationDueTo ? <SummaryRow label="Reason for Modification" value={radioCert.modificationDueTo} /> : null}
-        {radioCert.employmentStatus || radioCert.employmentType || radioCert.employmentLocation ? (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {radioCert.employmentStatus ? (
-              <View style={{ flex: 1 }}>
-                <SummaryRow label="Employment Status" value={radioCert.employmentStatus} />
-              </View>
-            ) : null}
-            {radioCert.employmentType || radioCert.employmentLocation ? (
-              <View style={{ flex: 1 }}>
-                <SummaryRow label="Employment Type / Location" value={[radioCert.employmentType, radioCert.employmentLocation].filter(Boolean).join(' - ')} />
-              </View>
-            ) : null}
-          </View>
+
+        {radioCert.companyAddress ? (
+          <SummaryRow label="Company Address" value={radioCert.companyAddress} />
         ) : null}
-        {radioCert.clubName ? (
-          <SummaryRow label="Amateur Club & Call Sign" value={[radioCert.clubName, radioCert.clubCallSign].filter(Boolean).join(' (') + (radioCert.clubCallSign ? ')' : '')} />
+
+        {radioCert.modificationDueTo ? (
+          <SummaryRow label="Modification Reason" value={radioCert.modificationDueTo} />
+        ) : null}
+
+        {radioCert.remarks ? (
+          <SummaryRow label="Remarks" value={radioCert.remarks} />
         ) : null}
       </View>
     </SectionCard>

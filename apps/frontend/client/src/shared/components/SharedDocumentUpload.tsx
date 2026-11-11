@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, TouchableOpacity, Image, StyleSheet, Alert, Platform } from "react-native";
-import { Icon } from "@edge/ui";
+import { View, Text, TouchableOpacity, Image, StyleSheet, Alert, Platform, useWindowDimensions } from "react-native";
+import { Icon, EditedImageResult } from "@edge/ui";
 import { COLORS, TYPOGRAPHY } from "../theme/tokens";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { UploadChoiceDialog } from "../../auth/Services/shared/components/UploadChoiceDialog";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { CameraCaptureModal, CapturedPhoto } from "./CameraCaptureModal";
 
 export interface DocumentRequirement {
   key: string;       // Unique lookup key in uploads object
@@ -39,15 +40,20 @@ export function SharedDocumentUpload({
   isWeb,
   errors = {},
 }: SharedDocumentUploadProps) {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
+  const isWebLayout = isDesktop && (isWeb !== false);
   const safeUploads = uploads ?? {};
   const [selectedReqIndex, setSelectedReqIndex] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string; type?: string } | string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
 
   // Safely clamp selected index in case requirements list changes dynamically
   const activeIndex = Math.max(0, Math.min(selectedReqIndex, requirements.length - 1));
@@ -59,10 +65,57 @@ export function SharedDocumentUpload({
     (key: string) => {
       setIsPreviewOpen(false);
       setPreviewFile(null);
+      setImageLoadErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       onRemove(key);
     },
     [onRemove]
   );
+
+  const handleImageLoadFailure = useCallback(
+    (slotKey: string, slotLabel?: string) => {
+      setImageLoadErrors((prev) => ({ ...prev, [slotKey]: true }));
+      onRemove(slotKey);
+      if (previewFile && typeof previewFile === "object" && activeSlotKey === slotKey) {
+        setIsPreviewOpen(false);
+        setPreviewFile(null);
+      }
+      Alert.alert(
+        "Attachment Image Lost",
+        `The image for "${slotLabel || "required document"}" could not be loaded or was lost. Please upload or take the photo again.`
+      );
+    },
+    [onRemove, previewFile, activeSlotKey]
+  );
+
+  // Proactively validate and clear any empty/ghost upload entries
+  useEffect(() => {
+    if (!uploads) return;
+    Object.entries(uploads).forEach(([key, val]) => {
+      if (!val) return;
+      if (typeof val === "string") {
+        const trimmed = val.trim();
+        if (
+          !trimmed.startsWith("data:") &&
+          !trimmed.startsWith("blob:") &&
+          !trimmed.startsWith("http:") &&
+          !trimmed.startsWith("https:") &&
+          !trimmed.startsWith("file:")
+        ) {
+          onRemove(key);
+        }
+      } else if (typeof val === "object") {
+        const uri = typeof val.uri === "string" ? val.uri.trim() : "";
+        const hasFile = Boolean(val.file);
+        if (!uri && !hasFile) {
+          onRemove(key);
+        }
+      }
+    });
+  }, [uploads, onRemove]);
 
   // Prevent default browser behavior on web (opening dropped files in a new tab)
   useEffect(() => {
@@ -89,11 +142,12 @@ export function SharedDocumentUpload({
       const file = files[0];
       if (!file) return;
 
-      const fileName = file.name || "uploaded_document";
+      const fileName = file?.name || "uploaded_document";
       const ext = fileName.toLowerCase().split(".").pop() || "";
       const validExts = ["pdf", "png", "jpg", "jpeg", "webp"];
+      const rawType = typeof file?.type === "string" ? file.type : "";
       const isImageOrPdf =
-        (file.type && (file.type.startsWith("image/") || file.type === "application/pdf")) ||
+        (rawType !== "" && (rawType.startsWith("image/") || rawType === "application/pdf")) ||
         validExts.includes(ext);
 
       if (!isImageOrPdf) {
@@ -109,12 +163,37 @@ export function SharedDocumentUpload({
           ? URL.createObjectURL(file)
           : "";
 
-      onUpload(slotKey, {
-        name: fileName,
-        uri: fileUri,
-        type: file.type || undefined,
-        file,
-      });
+      if (slotKey) {
+        setImageLoadErrors((prev) => ({ ...prev, [slotKey]: false }));
+      }
+      if (rawType.startsWith("image/") && typeof FileReader !== "undefined") {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUri = typeof reader.result === "string" ? reader.result : fileUri;
+          onUpload(slotKey, {
+            name: fileName,
+            uri: dataUri,
+            type: rawType || undefined,
+            file,
+          });
+        };
+        reader.onerror = () => {
+          onUpload(slotKey, {
+            name: fileName,
+            uri: fileUri,
+            type: rawType || undefined,
+            file,
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        onUpload(slotKey, {
+          name: fileName,
+          uri: fileUri,
+          type: rawType || undefined,
+          file,
+        });
+      }
     },
     [activeReq?.key, onUpload]
   );
@@ -189,12 +268,37 @@ export function SharedDocumentUpload({
         const asset = result.assets[0];
         if (!asset) return;
         const rawWebFile = "file" in asset && asset.file instanceof Blob ? asset.file : undefined;
-        onUpload(activeSlotKey, {
-          name: asset.name,
-          uri: asset.uri,
-          type: asset.mimeType || undefined,
-          file: rawWebFile,
-        });
+        const resolvedName = asset?.name || (rawWebFile && 'name' in rawWebFile && typeof rawWebFile.name === 'string' ? rawWebFile.name : 'document');
+        const resolvedType = (typeof asset?.mimeType === 'string' && asset.mimeType) || (rawWebFile?.type ? rawWebFile.type : undefined);
+        setImageLoadErrors((prev) => ({ ...prev, [activeSlotKey]: false }));
+        if (rawWebFile && (rawWebFile.type.startsWith("image/") || (resolvedType && resolvedType.startsWith("image/"))) && typeof FileReader !== "undefined") {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUri = typeof reader.result === "string" ? reader.result : (asset?.uri || "");
+            onUpload(activeSlotKey, {
+              name: resolvedName,
+              uri: dataUri,
+              type: resolvedType,
+              file: rawWebFile,
+            });
+          };
+          reader.onerror = () => {
+            onUpload(activeSlotKey, {
+              name: resolvedName,
+              uri: asset?.uri || "",
+              type: resolvedType,
+              file: rawWebFile,
+            });
+          };
+          reader.readAsDataURL(rawWebFile);
+        } else {
+          onUpload(activeSlotKey, {
+            name: resolvedName,
+            uri: asset?.uri || "",
+            type: resolvedType,
+            file: rawWebFile,
+          });
+        }
       }
     } catch (err) {
       console.error("Document picking error:", err);
@@ -202,9 +306,48 @@ export function SharedDocumentUpload({
     }
   };
 
+  const handleCameraCapture = (captured: CapturedPhoto) => {
+    if (!activeSlotKey) return;
+    setImageLoadErrors((prev) => ({ ...prev, [activeSlotKey]: false }));
+    onUpload(activeSlotKey, {
+      name: captured?.name || `camera_photo_${Date.now()}.jpg`,
+      uri: captured?.uri || "",
+      type: captured?.type || "image/jpeg",
+      file: captured?.file,
+    });
+  };
+
+  const handleSaveEditedDocument = (result: EditedImageResult) => {
+    const targetKey = activeSlotKey || activeReq?.key;
+    if (!targetKey) return;
+    setImageLoadErrors((prev) => ({ ...prev, [targetKey]: false }));
+    onUpload(targetKey, {
+      name: result?.name || "document.jpg",
+      uri: result?.uri || "",
+      type: result?.type || "image/jpeg",
+      file: result?.file,
+    });
+    setPreviewFile({
+      name: result?.name || "document.jpg",
+      uri: result?.uri || "",
+      type: result?.type || "image/jpeg",
+    });
+  };
+
   const handleCameraLaunch = async () => {
     if (!activeSlotKey) return;
     setIsSheetOpen(false);
+
+    if (
+      Platform.OS === "web" &&
+      typeof navigator !== "undefined" &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function"
+    ) {
+      setIsCameraModalOpen(true);
+      return;
+    }
+
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
@@ -218,12 +361,13 @@ export function SharedDocumentUpload({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         if (!asset) return;
-        const fileName = asset.fileName || `scanned_doc_${Date.now()}.jpg`;
+        const fileName = asset?.fileName || `scanned_doc_${Date.now()}.jpg`;
         const rawWebFile = "file" in asset && asset.file instanceof Blob ? asset.file : undefined;
+        const resolvedType = (typeof asset?.mimeType === 'string' && asset.mimeType) || (rawWebFile?.type ? rawWebFile.type : "image/jpeg");
         onUpload(activeSlotKey, {
           name: fileName,
-          uri: asset.uri,
-          type: asset.mimeType || "image/jpeg",
+          uri: asset?.uri || "",
+          type: resolvedType,
           file: rawWebFile,
         });
       }
@@ -239,7 +383,7 @@ export function SharedDocumentUpload({
         Please upload clear scanned documents (PDF or JPEG/PNG) for each of the listed requirements below:
       </Text>
 
-      {isWeb ? (
+      {isWebLayout ? (
         /* WEB View: Side-by-Side Split Grid View */
         <View style={styles.webGrid}>
           {/* Left panel: List of requirements */}
@@ -306,13 +450,6 @@ export function SharedDocumentUpload({
                     (fileType && fileType.startsWith("image/")))
               );
 
-              const extraHint = (activeReq.hint || activeReq.description || "").trim();
-              const isDuplicateHint =
-                !extraHint ||
-                extraHint.toLowerCase() === activeReq.label.toLowerCase() ||
-                activeReq.label.toLowerCase().includes(extraHint.toLowerCase()) ||
-                extraHint.toLowerCase().includes(activeReq.label.toLowerCase());
-
               const hasActiveReqError = Boolean(
                 activeReq &&
                   !uploadData &&
@@ -333,30 +470,22 @@ export function SharedDocumentUpload({
 
               return (
                 <View style={styles.dropzoneContainer}>
-                  <Text style={styles.activeReqTitle}>
-                    {activeReq.label}
-                    {activeReq.required && <Text style={styles.asterisk}>*</Text>}
-                  </Text>
-                  {!isDuplicateHint && (
-                    <View style={styles.hintContainer}>
-                      <Icon name="info" size={14} color="#1D4ED8" style={{ marginTop: 2, marginRight: 6 }} />
-                      <Text style={styles.hintText}>
-                        {extraHint}
-                      </Text>
-                    </View>
-                  )}
-
                   {uploadData ? (
                     <View style={styles.previewBox}>
-                      {isImage ? (
+                      {isImage && !imageLoadErrors[activeReq.key] ? (
                         <Image
                           source={{ uri: fileUri }}
                           style={styles.imagePreview}
+                          onError={() => {
+                            handleImageLoadFailure(activeReq.key, activeReq.label);
+                          }}
                         />
                       ) : (
                         <View style={styles.pdfPreviewPlaceholder}>
                           <Icon name="file-text" size={48} color={COLORS.neutral[400]} />
-                          <Text style={styles.pdfPlaceholderText}>Scanned PDF Document</Text>
+                          <Text style={styles.pdfPlaceholderText}>
+                            Scanned PDF Document
+                          </Text>
                         </View>
                       )}
                       <Text style={styles.fileNameText} numberOfLines={1}>
@@ -365,6 +494,7 @@ export function SharedDocumentUpload({
                       <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 8 }}>
                         <TouchableOpacity
                           onPress={() => {
+                            setActiveSlotKey(activeReq.key);
                             setPreviewFile(uploadData);
                             setPreviewLabel(activeReq.label);
                             setIsPreviewOpen(true);
@@ -565,71 +695,65 @@ export function SharedDocumentUpload({
 
                 {uploadData ? (
                   <View style={styles.mobileSuccessRow}>
-                    {isImage ? (
-                      <Image
-                        source={{ uri: fileUri }}
-                        style={styles.mobileThumbnail}
-                      />
-                    ) : (
-                      <View style={styles.mobileIconPlaceholder}>
-                        <Icon name="file-text" size={20} color={COLORS.neutral[500]} />
+                    <View style={styles.mobileFileHeader}>
+                      {isImage && !imageLoadErrors[req.key] ? (
+                        <Image
+                          source={{ uri: fileUri }}
+                          style={styles.mobileThumbnail}
+                          onError={() => {
+                            handleImageLoadFailure(req.key, req.label);
+                          }}
+                        />
+                      ) : (
+                        <View style={styles.mobileIconPlaceholder}>
+                          <Icon name="file-text" size={20} color={COLORS.neutral[500]} />
+                        </View>
+                      )}
+                      <View style={styles.mobileFileDetails}>
+                        <Text style={styles.mobileFileName} numberOfLines={1}>
+                          {fileName}
+                        </Text>
+                        <Text style={styles.mobileUploadedCheck}>
+                          Uploaded ✓
+                        </Text>
                       </View>
-                    )}
-                    <View style={styles.mobileFileDetails}>
-                      <Text style={styles.mobileFileName} numberOfLines={1}>
-                        {fileName}
-                      </Text>
-                      <Text style={styles.mobileUploadedCheck}>
-                        Uploaded ✓
-                      </Text>
                     </View>
 
-                    <TouchableOpacity
-                      onPress={() => {
-                        setPreviewFile(uploadData);
-                        setPreviewLabel(req.label);
-                        setIsPreviewOpen(true);
-                      }}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: "#EFF6FF",
-                        borderWidth: 1,
-                        borderColor: "#BFDBFE",
-                        paddingVertical: 5,
-                        paddingHorizontal: 10,
-                        borderRadius: 8,
-                        marginRight: 6,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Icon name="eye" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
-                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
-                        View
-                      </Text>
-                    </TouchableOpacity>
+                    <View style={styles.mobileActionButtonsRow}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setActiveSlotKey(req.key);
+                          setPreviewFile(uploadData);
+                          setPreviewLabel(req.label);
+                          setIsPreviewOpen(true);
+                        }}
+                        style={styles.mobileViewBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="eye" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
+                        <Text style={styles.mobileViewBtnText}>
+                          View Document
+                        </Text>
+                      </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={() => triggerUpload(req.key)}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#CBD5E1",
-                        paddingVertical: 5,
-                        paddingHorizontal: 8,
-                        borderRadius: 8,
-                        marginRight: 4,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Icon name="refresh-cw" size={13} color="#334155" />
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => triggerUpload(req.key)}
+                        style={styles.mobileReplaceBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="refresh-cw" size={13} color="#334155" style={{ marginRight: 4 }} />
+                        <Text style={styles.mobileReplaceBtnText}>Replace</Text>
+                      </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => handleRemoveSlot(req.key)} style={styles.mobileTrashBtn}>
-                      <Icon name="trash-2" size={16} color={COLORS.semantic.error} />
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleRemoveSlot(req.key)}
+                        style={styles.mobileRemoveBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="trash-2" size={13} color={COLORS.semantic.error} style={{ marginRight: 4 }} />
+                        <Text style={styles.mobileRemoveBtnText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ) : (
                   <>
@@ -685,6 +809,16 @@ export function SharedDocumentUpload({
         onClose={() => setIsPreviewOpen(false)}
         file={previewFile}
         label={previewLabel}
+        onSaveEditedImage={handleSaveEditedDocument}
+      />
+
+      {/* Live Camera Viewfinder Modal */}
+      <CameraCaptureModal
+        visible={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={handleCameraCapture}
+        onFallbackToFilePick={handleDocumentPick}
+        title="Scan / Take Photo"
       />
     </View>
   );
@@ -872,11 +1006,15 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   mobileSuccessRow: {
+    flexDirection: "column",
+    backgroundColor: COLORS.semantic.successBg,
+    padding: 12,
+    borderRadius: 10,
+    gap: 10,
+  },
+  mobileFileHeader: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.semantic.successBg,
-    padding: 8,
-    borderRadius: 8,
   },
   mobileThumbnail: {
     width: 44,
@@ -897,11 +1035,11 @@ const styles = StyleSheet.create({
   },
   mobileFileDetails: {
     flex: 1,
-    marginRight: 8,
+    minWidth: 0,
   },
   mobileFileName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 12.5,
     color: COLORS.neutral[800],
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
@@ -911,6 +1049,63 @@ const styles = StyleSheet.create({
     color: COLORS.semantic.success,
     marginTop: 2,
   },
+  mobileActionButtonsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(16, 185, 129, 0.2)",
+    paddingTop: 8,
+  },
+  mobileViewBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  mobileViewBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#1D4ED8",
+  },
+  mobileReplaceBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  mobileReplaceBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  mobileRemoveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  mobileRemoveBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: "600",
+    color: COLORS.semantic.error,
+  },
   mobileTrashBtn: {
     padding: 6,
   },
@@ -918,11 +1113,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    flexWrap: "wrap",
     borderWidth: 1.5,
     borderStyle: "dashed",
     borderColor: COLORS.brand[500],
-    padding: 10,
+    padding: 12,
     borderRadius: 8,
+    gap: 6,
   },
   mobileDashedBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

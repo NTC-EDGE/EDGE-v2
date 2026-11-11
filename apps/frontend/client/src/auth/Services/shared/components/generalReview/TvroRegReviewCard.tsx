@@ -6,16 +6,16 @@ import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface TvroRegReviewCardProps {
   isCertificateService: boolean;
-  serviceTitle: string;
+  serviceTitle?: string | null;
   tvroReg?: TVRORegistrationData | null;
 }
 
 export function TvroRegReviewCard({
   isCertificateService,
-  serviceTitle,
+  serviceTitle = '',
   tvroReg,
 }: TvroRegReviewCardProps) {
-  const serviceTitleLower = serviceTitle.toLowerCase();
+  const serviceTitleLower = (serviceTitle || '').toLowerCase();
   const hasTvroData =
     isCertificateService &&
     serviceTitleLower.includes('tvro') &&

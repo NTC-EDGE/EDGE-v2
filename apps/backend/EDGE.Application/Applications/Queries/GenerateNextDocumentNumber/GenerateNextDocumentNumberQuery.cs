@@ -19,4 +19,8 @@ public record GeneratedDocumentNumbersDto
     public string? OfficialReceiptNumber { get; init; }
     public string? OriginalEvaluatorName { get; init; }
     public bool IsPaid { get; init; }
+    public bool IsRenewal { get; init; }
+    public DateTime? PreviousExpiryDate { get; init; }
+    public DateTime? RecommendedExpiryDate { get; init; }
+    public string? PreviousLicenseNumber { get; init; }
 }

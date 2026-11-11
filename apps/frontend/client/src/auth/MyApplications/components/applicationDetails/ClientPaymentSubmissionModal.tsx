@@ -16,6 +16,7 @@ import { SingleModeDetails } from './paymentSubmission/SingleModeDetails';
 import { CombinationPaymentSection } from './paymentSubmission/CombinationPaymentSection';
 import { PaymentSubmissionFooter } from './paymentSubmission/PaymentSubmissionFooter';
 import { useClientPaymentSubmission } from './paymentSubmission/useClientPaymentSubmission';
+import { DocumentPreviewModal } from '../../../../shared/components/DocumentPreviewModal';
 
 interface ClientPaymentSubmissionModalProps {
   visible: boolean;
@@ -51,6 +52,12 @@ export function ClientPaymentSubmissionModal({
     setCheckBank,
     checkDate,
     setCheckDate,
+    checkProofFile,
+    setCheckProofFile,
+    previewDoc,
+    isPreviewOpen,
+    handleOpenPreview,
+    handleClosePreview,
     combinationRows,
     combinationTotalAllocated,
     allocationDifference,
@@ -132,6 +139,9 @@ export function ClientPaymentSubmissionModal({
               setCheckBank={setCheckBank}
               checkDate={checkDate}
               setCheckDate={setCheckDate}
+              checkProofFile={checkProofFile}
+              setCheckProofFile={setCheckProofFile}
+              onPreviewCheckProof={handleOpenPreview}
             />
 
             {selectedMode === 'Combination' && (
@@ -147,6 +157,7 @@ export function ClientPaymentSubmissionModal({
                 onAddRow={handleAddCombinationRow}
                 onRemoveRow={handleRemoveCombinationRow}
                 onUpdateRow={handleUpdateCombinationRow}
+                onPreviewCheckProof={handleOpenPreview}
               />
             )}
 
@@ -188,6 +199,21 @@ export function ClientPaymentSubmissionModal({
           />
         </View>
       </View>
+
+      <DocumentPreviewModal
+        visible={isPreviewOpen}
+        onClose={handleClosePreview}
+        file={
+          previewDoc !== null
+            ? {
+                name: previewDoc.name,
+                uri: previewDoc.uri,
+                type: previewDoc.type,
+              }
+            : null
+        }
+        label="Check Proof Preview"
+      />
     </Modal>
   );
 }

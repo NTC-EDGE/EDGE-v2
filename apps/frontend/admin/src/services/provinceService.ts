@@ -4,7 +4,10 @@ import { ApiResponse, Province, CreateProvinceCommand, UpdateProvinceCommand } f
 export function useProvinceService() {
   const { useQuery, post, put, del } = useApi();
 
-  const useProvinces = (regionId?: string | null, activeOnly?: boolean) => {
+  const useProvinces = (regionId?: string | null, activeOnly?: boolean, enabled: boolean = true) => {
+    if (!enabled) {
+      return useQuery<ApiResponse<Province[]>>(null);
+    }
     const params = new URLSearchParams();
     if (regionId) params.append('regionId', regionId);
     if (activeOnly !== undefined) params.append('activeOnly', String(activeOnly));

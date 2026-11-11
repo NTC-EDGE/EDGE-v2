@@ -11,6 +11,27 @@ interface ApplicationHistoryTimelineProps {
 
 function getEventTheme(action: string, role?: string, status?: string) {
   const text = `${action} ${role ?? ''} ${status ?? ''}`.toLowerCase();
+  const actionLower = action.toLowerCase();
+
+  // Evaluator forwarding to Accountant should render as an evaluation handoff (green/approving check-circle)
+  if (
+    actionLower.includes("forwarded to accountant") ||
+    actionLower.includes("forward to accountant") ||
+    actionLower.includes("re-submitted to accountant") ||
+    actionLower.includes("resubmitted to accountant") ||
+    actionLower.includes("status updated to foraccountant")
+  ) {
+    return {
+      nodeBg: "#DCFCE7",
+      nodeBorder: "#16A34A",
+      iconName: "check-circle" as const,
+      iconColor: "#16A34A",
+      badgeBg: "#DCFCE7",
+      badgeText: "#15803D",
+      badgeBorder: "#BBF7D0",
+      defaultRole: "Evaluating Officer",
+    };
+  }
 
   if (text.includes("approve") || text.includes("completed") || text.includes("issued")) {
     return {

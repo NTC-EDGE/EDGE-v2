@@ -192,14 +192,9 @@ export function useExamFilingWizard({
       throw new Error(`Data Serialization Error: ${serializationMsg}`);
     }
 
-    const firstOpenSchedule = queries.schedules.find(
-      (s) => isScheduleOpenForFiling(s) && isGuid(s.id)
-    );
     const effectiveScheduleId =
       selectedScheduleId && isGuid(selectedScheduleId)
         ? selectedScheduleId
-        : firstOpenSchedule
-        ? firstOpenSchedule.id
         : null;
 
     if (!isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {

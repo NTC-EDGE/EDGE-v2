@@ -18,12 +18,17 @@ import {
   useTheme,
 } from "@edge/ui";
 import { ApplicationData } from "../../../types/application";
+import { extractOrNumbers } from "@edge/api";
 import { useAuthContext } from "../../auth/context/AuthContext";
 import {
   resolveUserIdentifiers,
   computeOfficerEvaluationState,
   isGenericOfficer,
 } from "../utils/officerEvaluationHelper";
+import {
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
+} from "../data/officerResolutionHelpers";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -66,7 +71,7 @@ function formatStatusDisplay(application: ApplicationData): string {
   if (s === "evaluating") return "EVALUATING";
   if (s === "forissuance") return "FOR ISSUANCE";
   if (s === "returned") return "RETURNED";
-  if (s === "completed" || s === "approved") return "APPROVED";
+  if (s === "completed" || s === "approved") return "COMPLETE";
   return application.status.toUpperCase();
 }
 
@@ -188,10 +193,27 @@ export function ActivityCard({
     }
 
     if (st === "foraccountant") {
+      const hasAccountantClaim = hasExplicitAccountantClaim(application.history);
+
+      const isAssignedEvaluator = Boolean(
+        !hasAccountantClaim &&
+        application.assignedTo &&
+        application.evaluatingOfficer &&
+        application.assignedTo.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
+      );
+      const isAccountingEvaluator = Boolean(
+        !hasAccountantClaim &&
+        application.accountingOfficer &&
+        application.evaluatingOfficer &&
+        application.accountingOfficer.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
+      );
+      const validAccounting = isAccountingEvaluator ? undefined : (application.accountingOfficer || currentStageOfficer);
+      const validAssigned = isAssignedEvaluator ? undefined : application.assignedTo;
+
       const name =
-        application.accountingOfficer ||
-        (!isGenericOfficer(application.assignedTo, application.office)
-          ? application.assignedTo
+        validAccounting ||
+        (!isGenericOfficer(validAssigned, application.office) && hasAccountantClaim
+          ? validAssigned
           : "Unassigned");
       return {
         label: `Accountant: ${name}`,
@@ -206,10 +228,27 @@ export function ActivityCard({
     }
 
     if (st === "pendingpayment") {
+      const hasCashierClaim = hasExplicitCashierClaim(application.history);
+
+      const isAssignedAccountant = Boolean(
+        !hasCashierClaim &&
+        application.assignedTo &&
+        application.accountingOfficer &&
+        application.assignedTo.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
+      );
+      const isCashierAccountant = Boolean(
+        !hasCashierClaim &&
+        application.cashierOfficer &&
+        application.accountingOfficer &&
+        application.cashierOfficer.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
+      );
+      const validCashier = isCashierAccountant ? undefined : (application.cashierOfficer || currentStageOfficer);
+      const validAssigned = isAssignedAccountant ? undefined : application.assignedTo;
+
       const name =
-        application.cashierOfficer ||
-        (!isGenericOfficer(application.assignedTo, application.office)
-          ? application.assignedTo
+        validCashier ||
+        (!isGenericOfficer(validAssigned, application.office) && hasCashierClaim
+          ? validAssigned
           : "Unassigned");
       return {
         label: `Cashier: ${name}`,
@@ -445,7 +484,13 @@ export function ActivityCard({
                       ]}
                       numberOfLines={1}
                     >
-                      OR #{application.payment?.orNumber}
+                      {(() => {
+                        const list = extractOrNumbers(application.payment?.orNumbers, application.orNumbers, application.payment?.orNumber);
+                        if (list.length === 0) return '';
+                        if (list.length > 1) return list.join(', ');
+                        const single = list[0] ?? '';
+                        return single.toUpperCase().startsWith('OR') ? single : `OR #${single}`;
+                      })()}
                     </Text>
                   </View>
                 </>

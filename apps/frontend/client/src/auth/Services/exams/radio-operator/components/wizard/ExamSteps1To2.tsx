@@ -113,32 +113,32 @@ export function ExamSteps1To2({
       }
 
       if (setUploadedFileName) {
-        setUploadedFileName(asset.name || "Exam_Applicants_Import.csv");
+        setUploadedFileName(asset?.name || "Exam_Applicants_Import.csv");
       }
 
       let fileText = "";
-      if (Platform.OS === "web" && asset.file) {
+      if (Platform.OS === "web" && asset?.file && typeof asset.file.text === "function") {
         fileText = await asset.file.text();
-      } else if (asset.uri) {
+      } else if (asset?.uri) {
         const response = await fetch(asset.uri);
         fileText = await response.text();
       }
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, examService);
-        if (parseResult.applicants.length > 0 && setExamApplicants) {
-          const mappedExams = parseResult.applicants.map((app, idx) => ({
+        if ((parseResult?.applicants?.length ?? 0) > 0 && setExamApplicants) {
+          const mappedExams = (parseResult.applicants ?? []).map((app, idx) => ({
             id: idx + 1,
             firstName: app.firstName || `Examinee ${idx + 1}`,
             middleName: app.middleName || "",
-            lastName: app.lastName || "Applicant",
+            lastName: app.lastName || "",
             suffix: app.suffix || "",
-            birthMonth: app.birthMonth || "January",
-            birthDay: app.birthDay || "1",
-            birthYear: app.birthYear || "2000",
-            sex: (app.sex?.toLowerCase() === "female" ? "Female" : "Male"),
+            birthMonth: app.birthMonth || "",
+            birthDay: app.birthDay || "",
+            birthYear: app.birthYear || "",
+            sex: (app.sex?.toLowerCase() === "female" ? "Female" : (app.sex?.toLowerCase() === "male" ? "Male" : "")),
             nationality: app.nationality || "Filipino",
-            regionName: app.region || "National Capital Region (NCR)",
+            regionName: app.region || "",
             province: app.province || "",
             city: app.city || "",
             barangay: app.barangay || "",
@@ -150,9 +150,9 @@ export function ExamSteps1To2({
             specialOrderNo: app.specialOrderNo || "",
             email: app.email || "",
             contactNo: app.contactNo || "",
-            examType: app.examType || "Radiotelephony",
-            examineeType: app.examineeType || "First Taker",
-            selectedOption: app.selectedOption || "1PHN - Elements 1, 2, 3 & 4",
+            examType: app.examType || "",
+            examineeType: app.examineeType || "",
+            selectedOption: app.selectedOption || "",
             uploads: {},
           }));
           setExamApplicants(mappedExams);

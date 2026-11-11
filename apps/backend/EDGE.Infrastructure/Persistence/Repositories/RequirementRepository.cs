@@ -43,6 +43,35 @@ public class RequirementRepository : IRequirementRepository
         return await GetRequirementsAsync(cancellationToken);
     }
 
+    public async Task<(List<Requirement> Items, int TotalCount)> GetPagedAsync(
+        string? searchTerm = null,
+        int pageNumber = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Requirements.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var search = searchTerm.Trim().ToLower();
+            query = query.Where(r =>
+                (!string.IsNullOrEmpty(r.Name) && r.Name.ToLower().Contains(search)) ||
+                (!string.IsNullOrEmpty(r.Description) && r.Description.ToLower().Contains(search)));
+        }
+
+        int totalCount = await query.CountAsync(cancellationToken);
+        int validPageNumber = pageNumber <= 0 ? 1 : pageNumber;
+        int validPageSize = pageSize <= 0 ? 10 : pageSize;
+
+        var items = await query
+            .OrderBy(r => r.Name)
+            .Skip((validPageNumber - 1) * validPageSize)
+            .Take(validPageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task AddAsync(Requirement requirement, CancellationToken cancellationToken = default)
     {
         await AddRequirementAsync(requirement, cancellationToken);

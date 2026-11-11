@@ -1,12 +1,15 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { Icon, TYPOGRAPHY } from '@edge/ui';
 import { applicationService } from '@edge/api';
 import { Application, ApplicationDocument } from '../../data/applicationsData';
-import { SectionCard, SummaryRow } from '../../../../shared/formPreview';
+import {
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 import { SubmittedFormStructuredView } from './SubmittedFormStructuredView';
 import { ApplicantParticularsCard } from './ApplicantParticularsCard';
 import { ApplicantRequirementsCard } from './ApplicantRequirementsCard';
-import { HeroReviewHeader } from './HeroReviewHeader';
 
 import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
 
@@ -31,12 +34,20 @@ interface SingleApplicantSectionProps {
     companyName: string | null;
     representativeName: string | null;
     notes: string | null;
+    schoolAttended?: string | null;
+    schoolName?: string | null;
+    courseTaken?: string | null;
+    courseDegree?: string | null;
+    yearGraduated?: string | null;
+    specialOrderNo?: string | null;
   } | null;
   primaryName: string;
   formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   isExamService: boolean;
   scheduleSummaryText: string | null;
   variantLabel: string;
+  applicationType?: string | null;
+  elements?: string | null;
   isDesktop: boolean;
   docs: ApplicationDocument[];
   onPreviewFile: (uri: string, name: string) => void;
@@ -55,6 +66,8 @@ export function SingleApplicantSection({
   isExamService,
   scheduleSummaryText,
   variantLabel,
+  applicationType,
+  elements,
   isDesktop,
   docs,
   onPreviewFile,
@@ -76,6 +89,19 @@ export function SingleApplicantSection({
     serviceNameLower.includes('spam') ||
     serviceNameLower.includes('scam') ||
     serviceNameLower.includes('tape preservation');
+
+  const effectiveAppType = resolvePreviewApplicationType({
+    applicationType: applicationType || (singleApplicant?.applicantType === 'Company' ? undefined : singleApplicant?.examineeType),
+    examineeType: singleApplicant?.examineeType,
+    element: app.element,
+    formFieldValues,
+  });
+
+  const effectiveElements = resolvePreviewElements({
+    elements,
+    element: app.element,
+    formFieldValues,
+  });
 
   const handlePreviewForm = () => {
     if (typeof app.id !== 'string' || app.id.trim().length === 0) return;
@@ -99,70 +125,116 @@ export function SingleApplicantSection({
 
   return (
     <View style={{ gap: 20 }}>
-      <HeroReviewHeader
-        serviceName={app.serviceName}
-        isExamService={isExamService}
-        variantLabel={variantLabel}
-        scheduleSummaryText={scheduleSummaryText}
-        isDesktop={isDesktop}
-        canPreviewForm={isRequestOrComplaint}
-        onPreviewForm={handlePreviewForm}
-      />
-
-      {/* Section 1: Examination Details / Service & Jurisdiction Parameters */}
-      <SectionCard
-        icon="sliders"
-        title="Application & Service Parameters"
-        accentColor="#0F2C59"
-      >
-        <View style={{ gap: 4 }}>
-          <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <SummaryRow label="Selected Service" value={app.serviceName} />
+      {/* Schedule & Venue or Processing Office Banner */}
+      {(scheduleSummaryText || isRequestOrComplaint) && (
+        <View
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: '#E2E8F0',
+            padding: 16,
+            flexDirection: isDesktop ? 'row' : 'column',
+            alignItems: isDesktop ? 'center' : 'flex-start',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          {scheduleSummaryText ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: '#EFF6FF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name={isExamService ? 'calendar' : 'map-pin'} size={18} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#64748B',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {isExamService ? 'Assigned Examination Schedule & Venue' : 'Assigned Processing Office'}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: '#0F172A',
+                    marginTop: 2,
+                  }}
+                >
+                  {scheduleSummaryText}
+                </Text>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <SummaryRow label="Service Category" value={app.serviceCategory || 'Standard Licensing'} />
-            </View>
-          </View>
-
-          <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <SummaryRow label="Variant" value={variantLabel} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <SummaryRow label="Filing Mode" value={app.mode || 'Single Application'} />
-            </View>
-          </View>
-
-          {isExamService && singleApplicant?.examineeType && (
-            <SummaryRow label="Examinee Classification" value={singleApplicant.examineeType} />
+          ) : (
+            <View style={{ flex: 1 }} />
           )}
 
-          {scheduleSummaryText && (
-            <SummaryRow
-              label={isExamService ? 'Assigned Examination Schedule & Venue' : 'Assigned Processing Office'}
-              value={scheduleSummaryText}
-            />
+          {isRequestOrComplaint && (
+            <TouchableOpacity
+              onPress={handlePreviewForm}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: '#EFF6FF',
+                borderWidth: 1,
+                borderColor: '#BFDBFE',
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
+              activeOpacity={0.8}
+            >
+              <Icon name="file-text" size={14} color="#1D4ED8" />
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 12,
+                  fontWeight: '700',
+                  color: '#1D4ED8',
+                }}
+              >
+                View Official Form
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
-      </SectionCard>
+      )}
 
-      {/* Section 2: Applicant Details */}
+      {/* Applicant Details */}
       <ApplicantParticularsCard singleApplicant={singleApplicant} isDesktop={isDesktop} />
 
-      {/* Section 3+: Submitted Form & Technical Specifications */}
+      {/* Submitted Form & Technical Specifications */}
       <SubmittedFormStructuredView
         app={app}
         primaryName={primaryName}
         formFieldValues={formFieldValues}
         onPreviewFile={onPreviewFile}
-        sectionNumber="3"
         serviceId={app.serviceId}
         serviceVariantId={app.serviceVariantId}
         singleApplicant={singleApplicant}
+        variantLabel={variantLabel}
+        applicationType={effectiveAppType}
+        elements={effectiveElements}
+        isExamService={isExamService}
       />
 
-      {/* Section 4: Attached Requirements & Document Proofs */}
+      {/* Attached Requirements & Document Proofs */}
       <ApplicantRequirementsCard
         app={app}
         docs={docs}

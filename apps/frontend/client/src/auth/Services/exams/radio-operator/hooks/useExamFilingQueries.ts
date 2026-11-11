@@ -48,6 +48,7 @@ export function useExamFilingQueries({
     let active = true;
     async function prefillExamApplicant() {
       if (!clerkUser || applicants.length !== 1 || hasPrefilledExamProfileRef.current) return;
+      hasPrefilledExamProfileRef.current = true;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);
@@ -108,12 +109,12 @@ export function useExamFilingQueries({
                   schoolName: app.schoolName || enriched.schoolAttended,
                   courseDegree: app.courseDegree || enriched.courseTaken,
                   yearGraduated: app.yearGraduated || enriched.yearGraduated,
-                  street: app.street || enriched.street,
-                  barangay: app.barangay || enriched.barangay,
-                  city: app.city || enriched.city,
-                  province: app.province || enriched.province,
-                  regionName: app.regionName || enriched.region,
-                  zipCode: app.zipCode || enriched.zipCode,
+                  street: Boolean(app.street || app.barangay || app.city) ? app.street : (app.street || enriched.street),
+                  barangay: Boolean(app.street || app.barangay || app.city) && app.barangay ? app.barangay : (app.barangay || enriched.barangay),
+                  city: Boolean(app.street || app.barangay || app.city) && app.city ? app.city : (app.city || enriched.city),
+                  province: Boolean(app.street || app.barangay || app.city) && app.province ? app.province : (app.province || enriched.province),
+                  regionName: Boolean(app.street || app.barangay || app.city) && app.regionName ? app.regionName : (app.regionName || enriched.region),
+                  zipCode: Boolean(app.street || app.barangay || app.city) && app.zipCode ? app.zipCode : (app.zipCode || enriched.zipCode),
                   birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : enriched.birthYear,
                   birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : enriched.birthMonth,
                   birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : enriched.birthDay,

@@ -74,6 +74,9 @@ public static class OpEndpoints
         IFormPrintingService printingService,
         HttpContext httpContext,
         IRegionalConfigurationService? configService = null,
+        IAgencyBankAccountRepository? bankAccountRepository = null,
+        IOfficialReceiptRepository? receiptRepository = null,
+        string? orNumber = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -83,7 +86,12 @@ public static class OpEndpoints
             return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
         }
 
-        var op = app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+        // Prioritize paid Order of Payment if one exists
+        var paidOp = app.OrdersOfPayment
+            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+            .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
+
+        var op = paidOp ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
         var soa = op != null
             ? (app.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId) ?? app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault())
             : app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
@@ -109,8 +117,55 @@ public static class OpEndpoints
             }
         }
 
+        List<OfficialReceipt> matchingReceipts = new();
+        OfficialReceipt? receipt = null;
+        if (receiptRepository != null)
+        {
+            if (!string.IsNullOrWhiteSpace(orNumber))
+            {
+                var cleanOr = orNumber.TrimStart('#').Trim();
+                receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, cleanOr, cancellationToken)
+                          ?? await receiptRepository.GetByOrNumberAsync(app.TenantId, orNumber.Trim(), cancellationToken);
+                if (receipt != null)
+                {
+                    matchingReceipts.Add(receipt);
+                }
+            }
+
+            if (op != null)
+            {
+                var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+                if (opReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(opReceipts);
+                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                }
+            }
+
+            var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
+            var appReceipts = receipts
+                .Where(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id))
+                .ToList();
+            if (appReceipts.Count > 0)
+            {
+                matchingReceipts.AddRange(appReceipts);
+                receipt ??= appReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+            }
+        }
+
         var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app.TenantId, cancellationToken) : null;
-        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app, regionalConfig?.FundCluster);
+        var bankAccounts = bankAccountRepository != null
+            ? await bankAccountRepository.GetByTenantAsync(app.TenantId, activeOnly: true, cancellationToken)
+            : null;
+        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(
+            op: op,
+            soa: soa,
+            app: app,
+            fundCluster: regionalConfig?.FundCluster,
+            agencyBankAccounts: bankAccounts,
+            receipt: receipt,
+            overrideOrNumber: orNumber,
+            receipts: matchingReceipts);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf";
 
@@ -129,6 +184,9 @@ public static class OpEndpoints
         IFormPrintingService printingService,
         HttpContext httpContext,
         IRegionalConfigurationService? configService = null,
+        IAgencyBankAccountRepository? bankAccountRepository = null,
+        IOfficialReceiptRepository? receiptRepository = null,
+        string? orNumber = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -141,8 +199,63 @@ public static class OpEndpoints
         var app = op.Application ?? await repository.GetByIdWithDetailsAsync(op.ApplicationId, true, cancellationToken);
         var soa = op.StatementOfAccount ?? app?.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId);
 
-        var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app?.TenantId ?? Guid.Empty, cancellationToken) : null;
-        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app, regionalConfig?.FundCluster);
+        var tenantId = app?.TenantId ?? Guid.Empty;
+        var regionalConfig = configService != null && tenantId != Guid.Empty
+            ? await configService.GetConfigurationAsync(tenantId, cancellationToken)
+            : null;
+        var bankAccounts = bankAccountRepository != null && tenantId != Guid.Empty
+            ? await bankAccountRepository.GetByTenantAsync(tenantId, activeOnly: true, cancellationToken)
+            : null;
+
+        List<OfficialReceipt> matchingReceipts = new();
+        OfficialReceipt? receipt = null;
+        if (receiptRepository != null && tenantId != Guid.Empty)
+        {
+            if (!string.IsNullOrWhiteSpace(orNumber))
+            {
+                var cleanOr = orNumber.TrimStart('#').Trim();
+                receipt = await receiptRepository.GetByOrNumberAsync(tenantId, cleanOr, cancellationToken)
+                          ?? await receiptRepository.GetByOrNumberAsync(tenantId, orNumber.Trim(), cancellationToken);
+                if (receipt != null)
+                {
+                    matchingReceipts.Add(receipt);
+                }
+            }
+
+            if (op != null)
+            {
+                var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+                if (opReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(opReceipts);
+                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                }
+            }
+
+            if (app != null)
+            {
+                var receipts = await receiptRepository.GetByTenantAsync(tenantId, cancellationToken: cancellationToken);
+                var appReceipts = receipts
+                    .Where(r => r.ApplicationId == app.Id || r.OrderOfPaymentId == op.Id)
+                    .ToList();
+                if (appReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(appReceipts);
+                    receipt ??= receipts.OrderByDescending(r => r.IssuedAt)
+                        .FirstOrDefault(r => r.ApplicationId == app.Id || r.OrderOfPaymentId == op.Id);
+                }
+            }
+        }
+
+        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(
+            op: op,
+            soa: soa,
+            app: app,
+            fundCluster: regionalConfig?.FundCluster,
+            agencyBankAccounts: bankAccounts,
+            receipt: receipt,
+            overrideOrNumber: orNumber,
+            receipts: matchingReceipts);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? opId.ToString()}.pdf";
 

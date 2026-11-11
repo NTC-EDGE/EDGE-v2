@@ -22,6 +22,7 @@ interface NatureOfComplaintCheckboxGroupProps {
   onChange: (value: string) => void;
   onOthersSpecifyChange?: (text: string) => void;
   othersSpecifyValue?: string;
+  hideInlineSpecify?: boolean;
   error?: string;
   required?: boolean;
 }
@@ -33,6 +34,7 @@ export function NatureOfComplaintCheckboxGroup({
   onChange,
   onOthersSpecifyChange,
   othersSpecifyValue = '',
+  hideInlineSpecify = false,
   error,
   required = false,
 }: NatureOfComplaintCheckboxGroupProps) {
@@ -170,7 +172,7 @@ export function NatureOfComplaintCheckboxGroup({
                 </Text>
               </TouchableOpacity>
 
-              {isOtherOption && isChecked && (
+              {isOtherOption && isChecked && !hideInlineSpecify && (
                 <View style={styles.specifyContainer}>
                   <ValidatedInput
                     label="Please specify"

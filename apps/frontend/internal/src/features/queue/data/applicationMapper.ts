@@ -1,4 +1,4 @@
-import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto, ApplicationActivityDto, extractOrNumbers, formatOrDisplay } from '@edge/api';
 import {
   ApplicationData,
   ApplicationCategory,
@@ -19,6 +19,8 @@ import {
   resolveCashierOfficer,
   resolveIssuingOfficer,
   resolveAssignedTo,
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
 } from './officerResolutionHelpers';
 import { buildAuditTrailList } from './auditTrailHelpers';
 
@@ -33,6 +35,8 @@ export {
   isCashierRole,
   isEvaluatorOrSupervisorRole,
   deriveQueueTab,
+  hasExplicitAccountantClaim,
+  hasExplicitCashierClaim,
 };
 
 const GENERIC_NAMES = new Set([
@@ -316,6 +320,15 @@ export function mapApplicationDtoToUI(
       itemStatus = appItem.status;
     }
 
+    const elementFromFv = findFv((lbl) => lbl.includes('element') || lbl.includes('station class'));
+    const resolvedElement =
+      (typeof appItem.element === 'string' && appItem.element.trim().length > 0 ? appItem.element.trim() : undefined) ??
+      (typeof appItem.elements === 'string' && appItem.elements.trim().length > 0 ? appItem.elements.trim() : undefined) ??
+      (typeof dto.element === 'string' && dto.element.trim().length > 0 ? dto.element.trim() : undefined) ??
+      (typeof dto.elements === 'string' && dto.elements.trim().length > 0 ? dto.elements.trim() : undefined) ??
+      elementFromFv ??
+      undefined;
+
     return {
       id: appItem.id || `app-${idx}`,
       name: resolvedName,
@@ -324,6 +337,10 @@ export function mapApplicationDtoToUI(
       evaluationRemarks: appItem.evaluationRemarks ?? '',
       serviceId: appItem.serviceId,
       serviceVariantId: appItem.serviceVariantId,
+      serviceVariantName: appItem.serviceVariantName || dto.serviceVariantName || undefined,
+      element: resolvedElement,
+      elements: resolvedElement,
+      applicationType: appItem.applicationType || undefined,
       submissionId: appItem.submissionId,
       contactNumber: ad?.contactNumber ?? '',
       email: ad?.emailAddress ?? ad?.email ?? '',
@@ -412,25 +429,44 @@ export function mapApplicationDtoToUI(
       })[0]
     : undefined;
 
-  const accountingOfficer =
+  const hasAccountantClaim = hasExplicitAccountantClaim(histories);
+  const hasCashierClaim = hasExplicitCashierClaim(histories);
+
+  const evaluatingOfficer =
+    ('evaluatingOfficer' in dto && typeof dto.evaluatingOfficer === 'string' && dto.evaluatingOfficer.trim().length > 0)
+      ? dto.evaluatingOfficer.trim()
+      : resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
+
+  const rawAccountingOfficer =
     ('accountingOfficer' in dto && typeof dto.accountingOfficer === 'string' && dto.accountingOfficer.trim().length > 0)
       ? dto.accountingOfficer.trim()
       : resolveAccountingOfficer(reversedHistories);
 
-  const cashierOfficer =
+  const accountingOfficer =
+    !hasAccountantClaim && feStatus === 'ForAccountant'
+      ? undefined
+      : (!hasAccountantClaim &&
+         rawAccountingOfficer &&
+         evaluatingOfficer &&
+         rawAccountingOfficer.trim().toLowerCase() === evaluatingOfficer.trim().toLowerCase()
+          ? undefined
+          : rawAccountingOfficer);
+
+  const rawCashierOfficer =
     ('cashierOfficer' in dto && typeof dto.cashierOfficer === 'string' && dto.cashierOfficer.trim().length > 0)
       ? dto.cashierOfficer.trim()
       : resolveCashierOfficer(reversedHistories);
+
+  const cashierOfficer =
+    !hasCashierClaim && feStatus === 'PendingPayment'
+      ? undefined
+      : rawCashierOfficer;
 
   const issuingOfficer =
     ('issuingOfficer' in dto && typeof dto.issuingOfficer === 'string' && dto.issuingOfficer.trim().length > 0)
       ? dto.issuingOfficer.trim()
       : resolveIssuingOfficer(reversedHistories);
 
-  const evaluatingOfficer =
-    ('evaluatingOfficer' in dto && typeof dto.evaluatingOfficer === 'string' && dto.evaluatingOfficer.trim().length > 0)
-      ? dto.evaluatingOfficer.trim()
-      : resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
   const assignedTo = resolveAssignedTo(
     feStatus,
     evaluatingOfficer,
@@ -438,7 +474,9 @@ export function mapApplicationDtoToUI(
     cashierOfficer,
     issuingOfficer,
     endorsementState,
-    dto.office
+    dto.office,
+    hasAccountantClaim,
+    hasCashierClaim
   );
 
   const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
@@ -456,6 +494,22 @@ export function mapApplicationDtoToUI(
       })[0]
     : undefined;
 
+  const directOrNumber = 'officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string'
+    ? dto.officialReceiptNumber
+    : '';
+
+  const rawOpOrNumber = (activeOp?.officialReceiptNumber && typeof activeOp.officialReceiptNumber === 'string')
+    ? activeOp.officialReceiptNumber.trim()
+    : '';
+
+  const resolvedOrNumbers: string[] = extractOrNumbers(
+    'orNumbers' in dto && Array.isArray(dto.orNumbers) ? dto.orNumbers : undefined,
+    directOrNumber,
+    rawOpOrNumber
+  );
+
+  const resolvedOrNumber = formatOrDisplay(resolvedOrNumbers);
+
   return {
     id: dto.id,
     tenantId: dto.tenantId,
@@ -470,7 +524,26 @@ export function mapApplicationDtoToUI(
     queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role, {
       hasSoa: Boolean(activeSoa || (dto.statementsOfAccount && dto.statementsOfAccount.length > 0)),
       hasOp: Boolean(dto.ordersOfPayment && dto.ordersOfPayment.length > 0),
-      hasAccountantHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('accountant') || (h.action || '').toLowerCase().includes('accountant') || (h.remarks || '').toLowerCase().includes('accountant')),
+      hasAccountantHistory: histories.some((h) => {
+        const role = (h.staffRole || '').toLowerCase();
+        const act = (h.action || '').toLowerCase();
+        const rem = (h.remarks || '').toLowerCase();
+        if (
+          act.includes('forwarded to accountant') ||
+          act.includes('forward to accountant') ||
+          act.includes('status updated to foraccountant') ||
+          act.includes('approved & forwarded') ||
+          act.includes('order of payment initialized') ||
+          act.includes('assessment approved by evaluator') ||
+          rem.includes('forwarded to accountant') ||
+          rem.includes('endorsed for order of payment review') ||
+          role.includes('evaluat') ||
+          role.includes('engineer')
+        ) {
+          return false;
+        }
+        return role.includes('accountant') || act.includes('accountant') || rem.includes('accountant') || act.includes('financial review');
+      }),
       hasCashierHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('cashier') || (h.action || '').toLowerCase().includes('cashier') || (h.remarks || '').toLowerCase().includes('cashier')),
       remarks: dto.remarks ?? undefined,
       category: resolvedCategory,
@@ -481,6 +554,8 @@ export function mapApplicationDtoToUI(
     serviceName: resolvedServiceName,
     serviceCategory: resolvedCategory,
     serviceVariantName: dto.serviceVariantName ?? '',
+    element: dto.element ?? dto.elements ?? applicantsList[0]?.element ?? applicantsList[0]?.elements ?? dto.services?.[0]?.element ?? undefined,
+    elements: dto.elements ?? dto.element ?? applicantsList[0]?.elements ?? applicantsList[0]?.element ?? dto.services?.[0]?.elements ?? undefined,
     office: dto.office ?? '',
     applicantsList,
     formFieldValues: (dto.applicants?.[0]?.formFieldValues ?? applicantsList[0]?.formFieldValues ?? []).map((f) => ({
@@ -489,16 +564,22 @@ export function mapApplicationDtoToUI(
       value: f.value || '',
     })),
     services: dto.services?.length
-      ? dto.services.map((s) => ({
-          id: s.id,
-          applicantId: s.applicantId,
-          serviceId: s.serviceId,
-          serviceName: s.serviceName ?? resolvedServiceName,
-          serviceCategory: s.serviceCategory ?? resolvedCategory,
-          serviceVariantId: s.serviceVariantId,
-          serviceVariantName: s.serviceVariantName ?? dto.serviceVariantName,
-          submissionId: s.submissionId,
-        }))
+      ? dto.services.map((s) => {
+          const matchedApp = applicantsList.find((a) => a.id === s.applicantId) || applicantsList[0];
+          const svcElement = s.element ?? s.elements ?? matchedApp?.element ?? matchedApp?.elements ?? dto.element ?? dto.elements ?? undefined;
+          return {
+            id: s.id,
+            applicantId: s.applicantId,
+            serviceId: s.serviceId,
+            serviceName: s.serviceName ?? resolvedServiceName,
+            serviceCategory: s.serviceCategory ?? resolvedCategory,
+            serviceVariantId: s.serviceVariantId,
+            serviceVariantName: s.serviceVariantName ?? dto.serviceVariantName,
+            element: svcElement,
+            elements: svcElement,
+            submissionId: s.submissionId,
+          };
+        })
       : applicantsList.map((a) => ({
           id: a.id,
           applicantId: a.id,
@@ -507,6 +588,8 @@ export function mapApplicationDtoToUI(
           serviceCategory: resolvedCategory,
           serviceVariantId: a.serviceVariantId,
           serviceVariantName: dto.serviceVariantName ?? '',
+          element: a.element ?? a.elements ?? dto.element ?? dto.elements ?? undefined,
+          elements: a.elements ?? a.element ?? dto.elements ?? dto.element ?? undefined,
           submissionId: a.submissionId,
         })),
     createdAt: dto.createdAt,
@@ -521,9 +604,7 @@ export function mapApplicationDtoToUI(
     soaId: activeSoa?.id,
     statementOfAccountId: activeSoa?.id,
     soaNumber: activeSoa?.soaNumber ?? ('soaNumber' in dto && typeof dto.soaNumber === 'string' ? dto.soaNumber : undefined),
-    officialReceiptNumber: ('officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string' && dto.officialReceiptNumber.trim().length > 0)
-      ? dto.officialReceiptNumber
-      : (activeOp?.officialReceiptNumber ?? undefined),
+    officialReceiptNumber: resolvedOrNumber.length > 0 ? resolvedOrNumber : undefined,
     soaStatus: activeSoa?.status,
     soaIssuedToName: activeSoa?.issuedToName,
     soaIssuedToAddress: activeSoa?.issuedToAddress ?? undefined,
@@ -534,8 +615,11 @@ export function mapApplicationDtoToUI(
     soaPreparedByTitle: activeSoa?.preparedByTitle,
     soaApprovedByName: activeSoa?.approvedByName,
     soaApprovedByTitle: activeSoa?.approvedByTitle,
-    soaRemarks: activeSoa?.remarks ?? undefined,
+    soaRemarks: (activeSoa?.remarks && activeSoa.remarks.trim().length > 0)
+      ? activeSoa.remarks
+      : (activeSoa?.soaNoteText ?? undefined),
     soaNoteId: activeSoa?.soaNoteId ?? undefined,
+    soaNoteText: activeSoa?.soaNoteText ?? undefined,
     endorsedTo: endorsementState.endorsedTo,
     endorsedBy: endorsementState.endorsedBy,
     isBeingViewed: false,
@@ -595,9 +679,6 @@ export function mapApplicationDtoToUI(
       ? (activeSoa.dueDate.includes('T') ? (activeSoa.dueDate.split('T')[0] ?? '') : activeSoa.dueDate)
       : '',
     payment: (() => {
-      const directOrNumber = 'officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string'
-        ? dto.officialReceiptNumber
-        : '';
       const directAmountPaid = 'amountPaid' in dto && typeof dto.amountPaid === 'number'
         ? dto.amountPaid
         : 0;
@@ -614,10 +695,6 @@ export function mapApplicationDtoToUI(
       const directCheckDate = 'checkDate' in dto && typeof dto.checkDate === 'string' ? (dto.checkDate.split('T')[0] ?? '') : '';
       const directPayorName = 'payorName' in dto && typeof dto.payorName === 'string' ? dto.payorName : '';
       const directPaymentRemarks = 'paymentRemarks' in dto && typeof dto.paymentRemarks === 'string' ? dto.paymentRemarks : '';
-
-      const resolvedOrNumber = (activeOp?.officialReceiptNumber && activeOp.officialReceiptNumber.trim().length > 0)
-        ? activeOp.officialReceiptNumber
-        : directOrNumber;
 
       const resolvedAmount = (activeOp?.amountReceived && activeOp.amountReceived > 0)
         ? activeOp.amountReceived
@@ -636,6 +713,7 @@ export function mapApplicationDtoToUI(
         method: effectivePaymentMethod === 'Check' ? 'check' : 'cash',
         paymentMethod: effectivePaymentMethod,
         orNumber: resolvedOrNumber,
+        orNumbers: resolvedOrNumbers,
         checkNumber: activeOp?.checkNumber ?? directCheckNumber,
         checkName: activeOp?.checkName ?? directCheckName,
         checkBank: activeOp?.checkBank ?? directCheckBank,
@@ -645,6 +723,7 @@ export function mapApplicationDtoToUI(
         paidAt: resolvedPaidAt,
       };
     })(),
+    orNumbers: resolvedOrNumbers,
     correctionAuditTrail: dto.correctionAuditTrails?.map((c) => ({
       id: c.id,
       action: `${c.fieldName}: ${c.oldValue} → ${c.newValue}`,
@@ -653,5 +732,112 @@ export function mapApplicationDtoToUI(
     })) ?? [],
     history: buildAuditTrailList(dto, filingUser?.name || applicantName || 'Applicant'),
     note: dto.remarks ?? '',
+  };
+}
+
+export function mapActivityDtoToUI(
+  dto: ApplicationActivityDto,
+  role?: string
+): ApplicationData {
+  const feStatus = mapBEStatusToFE(dto.status);
+  const applicantType: 'Individual' | 'Company' = dto.applicantType === 'Company' ? 'Company' : 'Individual';
+  const applicationType: 'SINGLE' | 'BULK' = dto.submissionMode === 'Bulk' ? 'BULK' : 'SINGLE';
+  const category = parseApplicationCategory(dto.serviceCategory, dto.serviceName);
+
+  const permitTitle = dto.serviceVariantName && dto.serviceVariantName.trim().length > 0
+    ? `${dto.serviceName} - ${dto.serviceVariantName}`
+    : dto.serviceName;
+
+  const queueTab = parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role);
+
+  return {
+    id: dto.id,
+    referenceNumber: dto.referenceNumber || dto.applicationNumber || '',
+    applicationNumber: dto.applicationNumber || dto.referenceNumber || '',
+    applicant: dto.applicantName || 'Applicant',
+    applicantType,
+    permitTitle: permitTitle || 'Application',
+    category,
+    status: feStatus,
+    queueTab,
+    createdAt: dto.submittedAt,
+    updatedAt: dto.updatedAt ?? dto.submittedAt,
+    lastModifiedAt: dto.updatedAt,
+    dateLabel: formatDateLabel(dto.submittedAt),
+    assignedTo: dto.assignedTo || dto.officerInCharge || '',
+    evaluatingOfficer: dto.evaluatingOfficer && dto.evaluatingOfficer.trim().length > 0 ? dto.evaluatingOfficer.trim() : undefined,
+    accountingOfficer: dto.accountingOfficer && dto.accountingOfficer.trim().length > 0 ? dto.accountingOfficer.trim() : undefined,
+    cashierOfficer: dto.cashierOfficer && dto.cashierOfficer.trim().length > 0 ? dto.cashierOfficer.trim() : undefined,
+    issuingOfficer: dto.issuingOfficer && dto.issuingOfficer.trim().length > 0 ? dto.issuingOfficer.trim() : undefined,
+    endorsedTo: dto.endorsedTo && dto.endorsedTo.trim().length > 0 ? dto.endorsedTo.trim() : undefined,
+    applicationType,
+    isBeingViewed: false,
+    isUrgent: false,
+    isPinned: Boolean(dto.isPinned),
+    isArchived: Boolean(dto.isArchived),
+    serviceName: dto.serviceName,
+    serviceCategory: dto.serviceCategory && dto.serviceCategory.trim().length > 0 ? dto.serviceCategory.trim() : undefined,
+    serviceVariantName: dto.serviceVariantName && dto.serviceVariantName.trim().length > 0 ? dto.serviceVariantName.trim() : undefined,
+    element: dto.element && dto.element.trim().length > 0 ? dto.element.trim() : undefined,
+    elements: dto.element && dto.element.trim().length > 0 ? dto.element.trim() : undefined,
+    office: dto.fieldOffice || '',
+    mode: dto.submissionMode,
+    officialReceiptNumber: dto.officialReceiptNumber && dto.officialReceiptNumber.trim().length > 0 ? dto.officialReceiptNumber.trim() : undefined,
+    orNumbers: dto.officialReceiptNumber && dto.officialReceiptNumber.trim().length > 0 ? [dto.officialReceiptNumber.trim()] : [],
+    payment: {
+      orderOfPaymentId: undefined,
+      opNumber: undefined,
+      amountReceived: 0,
+      method: 'cash',
+      paymentMethod: undefined,
+      orNumber: dto.officialReceiptNumber ?? '',
+      orNumbers: dto.officialReceiptNumber ? [dto.officialReceiptNumber] : [],
+      checkNumber: '',
+      checkName: '',
+      checkBank: '',
+      checkDate: '',
+      payorName: '',
+      remarks: '',
+      paidAt: undefined,
+    },
+    address: {
+      barangay: '',
+      province: '',
+      city: '',
+      zipCode: '',
+    },
+    contactDetails: {
+      contactNumber: '',
+      email: '',
+    },
+    basicInfo: {
+      lastName: '',
+      firstName: '',
+      middleName: '',
+      extensionName: '',
+      dob: '',
+      placeOfBirth: '',
+      sex: '',
+      weight: 0,
+      height: 0,
+      nationality: 'Filipino',
+      civilStatus: '',
+      employmentStatus: '',
+      occupation: '',
+    },
+    applicationDetails: {
+      noOfYears: 0,
+      permitCategory: '',
+      formType: '',
+      submittedAt: dto.submittedAt,
+    },
+    requirements: [],
+    forms: [],
+    soaItems: [],
+    totalAmountDue: 0,
+    dueDate: '',
+    correctionAuditTrail: [],
+    history: [],
+    note: '',
   };
 }

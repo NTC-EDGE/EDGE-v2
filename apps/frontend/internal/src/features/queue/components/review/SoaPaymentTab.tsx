@@ -64,6 +64,7 @@ export function SoaPaymentTab({
         isPendingPayment={isPendingPayment}
         isPaymentSubmitted={isPaymentSubmitted}
         isSoaReturned={isSoaReturned}
+        isAssessmentOnly={app.isAssessmentOnly || app.intent === 'AssessmentOnly'}
         note={app.note}
       />
 

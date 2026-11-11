@@ -56,6 +56,8 @@ export interface OperationalReportStatisticsDto {
 export interface GetOperationalReportStatisticsParams {
   tenantId?: string | null;
   periodMode?: string;
+  startDate?: string;
+  endDate?: string;
   year?: number;
   quarter?: number;
   month?: number;
@@ -69,6 +71,8 @@ export const reportService = {
     const queryParams: Record<string, string> = {};
     if (params?.tenantId) queryParams.tenantId = params.tenantId;
     if (params?.periodMode) queryParams.periodMode = params.periodMode;
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
     if (params?.year !== undefined) queryParams.year = params.year.toString();
     if (params?.quarter !== undefined) queryParams.quarter = params.quarter.toString();
     if (params?.month !== undefined) queryParams.month = params.month.toString();

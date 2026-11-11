@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import * as DocumentPicker from "expo-document-picker";
-import * as ImagePicker from "expo-image-picker";
 import { Platform } from "react-native";
 import { useUser, useAuth } from "@clerk/expo";
 import { apiClient } from "@edge/api";
@@ -8,28 +6,16 @@ import { useApi } from "../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../shared/components/Toast";
 import { NTCService } from "../../data/servicesData";
 import {
-  RadioOperatorCertData,
-  DeviceRegistrationData,
-  TVRORegistrationData,
-  VASProviderData,
-  CopyOfCertificateData,
-  initialRadioOperatorCertData,
-  initialDeviceRegistrationData,
-  initialTVRORegistrationData,
-  initialVASProviderData,
-  initialCopyOfCertificateData,
   serializeCertificateApplicant,
 } from "../../certificates";
+export * from "../types/generalApplicantTypes";
 import {
-  AmateurRadioStationLicenseData,
-  LifetimeAmateurLicenseData,
-  initialAmateurRadioStationLicenseData,
-  initialLifetimeAmateurLicenseData,
-} from "../../licenses";
-import {
-  AmateurPermitData,
-  initialAmateurPermitData,
-} from "../../permits";
+  GeneralApplicantData,
+  initialGeneralApplicant,
+  TenantInfo,
+  OfficeInfo,
+  ExamScheduleItem,
+} from "../types/generalApplicantTypes";
 import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
 import { uploadRequirementsAfterSubmit } from "../helpers/requirementUploadHelper";
@@ -41,130 +27,7 @@ const isGuid = (val?: string | null): boolean => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
 };
 
-export interface TenantInfo {
-  id: string;
-  name: string;
-  isActive?: boolean;
-}
 
-export interface OfficeInfo {
-  id: string;
-  name: string;
-  isActive?: boolean;
-}
-
-export interface ExamScheduleItem {
-  id: string;
-  scheduledDate: string;
-  startTime?: string;
-  endTime?: string;
-  venue?: string;
-  maximumSlots?: number;
-  availableSlots?: number;
-  description?: string;
-  startDate?: string;
-  endDate?: string;
-  startApplication?: string;
-  endApplication?: string;
-  applicationDeadline?: string;
-  regionName?: string;
-  tenantName?: string;
-  serviceName?: string;
-  remarks?: string;
-  title?: string;
-  [key: string]: unknown;
-}
-
-export interface GeneralApplicantData {
-  id: number;
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-  suffix?: string;
-  applicantType?: "individual" | "company";
-  companyName?: string;
-  representativeFirstName?: string;
-  representativeMiddleName?: string;
-  representativeLastName?: string;
-  representativeSuffix?: string;
-  representativeName?: string;
-  representativePosition?: string;
-  dtiSecRegistration?: string;
-  email: string;
-  contactNo: string;
-  sex?: string;
-  civilStatus?: string;
-  nationality?: string;
-  zipCode?: string;
-  address: string;
-  region?: string;
-  province?: string;
-  city?: string;
-  barangay?: string;
-  street?: string;
-  schoolName?: string;
-  courseDegree?: string;
-  yearGraduated?: string;
-  specialOrderNo?: string;
-  examType?: string;
-  examineeType?: string;
-  selectedOption?: string;
-  birthMonth: string;
-  birthDay: string;
-  birthYear: string;
-  birthDate?: string;
-  notes: string;
-  selectedVariantId?: string;
-  selectedVariantName?: string;
-  selectedElementId?: string;
-  selectedElementTitle?: string;
-  uploads: Record<string, { name: string; uri: string; type?: string; file?: File | Blob } | string>;
-  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
-  signatureUrl?: string;
-  // Specialized Certificate, License & Permit Models
-  radioCertData?: RadioOperatorCertData;
-  deviceRegData?: DeviceRegistrationData;
-  tvroRegData?: TVRORegistrationData;
-  vasData?: VASProviderData;
-  copyOfCertData?: CopyOfCertificateData;
-  amateurLicenseData?: AmateurRadioStationLicenseData;
-  lifetimeLicenseData?: LifetimeAmateurLicenseData;
-  permitData?: AmateurPermitData;
-}
-
-export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
-  id,
-  firstName: "",
-  middleName: "",
-  lastName: "",
-  suffix: "",
-  applicantType: "individual",
-  companyName: "",
-  representativeFirstName: "",
-  representativeMiddleName: "",
-  representativeLastName: "",
-  representativeSuffix: "",
-  representativeName: "",
-  representativePosition: "",
-  dtiSecRegistration: "",
-  email: "",
-  contactNo: "",
-  address: "",
-  birthMonth: "January",
-  birthDay: "1",
-  birthYear: "2000",
-  notes: "",
-  selectedVariantId: "",
-  uploads: {},
-  radioCertData: initialRadioOperatorCertData(id),
-  deviceRegData: initialDeviceRegistrationData(id),
-  tvroRegData: initialTVRORegistrationData(id),
-  vasData: initialVASProviderData(id),
-  copyOfCertData: initialCopyOfCertificateData(id),
-  amateurLicenseData: initialAmateurRadioStationLicenseData(id),
-  lifetimeLicenseData: initialLifetimeAmateurLicenseData(id),
-  permitData: initialAmateurPermitData(id),
-});
 
 export interface ServiceVariantInfo {
   id: string;
@@ -183,182 +46,13 @@ export interface ServiceVariantElementInfo {
   [key: string]: unknown;
 }
 
-export interface ServiceRequirementItem {
-  id?: string;
-  key?: string;
-  name?: string;
-  label?: string;
-  title?: string;
-  description?: string;
-  hint?: string;
-  isRequired?: boolean;
-  required?: boolean;
-  [key: string]: unknown;
-}
-
-export function isRequirementMandatory(req: ServiceRequirementItem | string): boolean {
-  if (typeof req === "string") {
-    const lower = req.toLowerCase().trim();
-    if (
-      lower.includes("(optional)") ||
-      lower.includes("[optional]") ||
-      lower.endsWith("optional") ||
-      lower.startsWith("optional")
-    ) {
-      return false;
-    }
-    return true;
-  }
-  if (typeof req === "object" && req !== null) {
-    if (req.isRequired !== undefined) return Boolean(req.isRequired);
-    if (req.required !== undefined) return Boolean(req.required);
-    const label = (req.name || req.label || req.title || req.description || "").toLowerCase().trim();
-    if (
-      label.includes("(optional)") ||
-      label.includes("[optional]") ||
-      label.endsWith("optional") ||
-      label.startsWith("optional")
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-export function isRequirementUploaded(
-  req: ServiceRequirementItem | string,
-  idx: number,
-  uploads: Record<string, { name?: string; uri?: string } | string | undefined> | undefined
-): boolean {
-  if (!uploads) return false;
-  const isReqObj = typeof req === "object" && req !== null;
-  const reqId = isReqObj && req.id ? String(req.id).trim() : "";
-  const reqLabel = (isReqObj ? (req.name || req.label || req.title || "") : req).trim();
-
-  const candidateKeys = [
-    reqId ? `req-${reqId}` : "",
-    reqId,
-    `req-${idx}`,
-    `req-gen-${idx}`,
-    idx.toString(),
-    reqLabel,
-    reqLabel.replace(/\*$/, "").trim(),
-  ].filter(Boolean);
-
-  for (const k of candidateKeys) {
-    const val = uploads[k];
-    if (val !== undefined && val !== null) {
-      if (typeof val === "string" && val.trim().length > 0) return true;
-      if (typeof val === "object" && Boolean(val.name || val.uri)) return true;
-    }
-  }
-
-  // Also check if any key in uploads matches case-insensitively or by prefix/substring
-  const uploadEntries = Object.entries(uploads);
-  for (const [upKey, upVal] of uploadEntries) {
-    if (!upVal) continue;
-    const isValidVal =
-      (typeof upVal === "string" && upVal.trim().length > 0) ||
-      (typeof upVal === "object" && Boolean(upVal.name || upVal.uri));
-    if (!isValidVal) continue;
-
-    const upKeyLower = upKey.toLowerCase().trim();
-    if (
-      (reqId && upKeyLower.includes(reqId.toLowerCase())) ||
-      (reqLabel && upKeyLower === reqLabel.toLowerCase()) ||
-      (reqLabel && upKeyLower === reqLabel.replace(/\*$/, "").toLowerCase().trim()) ||
-      upKeyLower === `req-${idx}` ||
-      upKeyLower === `req-gen-${idx}`
-    ) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-export const isGeneralApplicantComplete = (
-  app: GeneralApplicantData,
-  service?: NTCService,
-  variantRequirements: Array<ServiceRequirementItem | string> = []
-): boolean => {
-  // 1. Basic details (must have valid name, email, contact number)
-  const hasName =
-    (Boolean(app.firstName && app.firstName.trim().length > 0) && Boolean(app.lastName && app.lastName.trim().length > 0)) ||
-    Boolean(app.companyName && app.companyName.trim().length > 0) ||
-    Boolean(app.representativeName && app.representativeName.trim().length > 0) ||
-    Boolean(
-      app.formFieldValues?.some(
-        (fv) =>
-          ((fv.fieldId &&
-            (fv.fieldId.toLowerCase().includes("name") ||
-              fv.fieldId.toLowerCase().includes("fullname") ||
-              fv.fieldId.toLowerCase().includes("company") ||
-              fv.fieldId.toLowerCase().includes("applicant"))) ||
-            (fv.fieldLabel &&
-              (fv.fieldLabel.toLowerCase().includes("name") ||
-                fv.fieldLabel.toLowerCase().includes("applicant") ||
-                fv.fieldLabel.toLowerCase().includes("company")))) &&
-          fv.value &&
-          fv.value.trim().length > 0
-      )
-    );
-
-  const hasEmail =
-    Boolean(app.email && isValidEmailAddress(app.email)) ||
-    Boolean(
-      app.formFieldValues?.some(
-        (fv) =>
-          (fv.fieldId?.toLowerCase().includes("email") || fv.fieldLabel?.toLowerCase().includes("email")) &&
-          fv.value &&
-          isValidEmailAddress(fv.value.trim())
-      )
-    );
-
-  const hasContact =
-    Boolean(app.contactNo && isValidContactNumber(app.contactNo)) ||
-    Boolean(
-      app.formFieldValues?.some(
-        (fv) =>
-          (fv.fieldId?.toLowerCase().includes("contact") ||
-            fv.fieldLabel?.toLowerCase().includes("contact") ||
-            fv.fieldId?.toLowerCase().includes("phone") ||
-            fv.fieldLabel?.toLowerCase().includes("phone") ||
-            fv.fieldId?.toLowerCase().includes("mobile") ||
-            fv.fieldLabel?.toLowerCase().includes("mobile")) &&
-          fv.value &&
-          fv.value.trim().length > 0
-      )
-    );
-
-  if (!hasName || !hasEmail || !hasContact) {
-    return false;
-  }
-
-  // 2. Document upload validation: only mandatory requirements must be uploaded
-  const reqList =
-    variantRequirements && variantRequirements.length > 0
-      ? variantRequirements
-      : service?.requirements && service.requirements.length > 0
-      ? service.requirements
-      : [];
-
-  if (reqList.length > 0) {
-    const mandatoryList = reqList
-      .map((req, idx) => ({ req, idx }))
-      .filter(({ req }) => isRequirementMandatory(req));
-
-    const allMandatoryUploaded = mandatoryList.every(({ req, idx }) =>
-      isRequirementUploaded(req, idx, app.uploads)
-    );
-
-    if (!allMandatoryUploaded) {
-      return false;
-    }
-  }
-
-  return true;
-};
+import {
+  ServiceRequirementItem,
+  isGeneralApplicantComplete,
+  isRequirementMandatory,
+  isRequirementUploaded,
+} from "../helpers/applicantValidationHelper";
+export * from "../helpers/applicantValidationHelper";
 
 export interface UseGeneralServiceWizardOptions {
   service: NTCService;
@@ -769,6 +463,7 @@ export function useGeneralServiceWizard(
     let active = true;
     async function loadUserProfileForPrefill() {
       if (!clerkUser || hasPrefilledProfileRef.current) return;
+      hasPrefilledProfileRef.current = true;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);
@@ -801,9 +496,9 @@ export function useGeneralServiceWizard(
             province: app.province || initialProfile.province,
             city: app.city || initialProfile.city,
             barangay: app.barangay || initialProfile.barangay,
-            schoolName: app.schoolName || initialProfile.schoolAttended,
-            courseDegree: app.courseDegree || initialProfile.courseTaken,
-            yearGraduated: app.yearGraduated || initialProfile.yearGraduated,
+            schoolName: isExamService ? (app.schoolName || initialProfile.schoolAttended) : app.schoolName,
+            courseDegree: isExamService ? (app.courseDegree || initialProfile.courseTaken) : app.courseDegree,
+            yearGraduated: isExamService ? (app.yearGraduated || initialProfile.yearGraduated) : app.yearGraduated,
             birthYear: isBlank ? initialProfile.birthYear : app.birthYear,
             birthMonth: isBlank ? initialProfile.birthMonth : app.birthMonth,
             birthDay: isBlank ? initialProfile.birthDay : app.birthDay,
@@ -842,6 +537,7 @@ export function useGeneralServiceWizard(
             const repName = app.representativeName || enriched.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ") || enriched.fullName;
             const repPos = app.representativePosition || enriched.designation || enriched.position || "";
             const enrichedStreet = [enriched.unit, enriched.street].filter(Boolean).join(", ");
+            const userEditedAddress = Boolean(app.street || app.address || app.barangay || app.city);
             return {
               ...app,
               firstName: app.firstName || enriched.firstName,
@@ -853,16 +549,16 @@ export function useGeneralServiceWizard(
               sex: app.sex || enriched.sex,
               civilStatus: app.civilStatus || enriched.civilStatus,
               nationality: app.nationality || enriched.nationality,
-              zipCode: app.zipCode || enriched.zipCode,
-              street: app.street || enrichedStreet,
-              address: app.address || enrichedStreet,
-              region: app.region || enriched.region,
-              province: app.province || enriched.province,
-              city: app.city || enriched.city,
-              barangay: app.barangay || enriched.barangay,
-              schoolName: app.schoolName || enriched.schoolAttended,
-              courseDegree: app.courseDegree || enriched.courseTaken,
-              yearGraduated: app.yearGraduated || enriched.yearGraduated,
+              zipCode: userEditedAddress && app.zipCode ? app.zipCode : (app.zipCode || enriched.zipCode),
+              street: userEditedAddress ? (app.street || app.address) : (app.street || enrichedStreet),
+              address: userEditedAddress ? (app.address || app.street || "") : (app.address || enrichedStreet || ""),
+              region: userEditedAddress && app.region ? app.region : (app.region || enriched.region),
+              province: userEditedAddress && app.province ? app.province : (app.province || enriched.province),
+              city: userEditedAddress && app.city ? app.city : (app.city || enriched.city),
+              barangay: userEditedAddress && app.barangay ? app.barangay : (app.barangay || enriched.barangay),
+              schoolName: isExamService ? (app.schoolName || enriched.schoolAttended) : app.schoolName,
+              courseDegree: isExamService ? (app.courseDegree || enriched.courseTaken) : app.courseDegree,
+              yearGraduated: isExamService ? (app.yearGraduated || enriched.yearGraduated) : app.yearGraduated,
               birthYear: isBlank ? enriched.birthYear : app.birthYear,
               birthMonth: isBlank ? enriched.birthMonth : app.birthMonth,
               birthDay: isBlank ? enriched.birthDay : app.birthDay,
@@ -1003,59 +699,6 @@ export function useGeneralServiceWizard(
 
     let effectiveScheduleId = selectedScheduleId && isGuid(selectedScheduleId) ? selectedScheduleId : undefined;
 
-    if (!effectiveScheduleId && isExamService) {
-      const openSched = schedules.find((s) => isScheduleOpenForFiling(s) && isGuid(s.id));
-      if (openSched) {
-        effectiveScheduleId = openSched.id;
-        setSelectedScheduleId(effectiveScheduleId);
-      } else if (selectedRegionId && service?.id) {
-        try {
-          const fetchedSchedules = await api
-            .get<unknown>(
-              `/api/v2/schedules/client-view?serviceId=${service.id}&tenantId=${selectedRegionId}&pageSize=50`
-            )
-            .catch(async () => {
-              return await api
-                .get<unknown>(
-                  `/api/v2/schedules?serviceId=${service.id}&tenantId=${selectedRegionId}&pageSize=50`
-                )
-                .catch(() => null);
-            });
-
-          const isRecord = (val: unknown): val is Record<string, unknown> =>
-            typeof val === "object" && val !== null;
-
-          const dataObj = isRecord(fetchedSchedules) ? fetchedSchedules : {};
-          const rawItems = Array.isArray(fetchedSchedules)
-            ? fetchedSchedules
-            : Array.isArray(dataObj.items)
-            ? dataObj.items
-            : Array.isArray(dataObj.data)
-            ? dataObj.data
-            : [];
-
-          for (const rawItem of rawItems) {
-            if (isRecord(rawItem) && rawItem.id && isGuid(String(rawItem.id))) {
-              const startApp = typeof rawItem.startApplication === "string" ? rawItem.startApplication : null;
-              const endApp =
-                typeof rawItem.endApplication === "string"
-                  ? rawItem.endApplication
-                  : typeof rawItem.applicationDeadline === "string"
-                  ? rawItem.applicationDeadline
-                  : null;
-              if (isScheduleOpenForFiling({ startApplication: startApp, endApplication: endApp })) {
-                effectiveScheduleId = String(rawItem.id);
-                setSelectedScheduleId(effectiveScheduleId);
-                break;
-              }
-            }
-          }
-        } catch (fetchErr) {
-          console.warn("[useGeneralServiceWizard] Could not resolve schedule for exam submission:", fetchErr);
-        }
-      }
-    }
-
     if (isExamService && !isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
       throw new Error(
         "Examination Schedule is required for exam service applications. Please select an open Examination Schedule & Venue before submitting."
@@ -1104,8 +747,10 @@ export function useGeneralServiceWizard(
       intent: filingIntent,
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
-      serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),
-      serviceVariantElementIds: [],
+      serviceVariantId: activeApplicant.selectedVariantId || null,
+      serviceVariantElementIds: activeApplicant.selectedElementId && isGuid(activeApplicant.selectedElementId)
+        ? [activeApplicant.selectedElementId]
+        : [],
       scheduleId: effectiveScheduleId || (isExamService ? null : undefined),
       isDraft: true,
       applicants: mappedApplicants,

@@ -18,6 +18,7 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
   toast,
+  EditedImageResult,
 } from "@edge/ui";
 import { ApplicationData, ApplicationStatus } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
@@ -36,6 +37,7 @@ import { mapApplicationDtoToUI, isEvaluatorOrSupervisorRole } from "../data/appl
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal, EndorsementSubmission } from "../components/modals/EndorseModal";
+import { ReleaseApplicationModal } from "../components/modals/ReleaseApplicationModal";
 import { IssueReceiptModal } from "../../receipts/components/IssueReceiptModal";
 import { IssueDocumentModal } from "../components/modals/IssueDocumentModal";
 import { GenerateSoaModal } from "../components/modals/GenerateSoaModal";
@@ -170,6 +172,7 @@ export function ApplicationReviewScreenContent({
   const [showApprove, setShowApprove] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
   const [showIssueDoc, setShowIssueDoc] = useState(false);
   const [showGenerateSoa, setShowGenerateSoa] = useState(false);
@@ -281,6 +284,18 @@ export function ApplicationReviewScreenContent({
       }
     };
   }, [previewCustomDoc?.uri]);
+
+  const handleSaveEditedPreviewDoc = useCallback((result: EditedImageResult) => {
+    setPreviewCustomDoc((prev) => {
+      if (prev === null) return null;
+      return {
+        ...prev,
+        uri: result.uri,
+        name: result.name,
+      };
+    });
+    toast.success('Document updated with cropped and rotated image.');
+  }, []);
 
   const handlePrintSoa = useCallback(() => {
     if (selectedApplication !== null) {
@@ -484,27 +499,76 @@ export function ApplicationReviewScreenContent({
       toast.error(errMsg);
       return;
     }
+    await updateApplication(app.id, {
+      assignedTo: officerName,
+      ...(isForAccountant ? { accountingOfficer: officerName } : {}),
+      ...(isPendingPayment ? { cashierOfficer: officerName } : {}),
+      ...(isForIssuance ? { issuingOfficer: officerName } : {}),
+    });
     toast.success(`Application authority claimed by ${officerName}. Actions unlocked.`);
     await mutateApplications(app.id);
     await refetch();
   };
 
-  /** Evaluator releases evaluation back to For Evaluation queue */
-  const handleReleaseEvaluation = async () => {
+  /** Officer (Accountant / Cashier / Evaluator / Admin) releases application back to the queue as unclaimed */
+  const handleReleaseApplication = async () => {
+    setShowReleaseModal(false);
+
+    let actionTitle = 'Application Authority Released';
+    let roleLabel = currentRole || 'Officer';
+    let targetStatus = app.status;
+    let remarks = `Application authority released by ${officerName}. Returned to queue.`;
+
+    if (isForAccountant) {
+      actionTitle = 'Financial Review Released';
+      roleLabel = 'Accountant';
+      remarks = `Financial review released by ${officerName}. Returned to accountant queue for reassignment.`;
+      targetStatus = 'ForAccountant';
+    } else if (isPendingPayment) {
+      actionTitle = 'Payment Verification Released';
+      roleLabel = 'Cashier';
+      remarks = `Payment verification released by ${officerName}. Returned to cashier queue for reassignment.`;
+      targetStatus = 'PendingPayment';
+    } else if (isForIssuance) {
+      actionTitle = 'Document Issuance Released';
+      roleLabel = currentRole || 'Evaluator';
+      remarks = `Document issuance released by ${officerName}. Returned to queue.`;
+      targetStatus = 'ForIssuance';
+    } else if (isEvaluating || isReturned) {
+      actionTitle = 'Evaluation Released';
+      roleLabel = currentRole || 'Evaluating Officer';
+      remarks = `Evaluation released by ${officerName}. Returned to queue for reassignment.`;
+      targetStatus = isReturned ? 'Returned' : 'Submitted';
+    }
+
     const [, err] = await applicationService.updateStatus(app.id, {
-      status: 'Submitted',
-      action: 'Returned to Queue',
+      status: targetStatus,
+      action: actionTitle,
       staffName: officerName,
-      staffRole: currentRole || 'Evaluator',
-      remarks: `Evaluation released by ${officerName}. Status reverted to For Evaluation.`,
+      staffRole: roleLabel,
+      remarks,
     });
+
     if (err !== null) {
-      toast.error('Failed to release evaluation.');
+      const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+        ? String(Reflect.get(err, 'message'))
+        : 'Failed to release application.';
+      toast.error(errMsg);
       return;
     }
-    toast.success('Evaluation released.');
+
+    await updateApplication(app.id, {
+      assignedTo: app.office || '',
+      ...(isForAccountant ? { accountingOfficer: '' } : {}),
+      ...(isPendingPayment ? { cashierOfficer: '' } : {}),
+      ...(isForIssuance ? { issuingOfficer: '' } : {}),
+      ...((isEvaluating || isReturned) ? { evaluatingOfficer: '', status: targetStatus } : {}),
+    });
+
+    toast.success('Application released back to queue.');
     await mutateApplications(app.id);
     await refetch();
+    onClose();
   };
 
   /** Legal / Evaluator → Resolves and completes Request & Complaint, bypassing financial processing */
@@ -528,6 +592,31 @@ export function ApplicationReviewScreenContent({
       issuingOfficer: officerName,
     });
     toast.success('Request / Complaint successfully resolved and completed.');
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
+  };
+
+  /** Evaluator → Approves Pre-Assessment and releases SOA directly to applicant, ending the application */
+  const handleApproveAssessmentSoa = async () => {
+    const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
+    if (!hasSoa) {
+      setShowApprove(false);
+      toast.error('Generate Statement of Account (SOA) first before approving assessment.');
+      setInnerTab('soa');
+      setShowGenerateSoa(true);
+      return;
+    }
+    setShowApprove(false);
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Completed',
+      action: 'Assessment Approved & SOA Released to Client',
+      staffName: officerName,
+      staffRole: currentRole || 'Evaluator',
+      remarks: 'Pre-Assessment completed by Evaluator. Statement of Account released to Applicant.',
+    });
+    if (err !== null) { toast.error('Failed to approve assessment.'); return; }
+    toast.success('Pre-Assessment approved. Statement of Account is now released to the client.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
@@ -808,6 +897,7 @@ export function ApplicationReviewScreenContent({
   const showLegalResolveBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && isComplaintOrRequest && (canActAsLegal || isEvaluatorOrSupervisorRole(currentRole) || isAdmin);
   /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer on commercial applications) */
   const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && !isComplaintOrRequest;
+  const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
 
   const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
 
@@ -840,10 +930,10 @@ export function ApplicationReviewScreenContent({
     approveButtonIcon = 'check-circle';
   } else if (showForwardBtn) {
     if (!hasSoa) {
-      approveButtonLabel = 'Generate SOA';
+      approveButtonLabel = isAssessmentOnly ? 'Generate Assessment SOA' : 'Generate SOA';
       approveButtonIcon = 'play-circle';
     } else {
-      approveButtonLabel = 'Approve & Forward';
+      approveButtonLabel = isAssessmentOnly ? 'Approve & Release SOA' : 'Approve & Forward';
       approveButtonIcon = 'check-circle';
     }
   }
@@ -881,6 +971,22 @@ export function ApplicationReviewScreenContent({
       isActivelyEvaluating ||
       (isPendingPayment && canActAsCashier && isStageClaimedByMe)
     );
+
+  // Release button: Enabled when application is claimed by current user, or for admin
+  const canReleaseApplication = !isEndorsedAwayFromMe && app.queueTab !== "history" && (
+    (isForAccountant && canActAsAccountant && isStageClaimedByMe) ||
+    (isPendingPayment && canActAsCashier && isStageClaimedByMe) ||
+    ((isEvaluating || isReturned) && canEvaluateApplication && isStageClaimedByMe) ||
+    (isAdmin && (isStageClaimedByMe || isStageClaimedByOther))
+  );
+
+  const stageLabel = isForAccountant
+    ? 'financial review'
+    : isPendingPayment
+      ? 'payment verification'
+      : isForIssuance
+        ? 'document issuance'
+        : 'evaluation';
 
   const handlePrimaryAction = () => {
     if (showClaimBtn) {
@@ -1017,12 +1123,64 @@ export function ApplicationReviewScreenContent({
 
       {/* Locked / Under Review by another officer banner */}
       {!isEndorsedAwayFromMe && !isEndorsedToMe && !isForIssuance && (isEvaluatedByOther || isStageClaimedByOther) && (
-        <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3E2415' : '#FEF3C7', borderBottomColor: isDark ? '#B45309' : '#F59E0B' }]}>
+        <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3E2415' : '#FEF3C7', borderBottomColor: isDark ? '#B45309' : '#F59E0B', flexDirection: 'row', alignItems: 'center' }]}>
           <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#D97706'} />
-          <Text style={[sc.lockedText, { color: isDark ? '#FDE68A' : '#92400E' }]}>
+          <Text style={[sc.lockedText, { color: isDark ? '#FDE68A' : '#92400E', flex: 1 }]}>
             Under {isForAccountant ? 'financial review' : isPendingPayment ? 'payment processing' : 'evaluation'} by{' '}
             <Text style={{ fontWeight: '700' }}>{currentStageOfficer || evaluatingOfficer || 'another officer'}</Text>. Actions locked.
           </Text>
+          {isAdmin && (
+            <Pressable
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: RADIUS.button,
+                backgroundColor: isDark ? '#78350F' : '#FEF3C7',
+                borderWidth: 1,
+                borderColor: isDark ? '#D97706' : '#F59E0B',
+              }}
+              onPress={() => setShowReleaseModal(true)}
+            >
+              <Lucide name="unlock" size={12} color={isDark ? '#FDE68A' : '#92400E'} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#FDE68A' : '#92400E' }}>
+                Admin Release
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {/* Claimed by me banner */}
+      {!isEndorsedAwayFromMe && isStageClaimedByMe && !isForIssuance && app.queueTab !== 'history' && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#064E3B' : '#ECFDF5', borderBottomColor: isDark ? '#047857' : '#A7F3D0', flexDirection: 'row', alignItems: 'center' }]}>
+          <Lucide name="check-circle" size={14} color={isDark ? '#6EE7B7' : '#059669'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#D1FAE5' : '#065F46', flex: 1 }]}>
+            You have claimed authority for {isForAccountant ? 'financial review' : isPendingPayment ? 'payment verification' : 'evaluation'}.
+          </Text>
+          {canReleaseApplication && (
+            <Pressable
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: RADIUS.button,
+                backgroundColor: isDark ? '#065F46' : '#D1FAE5',
+                borderWidth: 1,
+                borderColor: isDark ? '#10B981' : '#059669',
+              }}
+              onPress={() => setShowReleaseModal(true)}
+            >
+              <Lucide name="unlock" size={12} color={isDark ? '#A7F3D0' : '#065F46'} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#A7F3D0' : '#065F46' }}>
+                Release
+              </Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -1108,6 +1266,7 @@ export function ApplicationReviewScreenContent({
         canApprove={canApproveAction}
         canDecline={showReturnBtn}
         canEndorse={canEndorseAction}
+        canRelease={canReleaseApplication}
         isApproveDisabled={
           (showForwardBtn && hasIncompleteApplicants)
         }
@@ -1118,6 +1277,7 @@ export function ApplicationReviewScreenContent({
         onApprove={handlePrimaryAction}
         onReturn={() => setShowDecline(true)}
         onEndorse={() => setShowEndorse(true)}
+        onRelease={() => setShowReleaseModal(true)}
         onPrintAccountableForm={() => handlePrintAccountableForm()}
         onPrintSoa={() => handlePreviewReport('soa')}
         onPreviewOp={(isForAccountant || showAccountantBtn) && (hasPreviewedOp || !showAccountantBtn) ? () => handlePreviewReport('op') : undefined}
@@ -1125,7 +1285,11 @@ export function ApplicationReviewScreenContent({
       />
 
       {/* ── Modals ── */}
-      <CustomDocPreviewModal previewCustomDoc={previewCustomDoc} onClose={handleClosePreviewDoc} />
+      <CustomDocPreviewModal
+        previewCustomDoc={previewCustomDoc}
+        onClose={handleClosePreviewDoc}
+        onSaveEditedImage={handleSaveEditedPreviewDoc}
+      />
 
       {/* ApproveModal is reused for evaluation and accountant approval */}
       <ApproveModal
@@ -1137,7 +1301,7 @@ export function ApplicationReviewScreenContent({
             : showLegalResolveBtn
               ? "Resolve & Complete Application"
               : showForwardBtn
-                ? "Approve Evaluation & Forward to Accountant"
+                ? (isAssessmentOnly ? "Approve Assessment & Release Statement of Account" : "Approve Evaluation & Forward to Accountant")
                 : "Approve Application"
         }
         confirmText={
@@ -1146,7 +1310,7 @@ export function ApplicationReviewScreenContent({
             : showLegalResolveBtn
               ? "Complete Application"
               : showForwardBtn
-                ? "Approve & Forward"
+                ? (isAssessmentOnly ? "Approve & Release SOA" : "Approve & Forward")
                 : "Approve"
         }
         subtitleText={
@@ -1155,16 +1319,18 @@ export function ApplicationReviewScreenContent({
             : showLegalResolveBtn
               ? `Mark application/complaint for ${app.applicant} as officially resolved and completed? Non-revenue statutory applications do not require accountant or cashier processing.`
               : showForwardBtn
-                ? `Approve application requirements and SOA fee calculations for ${app.applicant}, then forward to Accountant.`
+                ? (isAssessmentOnly
+                    ? `Confirm fee assessment for ${app.applicant} and release official Statement of Account (SOA). This completes the assessment process.`
+                    : `Approve application requirements and SOA fee calculations for ${app.applicant}, then forward to Accountant.`)
                 : undefined
         }
         onConfirm={
           showCashierBtn ? () => { /* handled by CashierModal */ } :
           showAccountantBtn ? handleAccountantApprove :
           showLegalResolveBtn ? handleCompleteComplaint :
-          showForwardBtn ? handleForwardToAccountant :
+          showForwardBtn ? (isAssessmentOnly ? handleApproveAssessmentSoa : handleForwardToAccountant) :
           isAdmin ? handleAdminDirectApprove :
-          handleForwardToAccountant
+          (isAssessmentOnly ? handleApproveAssessmentSoa : handleForwardToAccountant)
         }
         onCancel={() => setShowApprove(false)}
       />
@@ -1212,7 +1378,7 @@ export function ApplicationReviewScreenContent({
       />
       <IssueReceiptModal
         visible={showCashier}
-        tenantId={app.tenantId || user?.tenantId || '00000000-0000-0000-0000-000000000001'}
+        tenantId={app.tenantId || user?.tenantId || ''}
         nextOr={nextOr}
         pendingPayment={pendingPaymentPayload}
         onClose={() => setShowCashier(false)}
@@ -1251,6 +1417,15 @@ export function ApplicationReviewScreenContent({
         initialOptions={issuedPrintInitialOptions}
         onClose={() => setShowIssuedPrintModal(false)}
       />
+      <ReleaseApplicationModal
+        visible={showReleaseModal}
+        applicationNumber={app.applicationNumber || app.referenceNumber || app.id.slice(0, 8).toUpperCase()}
+        stageLabel={stageLabel}
+        isOtherOfficer={isStageClaimedByOther && isAdmin}
+        officerName={currentStageOfficer || evaluatingOfficer}
+        onConfirm={handleReleaseApplication}
+        onCancel={() => setShowReleaseModal(false)}
+      />
     </Animated.View>
   );
 }
@@ -1264,6 +1439,7 @@ interface WorkflowActionBarProps {
   canApprove: boolean;
   canDecline: boolean;
   canEndorse: boolean;
+  canRelease?: boolean;
   isApproveDisabled: boolean;
   isReturnDisabled?: boolean;
   approveLabel: string;
@@ -1272,6 +1448,7 @@ interface WorkflowActionBarProps {
   onApprove: () => void;
   onReturn: () => void;
   onEndorse: () => void;
+  onRelease?: () => void;
   onPrintAccountableForm?: () => void;
   onPrintSoa?: () => void;
   onPreviewOp?: () => void;
@@ -1285,6 +1462,7 @@ function WorkflowActionBar({
   canApprove,
   canDecline,
   canEndorse,
+  canRelease = false,
   isApproveDisabled,
   isReturnDisabled = false,
   approveLabel,
@@ -1293,6 +1471,7 @@ function WorkflowActionBar({
   onApprove,
   onReturn,
   onEndorse,
+  onRelease,
   onPrintAccountableForm,
   onPrintSoa,
   onPreviewOp,
@@ -1408,6 +1587,32 @@ function WorkflowActionBar({
         >
           <Lucide name="rotate-ccw" size={14} color={returnEnabled ? outlineText : disabledText} />
           <Text style={[sc.actionBtnOutlineText, { color: returnEnabled ? outlineText : disabledText }]}>Return</Text>
+        </Pressable>
+      )}
+
+      {/* ── Release / Un-take Button ── */}
+      {canRelease && onRelease !== undefined && (
+        <Pressable
+          style={[
+            sc.actionBtnOutline,
+            {
+              backgroundColor: outlineBg,
+              borderColor: isDark ? '#F59E0B' : '#D97706',
+              borderWidth: 1.5,
+            },
+            Platform.select({ web: { cursor: 'pointer' } as object }),
+          ]}
+          onPress={onRelease}
+        >
+          <Lucide name="unlock" size={14} color={isDark ? '#FBBF24' : '#B45309'} />
+          <Text
+            style={[
+              sc.actionBtnOutlineText,
+              { color: isDark ? '#FBBF24' : '#B45309' },
+            ]}
+          >
+            Release
+          </Text>
         </Pressable>
       )}
 

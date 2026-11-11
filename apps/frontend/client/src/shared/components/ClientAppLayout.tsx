@@ -15,13 +15,18 @@ import {
   PagedApplicationListDto,
   ApplicationSummaryDto,
   StatementOfAccountDto,
+  useAdminAnnouncements,
+  SystemAnnouncementDto,
 } from "@edge/api";
 import { useUser, useAuth } from "@clerk/expo";
 import { useApi } from "../hooks/useApi";
 import { useAppNavigation } from "../../navigation";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openApplicationDetail } from "../helpers/applicationNavigationHelper";
 import { ClientFooter } from "./ClientFooter";
 import { ConfirmationDialog } from "./ConfirmationDialog";
+import { ClientAnnouncementBanner } from "./ClientAnnouncementBanner";
+import { ClientAnnouncementModal } from "./ClientAnnouncementModal";
 
 const ntcLogo = require("../../../assets/ntc-logo.png");
 
@@ -85,6 +90,8 @@ export function ClientAppLayout({
   const isMobile = width < 640;
   const showBottomNav = width < 1024;
   const showSidebar = width >= 1024;
+  const insets = useSafeAreaInsets();
+  const notifDropdownWidth = Math.min(330, width - 24);
   const navigation = useAppNavigation();
 
   // Clerk Auth
@@ -99,6 +106,14 @@ export function ClientAppLayout({
     { revalidateOnFocus: true, refreshInterval: 30000 }
   );
 
+  // Active System Announcements published for clients
+  const { announcements } = useAdminAnnouncements({
+    isActive: true,
+    revalidateOnFocus: true,
+    refreshInterval: 60000,
+  });
+
+  const [selectedModalAnnouncement, setSelectedModalAnnouncement] = useState<SystemAnnouncementDto | null>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => getStoredClientReadNotifs(clerkUser?.id));
 
@@ -115,10 +130,48 @@ export function ClientAppLayout({
       title: string;
       description: string;
       timestamp?: string;
-      type: "returned" | "payment" | "status";
+      type: "returned" | "payment" | "status" | "renewal" | "announcement";
       targetTab: "services" | "my-applications" | "settings";
       isRead: boolean;
+      rawAnnouncement?: SystemAnnouncementDto;
     }> = [];
+
+    // Active published announcements for client audience
+    if (Array.isArray(announcements)) {
+      const now = new Date();
+      for (const ann of announcements) {
+        if (!ann.isActive) continue;
+        const aud = (ann.targetAudience || "").toLowerCase();
+        const isForClients =
+          aud.length === 0 ||
+          aud.includes("all") ||
+          aud.includes("client") ||
+          aud.includes("applicant") ||
+          aud.includes("public");
+        if (!isForClients) continue;
+
+        if (ann.startDate) {
+          const s = new Date(ann.startDate);
+          if (!isNaN(s.getTime()) && now < s) continue;
+        }
+        if (ann.endDate) {
+          const e = new Date(ann.endDate);
+          if (!isNaN(e.getTime()) && now > e) continue;
+        }
+
+        const notifId = `client_ann_${ann.id}`;
+        list.push({
+          id: notifId,
+          title: `Announcement: ${ann.title}`,
+          description: ann.message,
+          timestamp: ann.createdAt,
+          type: "announcement",
+          targetTab: activeTab,
+          isRead: readNotifIds.has(notifId),
+          rawAnnouncement: ann,
+        });
+      }
+    }
 
     const payload = myAppsData?.data;
     const items: ApplicationSummaryDto[] = Array.isArray(payload)
@@ -165,6 +218,35 @@ export function ClientAppLayout({
           targetTab: "my-applications",
           isRead: readNotifIds.has(`client_app_${app.id}`),
         });
+
+        const doc = Array.isArray(app.issuedDocumentDetails) && app.issuedDocumentDetails.length > 0
+          ? app.issuedDocumentDetails.find((d) => d.expiryDate) ?? app.issuedDocumentDetails[0]
+          : undefined;
+
+        if (doc?.expiryDate && !app.hasActiveRenewal) {
+          const expiry = new Date(doc.expiryDate);
+          const now = new Date();
+          const daysRemaining = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysRemaining <= 60) {
+            const isExpired = daysRemaining <= 0;
+            const isOnDay = daysRemaining === 0;
+            const expiryFormatted = expiry.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            list.push({
+              id: `client_renew_${app.id}`,
+              appId: app.id,
+              title: isExpired
+                ? (isOnDay ? "Notice: Application Expired Today" : "Notice: Application Expired")
+                : `Permit/License Expiring Soon (${daysRemaining}d remaining)`,
+              description: isExpired
+                ? `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: Your application has been expired on ${expiryFormatted}. Please submit your renewal application.`
+                : `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: Your issued ${doc.documentType || "license"} (${doc.licenseNumber || doc.formNumber || "Document"}) expires in ${daysRemaining} day(s) (on ${expiryFormatted}). Click to file a renewal application.`,
+              timestamp: doc.issueDate ?? app.createdAt,
+              type: "renewal",
+              targetTab: "my-applications",
+              isRead: readNotifIds.has(`client_renew_${app.id}`),
+            });
+          }
+        }
       } else if (app.status === "Evaluating") {
         list.push({
           id: `client_eval_${app.id}`,
@@ -265,7 +347,7 @@ export function ClientAppLayout({
   return (
     <View style={styles.rootContainer}>
       {/* ── 1. Top Header ──────────────────────────────────────────────── */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, isMobile && { paddingHorizontal: 12 }]}>
         <View style={styles.logoWrapper}>
           <Image
             source={ntcLogo}
@@ -313,7 +395,7 @@ export function ClientAppLayout({
                     onPress={() => setIsNotifOpen(false)}
                     activeOpacity={1}
                   />
-                  <View style={styles.clientNotifDropdown}>
+                  <View style={[styles.clientNotifDropdown, { width: notifDropdownWidth, right: isMobile ? -8 : 0, maxWidth: width - 24 }]}>
                     <View style={styles.clientNotifHeader}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                         <Text style={styles.clientNotifTitle}>Notifications</Text>
@@ -345,6 +427,10 @@ export function ClientAppLayout({
                             onPress={() => {
                               markAsRead(item.id);
                               setIsNotifOpen(false);
+                              if (item.rawAnnouncement !== undefined) {
+                                setSelectedModalAnnouncement(item.rawAnnouncement);
+                                return;
+                              }
                               if (item.appId !== undefined && item.appId !== null) {
                                 openApplicationDetail(item.appId);
                               }
@@ -358,9 +444,29 @@ export function ClientAppLayout({
                           >
                             <View style={styles.clientNotifIconWrap}>
                               <Icon
-                                name={item.type === "returned" ? "alert-circle" : "file-text"}
+                                name={
+                                  item.type === "announcement"
+                                    ? "volume-2"
+                                    : item.type === "returned"
+                                    ? "alert-circle"
+                                    : item.type === "renewal"
+                                    ? "refresh-cw"
+                                    : item.type === "payment"
+                                    ? "credit-card"
+                                    : "file-text"
+                                }
                                 size={14}
-                                color={item.isRead ? "#94A3B8" : "#2563EB"}
+                                color={
+                                  item.isRead
+                                    ? "#94A3B8"
+                                    : item.type === "announcement"
+                                    ? "#7C3AED"
+                                    : item.type === "renewal"
+                                    ? "#D97706"
+                                    : item.type === "returned"
+                                    ? "#EF4444"
+                                    : "#2563EB"
+                                }
                               />
                             </View>
                             <View style={{ flex: 1 }}>
@@ -428,9 +534,12 @@ export function ClientAppLayout({
         )}
       </View>
 
-      {/* ── 2. Dismissable Processing Hours Notice ────────────────────────── */}
+      {/* ── 2. Active Published Announcement Banner (from API) ───────────── */}
+      <ClientAnnouncementBanner userId={clerkUser?.id} isMobile={isMobile} />
+
+      {/* ── 3. Dismissable Processing Hours Notice ────────────────────────── */}
       {!isNoticeDismissed && (
-        <View style={styles.noticeAlert}>
+        <View style={[styles.noticeAlert, isMobile && { padding: 12, paddingRight: 10 }]}>
           <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 12 }}>
             <Icon name="info" size={16} color="#d97706" style={{ marginRight: 10 }} />
             <Text style={styles.noticeText}>
@@ -532,7 +641,13 @@ export function ClientAppLayout({
 
       {/* ── 4. Bottom Navigation Bar (Mobile & Portrait iPad <1024px) ────────────── */}
       {showBottomNav && (
-        <View style={styles.mobileBottomNav}>
+        <View style={[
+          styles.mobileBottomNav,
+          {
+            height: 56 + (insets.bottom > 0 ? insets.bottom : 0),
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 0,
+          },
+        ]}>
           <TouchableOpacity
             onPress={() => handleTabClick("services")}
             style={[
@@ -578,6 +693,29 @@ export function ClientAppLayout({
               My Applications
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => handleTabClick("settings")}
+            style={[
+              styles.mobileNavItem,
+              activeTab === "settings" && styles.mobileNavItemActive,
+            ]}
+            activeOpacity={0.7}
+          >
+            <Icon
+              name="settings"
+              size={20}
+              color={activeTab === "settings" ? "#0F2C59" : "#64748B"}
+            />
+            <Text
+              style={[
+                styles.mobileNavText,
+                activeTab === "settings" && styles.mobileNavTextActive,
+              ]}
+            >
+              Settings
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -592,7 +730,7 @@ export function ClientAppLayout({
         onRequestClose={() => setIsProfileVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.profileCard}>
+          <View style={[styles.profileCard, isMobile && { padding: 20 }]}>
             <View style={styles.profileAccentLine} />
             <View style={styles.profileHeader}>
               <View style={styles.profileIconContainer}>
@@ -670,6 +808,14 @@ export function ClientAppLayout({
             onPress: handleConfirmSignOut,
           },
         ]}
+      />
+
+      {/* Announcement Details Modal */}
+      <ClientAnnouncementModal
+        visible={selectedModalAnnouncement !== null}
+        announcement={selectedModalAnnouncement}
+        onClose={() => setSelectedModalAnnouncement(null)}
+        onAcknowledge={(id) => markAsRead(`client_ann_${id}`)}
       />
     </View>
   );

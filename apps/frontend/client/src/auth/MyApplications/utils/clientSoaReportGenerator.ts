@@ -1,4 +1,5 @@
 import { Application, SoaLineItem } from '../data/applicationsData';
+import { extractOrNumbers, formatOrDisplay } from '@edge/api';
 
 function safeString(val: unknown, fallback = 'N/A'): string {
   if (val === null || val === undefined) return fallback;
@@ -16,6 +17,18 @@ export function formatAddress(app: Application): string {
     app.zipCode,
   ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim() !== ''));
   return parts.length > 0 ? parts.join(', ') : 'N/A';
+}
+
+export function formatOrDisplayNumber(raw?: string | null): string {
+  if (!raw || typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const unhashed = trimmed.startsWith('#') ? trimmed.slice(1).trim() : trimmed;
+  if (/^OR[-\s]?/i.test(unhashed)) {
+    const withoutPrefix = unhashed.replace(/^OR[-\s]*/i, '').trim();
+    return `OR-${withoutPrefix}`;
+  }
+  return `OR-${unhashed}`;
 }
 
 export function formatCurrency(amount?: number | null): string {
@@ -159,7 +172,8 @@ export function generateSoaPrintableHtml(
   app: Application,
   tenantName?: string,
   preparerName?: string,
-  approverName?: string
+  approverName?: string,
+  orNumber?: string
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -184,6 +198,26 @@ export function generateSoaPrintableHtml(
     app.dueDate ? new Date(app.dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : undefined,
     '30 days from issuance'
   );
+
+  const effectiveOr = safeString(
+    orNumber || app.officialReceiptNumber || app.op?.officialReceiptNumber,
+    ''
+  );
+  const orList = extractOrNumbers(
+    orNumber,
+    app.officialReceiptNumber,
+    app.op?.officialReceiptNumber
+  );
+  const orDisplay = orList.length > 1
+    ? orList.map(formatOrDisplayNumber).join(', ')
+    : (orList[0] ? formatOrDisplayNumber(orList[0]) : formatOrDisplayNumber('RECORDED'));
+
+  const isPaid = effectiveOr.length > 0 ||
+    Boolean(app.paidAt || app.op?.paidAt || app.status === 'APPROVED');
+
+  const isForAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
+  const isOfficialApplication = !isForAssessmentOnly;
+  const applicationTypeLabel = isForAssessmentOnly ? 'For Assessment Only' : 'Official Application';
 
   const effectivePreparer = safeString(
     preparerName || app.soa?.preparedByName || app.evaluatingOfficer,
@@ -306,11 +340,18 @@ export function generateSoaPrintableHtml(
   <div class="doc-banner">
     <div>
       <div class="doc-title">STATEMENT OF ACCOUNT (SOA)</div>
-      <div style="font-size: 10px; opacity: 0.85;">Official Billing Assessment &amp; Regulatory Fee Schedule</div>
+      <div style="font-size: 10px; opacity: 0.85; margin-top: 2px;">
+        ${isForAssessmentOnly ? 'Preliminary Fee Assessment &amp; Requirement Estimation' : 'Official Billing Assessment &amp; Regulatory Fee Schedule'}
+      </div>
     </div>
     <div style="text-align: right;">
       <div class="doc-ref">${soaNumber}</div>
-      <div style="font-size: 10px; color: #94a3b8;">Issued: ${currentDate}</div>
+      <div style="margin-top: 3px;">
+        <span style="display: inline-block; font-size: 9.5px; font-weight: 800; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase; ${isForAssessmentOnly ? 'background: #7c3aed; color: #ffffff;' : 'background: #0284c7; color: #ffffff;'}">
+          ${isForAssessmentOnly ? 'FOR ASSESSMENT ONLY' : 'OFFICIAL APPLICATION'}
+        </span>
+      </div>
+      <div style="font-size: 9.5px; color: #94a3b8; margin-top: 2px;">Issued: ${currentDate}</div>
     </div>
   </div>
 
@@ -331,6 +372,12 @@ export function generateSoaPrintableHtml(
           <div class="info-name" style="font-family: monospace; color: #0284c7;">Ref #${refNum}</div>
           <div class="info-sub"><strong>Service:</strong> ${serviceName}</div>
           <div class="info-sub"><strong>Category:</strong> ${categoryName} • <strong>Mode:</strong> ${filingMode}</div>
+          <div class="info-sub" style="margin-top: 3px;">
+            <strong>Application Type:</strong>
+            <span style="font-weight: 700; color: ${isForAssessmentOnly ? '#7c3aed' : '#0284c7'};">
+              ${applicationTypeLabel}
+            </span>
+          </div>
           <div class="info-sub" style="margin-top: 4px;">
             <strong>Payment Due Date:</strong>
             <span class="due-date-badge">${dueDateStr}</span>
@@ -369,12 +416,60 @@ export function generateSoaPrintableHtml(
     </div>
   </div>
 
+  <div style="margin-top: 14px; margin-bottom: 14px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f8fafc; font-size: 11px; display: flex; gap: 24px; align-items: center; justify-content: flex-start;">
+    <span style="font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;">Application Intent:</span>
+    <span style="${isForAssessmentOnly ? 'font-weight: 800; color: #7c3aed;' : 'color: #64748b;'}">
+      <strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only
+    </span>
+    <span style="${isOfficialApplication ? 'font-weight: 800; color: #0284c7;' : 'color: #64748b;'}">
+      <strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application
+    </span>
+  </div>
+
   <div class="guidelines">
     <div style="font-weight: 700; margin-bottom: 2px;">PAYMENT ADVISORY &amp; GUIDELINES:</div>
     <div>1. Please settle the assessed amount on or before the indicated due date to avoid surcharges or application forfeiture.</div>
-    <div>2. Payments may be made via Land Bank of the Philippines, NTC Regional Cashier, or authorized online payment gateways.</div>
+    <div>2. Payments may be made via Authorized Government Depository Banks (AGDB), NTC Regional Cashier, or authorized online payment gateways.</div>
     <div>3. Always present this Statement of Account Reference Number (<strong>${soaNumber}</strong>) upon payment.</div>
   </div>
+
+  ${(() => {
+    const remarksText = (app.soa?.remarks || app.soa?.soaNoteText || app.remarks || '').trim();
+    if (!remarksText) return '';
+    return `
+  <div style="margin-top: 14px; margin-bottom: 14px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; background-color: #f8fafc;">
+    <div style="font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">NOTES / REMARKS:</div>
+    <div style="font-size: 11px; color: #1e293b; white-space: pre-line; line-height: 1.4;">${safeString(remarksText, '')}</div>
+  </div>
+  `;
+  })()}
+
+  ${isPaid ? `
+  <div style="margin-bottom: 20px; border: 1.5px solid #059669; border-radius: 6px; padding: 12px 16px; background-color: #f0fdf4;">
+    <div style="font-size: 11px; font-weight: 800; color: #065f46; border-bottom: 1px solid #bbf7d0; padding-bottom: 4px; margin-bottom: 6px; letter-spacing: 0.5px;">
+      OFFICIAL RECEIPT (O.R.) STAMP BOX
+    </div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+      <tr>
+        <td style="color: #065f46; font-weight: 700; width: 18%;">O.R. NO.:</td>
+        <td style="font-family: monospace; font-weight: 800; color: #047857; width: 32%;">${orDisplay}${orList.length > 1 ? ` (${orList.length} Receipts)` : ''}</td>
+        <td style="color: #065f46; font-weight: 700; width: 18%;">AMOUNT:</td>
+        <td style="font-weight: 800; color: #047857; width: 32%;">${formatCurrency(totalAmount)}</td>
+      </tr>
+      <tr>
+        <td style="color: #065f46; font-weight: 700; padding-top: 4px;">DATE:</td>
+        <td style="color: #047857; padding-top: 4px;">${currentDate}</td>
+        <td style="color: #065f46; font-weight: 700; padding-top: 4px;">BY:</td>
+        <td style="color: #065f46; font-weight: 600; padding-top: 4px;">${app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer'}</td>
+      </tr>
+    </table>
+  </div>
+  ` : `
+  <div style="margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; background-color: #f8fafc;">
+    <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 2px;">O.R. STAMP BOX</div>
+    <div style="font-size: 9.5px; color: #94a3b8;">Official Receipt will be stamped upon cashier collection &amp; verification.</div>
+  </div>
+  `}
 
   <div class="signatories">
     <div class="sig-block">
@@ -399,7 +494,8 @@ export function generateSoaPrintableHtml(
 export function generateOpPrintableHtml(
   app: Application,
   tenantName?: string,
-  cashierName?: string
+  cashierName?: string,
+  overrideOrNumber?: string
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -416,7 +512,21 @@ export function generateOpPrintableHtml(
   const serviceName = safeString(app.serviceName, 'Application Services');
   const categoryName = safeString(app.serviceCategory, 'General');
   const filingMode = safeString(app.mode, 'Single');
-  const orNumber = app.op?.officialReceiptNumber;
+  const effectiveOr = safeString(
+    overrideOrNumber || app.officialReceiptNumber || app.op?.officialReceiptNumber,
+    ''
+  );
+  const orList = extractOrNumbers(
+    overrideOrNumber,
+    app.officialReceiptNumber,
+    app.op?.officialReceiptNumber
+  );
+  const orDisplay = orList.length > 1
+    ? orList.map(formatOrDisplayNumber).join(', ')
+    : (orList[0] ? formatOrDisplayNumber(orList[0]) : (effectiveOr ? formatOrDisplayNumber(effectiveOr) : ''));
+  const paymentStatusText = orList.length > 1
+    ? `Paid via ${orList.length} Official Receipts (${orDisplay})`
+    : (effectiveOr ? `Paid via ${orDisplay}` : 'Pending Cashier Collection');
 
   const soaItemsList = getEffectiveLineItems(app);
   const lineItemsHtml = soaItemsList
@@ -556,9 +666,31 @@ export function generateOpPrintableHtml(
     <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">AMOUNT IN WORDS:</div>
     <div style="font-size: 11px; font-weight: 600; color: #047857;">${totalWords}</div>
     <div style="margin-top: 8px; font-size: 10.5px; color: #065f46;">
-      <strong>Payment Status:</strong> ${orNumber ? `Paid via OR #${orNumber}` : 'Pending Cashier Collection'}
+      <strong>Payment Status:</strong> ${paymentStatusText}
     </div>
   </div>
+
+  ${effectiveOr ? `
+  <div style="margin-bottom: 20px; border: 1.5px solid #059669; border-radius: 6px; padding: 12px 16px; background-color: #f0fdf4;">
+    <div style="font-size: 11px; font-weight: 800; color: #065f46; border-bottom: 1px solid #bbf7d0; padding-bottom: 4px; margin-bottom: 6px; letter-spacing: 0.5px;">
+      OFFICIAL RECEIPT (O.R.) STAMP BOX
+    </div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+      <tr>
+        <td style="color: #065f46; font-weight: 700; width: 18%;">O.R. NO.:</td>
+        <td style="font-family: monospace; font-weight: 800; color: #047857; width: 32%;">${orDisplay}${orList.length > 1 ? ` (${orList.length} Receipts)` : ''}</td>
+        <td style="color: #065f46; font-weight: 700; width: 18%;">AMOUNT:</td>
+        <td style="font-weight: 800; color: #047857; width: 32%;">${formatCurrency(totalAmount)}</td>
+      </tr>
+      <tr>
+        <td style="color: #065f46; font-weight: 700; padding-top: 4px;">DATE:</td>
+        <td style="color: #047857; padding-top: 4px;">${currentDate}</td>
+        <td style="color: #065f46; font-weight: 700; padding-top: 4px;">BY:</td>
+        <td style="color: #065f46; font-weight: 600; padding-top: 4px;">${safeString(cashierName, app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer')}</td>
+      </tr>
+    </table>
+  </div>
+  ` : ''}
 
   <div class="signatories">
     <div class="sig-block">
@@ -566,7 +698,7 @@ export function generateOpPrintableHtml(
       <div class="sig-role">Authorized Assessment Officer</div>
     </div>
     <div class="sig-block">
-      <div class="sig-name">${safeString(cashierName, 'Special Collecting Officer / Cashier')}</div>
+      <div class="sig-name">${safeString(cashierName, app.office ? `Special Collecting Officer / Cashier, ${app.office}` : 'Special Collecting Officer / Cashier')}</div>
       <div class="sig-role">Collecting Cashier</div>
     </div>
   </div>
@@ -827,7 +959,7 @@ export function generateOrPrintableHtml(app: Application): string {
       <div class="signature-section">
         <div class="signature-box">
           <div class="sign-line"></div>
-          <div class="sign-name">Special Collecting Officer</div>
+          <div class="sign-name">${app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer'}</div>
           <div class="sign-role">Authorized Cashier Officer</div>
         </div>
       </div>

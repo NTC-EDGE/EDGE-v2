@@ -59,7 +59,15 @@ public class OrderOfPaymentReport : IDocument
                     c.Item().Text(_model.AgencyName)
                         .FontSize(10).Bold();
 
-                    c.Item().Text($"Regional Office No.   {_model.RegionalOffice ?? string.Empty}")
+                    var officeDisplay = string.IsNullOrWhiteSpace(_model.RegionalOffice)
+                        ? string.Empty
+                        : (_model.RegionalOffice.StartsWith("Regional Office", StringComparison.OrdinalIgnoreCase)
+                            ? _model.RegionalOffice.Replace("Regional Office No.", "", StringComparison.OrdinalIgnoreCase)
+                                                   .Replace("Regional Office", "", StringComparison.OrdinalIgnoreCase)
+                                                   .Trim()
+                            : _model.RegionalOffice.Trim());
+
+                    c.Item().Text($"Regional Office No.   {officeDisplay}")
                         .FontSize(9).Bold();
 
                     c.Item().PaddingTop(3).Text(_model.Fund ?? "General Fund")

@@ -27,6 +27,10 @@ public class Application : AuditableEntity
     public bool IsPinned { get; set; } = false;
     public bool IsArchived { get; set; } = false;
 
+    public Guid? RenewedFromApplicationId { get; set; }
+    public Application? RenewedFromApplication { get; set; }
+    public ICollection<Application> Renewals { get; set; } = new List<Application>();
+
     public DateTime? AssessedAt { get; set; }
     public DateTime? ConvertedToRegularAt { get; set; }
     public int AssessmentVersion { get; set; } = 1;

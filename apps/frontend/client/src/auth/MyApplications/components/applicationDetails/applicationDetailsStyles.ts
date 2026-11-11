@@ -12,6 +12,8 @@ export const styles = StyleSheet.create({
   mainWrapper: {
     flex: 1,
     width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
     paddingTop: SPACING[24],
     paddingBottom: 40,
   },
@@ -213,12 +215,16 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#0F172A',
+    textAlign: 'center',
+    maxWidth: 96,
   },
   stepSubLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     color: '#64748B',
     marginTop: -2,
+    textAlign: 'center',
+    maxWidth: 96,
   },
   stepLine: {
     flex: 1,

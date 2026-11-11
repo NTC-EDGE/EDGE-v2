@@ -5,6 +5,11 @@ import { Application, ApplicationDocument, BulkApplicant, getAppDocuments, RawRe
 import { FIELD_ID_TYPE_OF_CERT, FIELD_ID_PERMIT_TYPE, FIELD_ID_APP_TYPE } from '../../../../shared/constants/fieldIds';
 import { RawApplicantHolder, RawApplicantDetails, normalizeStatus } from './applicationDetailsTypes';
 import { extractApplicantFullName, resolveBirthDate, resolveCivilStatus } from './applicationDetailsHelpers';
+import {
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 
 export function useApplicationDetailsData(initialApp: Application) {
   const api = useApi();
@@ -125,15 +130,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       };
       loadFullDetails();
 
-      const timer = setInterval(() => {
-        if (isMounted) {
-          loadFullDetails();
-        }
-      }, 3000);
-
       return () => {
         isMounted = false;
-        clearInterval(timer);
       };
     }
   }, [initialApp.id, initialApp.status, initialApp.remarks, refreshTrigger]);
@@ -174,7 +172,7 @@ export function useApplicationDetailsData(initialApp: Application) {
       (details?.streetAddress && details.streetAddress !== 'N/A' ? details.streetAddress : null) ||
       (details?.address && details.address !== 'N/A' ? details.address : null) ||
       (app.streetAddress && app.streetAddress !== 'N/A' ? app.streetAddress : null) ||
-      findField((l) => l.includes('street') || l === 'address') ||
+      findField((l) => (l.includes('street') || l === 'address') && !l.includes('seller') && !l.includes('dealer') && !l.includes('station') && !l.includes('installation') && !l.includes('provider')) ||
       '';
 
     const resolvedBarangay =
@@ -240,6 +238,11 @@ export function useApplicationDetailsData(initialApp: Application) {
       findField((l) => l.includes('graduat') || l.includes('year graduated')) ||
       null;
 
+    const resolvedSpecialOrderNo =
+      (details !== null && typeof details === 'object' && 'specialOrderNo' in details && typeof details.specialOrderNo === 'string' ? details.specialOrderNo : null) ||
+      findField((l) => l.includes('special order') || l.includes('so number')) ||
+      null;
+
     const rawAppType =
       first?.applicantType ||
       first?.applicationType ||
@@ -269,8 +272,11 @@ export function useApplicationDetailsData(initialApp: Application) {
       representativeName: isCompany ? (details?.representativeName || (app.representativeName as string) || findField((l) => l.includes('representative')) || null) : null,
       notes: details?.notes || app.remarks || null,
       schoolAttended: resolvedSchool,
+      schoolName: resolvedSchool,
       courseTaken: resolvedCourse,
+      courseDegree: resolvedCourse,
       yearGraduated: resolvedYearGrad,
+      specialOrderNo: resolvedSpecialOrderNo,
     };
   }, [app]);
 
@@ -292,14 +298,6 @@ export function useApplicationDetailsData(initialApp: Application) {
     return app.office ? `NTC Field Office • ${app.office}` : null;
   }, [app]);
 
-  const variantLabel = useMemo(() => {
-    const isUuid = (val?: string | null) =>
-      Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim()));
-    const candidates = [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType];
-    const readable = candidates.find((c) => c && c.trim().length > 0 && !isUuid(c));
-    return readable ? readable.trim() : 'Standard';
-  }, [app, singleApplicant]);
-
   const formFieldValues = useMemo(() => {
     let baseValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
     if (app.formFieldValues && app.formFieldValues.length > 0) {
@@ -320,6 +318,35 @@ export function useApplicationDetailsData(initialApp: Application) {
     }
     return baseValues;
   }, [app]);
+
+  const variantLabel = useMemo(() => {
+    return resolvePreviewVariant({
+      serviceVariantName: app.serviceVariantName,
+      variant: app.variant,
+      element: app.element,
+      examineeType: singleApplicant?.examineeType,
+      formFieldValues,
+      fallback: 'Standard',
+    });
+  }, [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType, formFieldValues]);
+
+  const applicationTypeLabel = useMemo(() => {
+    const rawAppType = singleApplicant?.applicantType === 'Company' ? undefined : singleApplicant?.examineeType;
+    return resolvePreviewApplicationType({
+      applicationType: rawAppType,
+      examineeType: singleApplicant?.examineeType,
+      element: app.element,
+      formFieldValues,
+    });
+  }, [singleApplicant?.applicantType, singleApplicant?.examineeType, app.element, formFieldValues]);
+
+  const elementsLabel = useMemo(() => {
+    return resolvePreviewElements({
+      element: app.element,
+      formFieldValues,
+      variantName: variantLabel,
+    });
+  }, [app.element, formFieldValues, variantLabel]);
 
 
   const appApplicants = useMemo<BulkApplicant[]>(() => {
@@ -519,20 +546,17 @@ export function useApplicationDetailsData(initialApp: Application) {
   }, [app, singleApplicant]);
 
   const resolvedServiceVariant = useMemo(() =>
-    app.serviceVariantName || app.variant ||
-    app.formFieldValues?.find((fv) =>
-      fv.fieldId === FIELD_ID_TYPE_OF_CERT || fv.fieldId === FIELD_ID_PERMIT_TYPE || fv.fieldId === FIELD_ID_APP_TYPE ||
-      (fv.fieldId !== undefined && fv.fieldId.toLowerCase().includes('variant')) ||
-      (fv.fieldLabel !== undefined && (
-        fv.fieldLabel.toLowerCase().includes('permit / license type') ||
-        fv.fieldLabel.toLowerCase().includes('type of certificate') ||
-        fv.fieldLabel.toLowerCase().includes('application variant') ||
-        fv.fieldLabel.toLowerCase().includes('application type')
-      ))
-    )?.value ||
-    (!isBulk && Array.isArray(app.applicants) && app.applicants.length > 0 && app.applicants[0].applicationType && app.applicants[0].applicationType !== 'Individual' ? app.applicants[0].applicationType : '') ||
-    (app.element !== 'New' ? app.element : ''),
-  [app, isBulk]);
+    resolvePreviewVariant({
+      serviceVariantName: app.serviceVariantName,
+      variant: app.variant,
+      element: app.element,
+      examineeType: singleApplicant?.examineeType,
+      formFieldValues,
+      fallback: '',
+    }),
+  [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType, formFieldValues]);
+
+  const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
 
   const currentStepIndex = useMemo(() => {
     const rawStatus = (typeof app.status === 'string' ? app.status : normalizeStatus(app.status)).toLowerCase();
@@ -540,6 +564,30 @@ export function useApplicationDetailsData(initialApp: Application) {
     const remarksLower = (typeof app.remarks === 'string' ? app.remarks : '').toLowerCase();
     const opStatus = (app.op && typeof app.op.status === 'string' ? app.op.status : '').toLowerCase();
 
+    // ── Pre-Assessment (3-step lifecycle) ──────────────────────────────────
+    if (isAssessmentOnly) {
+      if (
+        rawStatus === 'completed' ||
+        rawStatus === 'approved' ||
+        rawBeStatus === 'completed' ||
+        rawBeStatus === 'approved' ||
+        Boolean(app.assessedAt)
+      ) {
+        return 3;
+      }
+
+      if (
+        rawStatus === 'for_evaluation' ||
+        rawStatus === 'evaluating' ||
+        rawBeStatus === 'evaluating'
+      ) {
+        return 2;
+      }
+
+      return 1;
+    }
+
+    // ── Official Application (5-step lifecycle) ───────────────────────────
     // 1. Completed / Approved -> Step 5
     if (
       rawStatus === 'approved' ||
@@ -564,7 +612,7 @@ export function useApplicationDetailsData(initialApp: Application) {
       return 4;
     }
 
-    // 3. Payment -> Step 3
+    // 3. Payment / Accountant review -> Step 3
     const isPaymentSubmitted =
       remarksLower.includes('payment submitted') ||
       remarksLower.includes('waiting for cashier verification') ||
@@ -576,6 +624,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       rawStatus === 'ready_for_payment' ||
       rawStatus === 'pendingpayment' ||
       rawBeStatus === 'pendingpayment' ||
+      rawStatus === 'foraccountant' ||
+      rawBeStatus === 'foraccountant' ||
       isPaymentSubmitted ||
       (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
     ) {
@@ -587,10 +637,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       rawStatus === 'for_evaluation' ||
       rawStatus === 'evaluating' ||
       rawStatus === 'submitted' ||
-      rawStatus === 'foraccountant' ||
       rawBeStatus === 'evaluating' ||
       rawBeStatus === 'submitted' ||
-      rawBeStatus === 'foraccountant' ||
       rawStatus === 'declined'
     ) {
       return 2;
@@ -602,7 +650,7 @@ export function useApplicationDetailsData(initialApp: Application) {
     }
 
     return 2;
-  }, [app.status, app.rawStatus, app.soaNumber, app.remarks, app.op]);
+  }, [app.status, app.rawStatus, app.soaNumber, app.remarks, app.op, isAssessmentOnly, app.assessedAt]);
 
   return {
     app,
@@ -620,7 +668,10 @@ export function useApplicationDetailsData(initialApp: Application) {
     docs,
     primaryName,
     resolvedServiceVariant,
+    applicationTypeLabel,
+    elementsLabel,
     currentStepIndex,
+    isAssessmentOnly,
     refetch,
   };
 }

@@ -8,6 +8,9 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
+import { useRole } from '../../shell/context/RoleContext';
+import { usePermissions } from '../../shell/context/PermissionContext';
+import { useAppNavigation } from '../../../navigation/types';
 import { useReceiptsState, ReceiptTab } from '../hooks/useReceiptsState';
 import { OrBookletsTab } from '../components/OrBookletsTab';
 import { OfficialReceiptsTab } from '../components/OfficialReceiptsTab';
@@ -23,6 +26,8 @@ import { CancelReceiptModal } from '../components/CancelReceiptModal';
 import { CreateDepositModal } from '../components/CreateDepositModal';
 import { BankAccountModal } from '../components/BankAccountModal';
 import { ReceiptPrintPreviewModal } from '../components/ReceiptPrintPreviewModal';
+import { PendingPaymentDetailsModal } from '../components/PendingPaymentDetailsModal';
+import { EndorseReReviewModal } from '../components/EndorseReReviewModal';
 
 type LucideIconName = React.ComponentProps<typeof Lucide>['name'];
 
@@ -37,8 +42,57 @@ export function ReceiptManagementScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const navigation = useAppNavigation();
+
+  const { currentRole } = useRole();
+  const { isSuperAdmin, isAdmin, canVerifyCashier, hasAnyPermission } = usePermissions();
+
+  const isCashier = currentRole === 'Cashier';
+  const hasCashierPermission =
+    canVerifyCashier ||
+    hasAnyPermission(
+      'receipts.read',
+      'receipts.issue',
+      'receipts.edit',
+      'receipts.cancel',
+      'receipts.report',
+      'receipts.bundle',
+      'receipts.deposit',
+      'billing.collect',
+      'billing.op_return'
+    );
+  const hasOverallAccess =
+    isSuperAdmin ||
+    isAdmin ||
+    currentRole === 'Regional Director' ||
+    isCashier ||
+    hasCashierPermission;
 
   const state = useReceiptsState();
+
+  if (!hasOverallAccess) {
+    return (
+      <View style={[styles.root, styles.restrictedContainer, { backgroundColor: colors.bg }]}>
+        <View style={[styles.restrictedCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+          <View style={[styles.restrictedIconBox, { backgroundColor: '#FEE2E2' }]}>
+            <Lucide name="lock" size={28} color="#DC2626" />
+          </View>
+          <Text style={[styles.restrictedTitle, { color: colors.text }]}>Access Restricted</Text>
+          <Text style={[styles.restrictedSubtitle, { color: colors.textMuted }]}>
+            Receipt & Cashiering Management is restricted to Cashiers and authorized collections personnel.
+            Your current role ({currentRole}) does not have permission to access official receipts and cashiering modules.
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Dashboard')}
+            style={[styles.returnDashboardBtn, { backgroundColor: colors.brand.primary }]}
+          >
+            <Lucide name="home" size={15} color="#FFFFFF" />
+            <Text style={styles.returnDashboardBtnText}>Return to Dashboard</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   const TABS: TabDefinition[] = [
     {
@@ -171,6 +225,8 @@ export function ReceiptManagementScreen() {
             nextOr={state.nextOr}
             onOpenIssueModal={state.handleOpenIssueNew}
             onIssueReceiptForPendingPayment={(p) => state.handleOpenIssueWithPendingPayment(p)}
+            onViewDetailsForPendingPayment={(p) => state.setSelectedDetailsPayment(p)}
+            onEndorsePendingPayment={(p) => state.setSelectedEndorsePayment(p)}
             onViewReceipt={(r) => state.setViewingReceipt(r)}
             onEditReceipt={(r) => state.setEditingReceipt(r)}
             onCancelReceipt={(r) => state.setCancellingReceipt(r)}
@@ -236,78 +292,150 @@ export function ReceiptManagementScreen() {
           onSuccess={state.refreshAll}
         />
 
-          <EditBookletModal
-            visible={state.editingBooklet !== null}
-            booklet={state.editingBooklet}
-            onClose={() => state.setEditingBooklet(null)}
-            onSuccess={state.refreshAll}
-          />
+        <EditBookletModal
+          visible={state.editingBooklet !== null}
+          booklet={state.editingBooklet}
+          onClose={() => state.setEditingBooklet(null)}
+          onSuccess={state.refreshAll}
+        />
 
-          <TransferBookletModal
-            visible={state.transferringBooklet !== null}
-            tenantId={state.tenantId}
-            booklet={state.transferringBooklet}
-            onClose={() => state.setTransferringBooklet(null)}
-            onSuccess={state.refreshAll}
-          />
+        <TransferBookletModal
+          visible={state.transferringBooklet !== null}
+          tenantId={state.tenantId}
+          booklet={state.transferringBooklet}
+          onClose={() => state.setTransferringBooklet(null)}
+          onSuccess={state.refreshAll}
+        />
 
-          <IssueReceiptModal
-            visible={state.isIssueModalOpen}
-            tenantId={state.tenantId}
-            nextOr={state.nextOr}
-            pendingPayment={state.selectedPendingPayment}
-            onClose={state.handleCloseIssueModal}
-            onSuccess={state.refreshAll}
-          />
+        <IssueReceiptModal
+          visible={state.isIssueModalOpen}
+          tenantId={state.tenantId}
+          nextOr={state.nextOr}
+          pendingPayment={state.selectedPendingPayment}
+          onClose={state.handleCloseIssueModal}
+          onSuccess={state.refreshAll}
+        />
 
-          <EditReceiptModal
-            visible={state.editingReceipt !== null}
-            receipt={state.editingReceipt}
-            onClose={() => state.setEditingReceipt(null)}
-            onSuccess={state.refreshAll}
-          />
+        <EditReceiptModal
+          visible={state.editingReceipt !== null}
+          receipt={state.editingReceipt}
+          onClose={() => state.setEditingReceipt(null)}
+          onSuccess={state.refreshAll}
+        />
 
-          <CancelReceiptModal
-            visible={state.cancellingReceipt !== null}
-            receipt={state.cancellingReceipt}
-            onClose={() => state.setCancellingReceipt(null)}
-            onSuccess={state.refreshAll}
-          />
+        <CancelReceiptModal
+          visible={state.cancellingReceipt !== null}
+          receipt={state.cancellingReceipt}
+          onClose={() => state.setCancellingReceipt(null)}
+          onSuccess={state.refreshAll}
+        />
 
-          <CreateDepositModal
-            visible={state.isDepositModalOpen}
-            tenantId={state.tenantId}
-            bankAccounts={state.bankAccounts}
-            undepositedReceipts={state.undepositedReceipts}
-            onClose={() => state.setIsDepositModalOpen(false)}
-            onSuccess={state.refreshAll}
-          />
+        <CreateDepositModal
+          visible={state.isDepositModalOpen}
+          tenantId={state.tenantId}
+          bankAccounts={state.bankAccounts}
+          undepositedReceipts={state.undepositedReceipts}
+          onClose={() => state.setIsDepositModalOpen(false)}
+          onSuccess={state.refreshAll}
+        />
 
-          <BankAccountModal
-            visible={state.isBankAccountModalOpen}
-            tenantId={state.tenantId}
-            account={state.editingBankAccount}
-            onClose={() => {
-              state.setIsBankAccountModalOpen(false);
-              state.setEditingBankAccount(null);
-            }}
-            onSuccess={state.refreshAll}
-          />
+        <BankAccountModal
+          visible={state.isBankAccountModalOpen}
+          tenantId={state.tenantId}
+          account={state.editingBankAccount}
+          onClose={() => {
+            state.setIsBankAccountModalOpen(false);
+            state.setEditingBankAccount(null);
+          }}
+          onSuccess={state.refreshAll}
+        />
 
-          <ReceiptPrintPreviewModal
-            visible={state.viewingReceipt !== null}
-            receipt={state.viewingReceipt}
-            onClose={() => state.setViewingReceipt(null)}
-          />
-        </>
-      </View>
-    );
-  }
+        <ReceiptPrintPreviewModal
+          visible={state.viewingReceipt !== null}
+          receipt={state.viewingReceipt}
+          onClose={() => state.setViewingReceipt(null)}
+        />
+
+        <PendingPaymentDetailsModal
+          visible={state.selectedDetailsPayment !== null}
+          payment={state.selectedDetailsPayment}
+          onClose={() => state.setSelectedDetailsPayment(null)}
+          onEndorse={(payment) => {
+            state.setSelectedDetailsPayment(null);
+            state.setSelectedEndorsePayment(payment);
+          }}
+          onIssueReceipt={(payment) => {
+            state.setSelectedDetailsPayment(null);
+            state.handleOpenIssueWithPendingPayment(payment);
+          }}
+        />
+
+        <EndorseReReviewModal
+          visible={state.selectedEndorsePayment !== null}
+          payment={state.selectedEndorsePayment}
+          onClose={() => state.setSelectedEndorsePayment(null)}
+          onSuccess={state.refreshAll}
+        />
+      </>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     padding: 16,
+  },
+  restrictedContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  restrictedCard: {
+    width: '100%',
+    maxWidth: 480,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 28,
+    alignItems: 'center',
+    textAlign: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+    gap: 12,
+  },
+  restrictedIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  restrictedTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  restrictedSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  returnDashboardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  returnDashboardBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',

@@ -33,6 +33,7 @@
     "admin:dev": "bun --filter @edge/admin dev",
     "admin:build": "bun --filter @edge/admin build",
     "admin:start": "bun --filter @edge/admin start",
+    "admin:rebuild": "bun --filter @edge/admin build && bun --filter @edge/admin start",
     "client:check-types": "bun --filter ntc-edge-app check-types",
     "internal:check-types": "bun --filter ntc-edge-internal check-types",
     "admin:check-types": "bun --filter @edge/admin check-types",

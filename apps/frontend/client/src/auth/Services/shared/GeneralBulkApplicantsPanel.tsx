@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Text,
   View,
@@ -15,6 +15,8 @@ import {
   GeneralApplicantData,
   isGeneralApplicantComplete,
   ServiceRequirementItem,
+  ServiceVariantInfo,
+  ServiceVariantElementInfo,
 } from "./hooks/useGeneralServiceWizard";
 export { isGeneralApplicantComplete };
 import { getApplicantDisplayName } from "./helpers/applicantDisplayHelper";
@@ -27,6 +29,8 @@ import {
   downloadCsvFile,
   parseSpreadsheetContent,
 } from "./spreadsheet";
+import { useServiceForm } from "./hooks/useServiceForm";
+import { FormEvaluationContext } from "../../../shared/components/dynamic-form/dynamicFormUtils";
 
 interface GeneralBulkApplicantsPanelProps {
   applicants: GeneralApplicantData[];
@@ -42,6 +46,8 @@ interface GeneralBulkApplicantsPanelProps {
   onSubmitAll?: () => void;
   service: NTCService;
   variantRequirements?: Array<ServiceRequirementItem | string>;
+  variants?: ServiceVariantInfo[];
+  variantElements?: ServiceVariantElementInfo[];
 }
 
 export function GeneralBulkApplicantsPanel({
@@ -57,6 +63,8 @@ export function GeneralBulkApplicantsPanel({
   onSubmitAll,
   service,
   variantRequirements = [],
+  variants = [],
+  variantElements = [],
 }: GeneralBulkApplicantsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "COMPLETE" | "PENDING">("ALL");
@@ -79,7 +87,34 @@ export function GeneralBulkApplicantsPanel({
   const completeCount = applicants.filter((app) => isGeneralApplicantComplete(app, service, variantRequirements)).length;
   const pendingCount = applicants.length - completeCount;
 
-  const templateConfig = getSpreadsheetTemplateForService(service);
+  const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
+  const selectedVariantId = activeApplicant?.selectedVariantId;
+  const currentVariant = variants.find((v) => String(v.id) === String(selectedVariantId));
+
+  const { form } = useServiceForm(service?.id, selectedVariantId);
+
+  const evaluationContext = useMemo<FormEvaluationContext>(() => {
+    const selectedElementId = activeApplicant?.selectedElementId;
+    const selectedElement = variantElements.find((e) => String(e.id) === String(selectedElementId));
+    return {
+      variantId: selectedVariantId || form?.serviceVariantId,
+      variantName: activeApplicant?.selectedVariantName || currentVariant?.name || form?.serviceVariantName || service?.title,
+      variantDescription: currentVariant?.description,
+      variantType: currentVariant?.type,
+      applicantType: activeApplicant?.applicantType,
+      elementCodes: selectedElement?.code ? [selectedElement.code] : undefined,
+      elementNames: selectedElement?.description
+        ? [selectedElement.description]
+        : activeApplicant?.selectedElementTitle
+          ? [activeApplicant.selectedElementTitle]
+          : undefined,
+    };
+  }, [activeApplicant, selectedVariantId, currentVariant, variantElements, form, service]);
+
+  const templateConfig = useMemo(
+    () => getSpreadsheetTemplateForService(service, form, evaluationContext),
+    [service, form, evaluationContext]
+  );
 
   const handleDownloadTemplate = () => {
     const csvContent = generateCsvContent(templateConfig);
@@ -109,21 +144,21 @@ export function GeneralBulkApplicantsPanel({
       if (!asset) return;
 
       let fileText = "";
-      if (Platform.OS === "web" && asset.file) {
+      if (Platform.OS === "web" && asset?.file && typeof asset.file.text === "function") {
         fileText = await asset.file.text();
-      } else if (asset.uri) {
+      } else if (asset?.uri) {
         const response = await fetch(asset.uri);
         fileText = await response.text();
       }
 
       if (fileText && fileText.trim().length > 0) {
-        const parseResult = parseSpreadsheetContent(fileText, service);
+        const parseResult = parseSpreadsheetContent(fileText, service, form, evaluationContext);
         if (parseResult.totalRows === 0) {
           toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the template.");
           return;
         }
 
-        if (parseResult.applicants.length > 0 && onApplicantsImported) {
+        if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }
 

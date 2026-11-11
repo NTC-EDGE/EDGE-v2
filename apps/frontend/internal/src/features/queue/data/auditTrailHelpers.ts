@@ -13,13 +13,35 @@ export function deriveStaffRoleFromAction(
   const actionLower = (action || '').toLowerCase();
   const toStatusLower = (toStatus || '').toLowerCase();
 
+  // If this action is forwarding / re-submitting TO accountant or transitioning status to ForAccountant,
+  // the performing officer is the Evaluator / Submitter, NOT the Accountant!
+  if (
+    actionLower.includes('forwarded to accountant') ||
+    actionLower.includes('forward to accountant') ||
+    actionLower.includes('re-submitted to accountant') ||
+    actionLower.includes('resubmitted to accountant') ||
+    actionLower.includes('status updated to foraccountant') ||
+    (actionLower.includes('approved & forwarded') && toStatusLower.includes('accountant'))
+  ) {
+    return 'Evaluating Officer';
+  }
+
+  // If this action is forwarding / re-submitting TO cashier, the performer is the Accountant, NOT the Cashier!
+  if (
+    actionLower.includes('forwarded to cashier') ||
+    actionLower.includes('forward to cashier') ||
+    actionLower.includes('order of payment generated')
+  ) {
+    return 'Accountant / Assessor';
+  }
+
   if (actionLower.includes('approve') || toStatusLower.includes('approve')) {
     return 'Approving Officer';
   }
   if (actionLower.includes('return') || actionLower.includes('decline') || toStatusLower.includes('return') || toStatusLower.includes('decline')) {
     return 'Return Officer';
   }
-  if (actionLower.includes('accountant') || toStatusLower.includes('accountant')) {
+  if (actionLower.includes('accountant')) {
     return 'Accountant / Assessor';
   }
   if (actionLower.includes('cashier') || actionLower.includes('payment') || toStatusLower.includes('payment')) {

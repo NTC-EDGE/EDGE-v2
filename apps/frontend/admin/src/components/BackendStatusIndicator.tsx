@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle, WifiOff } from "lucide-react";
 import { mutate } from "swr";
+import { getIsServerUnreachable, subscribeServerUnreachable } from "@edge/api";
+import { getIsBackendUnavailable } from "@/services/api";
 
 export function BackendStatusIndicator() {
   const [isOffline, setIsOffline] = useState(false);
@@ -12,11 +14,16 @@ export function BackendStatusIndicator() {
 
   useEffect(() => {
     setMounted(true);
+    if (getIsBackendUnavailable() || getIsServerUnreachable()) {
+      setIsOffline(true);
+    }
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const handleOffline = () => {
       setIsOffline(true);
       setShowToast(true);
+      // Clear cached SWR query data immediately so stale responses are never displayed while offline
+      void mutate(() => true, undefined, { revalidate: false });
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => setShowToast(false), 5000);
     };
@@ -30,10 +37,19 @@ export function BackendStatusIndicator() {
       timer = setTimeout(() => setShowToast(false), 3000);
     };
 
+    const unsubscribe = subscribeServerUnreachable((unreachable) => {
+      if (unreachable) {
+        handleOffline();
+      } else {
+        handleOnline();
+      }
+    });
+
     window.addEventListener("backend-offline", handleOffline);
     window.addEventListener("backend-online", handleOnline);
 
     return () => {
+      unsubscribe();
       window.removeEventListener("backend-offline", handleOffline);
       window.removeEventListener("backend-online", handleOnline);
       if (timer) clearTimeout(timer);

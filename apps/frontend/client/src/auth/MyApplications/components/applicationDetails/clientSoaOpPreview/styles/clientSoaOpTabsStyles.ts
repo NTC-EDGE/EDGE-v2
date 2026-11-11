@@ -3,14 +3,15 @@ import { SPACING, TYPOGRAPHY } from '@edge/ui';
 
 export const tabsStyles = StyleSheet.create({
   tabBar: {
-    flexDirection: 'row',
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+  },
+  tabBarScroll: {
+    flexDirection: 'row',
     paddingHorizontal: SPACING[16],
     paddingTop: 8,
     gap: 8,
-    flexWrap: 'wrap',
   },
   tabItem: {
     flexDirection: 'row',
@@ -114,8 +115,8 @@ export const tabsStyles = StyleSheet.create({
   },
   multiOrChipsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+    paddingVertical: 2,
   },
   multiOrChip: {
     flexDirection: 'row',

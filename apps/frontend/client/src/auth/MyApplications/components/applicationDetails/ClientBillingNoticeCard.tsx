@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Icon, SPACING, TYPOGRAPHY } from '@edge/ui';
-import { Application } from '../../data/applicationsData';
+import { extractOrNumbers } from '@edge/api';
+import { Application, isApplicationPaymentSubmitted } from '../../data/applicationsData';
 import {
   formatCurrency,
+  formatOrDisplayNumber,
   getEffectiveLineItems,
   getEffectiveTotalAmount,
 } from '../../utils/clientSoaReportGenerator';
@@ -35,22 +37,67 @@ export function ClientBillingNoticeCard({
 
   const orNumber = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
   const hasOr = Boolean(orNumber && orNumber.trim().length > 0);
-  const orList = orNumber
-    ? orNumber
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-    : [];
+  const orList = extractOrNumbers(orNumber);
 
-  const orSubtitleText = (() => {
-    if (orList.length === 0) return '';
-    if (orList.length === 1) return `Official Receipt ${orList[0]} has been officially issued by the Cashier.`;
-    if (orList.length === 2) return `Official Receipts ${orList[0]} and ${orList[1]} have been officially issued by the Cashier.`;
-    return `Official Receipts ${orList.slice(0, -1).join(', ')}, and ${orList[orList.length - 1]} have been officially issued by the Cashier.`;
-  })();
+  const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
+  const rawStatusUpper = (typeof app.rawStatus === 'string' ? app.rawStatus : '').toUpperCase();
+  const statusUpper = (typeof app.status === 'string' ? app.status : '').toUpperCase();
+  const soaStatusUpper = (app.soa && typeof app.soa.status === 'string' ? app.soa.status : '').toUpperCase();
+
+  const isAssessmentApproved =
+    isAssessmentOnly && (
+      rawStatusUpper === 'COMPLETED' ||
+      rawStatusUpper === 'APPROVED' ||
+      statusUpper === 'APPROVED' ||
+      soaStatusUpper === 'APPROVED' ||
+      Boolean(app.assessedAt)
+    );
+
+  const isPaymentSubmitted = isApplicationPaymentSubmitted(app);
+
+  const hasOp = Boolean(
+    (typeof app.opNumber === 'string' && app.opNumber.trim().length > 0) ||
+    (app.op && typeof app.op.opNumber === 'string' && app.op.opNumber.trim().length > 0)
+  );
+
+  const isUnderAccountantReview =
+    !isAssessmentOnly &&
+    !hasOr &&
+    !isPaymentSubmitted &&
+    (rawStatusUpper === 'FORACCOUNTANT' ||
+      rawStatusUpper === 'FOR_ACCOUNTANT' ||
+      (soaStatusUpper === 'FORORDEROFPAYMENT' && !hasOp));
+
+  const isOfficialEvaluatorApproved =
+    !isAssessmentOnly && (
+      isUnderAccountantReview ||
+      rawStatusUpper === 'PENDINGPAYMENT' ||
+      rawStatusUpper === 'PENDING_PAYMENT' ||
+      statusUpper === 'READY_FOR_PAYMENT' ||
+      rawStatusUpper === 'PAYMENTSUBMITTED' ||
+      rawStatusUpper === 'PAYMENT_SUBMITTED' ||
+      statusUpper === 'PAYMENT_SUBMITTED' ||
+      isPaymentSubmitted ||
+      rawStatusUpper === 'FORISSUANCE' ||
+      rawStatusUpper === 'FOR_ISSUANCE' ||
+      statusUpper === 'FOR_APPROVAL' ||
+      rawStatusUpper === 'COMPLETED' ||
+      rawStatusUpper === 'APPROVED' ||
+      statusUpper === 'APPROVED' ||
+      hasOr ||
+      soaStatusUpper === 'FORORDEROFPAYMENT' ||
+      soaStatusUpper === 'APPROVED'
+    );
+
+  // Hide billing notice / SOA card if not approved by evaluator yet
+  if (isAssessmentOnly ? !isAssessmentApproved : !isOfficialEvaluatorApproved) {
+    return null;
+  }
 
   const handleOpenReports = (tab?: 'soa' | 'op' | 'or') => {
-    const defaultTab: 'soa' | 'op' | 'or' = hasOr ? 'or' : (!app.isAssessmentOnly && app.intent !== 'AssessmentOnly' ? 'op' : 'soa');
+    const defaultTab: 'soa' | 'op' | 'or' = hasOr
+      ? 'or'
+      : (!isAssessmentOnly && !isUnderAccountantReview && hasOp ? 'op' : 'soa');
     const selectedTab = tab || defaultTab;
     if (onViewReports) {
       onViewReports(selectedTab);
@@ -62,35 +109,6 @@ export function ClientBillingNoticeCard({
       onViewSoa();
     }
   };
-
-  const isAssessmentOnly = app.isAssessmentOnly || app.intent === 'AssessmentOnly';
-
-  const isReadyForPayment =
-    !hasOr && (
-      app.status === 'READY_FOR_PAYMENT' ||
-      (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
-    );
-
-  const opStatusLower = (app.op?.status ?? '').toLowerCase();
-  const isOpBilled = opStatusLower === 'billed' || opStatusLower === 'active';
-  const isOpReturned = opStatusLower === 'returned';
-
-  const isPaymentSubmitted =
-    !hasOr &&
-    !isOpBilled &&
-    !isOpReturned && (
-      (typeof app.remarks === 'string' &&
-        (app.remarks.toLowerCase().includes('payment submitted') ||
-         app.remarks.toLowerCase().includes('waiting for cashier verification') ||
-         app.remarks.toLowerCase().includes('verification in progress'))) ||
-      (app.op !== undefined &&
-        typeof app.op.status === 'string' &&
-        (opStatusLower === 'processing' || opStatusLower === 'paid'))
-    );
-
-  if (!isReadyForPayment && !app.soaNumber && !isAssessmentOnly && !hasOr) {
-    return null;
-  }
 
   const lineItems = getEffectiveLineItems(app);
   const totalAmount = getEffectiveTotalAmount(app);
@@ -133,17 +151,21 @@ export function ClientBillingNoticeCard({
               {isAssessmentOnly
                 ? 'Pre-Assessment & Statement of Account (SOA)'
                 : hasOr
-                ? 'Official Receipt Issued • Payment Completed'
+                ? 'Billing Assessment & Payment Status'
+                : isUnderAccountantReview
+                ? 'Official Billing Assessment (Under Accountant Review)'
                 : 'Order of Payment & Billing Assessment'}
             </Text>
             <Text style={styles.headerSubtitle}>
               {isAssessmentOnly
-                ? 'Evaluator has assessed your submitted requirements and prepared your Statement of Account.'
+                ? 'Pre-assessment completed. Evaluator has approved and released your official Statement of Account.'
                 : hasOr
-                ? orSubtitleText
+                ? 'Payment has been verified and settled by the Cashier.'
                 : isPaymentSubmitted
                 ? 'Payment details submitted — pending Cashier verification'
-                : 'Statement of Account has been assessed and issued for settlement'}
+                : isUnderAccountantReview
+                ? 'Evaluator has approved the assessment. Statement of Account is currently being reviewed by the Accountant for Order of Payment generation.'
+                : 'Statement of Account and Order of Payment have been issued for settlement'}
             </Text>
           </View>
         </View>
@@ -157,6 +179,8 @@ export function ClientBillingNoticeCard({
               ? { backgroundColor: '#ECFDF5' }
               : isPaymentSubmitted
               ? styles.statusPillSubmitted
+              : isUnderAccountantReview
+              ? { backgroundColor: '#EFF6FF' }
               : styles.statusPillActionRequired,
           ]}
         >
@@ -170,6 +194,8 @@ export function ClientBillingNoticeCard({
                   ? '#059669'
                   : isPaymentSubmitted
                   ? '#0284C7'
+                  : isUnderAccountantReview
+                  ? '#1D4ED8'
                   : '#D97706',
               },
             ]}
@@ -184,18 +210,20 @@ export function ClientBillingNoticeCard({
                   ? '#059669'
                   : isPaymentSubmitted
                   ? '#0284C7'
+                  : isUnderAccountantReview
+                  ? '#1D4ED8'
                   : '#B45309',
               },
             ]}
           >
             {isAssessmentOnly
-              ? 'Pre-Assessment Complete'
+              ? 'Assessment Complete'
               : hasOr
-              ? (orList.length > 1
-                  ? `Paid • ${orList.length} Official Receipts Issued`
-                  : `Paid • OR ${orList[0] || orNumber}`)
+              ? 'Payment Settled'
               : isPaymentSubmitted
               ? 'Verification in Progress'
+              : isUnderAccountantReview
+              ? 'Under Accountant Review'
               : 'For Payment'}
           </Text>
         </View>
@@ -211,16 +239,34 @@ export function ClientBillingNoticeCard({
         </View>
 
         <View style={styles.infoCol}>
-          <Text style={styles.fieldLabel}>Total Assessment Due</Text>
-          <Text style={styles.totalDueHighlight}>{formatCurrency(totalAmount)}</Text>
+          <Text style={styles.fieldLabel}>{hasOr ? 'Total Amount Paid' : 'Total Assessment Due'}</Text>
+          <Text style={[styles.totalDueHighlight, hasOr && { color: '#059669' }]}>
+            {formatCurrency(totalAmount)}
+          </Text>
         </View>
 
         <View style={styles.infoCol}>
-          <Text style={styles.fieldLabel}>Payment Due Date</Text>
-          <View style={styles.dueDateBadge}>
-            <Icon name="calendar" size={13} color="#B45309" />
-            <Text style={styles.dueDateBadgeText}>{dueDateFormatted}</Text>
-          </View>
+          {hasOr ? (
+            <>
+              <Text style={styles.fieldLabel}>Official Receipt No.</Text>
+              <View style={styles.orBadgeFigure}>
+                <Icon name="check-circle" size={13} color="#059669" />
+                <Text style={styles.orBadgeFigureText}>
+                  {orList.length > 1
+                    ? `${orList.length} Receipts Issued`
+                    : formatOrDisplayNumber(orList[0] || orNumber)}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.fieldLabel}>Payment Due Date</Text>
+              <View style={styles.dueDateBadge}>
+                <Icon name="calendar" size={13} color="#B45309" />
+                <Text style={styles.dueDateBadgeText}>{dueDateFormatted}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.infoCol}>
@@ -294,43 +340,21 @@ export function ClientBillingNoticeCard({
         <View style={styles.docButtonsGroup}>
           <TouchableOpacity
             style={styles.viewReportsBtn}
-            onPress={() => handleOpenReports()}
+            onPress={() => handleOpenReports(hasOr ? 'or' : isUnderAccountantReview || isAssessmentOnly ? 'soa' : undefined)}
             activeOpacity={0.8}
           >
             <Icon name="file-text" size={15} color="#0369A1" />
             <Text style={styles.viewReportsBtnText}>
               {hasOr
-                ? 'View Application Reports (SOA • OP • OR)'
-                : !isAssessmentOnly
-                ? 'View Application Reports (SOA • OP)'
-                : 'View Statement of Account (SOA)'}
+                ? 'View Billing & Receipt Documents (SOA • OP • OR)'
+                : isUnderAccountantReview || isAssessmentOnly
+                ? 'View Statement of Account (SOA)'
+                : 'View Application Reports (SOA • OP)'}
             </Text>
-            {hasOr && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-                {orList.map((token) => {
-                  const label = token.startsWith('#') ? token : `#${token}`;
-                  return (
-                    <View key={token} style={styles.orBadge}>
-                      <Icon name="check-circle" size={12} color="#059669" />
-                      <Text style={styles.orBadgeText}>OR {label}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
           </TouchableOpacity>
         </View>
 
-        {hasOr ? (
-          <View style={styles.paidConfirmedBadge}>
-            <Icon name="check-circle" size={16} color="#059669" />
-            <Text style={styles.paidConfirmedText}>
-              {orList.length > 1
-                ? `Payment Settled • ${orList.length} Official Receipts Issued`
-                : `Payment Settled • OR ${orList[0] || orNumber}`}
-            </Text>
-          </View>
-        ) : isAssessmentOnly ? (
+        {hasOr ? null : isAssessmentOnly ? (
           <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 10, alignItems: 'center' }}>
             {onRequestReassessment && (
               <TouchableOpacity
@@ -373,6 +397,34 @@ export function ClientBillingNoticeCard({
                 <Icon name="arrow-right" size={16} color="#FFFFFF" />
               </TouchableOpacity>
             )}
+          </View>
+        ) : isUnderAccountantReview ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              backgroundColor: '#EFF6FF',
+              borderColor: '#BFDBFE',
+              borderWidth: 1,
+              borderRadius: 8,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              flex: 1,
+            }}
+          >
+            <Icon name="clock" size={16} color="#1D4ED8" />
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 12,
+                color: '#1E40AF',
+                flex: 1,
+                lineHeight: 16,
+              }}
+            >
+              Order of Payment is currently being processed by the Accountant. Payment options will become available once financial review is completed.
+            </Text>
           </View>
         ) : isPaymentSubmitted ? (
           <View style={styles.submittedBanner}>
@@ -653,37 +705,21 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#0369A1',
   },
-  orBadge: {
+  orBadgeFigure: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: '#ECFDF5',
     borderWidth: 1,
     borderColor: '#A7F3D0',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
   },
-  orBadgeText: {
+  orBadgeFigureText: {
     fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }),
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#059669',
-  },
-  paidConfirmedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  paidConfirmedText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#059669',
   },

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Domain.Authorization;
@@ -96,9 +97,13 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(s => s.LineItems)
             .Include(a => a.StatementsOfAccount)
                 .ThenInclude(s => s.Histories)
+            .Include(a => a.StatementsOfAccount)
+                .ThenInclude(s => s.SoaNote)
             .Include(a => a.OrdersOfPayment)
                 .ThenInclude(o => o.Histories)
             .Include(a => a.IssuedDocumentDetails)
+            .Include(a => a.Renewals)
+            .Include(a => a.RenewedFromApplication)
             .Include(a => a.Histories)
             .Include(a => a.CorrectionAuditTrails)
             .Include(a => a.Tenant)
@@ -182,6 +187,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     .ThenInclude(fv => fv.Field)
             .Include(a => a.StatementsOfAccount)
                 .ThenInclude(s => s.LineItems)
+            .Include(a => a.StatementsOfAccount)
+                .ThenInclude(s => s.SoaNote)
             .Include(a => a.OrdersOfPayment)
             .Include(a => a.Histories)
             .Include(a => a.CorrectionAuditTrails)
@@ -285,6 +292,10 @@ public class ApplicationFullRepository : IApplicationFullRepository
             }
         }
 
+        var elementFieldGuid = FormFieldConstants.ExamElements;
+        var stationClassGuid1 = FormFieldConstants.ClassOfStation;
+        var stationClassGuid2 = FormFieldConstants.StationClass;
+
         var results = await query
             .OrderByDescending(a => a.IsPinned)
             .ThenByDescending(a => a.CreatedAt)
@@ -308,6 +319,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                 ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                 ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                Element = app.FormSubmissions
+                    .SelectMany(fs => fs.FieldValues)
+                    .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
+                    .Select(fv => fv.Value)
+                    .FirstOrDefault(),
                 OfficialReceiptNumber = app.OrdersOfPayment
                     .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
                     .Select(o => o.OfficialReceiptNumber)
@@ -319,6 +335,56 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 TotalAmountDue = app.StatementsOfAccount
                     .OrderByDescending(s => s.CreatedAt)
                     .Select(s => (decimal?)s.TotalAmount)
+                    .FirstOrDefault(),
+                AmountPaid = app.OrdersOfPayment
+                    .Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrEmpty(o.OfficialReceiptNumber))
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => (decimal?)o.AmountReceived)
+                    .FirstOrDefault(),
+                PaidAt = app.OrdersOfPayment
+                    .Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrEmpty(o.OfficialReceiptNumber))
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.PaidAt)
+                    .FirstOrDefault(),
+                PaymentMethod = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.PaymentMethod != null ? o.PaymentMethod.ToString() : null)
+                    .FirstOrDefault(),
+                CheckNumber = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckNumber)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                CheckName = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckName)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                CheckBank = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckBank)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                CheckDate = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckDate)
+                    .FirstOrDefault(d => d != null),
+                PayorName = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckName)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                PaymentRemarks = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.Remarks)
+                    .FirstOrDefault(r => !string.IsNullOrEmpty(r)),
+                OrderOfPaymentId = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => (Guid?)o.Id)
+                    .FirstOrDefault(),
+                OpNumber = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.OpNumber)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                OpStatus = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.Status.ToString())
                     .FirstOrDefault(),
                 Histories = app.Histories.Select(h => new EDGE.Application.Applications.Dtos.ApplicationHistoryDto
                 {
@@ -357,6 +423,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                     ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                    Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
+                        ? aa.Applicant.FormSubmission.FieldValues
+                            .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
+                            .Select(fv => fv.Value)
+                            .FirstOrDefault()
+                        : null,
                     SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
                         ? (Guid?)aa.Applicant.FormSubmission.Id
                         : null,
@@ -396,6 +468,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         foreach (var item in results)
         {
+            item.Element ??= item.Applicants.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Element))?.Element;
             PopulateSummaryOfficers(item);
         }
 
@@ -631,6 +704,10 @@ public class ApplicationFullRepository : IApplicationFullRepository
         var page = pageNumber < 1 ? 1 : pageNumber;
         var size = pageSize <= 0 ? 10 : pageSize;
 
+        var elementFieldGuid = FormFieldConstants.ExamElements;
+        var stationClassGuid1 = FormFieldConstants.ClassOfStation;
+        var stationClassGuid2 = FormFieldConstants.StationClass;
+
         var rawList = await filteredQuery
             .OrderByDescending(a => a.IsPinned)
             .ThenByDescending(a => a.CreatedAt)
@@ -663,6 +740,31 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                     ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                     ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                    Element = app.FormSubmissions
+                        .SelectMany(fs => fs.FieldValues)
+                        .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
+                        .Select(fv => fv.Value)
+                        .FirstOrDefault(),
+                    RenewedFromApplicationId = app.RenewedFromApplicationId,
+                    HasActiveRenewal = app.Renewals.Any(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned),
+                    ActiveRenewalApplicationId = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => (Guid?)r.Id).FirstOrDefault(),
+                    ActiveRenewalReferenceNumber = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => r.ReferenceNumber).FirstOrDefault(),
+                    IssuedDocumentDetails = app.IssuedDocumentDetails.Select(d => new EDGE.Application.Applications.Dtos.IssuedDocumentDetailSummaryDto
+                    {
+                        Id = d.Id,
+                        ApplicationId = d.ApplicationId,
+                        ApplicantId = d.ApplicantId,
+                        DocumentType = d.DocumentType,
+                        FormNumber = d.FormNumber,
+                        LicenseNumber = d.LicenseNumber,
+                        CallSign = d.CallSign,
+                        StationClass = d.StationClass,
+                        FrequencyBand = d.FrequencyBand,
+                        IssueDate = d.IssueDate,
+                        ExpiryDate = d.ExpiryDate,
+                        OfficialReceiptNumber = d.OfficialReceiptNumber,
+                        Remarks = d.Remarks
+                    }).ToList(),
                     OfficialReceiptNumber = app.OrdersOfPayment
                         .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.OfficialReceiptNumber)
@@ -721,6 +823,10 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.OpNumber)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                    OpStatus = app.OrdersOfPayment
+                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .Select(o => o.Status.ToString())
+                        .FirstOrDefault(),
                     Histories = app.Histories.Select(h => new EDGE.Application.Applications.Dtos.ApplicationHistoryDto
                     {
                         Id = h.Id,
@@ -758,6 +864,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                         ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                         ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                        Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
+                            ? aa.Applicant.FormSubmission.FieldValues
+                                .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
+                                .Select(fv => fv.Value)
+                                .FirstOrDefault()
+                            : null,
                         SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
                             ? (Guid?)aa.Applicant.FormSubmission.Id
                             : null,
@@ -795,7 +907,15 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 },
                 HasSoa = app.StatementsOfAccount.Any(),
                 HasOp = app.OrdersOfPayment.Any(),
-                HasAccountantHistory = app.Histories.Any(h => h.StaffRole == "Accountant" || (h.Action != null && h.Action.Contains("Accountant")) || (h.Remarks != null && h.Remarks.Contains("Accountant"))),
+                HasAccountantHistory = app.Histories.Any(h =>
+                    h.StaffRole == "Accountant" ||
+                    (h.Action != null && h.Action.Contains("Accountant") &&
+                     !h.Action.Contains("Forwarded") &&
+                     !h.Action.Contains("Forward") &&
+                     !h.Action.Contains("Status updated to ForAccountant")) ||
+                    (h.Remarks != null && h.Remarks.Contains("Accountant") &&
+                     !h.Remarks.Contains("Forwarded") &&
+                     !h.Remarks.Contains("Forward"))),
                 HasCashierHistory = app.Histories.Any(h => h.StaffRole == "Cashier" || (h.Action != null && h.Action.Contains("Cashier")) || (h.Remarks != null && h.Remarks.Contains("Cashier")))
             })
             .ToListAsync(cancellationToken);
@@ -803,6 +923,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         var items = rawList.Select(x =>
         {
             var item = x.Dto;
+            item.Element ??= item.Applicants.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Element))?.Element;
             PopulateSummaryOfficers(item);
             if (Enum.TryParse<ApplicationStatus>(item.Status, out var parsedStatus))
             {
@@ -836,6 +957,437 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 ReturnedCount = returnedCount,
                 ReadyDocumentsCount = readyDocsCount
             }
+        };
+    }
+
+    public async Task<EDGE.Application.Applications.Dtos.PagedApplicationActivitiesDto> GetApplicationActivitiesPagedAsync(
+        ApplicationStatus? status = null,
+        string? queueTab = null,
+        string? scope = null,
+        Guid? userId = null,
+        string? userEmail = null,
+        int pageNumber = 1,
+        int pageSize = 15,
+        string? searchTerm = null,
+        string? mode = null,
+        Guid? tenantId = null,
+        List<Guid>? tenantIds = null,
+        string? fieldOffice = null,
+        string? assignedTo = null,
+        string? role = null,
+        CancellationToken cancellationToken = default)
+    {
+        var baseQuery = _context.Applications
+            .AsNoTracking()
+            .Where(a => a.Status != ApplicationStatus.Draft && !a.IsArchived);
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            baseQuery = baseQuery.Where(a => a.TenantId == tenantId.Value);
+        }
+        else if (tenantIds != null && tenantIds.Count > 0)
+        {
+            baseQuery = baseQuery.Where(a => tenantIds.Contains(a.TenantId));
+        }
+
+        if (userId.HasValue || !string.IsNullOrEmpty(userEmail))
+        {
+            var normalizedEmail = userEmail?.Trim().ToLowerInvariant();
+            baseQuery = baseQuery.Where(a =>
+                (userId.HasValue && a.UserId == userId.Value) ||
+                (normalizedEmail != null && a.User != null && a.User.Email.ToLower() == normalizedEmail) ||
+                (normalizedEmail != null && a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower() == normalizedEmail)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(fieldOffice))
+        {
+            var fo = fieldOffice.Trim().ToLowerInvariant();
+            baseQuery = baseQuery.Where(a => a.Office != null && (a.Office.ToLower().Contains(fo) || fo.Contains(a.Office.ToLower())));
+        }
+
+        var filteredQuery = baseQuery;
+
+        if (status.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(a => a.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(mode))
+        {
+            if (Enum.TryParse<SubmissionMode>(mode.Trim(), true, out var parsedMode))
+            {
+                filteredQuery = filteredQuery.Where(a => a.SubmissionMode == parsedMode);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim().ToLowerInvariant();
+            filteredQuery = filteredQuery.Where(a =>
+                (a.ReferenceNumber != null && a.ReferenceNumber.ToLower().Contains(term)) ||
+                (a.ApplicationNumber != null && a.ApplicationNumber.ToLower().Contains(term)) ||
+                (a.Office != null && a.Office.ToLower().Contains(term)) ||
+                (a.User != null &&
+                    (((a.User.FirstName ?? "") + " " + (a.User.LastName ?? "")).ToLower().Contains(term) ||
+                     (a.User.Email != null && a.User.Email.ToLower().Contains(term)) ||
+                     (a.User.CompanyDetail != null && a.User.CompanyDetail.Name != null && a.User.CompanyDetail.Name.ToLower().Contains(term)))) ||
+                a.ApplicationApplicants.Any(aa => aa.Applicant != null &&
+                    ((aa.Applicant.ApplicantDetail != null &&
+                        (((aa.Applicant.ApplicantDetail.FirstName ?? "") + " " + (aa.Applicant.ApplicantDetail.LastName ?? "")).ToLower().Contains(term) ||
+                         (aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower().Contains(term)))) ||
+                     (aa.Applicant.CompanyDetail != null && aa.Applicant.CompanyDetail.Name != null && aa.Applicant.CompanyDetail.Name.ToLower().Contains(term)) ||
+                     (aa.Applicant.Service != null && aa.Applicant.Service.Name.ToLower().Contains(term)) ||
+                     (aa.Applicant.ServiceVariant != null && aa.Applicant.ServiceVariant.Description != null && aa.Applicant.ServiceVariant.Description.ToLower().Contains(term)))) ||
+                a.OrdersOfPayment.Any(op =>
+                    (op.OfficialReceiptNumber != null && op.OfficialReceiptNumber.ToLower().Contains(term)) ||
+                    (op.OpNumber != null && op.OpNumber.ToLower().Contains(term)) ||
+                    (op.CheckName != null && op.CheckName.ToLower().Contains(term))) ||
+                a.StatementsOfAccount.Any(soa =>
+                    soa.SoaNumber != null && soa.SoaNumber.ToLower().Contains(term)) ||
+                a.Histories.Any(h =>
+                    (h.StaffName != null && h.StaffName.ToLower().Contains(term)) ||
+                    (h.StaffRole != null && h.StaffRole.ToLower().Contains(term))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(queueTab))
+        {
+            var tab = queueTab.Trim().ToLowerInvariant();
+
+            if (tab == "issuance")
+            {
+                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForIssuance);
+            }
+            else if (ApplicationStatusHelper.IsAccountantRole(role))
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a =>
+                        a.Status != ApplicationStatus.ForAccountant && (
+                            a.StatementsOfAccount.Any() ||
+                            a.Histories.Any(h => h.StaffRole == "Accountant" || (h.Action != null && h.Action.Contains("Accountant")) || (h.Remarks != null && h.Remarks.Contains("Accountant"))) ||
+                            (a.Remarks != null && a.Remarks.Contains("Accountant")) ||
+                            a.Status == ApplicationStatus.PendingPayment ||
+                            a.Status == ApplicationStatus.ForIssuance ||
+                            a.Status == ApplicationStatus.Approved ||
+                            a.Status == ApplicationStatus.Completed ||
+                            a.Status == ApplicationStatus.Returned
+                        )
+                    );
+                }
+            }
+            else if (ApplicationStatusHelper.IsCashierRole(role))
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment && a.OrdersOfPayment.Any(op => op.Status == OpStatus.Billed || op.Status == OpStatus.Processing));
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a =>
+                        a.Status != ApplicationStatus.PendingPayment && (
+                            a.OrdersOfPayment.Any(op => op.Status == OpStatus.Paid || op.Status == OpStatus.Returned) ||
+                            a.Histories.Any(h => h.StaffRole == "Cashier" || (h.Action != null && h.Action.Contains("Cashier")) || (h.Remarks != null && h.Remarks.Contains("Cashier"))) ||
+                            (a.Remarks != null && a.Remarks.Contains("Cashier")) ||
+                            a.Status == ApplicationStatus.ForIssuance ||
+                            a.Status == ApplicationStatus.Completed ||
+                            a.Status == ApplicationStatus.Approved ||
+                            a.Status == ApplicationStatus.Returned
+                        )
+                    );
+                }
+            }
+            else if (ApplicationStatusHelper.IsEvaluatorRole(role))
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.Returned);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.ForIssuance || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed);
+                }
+            }
+            else if (ApplicationStatusHelper.IsSupervisorOrDirectorRole(role))
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForIssuance || a.Status == ApplicationStatus.Approved);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed);
+                }
+            }
+            else if (ApplicationStatusHelper.IsLegalRole(role))
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => (a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.Returned) &&
+                        (a.Remarks != null && (a.Remarks.Contains("Legal") || a.Remarks.Contains("Complaint") || a.Remarks.Contains("Request"))));
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved);
+                }
+            }
+            else
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed);
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(scope))
+        {
+            var s = scope.Trim().ToLowerInvariant();
+            if (s == "queue")
+            {
+                filteredQuery = filteredQuery.Where(a => a.Status != ApplicationStatus.Draft && !a.IsArchived);
+            }
+            else if (s == "office")
+            {
+                filteredQuery = filteredQuery.Where(a => !string.IsNullOrEmpty(a.Office));
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(assignedTo))
+        {
+            var at = assignedTo.Trim().ToLowerInvariant();
+            filteredQuery = filteredQuery.Where(a =>
+                a.Remarks == null ||
+                !a.Remarks.ToLower().Contains("endorsed to") ||
+                a.Remarks.ToLower().Contains(at));
+        }
+
+        var filteredTotal = await filteredQuery.CountAsync(cancellationToken);
+
+        var page = pageNumber < 1 ? 1 : pageNumber;
+        var size = pageSize <= 0 ? 15 : pageSize;
+
+        var elementFieldGuid = FormFieldConstants.ExamElements;
+        var stationClassGuid1 = FormFieldConstants.ClassOfStation;
+        var stationClassGuid2 = FormFieldConstants.StationClass;
+
+        var rawList = await filteredQuery
+            .OrderByDescending(a => a.IsPinned)
+            .ThenByDescending(a => a.CreatedAt)
+            .Skip((page - 1) * size)
+            .Take(size)
+            .Select(app => new
+            {
+                app.Id,
+                app.ReferenceNumber,
+                app.ApplicationNumber,
+                app.Status,
+                app.Remarks,
+                app.SubmissionMode,
+                app.IsPinned,
+                app.IsArchived,
+                FieldOffice = app.Office ?? (app.Tenant != null ? app.Tenant.Name : null),
+                SubmittedAt = app.CreatedAt,
+                UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
+                UserFirstName = app.User != null ? app.User.FirstName : null,
+                UserLastName = app.User != null ? app.User.LastName : null,
+                UserCompanyName = (app.User != null && app.User.CompanyDetail != null) ? app.User.CompanyDetail.Name : null,
+                UserAccountType = app.User != null ? (Domain.Enums.ApplicantType?)app.User.AccountType : null,
+                PrimaryApplicant = app.ApplicationApplicants.Select(aa => new
+                {
+                    ApplicantType = aa.Applicant != null ? (Domain.Enums.ApplicantType?)aa.Applicant.ApplicantType : null,
+                    FirstName = (aa.Applicant != null && aa.Applicant.ApplicantDetail != null) ? aa.Applicant.ApplicantDetail.FirstName : null,
+                    LastName = (aa.Applicant != null && aa.Applicant.ApplicantDetail != null) ? aa.Applicant.ApplicantDetail.LastName : null,
+                    CompanyName = (aa.Applicant != null && aa.Applicant.CompanyDetail != null) ? aa.Applicant.CompanyDetail.Name : null,
+                    ServiceName = (aa.Applicant != null && aa.Applicant.Service != null) ? aa.Applicant.Service.Name : null,
+                    ServiceCategory = (aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null) ? aa.Applicant.Service.ServiceCategory.Name : null,
+                    ServiceVariantName = (aa.Applicant != null && aa.Applicant.ServiceVariant != null) ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                    Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
+                        ? aa.Applicant.FormSubmission.FieldValues
+                            .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
+                            .Select(fv => fv.Value)
+                            .FirstOrDefault()
+                        : null
+                }).FirstOrDefault(),
+                TopElement = app.FormSubmissions
+                    .SelectMany(fs => fs.FieldValues)
+                    .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
+                    .Select(fv => fv.Value)
+                    .FirstOrDefault(),
+                OfficialReceiptNumber = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.OfficialReceiptNumber)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                HasSoa = app.StatementsOfAccount.Any(),
+                HasOp = app.OrdersOfPayment.Any(),
+                HasAccountantHistory = app.Histories.Any(h =>
+                    h.StaffRole == "Accountant" ||
+                    (h.Action != null && h.Action.Contains("Accountant") &&
+                     !h.Action.Contains("Forwarded") &&
+                     !h.Action.Contains("Forward") &&
+                     !h.Action.Contains("Status updated to ForAccountant")) ||
+                    (h.Remarks != null && h.Remarks.Contains("Accountant") &&
+                     !h.Remarks.Contains("Forwarded") &&
+                     !h.Remarks.Contains("Forward"))),
+                HasCashierHistory = app.Histories.Any(h => h.StaffRole == "Cashier" || (h.Action != null && h.Action.Contains("Cashier")) || (h.Remarks != null && h.Remarks.Contains("Cashier"))),
+                RecentHistories = app.Histories
+                    .OrderByDescending(h => h.Timestamp)
+                    .Take(10)
+                    .Select(h => new
+                    {
+                        h.StaffName,
+                        h.StaffRole,
+                        h.Action,
+                        h.Remarks,
+                        ToStatus = h.ToStatus.ToString(),
+                        h.Timestamp
+                    })
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        var items = rawList.Select(x =>
+        {
+            string applicantName = "Applicant";
+            if (x.UserAccountType == Domain.Enums.ApplicantType.Company && !string.IsNullOrWhiteSpace(x.UserCompanyName))
+            {
+                applicantName = x.UserCompanyName.Trim();
+            }
+            else if (!string.IsNullOrWhiteSpace(x.PrimaryApplicant?.CompanyName))
+            {
+                applicantName = x.PrimaryApplicant.CompanyName.Trim();
+            }
+            else if (!string.IsNullOrWhiteSpace(x.PrimaryApplicant?.FirstName) || !string.IsNullOrWhiteSpace(x.PrimaryApplicant?.LastName))
+            {
+                applicantName = $"{x.PrimaryApplicant?.FirstName} {x.PrimaryApplicant?.LastName}".Trim();
+            }
+            else if (!string.IsNullOrWhiteSpace(x.UserFirstName) || !string.IsNullOrWhiteSpace(x.UserLastName))
+            {
+                applicantName = $"{x.UserFirstName} {x.UserLastName}".Trim();
+            }
+            else if (!string.IsNullOrWhiteSpace(x.UserCompanyName))
+            {
+                applicantName = x.UserCompanyName.Trim();
+            }
+
+            string applicantType = x.PrimaryApplicant?.ApplicantType?.ToString()
+                ?? x.UserAccountType?.ToString()
+                ?? "Individual";
+
+            string serviceName = x.PrimaryApplicant?.ServiceName ?? "Application";
+            string? element = x.PrimaryApplicant?.Element ?? x.TopElement;
+
+            string? accountingOfficer = x.RecentHistories
+                .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                            (h.StaffRole == null || (!h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) &&
+                            (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Status updated to ForAccountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Order of Payment initialized", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Assessment approved by Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+                            (h.Remarks == null || (!h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Remarks.Contains("Endorsed for Order of Payment review", StringComparison.OrdinalIgnoreCase))) &&
+                            ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
+                             (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase)))) ||
+                             (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))))
+                .Select(h => h.StaffName!.Trim())
+                .FirstOrDefault();
+
+            string? cashierOfficer = x.RecentHistories
+                .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                            (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+                            (h.Action == null || (!h.Action.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Cashier", StringComparison.OrdinalIgnoreCase))) &&
+                            (h.Remarks == null || !h.Remarks.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase)) &&
+                            ((h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)) ||
+                             (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.PendingPayment), StringComparison.OrdinalIgnoreCase)))) ||
+                             (h.Remarks != null && (h.Remarks.Contains("Payment verification", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Official receipt", StringComparison.OrdinalIgnoreCase)))))
+                .Select(h => h.StaffName!.Trim())
+                .FirstOrDefault();
+
+            string? issuingOfficer = x.RecentHistories
+                .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                            ((h.Action != null && (h.Action.Contains("Document Issuance", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Issuance Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document & License", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("License Issued", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document Release", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("issued by", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.ForIssuance), StringComparison.OrdinalIgnoreCase)))) ||
+                             (h.Remarks != null && h.Remarks.Contains("Document release process", StringComparison.OrdinalIgnoreCase)) ||
+                             string.Equals(h.ToStatus, nameof(ApplicationStatus.Completed), StringComparison.OrdinalIgnoreCase)))
+                .Select(h => h.StaffName!.Trim())
+                .FirstOrDefault();
+
+            string? evaluatingOfficer = x.RecentHistories
+                .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                            (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))) &&
+                            ((h.StaffRole != null && (h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) || h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) ||
+                             (h.Action != null && (h.Action.Contains("Evaluation Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Evaluated by", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && (string.Equals(h.ToStatus, nameof(ApplicationStatus.Evaluating), StringComparison.OrdinalIgnoreCase) || string.Equals(h.ToStatus, nameof(ApplicationStatus.Submitted), StringComparison.OrdinalIgnoreCase)))))))
+                .Select(h => h.StaffName!.Trim())
+                .FirstOrDefault();
+
+            string? assignedTo = null;
+            if (!string.IsNullOrWhiteSpace(x.Remarks) && x.Remarks.Contains("endorsed to", StringComparison.OrdinalIgnoreCase))
+            {
+                var idx = x.Remarks.IndexOf("endorsed to", StringComparison.OrdinalIgnoreCase);
+                var sub = x.Remarks.Substring(idx + 11).Trim(' ', ':', '-', '.');
+                if (!string.IsNullOrWhiteSpace(sub))
+                {
+                    assignedTo = sub.Split(new[] { ',', '.', ';', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
+                }
+            }
+
+            string? officerInCharge = x.Status switch
+            {
+                ApplicationStatus.Evaluating => evaluatingOfficer ?? assignedTo ?? "Unassigned",
+                ApplicationStatus.ForAccountant => accountingOfficer ?? assignedTo ?? "Unassigned",
+                ApplicationStatus.PendingPayment => cashierOfficer ?? assignedTo ?? "Unassigned",
+                ApplicationStatus.ForIssuance => issuingOfficer ?? assignedTo ?? "Unassigned",
+                ApplicationStatus.Completed or ApplicationStatus.Approved => issuingOfficer ?? evaluatingOfficer ?? assignedTo ?? "Authorized Officer",
+                _ => assignedTo ?? evaluatingOfficer ?? "Unassigned"
+            };
+
+            string queueTabResult = ApplicationStatusHelper.DetermineQueueTab(
+                x.Status,
+                role,
+                hasSoa: x.HasSoa,
+                hasOp: x.HasOp,
+                remarks: x.Remarks,
+                hasAccountantHistory: x.HasAccountantHistory,
+                hasCashierHistory: x.HasCashierHistory);
+
+            return new EDGE.Application.Applications.Dtos.ApplicationActivityDto
+            {
+                Id = x.Id,
+                ReferenceNumber = string.IsNullOrWhiteSpace(x.ReferenceNumber) ? string.Empty : x.ReferenceNumber.Trim(),
+                ApplicationNumber = string.IsNullOrWhiteSpace(x.ApplicationNumber) ? null : x.ApplicationNumber.Trim(),
+                ApplicantName = applicantName,
+                ApplicantType = applicantType,
+                SubmissionMode = x.SubmissionMode.ToString(),
+                ServiceName = serviceName,
+                ServiceCategory = string.IsNullOrWhiteSpace(x.PrimaryApplicant?.ServiceCategory) ? null : x.PrimaryApplicant.ServiceCategory.Trim(),
+                ServiceVariantName = string.IsNullOrWhiteSpace(x.PrimaryApplicant?.ServiceVariantName) ? null : x.PrimaryApplicant.ServiceVariantName.Trim(),
+                Element = string.IsNullOrWhiteSpace(element) ? null : element.Trim(),
+                Status = x.Status.ToString(),
+                QueueTab = queueTabResult,
+                FieldOffice = string.IsNullOrWhiteSpace(x.FieldOffice) ? null : x.FieldOffice.Trim(),
+                OfficerInCharge = string.IsNullOrWhiteSpace(officerInCharge) ? null : officerInCharge.Trim(),
+                AssignedTo = string.IsNullOrWhiteSpace(assignedTo) ? null : assignedTo.Trim(),
+                EvaluatingOfficer = string.IsNullOrWhiteSpace(evaluatingOfficer) ? null : evaluatingOfficer.Trim(),
+                AccountingOfficer = string.IsNullOrWhiteSpace(accountingOfficer) ? null : accountingOfficer.Trim(),
+                CashierOfficer = string.IsNullOrWhiteSpace(cashierOfficer) ? null : cashierOfficer.Trim(),
+                IssuingOfficer = string.IsNullOrWhiteSpace(issuingOfficer) ? null : issuingOfficer.Trim(),
+                EndorsedTo = string.IsNullOrWhiteSpace(assignedTo) ? null : assignedTo.Trim(),
+                SubmittedAt = x.SubmittedAt,
+                UpdatedAt = x.UpdatedAt,
+                IsPinned = x.IsPinned,
+                IsArchived = x.IsArchived,
+                OfficialReceiptNumber = string.IsNullOrWhiteSpace(x.OfficialReceiptNumber) ? null : x.OfficialReceiptNumber.Trim()
+            };
+        }).ToList();
+
+        return new EDGE.Application.Applications.Dtos.PagedApplicationActivitiesDto
+        {
+            Items = items,
+            PageNumber = page,
+            PageSize = size,
+            TotalCount = filteredTotal
         };
     }
 
@@ -921,7 +1473,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     SubmissionId = aa.Applicant != null
                         ? (aa.Applicant.FormSubmission != null
                             ? (Guid?)aa.Applicant.FormSubmission.Id
-                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
+                            : (app.FormSubmissions != null
+                                ? app.FormSubmissions.Where(fs => fs != null && fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault()
+                                : null))
                         : null,
                     Company = (aa.Applicant != null && aa.Applicant.CompanyDetail != null)
                         ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
@@ -970,9 +1524,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         YearGraduated = aa.Applicant.ApplicantDetail.YearGraduated,
                         ESignature = aa.Applicant.ApplicantDetail.ESignature
                     } : null,
-                    FormFieldValues = app.FormSubmissions
-                        .Where(fs => aa.Applicant != null && (fs.ApplicantId == aa.Applicant.Id || (app.ApplicationApplicants.Count == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id))))
+                    FormFieldValues = (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>())
+                        .Where(fs => fs != null && aa.Applicant != null && (fs.ApplicantId == aa.Applicant.Id || (app.ApplicationApplicants != null && app.ApplicationApplicants.Count == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id))))
+                        .Where(fs => fs.FieldValues != null)
                         .SelectMany(fs => fs.FieldValues)
+                        .Where(fv => fv != null)
                         .Select(fv => new EDGE.Application.Applicants.Dtos.FormFieldValueDto
                         {
                             FieldId = fv.FieldId,
@@ -997,6 +1553,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ApprovedByUserId = s.ApprovedByUserId,
                     Remarks = s.Remarks,
                     SoaNoteId = s.SoaNoteId,
+                    SoaNoteText = s.SoaNote != null ? s.SoaNote.Notes : null,
                     PreparedByName = s.Histories.Where(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator")).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault()
                                      ?? app.Histories.Where(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator")).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault() ?? "EVALUATOR",
                     ApprovedByName = s.Histories.Where(h => h.StaffRole != null && (h.StaffRole.Contains("Chief") || h.StaffRole.Contains("Director"))).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault()
@@ -1167,6 +1724,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(s => s.Application)
             .Include(s => s.LineItems)
             .Include(s => s.Histories)
+            .Include(s => s.SoaNote)
             .FirstOrDefaultAsync(s => s.Id == soaId, cancellationToken);
     }
 
@@ -1343,25 +1901,31 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         item.AccountingOfficer = reversedHistories
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                        (h.StaffRole == null || (!h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Status updated to ForAccountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Order of Payment initialized", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Assessment approved by Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Remarks == null || (!h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Remarks.Contains("Endorsed for Order of Payment review", StringComparison.OrdinalIgnoreCase))) &&
                         ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
-                         (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "ForAccountant", StringComparison.OrdinalIgnoreCase)))) ||
-                         (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Accountant", StringComparison.OrdinalIgnoreCase)))))
+                         (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase)))) ||
+                         (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
         item.CashierOfficer = reversedHistories
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                        (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Action == null || (!h.Action.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Cashier", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Remarks == null || !h.Remarks.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase)) &&
                         ((h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)) ||
-                         (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Cashier", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "PendingPayment", StringComparison.OrdinalIgnoreCase)))) ||
-                         (h.Remarks != null && (h.Remarks.Contains("Payment verification", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Cashier", StringComparison.OrdinalIgnoreCase)))))
+                         (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.PendingPayment), StringComparison.OrdinalIgnoreCase)))) ||
+                         (h.Remarks != null && (h.Remarks.Contains("Payment verification", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Official receipt", StringComparison.OrdinalIgnoreCase)))))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
         item.IssuingOfficer = reversedHistories
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
-                        ((h.Action != null && (h.Action.Contains("Document Issuance", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Issuance Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document & License", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("License Issued", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document Release", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("issued by", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "ForIssuance", StringComparison.OrdinalIgnoreCase)))) ||
+                        ((h.Action != null && (h.Action.Contains("Document Issuance", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Issuance Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document & License", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("License Issued", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document Release", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("issued by", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.ForIssuance), StringComparison.OrdinalIgnoreCase)))) ||
                          (h.Remarks != null && h.Remarks.Contains("Document release process", StringComparison.OrdinalIgnoreCase)) ||
-                         string.Equals(h.ToStatus, "Completed", StringComparison.OrdinalIgnoreCase)))
+                         string.Equals(h.ToStatus, nameof(ApplicationStatus.Completed), StringComparison.OrdinalIgnoreCase)))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
@@ -1369,21 +1933,23 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
                         (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))) &&
                         ((h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Review Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Generated", StringComparison.OrdinalIgnoreCase))) ||
-                         string.Equals(h.ToStatus, "Evaluating", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(h.ToStatus, "ForAccountant", StringComparison.OrdinalIgnoreCase)))
+                         string.Equals(h.ToStatus, nameof(ApplicationStatus.Evaluating), StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase)))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
-        item.AssignedOfficerName = item.Status switch
-        {
-            "ForAccountant" => item.AccountingOfficer,
-            "PendingPayment" => item.CashierOfficer,
-            "ForIssuance" => item.IssuingOfficer,
-            "Evaluating" => item.EvaluatingOfficer,
-            "Returned" => item.EvaluatingOfficer,
-            "Completed" => item.IssuingOfficer ?? item.EvaluatingOfficer,
-            "Approved" => item.IssuingOfficer ?? item.EvaluatingOfficer,
-            _ => null
-        };
+        item.AssignedOfficerName = Enum.TryParse<ApplicationStatus>(item.Status, true, out var currentStatus)
+            ? currentStatus switch
+            {
+                ApplicationStatus.ForAccountant => item.AccountingOfficer,
+                ApplicationStatus.PendingPayment => item.CashierOfficer,
+                ApplicationStatus.ForIssuance => item.IssuingOfficer,
+                ApplicationStatus.Evaluating => item.EvaluatingOfficer,
+                ApplicationStatus.Returned => item.EvaluatingOfficer,
+                ApplicationStatus.Completed => item.IssuingOfficer ?? item.EvaluatingOfficer,
+                ApplicationStatus.Approved => item.IssuingOfficer ?? item.EvaluatingOfficer,
+                _ => null
+            }
+            : null;
     }
 }

@@ -3,7 +3,8 @@ import { COLORS, SPACING, TYPOGRAPHY } from "@edge/ui";
 
 export const styles = StyleSheet.create({
   scrollContent: {
-    padding: SPACING[24],
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[20],
   },
   panelHeader: {
     flexDirection: "row",

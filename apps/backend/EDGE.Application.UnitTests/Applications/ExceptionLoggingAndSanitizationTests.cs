@@ -33,7 +33,7 @@ public class ExceptionLoggingAndSanitizationTests
         {
             Id = appId,
             Intent = ApplicationIntent.AssessmentOnly,
-            Status = ApplicationStatus.Evaluating,
+            Status = ApplicationStatus.Completed,
             StatementsOfAccount = new List<StatementOfAccount>()
         };
 
@@ -83,7 +83,7 @@ public class ExceptionLoggingAndSanitizationTests
         {
             Id = appId,
             Intent = ApplicationIntent.AssessmentOnly,
-            Status = ApplicationStatus.Evaluating,
+            Status = ApplicationStatus.Completed,
             AssessmentVersion = 1
         };
 

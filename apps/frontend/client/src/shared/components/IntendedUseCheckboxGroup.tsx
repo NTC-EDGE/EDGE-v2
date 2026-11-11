@@ -14,6 +14,7 @@ export const AVAILABLE_INTENDED_USES = [
 interface IntendedUseCheckboxGroupProps {
   label?: string;
   value?: string;
+  options?: Array<{ label: string; value: string } | string>;
   onChange: (value: string) => void;
   error?: string;
   required?: boolean;
@@ -22,10 +23,15 @@ interface IntendedUseCheckboxGroupProps {
 export function IntendedUseCheckboxGroup({
   label = 'INTENDED USE OF EQUIPMENT',
   value = '',
+  options,
   onChange,
   error,
   required = false,
 }: IntendedUseCheckboxGroupProps) {
+  const availableOptions: string[] =
+    options !== undefined && options.length > 0
+      ? options.map((opt) => (typeof opt === 'string' ? opt : opt.label || opt.value))
+      : AVAILABLE_INTENDED_USES;
   const parseSelected = (valStr: string): string[] => {
     if (!valStr || valStr.trim() === '') return [];
     try {
@@ -49,7 +55,7 @@ export function IntendedUseCheckboxGroup({
   const [otherSpecify, setOtherSpecify] = useState<string>(() => {
     const custom = selectedList.find(
       (s) =>
-        !AVAILABLE_INTENDED_USES.includes(s) &&
+        !availableOptions.includes(s) &&
         !s.startsWith('Storage at') &&
         s !== 'Others'
     );
@@ -61,7 +67,7 @@ export function IntendedUseCheckboxGroup({
     const isSelected =
       selectedList.includes(opt) ||
       (opt === 'Storage at' && selectedList.some((s) => s.startsWith('Storage at'))) ||
-      (opt === 'Others' && selectedList.some((s) => !AVAILABLE_INTENDED_USES.includes(s) && !s.startsWith('Storage at')));
+      (opt === 'Others' && selectedList.some((s) => !availableOptions.includes(s) && !s.startsWith('Storage at')));
 
     if (isSelected) {
       if (opt === 'Storage at') {
@@ -69,7 +75,7 @@ export function IntendedUseCheckboxGroup({
         setStorageSpecify('');
       } else if (opt === 'Others') {
         updated = selectedList.filter(
-          (s) => AVAILABLE_INTENDED_USES.includes(s) || s.startsWith('Storage at')
+          (s) => availableOptions.includes(s) || s.startsWith('Storage at')
         );
         setOtherSpecify('');
       } else {
@@ -99,7 +105,7 @@ export function IntendedUseCheckboxGroup({
   const handleOtherSpecifyChange = (text: string) => {
     setOtherSpecify(text);
     const standard = selectedList.filter(
-      (s) => AVAILABLE_INTENDED_USES.includes(s) && s !== 'Others'
+      (s) => availableOptions.includes(s) && s !== 'Others'
     );
     const storageItem = selectedList.find((s) => s.startsWith('Storage at'));
     const base = storageItem ? [...standard, storageItem] : standard;
@@ -113,7 +119,7 @@ export function IntendedUseCheckboxGroup({
   const isStorageSelected = selectedList.some((s) => s.startsWith('Storage at') || s === 'Storage at');
   const isOthersSelected =
     selectedList.includes('Others') ||
-    selectedList.some((s) => s.startsWith('Others:') || (!AVAILABLE_INTENDED_USES.includes(s) && !s.startsWith('Storage at')));
+    selectedList.some((s) => s.startsWith('Others:') || (!availableOptions.includes(s) && !s.startsWith('Storage at')));
 
   return (
     <View style={[styles.cardContainer, error !== undefined && error.length > 0 ? styles.cardContainerError : null]}>
@@ -125,7 +131,7 @@ export function IntendedUseCheckboxGroup({
       </View>
 
       <View style={styles.checkboxGrid}>
-        {AVAILABLE_INTENDED_USES.map((option) => {
+        {availableOptions.map((option) => {
           const checked =
             option === 'Storage at'
               ? isStorageSelected

@@ -48,6 +48,15 @@ export interface PermitStationParticularItem {
   antenna: PermitAntennaParticulars;
 }
 
+export interface AmateurPermitParticulars {
+  make?: string;
+  type?: string;
+  model?: string;
+  serialNumber?: string;
+  powerOutput?: string;
+  frequencyRange?: string;
+}
+
 export interface AmateurPermitData {
   id: number;
   applicationType: PermitApplicationType;
@@ -103,6 +112,9 @@ export interface AmateurPermitData {
   nameOfDealerOrSeller: string;
   amateurLicenseNoOrPermitToPossessNo: string;
   sellerAddress: string;
+  sourceOfEquipment?: string;
+  storageAddress?: string;
+  particulars?: AmateurPermitParticulars;
 
   // Intended Use of Equipment
   intendedUseAdditionalRadioEquipment: boolean;
@@ -265,3 +277,27 @@ export const derivePermitAppTypeFromStep3 = (
   }
   return "Possess for storage";
 };
+
+export interface CopyOfPermitData {
+  id?: number;
+  copyType: "CERTIFIED_TRUE_COPY" | "DUPLICATE";
+  detailsService?: string;
+  targetPermitType?: string;
+  permitNo?: string;
+  numberOfCopies?: string;
+  circumstances?: string;
+  applicantName?: string;
+  contactNo?: string;
+  email?: string;
+  address?: string;
+}
+
+export const initialCopyOfPermitData = (id: number): CopyOfPermitData => ({
+  id,
+  copyType: "CERTIFIED_TRUE_COPY",
+  detailsService: "Permits in AMateur",
+  targetPermitType: "Amateur Radio Station Permit to Purchase",
+  permitNo: "",
+  numberOfCopies: "1",
+  circumstances: "",
+});

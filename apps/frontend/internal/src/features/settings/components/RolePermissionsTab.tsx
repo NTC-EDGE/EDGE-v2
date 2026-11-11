@@ -23,7 +23,8 @@ const DEFAULT_PERMISSIONS: PermissionItem[] = [
   { id: 'perm-3', name: 'Approve Applications', category: 'Applications', description: 'Final approval and sign-off on permits' },
   { id: 'perm-4', name: 'Manage Regional Settings', category: 'Admin Settings', description: 'Update regional configurations and field offices' },
   { id: 'perm-5', name: 'Configure Fees', category: 'Admin Settings', description: 'Modify service fee tables' },
-  { id: 'perm-6', name: 'Form Builder Access', category: 'Admin Settings', description: 'Design and publish dynamic application forms' },
+  // Temporarily hidden — Form Builder is managed in the Admin portal
+  // { id: 'perm-6', name: 'Form Builder Access', category: 'Admin Settings', description: 'Design and publish dynamic application forms' },
   { id: 'perm-7', name: 'View Audit Logs', category: 'Security', description: 'Access system operation logs and staff trails' },
 ];
 

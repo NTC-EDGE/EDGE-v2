@@ -1,4 +1,5 @@
 export * from './core/formPreviewTypes';
+export * from './core/canonicalFormDefinitions';
 export * from './core/formPreviewFieldCheckers';
 export * from './core/formPreviewHelpers';
 export * from './core/buildDynamicSections';
@@ -9,6 +10,7 @@ export * from './components/SignatureSummaryRow';
 export * from './components/CheckboxSummaryRow';
 export * from './components/DocumentSummaryRow';
 export * from './components/ApplicantDetailsReviewCard';
+export * from './components/EquivalentFormHeaderCard';
 export * from './components/DynamicFormSectionsReview';
 export * from './components/ExamEducationReviewSection';
 export * from './components/DigitalSignatureReviewCard';

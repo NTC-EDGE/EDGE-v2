@@ -24,5 +24,11 @@
     "tables/**/*",
     "client/**/*",
     "navigation/**/*"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
   ]
 }

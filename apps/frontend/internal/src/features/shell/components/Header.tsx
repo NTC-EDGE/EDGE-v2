@@ -21,7 +21,7 @@ import {
   ThemeToggle,
   useTheme,
 } from '@edge/ui';
-import { useAdminApplications, useAdminAnnouncements } from '@edge/api';
+import { useApplicationActivities, useAdminAnnouncements } from '@edge/api';
 import { useMeetingsList } from '../../meet/hooks/useMeetingsList';
 import { useChatConversations } from '../../chat/hooks/useChatConversations';
 import { UserRole, NAV_GROUP_ORDER, ROLE_NAVIGATION_LINKS, NavigationLink } from '../context/RoleContext';
@@ -282,11 +282,12 @@ export function Header({
   const breadcrumb = getBreadcrumb(activeScreen, currentRole);
 
   // Applications and Announcements
-  const { applications } = useAdminApplications(
+  const { applications } = useApplicationActivities(
     {
       queueTab: (currentRole === 'Chief of EOD' || currentRole === 'Regional Director') ? 'issuance' : 'pending',
       scope: 'queue',
       role: currentRole,
+      pageSize: 15,
     },
     {
       refreshInterval: 30000,
@@ -357,7 +358,7 @@ export function Header({
           appId: app.id,
           title: notifDetails.title,
           description: notifDetails.description,
-          timestamp: app.createdAt,
+          timestamp: app.submittedAt || app.createdAt,
           type: 'evaluation',
           screen: 'Activities',
           isRead: readNotifIds.has(`app_${app.id}`),

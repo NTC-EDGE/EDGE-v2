@@ -38,6 +38,11 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
         }
 
         var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId);
+        if (appApplicant == null && (request.ApplicantId == app.Id || app.ApplicationApplicants.Count == 1))
+        {
+            appApplicant = app.ApplicationApplicants.FirstOrDefault();
+        }
+
         if (appApplicant == null || appApplicant.Applicant == null)
         {
             return ApiResponse<Guid>.Fail($"Applicant with ID {request.ApplicantId} was not found on this application.");
@@ -102,6 +107,22 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                     CorrectedAt = DateTime.UtcNow
                 }, cancellationToken);
                 detail.MiddleName = request.MiddleName;
+            }
+
+            // Audit & update Suffix
+            if (request.Suffix != null && request.Suffix != detail.Suffix)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Applicant Profile",
+                    FieldName = "Suffix",
+                    OldValue = detail.Suffix ?? string.Empty,
+                    NewValue = request.Suffix,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                detail.Suffix = request.Suffix;
             }
 
             // Audit & update Contact Number
@@ -218,6 +239,52 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                     CorrectedAt = DateTime.UtcNow
                 }, cancellationToken);
                 detail.Nationality = request.Nationality;
+            }
+
+            // Audit & update Education
+            if (request.SchoolAttended != null && request.SchoolAttended != detail.SchoolAttended)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Applicant Profile",
+                    FieldName = "SchoolAttended",
+                    OldValue = detail.SchoolAttended ?? string.Empty,
+                    NewValue = request.SchoolAttended,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                detail.SchoolAttended = request.SchoolAttended;
+            }
+
+            if (request.CourseTaken != null && request.CourseTaken != detail.CourseTaken)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Applicant Profile",
+                    FieldName = "CourseTaken",
+                    OldValue = detail.CourseTaken ?? string.Empty,
+                    NewValue = request.CourseTaken,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                detail.CourseTaken = request.CourseTaken;
+            }
+
+            if (request.YearGraduated != null && request.YearGraduated != detail.YearGraduated)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Applicant Profile",
+                    FieldName = "YearGraduated",
+                    OldValue = detail.YearGraduated ?? string.Empty,
+                    NewValue = request.YearGraduated,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                detail.YearGraduated = request.YearGraduated;
             }
 
             // Audit & update Applicant Type

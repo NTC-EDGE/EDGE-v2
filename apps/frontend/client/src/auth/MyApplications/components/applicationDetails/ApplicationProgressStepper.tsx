@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ScrollView, useWindowDimensions } from 'react-native';
 import { Icon } from '@edge/ui';
 import { styles } from './applicationDetailsStyles';
 
@@ -9,6 +9,7 @@ interface ApplicationProgressStepperProps {
   serviceName?: string;
   status?: string;
   remarks?: string;
+  isAssessmentOnly?: boolean;
 }
 
 function getServiceDocumentType(category?: string, serviceName?: string): string {
@@ -26,21 +27,31 @@ export function ApplicationProgressStepper({
   serviceName,
   status,
   remarks,
+  isAssessmentOnly = false,
 }: ApplicationProgressStepperProps) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
   const docLabel = getServiceDocumentType(serviceCategory, serviceName);
 
   const remarksLower = (typeof remarks === 'string' ? remarks : '').toLowerCase();
   const statusLower = (typeof status === 'string' ? status : '').toLowerCase();
 
+  const isUnderAccountantReview =
+    !isAssessmentOnly &&
+    (statusLower === 'foraccountant' ||
+      statusLower === 'for_accountant' ||
+      remarksLower.includes('accountant'));
+
   const isPaymentSubmitted =
-    statusLower !== 'ready_for_payment' &&
     !remarksLower.includes('order of payment returned') &&
     (
+      statusLower === 'payment_submitted' ||
+      statusLower === 'payment_processing' ||
+      statusLower === 'verification_in_progress' ||
       remarksLower.includes('payment submitted') ||
       remarksLower.includes('waiting for cashier verification') ||
-      remarksLower.includes('verification in progress') ||
-      statusLower === 'payment_submitted' ||
-      statusLower === 'payment_processing'
+      remarksLower.includes('awaiting cashier verification') ||
+      remarksLower.includes('verification in progress')
     );
 
   const paymentSubLabel =
@@ -48,25 +59,33 @@ export function ApplicationProgressStepper({
       ? 'Payment verified'
       : isPaymentSubmitted
         ? 'Verification in progress'
-        : currentStepIndex === 3
-          ? 'For payment'
-          : 'Fee assessment';
+        : isUnderAccountantReview
+          ? 'Accountant review'
+          : currentStepIndex === 3
+            ? 'For payment'
+            : 'Fee assessment';
 
-  const STEPS = [
-    { step: 1, label: 'Submitted', subLabel: 'Application received' },
-    { step: 2, label: 'Evaluation', subLabel: 'Technical review' },
-    { step: 3, label: 'Payment', subLabel: paymentSubLabel },
-    { step: 4, label: 'Issuance', subLabel: currentStepIndex > 4 ? `${docLabel} issued` : `${docLabel} processing` },
-    { step: 5, label: 'Issued', subLabel: `${docLabel} ready` },
-  ];
+  const STEPS = isAssessmentOnly
+    ? [
+        { step: 1, label: 'Submitted', subLabel: 'Request received' },
+        { step: 2, label: 'Evaluation', subLabel: currentStepIndex > 2 ? 'Fee assessed' : 'Fee assessment' },
+        { step: 3, label: 'Complete', subLabel: currentStepIndex === 3 ? 'SOA released' : 'SOA pending' },
+      ]
+    : [
+        { step: 1, label: 'Submitted', subLabel: 'Application received' },
+        { step: 2, label: 'Evaluation', subLabel: 'Technical review' },
+        { step: 3, label: 'Payment', subLabel: paymentSubLabel },
+        { step: 4, label: 'Issuance', subLabel: currentStepIndex > 4 ? `${docLabel} issued` : `${docLabel} processing` },
+        { step: 5, label: 'Complete', subLabel: `${docLabel} ready` },
+      ];
 
-  return (
-    <View style={styles.sectionCard}>
-      <Text style={styles.progressHeaderTitle}>APPLICATION PROGRESS</Text>
-      <View style={styles.stepperRow}>
+  const maxStep = isAssessmentOnly ? 3 : 5;
+
+  const stepperNodes = (
+    <View style={[styles.stepperRow, isMobile ? { minWidth: 520, paddingHorizontal: 4 } : null]}>
         {STEPS.map((s, idx) => {
-          const isDone = currentStepIndex > s.step || (s.step === 5 && currentStepIndex === 5);
-          const isActive = currentStepIndex === s.step && currentStepIndex < 5;
+          const isDone = currentStepIndex > s.step || (s.step === maxStep && currentStepIndex === maxStep);
+          const isActive = currentStepIndex === s.step && currentStepIndex < maxStep;
           const isLineDone = currentStepIndex >= s.step;
 
           return (
@@ -86,7 +105,11 @@ export function ApplicationProgressStepper({
                     isDone
                       ? styles.stepCircleDone
                       : isActive
-                        ? { backgroundColor: '#1D4ED8', borderColor: '#93C5FD', borderWidth: 2 }
+                        ? {
+                            backgroundColor: isAssessmentOnly ? '#7C3AED' : '#1D4ED8',
+                            borderColor: isAssessmentOnly ? '#DDD6FE' : '#93C5FD',
+                            borderWidth: 2,
+                          }
                         : styles.stepCirclePending,
                   ]}
                 >
@@ -109,7 +132,7 @@ export function ApplicationProgressStepper({
                     isDone
                       ? { color: '#15803D', fontWeight: '700' }
                       : isActive
-                        ? { color: '#1D4ED8', fontWeight: '700' }
+                        ? { color: isAssessmentOnly ? '#7C3AED' : '#1D4ED8', fontWeight: '700' }
                         : null,
                   ]}
                 >
@@ -121,6 +144,18 @@ export function ApplicationProgressStepper({
           );
         })}
       </View>
+  );
+
+  return (
+    <View style={styles.sectionCard}>
+      <Text style={styles.progressHeaderTitle}>APPLICATION PROGRESS</Text>
+      {isMobile ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {stepperNodes}
+        </ScrollView>
+      ) : (
+        stepperNodes
+      )}
     </View>
   );
 }

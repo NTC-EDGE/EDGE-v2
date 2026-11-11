@@ -32,12 +32,24 @@ public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVaria
         var formulas = await _formulaRepository.GetAllAsync(cancellationToken);
         var formulaDict = formulas.ToDictionary(f => f.ServiceVariantId);
 
+        if (request.ServiceId.HasValue)
+        {
+            fees = fees.Where(svf => svf.ServiceVariant != null && svf.ServiceVariant.ServiceId == request.ServiceId.Value).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ApplicationType))
+        {
+            fees = fees.Where(svf => svf.ServiceVariant != null && svf.ServiceVariant.Type.ToString().Equals(request.ApplicationType.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
-            var search = request.SearchTerm.ToLower();
+            var search = request.SearchTerm.Trim().ToLower();
             fees = fees.Where(svf => 
                 (svf.ServiceVariant?.Service != null && svf.ServiceVariant.Service.Name.ToLower().Contains(search)) || 
+                (svf.ServiceVariant?.Service != null && svf.ServiceVariant.Service.Code != null && svf.ServiceVariant.Service.Code.ToLower().Contains(search)) || 
                 (svf.ServiceVariant != null && svf.ServiceVariant.Type.ToString().ToLower().Contains(search)) || 
+                (svf.ServiceVariant != null && svf.ServiceVariant.Description != null && svf.ServiceVariant.Description.ToLower().Contains(search)) || 
                 (svf.Fee != null && svf.Fee.Code.ToLower().Contains(search)) || 
                 (svf.Fee != null && svf.Fee.Name.ToLower().Contains(search))
             ).ToList();
@@ -50,6 +62,8 @@ public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVaria
                 svf.ServiceVariant.Id,
                 svf.ServiceVariant.ServiceId,
                 svf.ServiceVariant.Service?.Name,
+                svf.ServiceVariant.Type.ToString(),
+                svf.ServiceVariant.Description ?? svf.ServiceVariant.Type.ToString(),
                 svf.ServiceVariant.Type.ToString()
             ) : null,
             svf.FeeId,
@@ -65,6 +79,7 @@ public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVaria
                 svf.ServiceVariantId,
                 ServiceId = svf.ServiceVariant?.ServiceId,
                 ServiceName = svf.ServiceVariant?.ServiceName,
+                VariantName = svf.ServiceVariant?.VariantName ?? svf.ServiceVariant?.Type,
                 VariantType = svf.ServiceVariant?.Type
             })
             .Select(g => {
@@ -77,7 +92,9 @@ public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVaria
                     g.Sum(x => x.Amount),
                     g.ToList(),
                     f?.FormulaExpression,
-                    f?.ApplyLateRenewalSurcharge
+                    f?.ApplyLateRenewalSurcharge,
+                    g.Key.VariantName,
+                    g.Key.VariantType
                 );
             })
             .ToList();

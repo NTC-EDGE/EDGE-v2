@@ -6,6 +6,7 @@ interface ExamEducationReviewSectionProps {
   examEducationFields: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   examAssistanceFields: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   onPreviewFile: (uri: string, label: string) => void;
+  suppressEducationSection?: boolean;
 }
 
 export function ExamEducationReviewSection(props: ExamEducationReviewSectionProps) {

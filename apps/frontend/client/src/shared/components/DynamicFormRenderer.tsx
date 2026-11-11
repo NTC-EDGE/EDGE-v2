@@ -2,106 +2,27 @@ import React, { useState, useEffect } from "react";
 import { View, Text } from "react-native";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormRendererProps, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
-import { parseOptions, evaluateVisibilityCondition, FormEvaluationContext, buildFormVariantFlags } from "./dynamic-form/dynamicFormUtils";
-import { DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS, DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS } from "./form-repeater/formRepeaterColumns";
+import {
+  parseOptions,
+  parseValidationRulesMetadata,
+  evaluateVisibilityCondition,
+  isFieldRowVisible,
+  FormEvaluationContext,
+  buildFormVariantFlags,
+} from "./dynamic-form/dynamicFormUtils";
+import {
+  DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS,
+  DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS,
+  DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS,
+} from "./form-repeater/formRepeaterColumns";
 import { useLocationData } from "./dynamic-form/useLocationData";
 import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
 import { FormGrid } from "./FormGrid";
 import { SPAM_COMPLAINT_NATURES, TELCO_COMPLAINT_NATURES } from "./NatureOfComplaintCheckboxGroup";
+import { PERMIT_DETAILS_SERVICE_OPTIONS, resolvePermitTypes } from "./dynamic-form/dynamicFormConstants";
+import { usePermitServicesQuery } from "../../auth/Services/permits/hooks/usePermitServicesQuery";
 
 export type { DynamicFormRendererProps, FormDto, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
-
-const SYNTHETIC_UNBLOCKING_SECTION: FormSectionDto = {
-  id: "unblocking_details_section",
-  key: "unblocking_details_section",
-  title: "Details of Unblocking",
-  description: "Provide recovery and legal status details for unblocking",
-  fields: [
-    {
-      id: "fd000000-0000-0000-0000-000000000319",
-      fieldId: "date_of_filing",
-      label: "Date of Filing",
-      fieldType: "date",
-      isRequired: true,
-      placeholder: "Select Date of Filing",
-    },
-    {
-      id: "fd000000-0000-0000-0000-000000000320",
-      fieldId: "date_of_recovery",
-      label: "Date of Recovery",
-      fieldType: "date",
-      isRequired: true,
-      placeholder: "Select Date of Recovery",
-    },
-    {
-      id: "fd000000-0000-0000-0000-000000000321",
-      fieldId: "unblocking_details",
-      label: "Details",
-      fieldType: "dropdown",
-      isRequired: true,
-      placeholder: "Select Details...",
-      options: [
-        {
-          label: "It has already been blocked and thus I am requesting the NTC for unblocking of said unit to activate the usage of the same;",
-          value: "It has already been blocked and thus I am requesting the NTC for unblocking of said unit to activate the usage of the same;",
-        },
-        {
-          label: "It has not been blocked yet and thus I am withdrawing the affidavit of ownership and loss with undertaking I filed with the NTC for blocking of said cellphone to exclude said phone from being blocked.",
-          value: "It has not been blocked yet and thus I am withdrawing the affidavit of ownership and loss with undertaking I filed with the NTC for blocking of said cellphone to exclude said phone from being blocked.",
-        },
-      ],
-    },
-  ],
-};
-
-const SYNTHETIC_BROADCAST_SECTION: FormSectionDto = {
-  id: "broadcast_details",
-  key: "broadcast_details",
-  title: "Broadcast Details",
-  description: "Broadcast details for mandatory tape preservation",
-  fields: [
-    {
-      id: "fd000000-0000-0000-0000-000000000334",
-      fieldId: "broadcast_station",
-      label: "Broadcast Station",
-      fieldType: "text",
-      isRequired: true,
-      placeholder: "e.g. DZBB 594 / GMA Network / ABS-CBN",
-    },
-    {
-      id: "fd000000-0000-0000-0000-000000000322",
-      fieldId: "program_name",
-      label: "Program Name",
-      fieldType: "text",
-      isRequired: true,
-      placeholder: "e.g. 24 Oras / TV Patrol / Super Balita",
-    },
-    {
-      id: "fd000000-0000-0000-0000-000000000335",
-      fieldId: "time_of_airing",
-      label: "Time of Airing",
-      fieldType: "time",
-      isRequired: true,
-      placeholder: "Select Time of Airing",
-    },
-    {
-      id: "fd000000-0000-0000-0000-000000000316",
-      fieldId: "date_of_incident",
-      label: "Date of Airing",
-      fieldType: "date",
-      isRequired: true,
-      placeholder: "Select Date of Airing",
-    },
-    {
-      id: "fd000000-0000-0000-0000-000000000323",
-      fieldId: "anchor_commentator",
-      label: "Anchor/Commentator",
-      fieldType: "text",
-      isRequired: true,
-      placeholder: "e.g. Mike Enriquez / Ted Failon",
-    },
-  ],
-};
 
 export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   form,
@@ -181,33 +102,106 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     Boolean(serviceCategory && serviceCategory.toLowerCase().includes("permit")) ||
     Boolean(serviceTitle && serviceTitle.toLowerCase().includes("permit"));
 
+  const sTitle = (serviceTitle || "").toLowerCase();
+  const sCat = (serviceCategory || "").toLowerCase();
+  const isCopyOfPermit =
+    Boolean(
+      (sTitle.includes("copy") && sTitle.includes("permit")) ||
+      (sCat.includes("permit") && sTitle.includes("copy")) ||
+      sTitle.includes("copy of permit")
+    );
+
+  const { serviceOptions: dynamicPermitServices, getTypesForService } = usePermitServicesQuery(isCopyOfPermit);
+
   useEffect(() => {
     if (!isBlockingOrUnblocking) return;
     const targetVal = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
     const currentVal = (values && values["action_requested"]) || (values && values["Action Requested"]) || (values && values["fd000000-0000-0000-0000-000000000307"]) || "";
     if (currentVal !== targetVal) {
       onChange("action_requested", "Action Requested", targetVal);
-      onChange("fd000000-0000-0000-0000-000000000307", "Action Requested", targetVal);
     }
   }, [isBlockingOrUnblocking, isUnblocking, values, onChange]);
 
+  // Pre-initialize Copy of Permit default values if unselected
+  useEffect(() => {
+    if (!isCopyOfPermit) return;
+    const currentService =
+      values?.["detailsService"] ||
+      values?.["details_service"] ||
+      values?.["DetailsService"] ||
+      values?.["fd000000-0000-0000-0000-000000000244"];
+    if (!currentService) {
+      const defaultSvc = PERMIT_DETAILS_SERVICE_OPTIONS[0]?.value ?? "Permits in AMateur";
+      const dynamicTypes = getTypesForService(defaultSvc);
+      const availableTypes = dynamicTypes.length > 0 ? dynamicTypes : resolvePermitTypes(defaultSvc);
+      const defaultType = availableTypes[0]?.value ?? "";
+      onChange("detailsService", "DetailsService", defaultSvc);
+      onChange("targetPermitType", "Type", defaultType);
+      onChange("noOfCopies", "No. of Copies", "1");
+    }
+  }, [isCopyOfPermit, values, onChange, getTypesForService]);
+
+  const resolvedElementCodes: string[] = [];
+  if (matchedElement?.code) {
+    resolvedElementCodes.push(matchedElement.code);
+  } else {
+    for (const elem of variantElements) {
+      if (elem.code) {
+        resolvedElementCodes.push(elem.code);
+      }
+    }
+  }
+
+  const resolvedElementNames: string[] = [];
+  if (matchedElement?.name) {
+    resolvedElementNames.push(matchedElement.name);
+  } else if (matchedElement?.description) {
+    resolvedElementNames.push(matchedElement.description);
+  } else {
+    for (const elem of variantElements) {
+      if (elem.name) {
+        resolvedElementNames.push(elem.name);
+      } else if (elem.description) {
+        resolvedElementNames.push(elem.description);
+      }
+    }
+  }
+
+  const effectiveVariantName =
+    matchedVariant?.name ||
+    (matchedVariant?.description && matchedVariant?.type
+      ? `${matchedVariant.description} (${matchedVariant.type})`
+      : matchedVariant?.description || matchedVariant?.type);
+
   const evaluationContext: FormEvaluationContext = {
+    serviceCategory,
+    serviceTitle,
+    serviceName: form?.serviceName || serviceTitle,
+    serviceCode: form?.serviceCode,
+    applicationType: matchedVariant?.type || effectiveVariantName,
     variantType: matchedVariant?.type ? String(matchedVariant.type) : undefined,
     variantId: selectedVariantId,
-    variantDescription: matchedVariant?.description || matchedVariant?.name,
-    elementCodes: matchedElement?.code ? [matchedElement.code] : variantElements.map((e) => e.code).filter((c): c is string => Boolean(c)),
+    variantName: effectiveVariantName,
+    variantDescription: matchedVariant?.description || effectiveVariantName,
+    elementCodes: resolvedElementCodes,
+    elementNames: resolvedElementNames,
     applicantType,
     formValues: values,
   };
 
-  let rawSections = form?.sections || [];
-  if (isUnblocking && !rawSections.some((s) => s.key === "unblocking_details_section" || s.id === "unblocking_details_section" || (s.title && s.title.toLowerCase().includes("unblocking")))) {
-    rawSections = [...rawSections, SYNTHETIC_UNBLOCKING_SECTION];
-  }
-  if (isTapePreservation && !rawSections.some((s) => s.key === "broadcast_details" || s.id === "broadcast_details" || (s.title && s.title.toLowerCase().includes("broadcast")))) {
-    rawSections = [SYNTHETIC_BROADCAST_SECTION, ...rawSections];
-  }
-  const sections = rawSections;
+  const sections = form?.sections || [];
+
+  const hasSeparateOthersSpecField = sections.some((s) =>
+    (s.fields || []).some((f) => {
+      const id = (f.fieldId || f.id || "").toLowerCase();
+      const lbl = (f.label || "").toLowerCase();
+      return (
+        id === "others_specification" ||
+        id === "fd000000-0000-0000-0000-000000000328" ||
+        lbl.includes("if others, please specify")
+      );
+    })
+  );
 
   const renderFieldInstance = (
     field: FieldDto,
@@ -218,12 +212,49 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const fIdLower = rawTargetId.toLowerCase();
     const labelLower = (field.label || "").toLowerCase().trim();
     const rawType = (field.fieldType || field.type || "").toLowerCase();
+    const validationMeta = parseValidationRulesMetadata(field);
 
-    const isActionRequestedField = fIdLower === "action_requested" || labelLower.includes("action requested");
-    const isNatureOfComplaintField = fIdLower === "complaint_types" || fIdLower === "fd000000-0000-0000-0000-000000000327" || labelLower === "nature of complaint" || labelLower.includes("nature of complaint") || labelLower.includes("complaint category");
-    const isOthersSpecificationField = fIdLower === "others_specification" || fIdLower === "fd000000-0000-0000-0000-000000000328" || labelLower.includes("if others, please specify");
-    const isIncidentTypeField = fIdLower === "loss_reason" || fIdLower === "fd000000-0000-0000-0000-000000000313" || labelLower === "incident type" || labelLower.includes("incident type");
-    const isUnblockingDetailsField = fIdLower === "unblocking_details" || fIdLower === "fd000000-0000-0000-0000-000000000321" || (isUnblocking && labelLower === "details");
+    const isActionRequestedField =
+      fIdLower === "action_requested" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000307" ||
+      labelLower.includes("action requested");
+    const isDetailsServiceField =
+      fIdLower === "detailsservice" ||
+      fIdLower === "details_service" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000244" ||
+      labelLower === "detailsservice" ||
+      labelLower === "details service";
+    const isPermitTypeField =
+      isCopyOfPermit &&
+      (fIdLower === "targetpermittype" ||
+        fIdLower === "target_permit_type" ||
+        fIdLower === "fd000000-0000-0000-0000-000000000245" ||
+        labelLower === "type" ||
+        labelLower.includes("permit type"));
+    const isNatureOfComplaintField =
+      fIdLower === "complaint_types" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000327" ||
+      labelLower === "nature of complaint" ||
+      labelLower.includes("nature of complaint") ||
+      labelLower.includes("complaint category");
+    const isOthersSpecificationField =
+      fIdLower === "others_specification" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000328" ||
+      labelLower.includes("if others, please specify");
+    const isIncidentOthersField =
+      fIdLower === "incident_others_specify" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000318" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000338" ||
+      (labelLower === "please specify" && isBlockingOrUnblocking);
+    const isIncidentTypeField =
+      fIdLower === "loss_reason" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000313" ||
+      labelLower === "incident type" ||
+      labelLower.includes("incident type");
+    const isUnblockingDetailsField =
+      fIdLower === "unblocking_details" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000321" ||
+      (isUnblocking && labelLower === "details");
     const isTimeField =
       rawType === "time" ||
       fIdLower === "time_of_incident" ||
@@ -250,25 +281,41 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       labelLower.includes("sim card / mobile numbers") ||
       Boolean(field.repeaterColumns && Array.isArray(field.repeaterColumns) && field.repeaterColumns.length > 0);
 
-    if (isActionRequestedField && isBlockingOrUnblocking) {
-      return null;
-    }
-    if (isOthersSpecificationField || fIdLower === "incident_others_specify" || (labelLower === "please specify" && isBlocking)) {
-      return null;
-    }
     const isBsdField = fIdLower.includes("bsd") || labelLower.includes("bsd no");
     const isVasRegField = fIdLower.includes("vasregistration") || fIdLower.includes("vasregno");
     const isIntendedUseField = fIdLower.includes("intendeduse") || labelLower.includes("intended use");
     const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
+    const parsedFieldOptions = parseOptions(field);
     const isSignature = rawType === "signature" || labelLower.includes("signature");
-    const isCheckbox = rawType === "checkbox" || labelLower.includes("declare");
-    const isDropdown = rawType === "dropdown" || rawType === "select" || rawType === "radio" || fIdLower === "bandwidthunit" || fIdLower === "frequencyunit" || fIdLower === "sex" || fIdLower === "stationclass" || isActionRequestedField || isIncidentTypeField || isUnblockingDetailsField;
+    const isCheckbox =
+      rawType === "checkbox" ||
+      rawType === "checkbox_group" ||
+      rawType === "checkboxgroup" ||
+      rawType.includes("checkbox") ||
+      labelLower.includes("declare");
+    const isDropdown =
+      rawType === "dropdown" ||
+      rawType === "select" ||
+      rawType === "radio" ||
+      rawType.includes("dropdown") ||
+      rawType.includes("select") ||
+      rawType.includes("radio") ||
+      (parsedFieldOptions.length > 0 && !isCheckbox) ||
+      isDetailsServiceField ||
+      isPermitTypeField;
     const isDate = rawType === "date" || labelLower.includes("date");
-    const isNumber = rawType === "number" || labelLower.includes("power") || labelLower.includes("watts") || labelLower.includes("height") || labelLower.includes("weight") || labelLower.includes("gain") || labelLower.includes("diameter");
-    const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
+    const isNumber =
+      rawType === "number" ||
+      labelLower.includes("power") ||
+      labelLower.includes("watts") ||
+      labelLower.includes("height") ||
+      labelLower.includes("weight") ||
+      labelLower.includes("gain") ||
+      labelLower.includes("diameter");
+    const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel" || rawType === "phone";
     const isEmailField = labelLower.includes("email") || rawType === "email";
 
-    let span: 12 | 8 | 6 | 4 | 3 = 6;
+    let defaultSpan: 12 | 8 | 6 | 4 | 3 = 6;
     if (
       isActionRequestedField ||
       isNatureOfComplaintField ||
@@ -280,6 +327,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       isIntendedUseField ||
       isVasServicesField ||
       isUnblockingDetailsField ||
+      rawType === "textarea" ||
       labelLower.includes("remarks") ||
       labelLower.includes("circumstances") ||
       labelLower.includes("service area") ||
@@ -288,71 +336,65 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       labelLower.includes("network diagram") ||
       labelLower.includes("details and supporting")
     ) {
-      span = 12;
-    } else if (isDropdown || isDate || isNumber || isTimeField) {
-      span = 6;
+      defaultSpan = 12;
     }
+    const span: 12 | 8 | 6 | 4 | 3 =
+      isRepeaterField || isNatureOfComplaintField || isIntendedUseField || isVasServicesField || isSignature
+        ? 12
+        : validationMeta.cols === 1
+        ? 6
+        : validationMeta.cols === 2
+        ? 12
+        : defaultSpan;
 
-    let val = (values && values[rawTargetId]) || (values && field.label && values[field.label]) || "";
-    if (isActionRequestedField && isBlockingOrUnblocking) {
+    let val =
+      (values && values[rawTargetId]) ||
+      (values && field.label && values[field.label]) ||
+      (isOthersSpecificationField ? values?.["others_specification"] || "" : "") ||
+      (isIncidentOthersField ? values?.["incident_others_specify"] || "" : "") ||
+      "";
+    if (isActionRequestedField && isBlockingOrUnblocking && !val) {
       val = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
     }
 
     let dropdownOptions: Array<{ label: string; value: string }> = [];
-    if (isIncidentTypeField) {
-      dropdownOptions = [
-        { label: "Lost / Misplaced", value: "Lost / Misplaced" },
-        { label: "Stolen (Theft / Robbery / Hold-up)", value: "Stolen (Theft / Robbery / Hold-up)" },
-        { label: "Others", value: "Others" },
-      ];
-    } else if (isUnblockingDetailsField) {
-      dropdownOptions = [
-        {
-          label: "It has already been blocked and thus I am requesting the NTC for unblocking of said unit to activate the usage of the same;",
-          value: "It has already been blocked and thus I am requesting the NTC for unblocking of said unit to activate the usage of the same;",
-        },
-        {
-          label: "It has not been blocked yet and thus I am withdrawing the affidavit of ownership and loss with undertaking I filed with the NTC for blocking of said cellphone to exclude said phone from being blocked.",
-          value: "It has not been blocked yet and thus I am withdrawing the affidavit of ownership and loss with undertaking I filed with the NTC for blocking of said cellphone to exclude said phone from being blocked.",
-        },
-      ];
-    } else if (fIdLower === "frequencyunit" || labelLower.includes("frequency unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
-    else if (fIdLower === "bandwidthunit" || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
-    else if (fIdLower === "stationclass" || labelLower.includes("station class") || labelLower.includes("class of station")) {
-      dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "FA", value: "FA" }, { label: "MA", value: "MA" }, { label: "Others", value: "Others" }];
-    }
-    else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
-    else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
-    else if (labelLower.includes("city") || labelLower.includes("municipality") || fIdLower === "city" || fIdLower.includes("city") || fIdLower.includes("municipality")) dropdownOptions = municipalities.map((m: { id: string; name: string }) => ({ label: m.name, value: m.name }));
-    else if (labelLower === "barangay" || fIdLower === "barangay" || fIdLower.includes("barangay")) dropdownOptions = barangays.map((b: { id: string; name: string }) => ({ label: b.name, value: b.name }));
-    else if (isActionRequestedField) {
-      dropdownOptions = [
-        { label: "BLOCK GSM Handset", value: "BLOCK GSM Handset" },
-        { label: "UNBLOCK GSM Handset", value: "UNBLOCK GSM Handset" },
-      ];
-    }
-    else dropdownOptions = parseOptions(field) ?? [];
-
-    let fieldToRender = field;
-    if (isNatureOfComplaintField) {
-      if (isSpamComplaint) {
-        fieldToRender = { ...field, options: SPAM_COMPLAINT_NATURES };
-      } else if (isTelcoComplaint) {
-        fieldToRender = { ...field, options: TELCO_COMPLAINT_NATURES };
-      }
-    }
-    if (isTapePreservation && (fIdLower === "state_briefly_details" || labelLower.includes("details of complaint"))) {
-      fieldToRender = {
-        ...fieldToRender,
-        label: "Reason / Details for Mandatory Tape Preservation",
-        placeholder: "State briefly the reason and details for mandatory tape preservation...",
-      };
+    if (parsedFieldOptions.length > 0) {
+      // 1. Highest priority: options explicitly configured by admin in Form Builder
+      dropdownOptions = parsedFieldOptions;
+    } else if (isDetailsServiceField) {
+      dropdownOptions = dynamicPermitServices.length > 0 ? dynamicPermitServices : PERMIT_DETAILS_SERVICE_OPTIONS;
+    } else if (isPermitTypeField) {
+      const currentDetailsService =
+        values?.["detailsService"] ||
+        values?.["details_service"] ||
+        values?.["DetailsService"] ||
+        values?.["fd000000-0000-0000-0000-000000000244"] ||
+        (dynamicPermitServices.length > 0 ? dynamicPermitServices[0]?.value : undefined) ||
+        PERMIT_DETAILS_SERVICE_OPTIONS[0]?.value ||
+        "Permits in AMateur";
+      const dynamicTypes = getTypesForService(currentDetailsService);
+      dropdownOptions = dynamicTypes.length > 0 ? dynamicTypes : resolvePermitTypes(currentDetailsService);
+    } else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) {
+      dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
+    } else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) {
+      dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
+    } else if (labelLower.includes("city") || labelLower.includes("municipality") || fIdLower === "city" || fIdLower.includes("city") || fIdLower.includes("municipality")) {
+      dropdownOptions = municipalities.map((m: { id: string; name: string }) => ({ label: m.name, value: m.name }));
+    } else if (labelLower === "barangay" || fIdLower === "barangay" || fIdLower.includes("barangay")) {
+      dropdownOptions = barangays.map((b: { id: string; name: string }) => ({ label: b.name, value: b.name }));
+    } else if (isNatureOfComplaintField) {
+      const fallbackNatures = isSpamComplaint
+        ? SPAM_COMPLAINT_NATURES
+        : isTelcoComplaint
+        ? TELCO_COMPLAINT_NATURES
+        : [];
+      dropdownOptions = fallbackNatures.map((n) => ({ label: n, value: n }));
     }
 
-    const isFieldRequired = fieldToRender.isRequired ?? false;
+    const isFieldRequired = field.isRequired ?? false;
 
     const isAmateurPurchaseParticulars =
-      flags.isAmateurPurchasePossessVariant &&
+      (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) &&
       (fIdLower.includes("particular") ||
         labelLower.includes("particular") ||
         rawTargetId === "fd000000-0000-0000-0000-000000000340");
@@ -363,35 +405,54 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         labelLower.includes("particular") ||
         rawTargetId === "fd000000-0000-0000-0000-000000000340");
 
+    const isAmateurVanityParticulars =
+      flags.isVanity &&
+      (fIdLower.includes("particular") ||
+        labelLower.includes("particular") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000340");
+
     const customRepeaterColumns = isAmateurPurchaseParticulars
       ? DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS
       : isAmateurSellTransferParticulars
       ? DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS
+      : isAmateurVanityParticulars
+      ? DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS
       : undefined;
 
     const customAddButtonLabel =
       isAmateurPurchaseParticulars || isAmateurSellTransferParticulars
         ? "Add Station / Class Particulars"
+        : isAmateurVanityParticulars
+        ? "Add Equipment"
         : undefined;
+
+    const resolvedPlaceholder =
+      validationMeta.placeholder ||
+      field.placeholder ||
+      (isDropdown ? `Select ${field.label}...` : `Enter ${field.label}...`);
 
     return (
       <DynamicFormField
         key={rawTargetId}
-        field={fieldToRender}
+        field={field}
         targetId={rawTargetId}
         val={val}
         disabled={isActionRequestedField && isBlockingOrUnblocking}
         err={
           errors?.[rawTargetId] ||
-          errors?.[fieldToRender.label] ||
-          (fieldToRender.id !== undefined ? errors?.[fieldToRender.id] : undefined) ||
-          (fieldToRender.fieldId !== undefined ? errors?.[fieldToRender.fieldId] : undefined)
+          errors?.[field.label] ||
+          (field.id !== undefined ? errors?.[field.id] : undefined) ||
+          (field.fieldId !== undefined ? errors?.[field.fieldId] : undefined) ||
+          (isIncidentOthersField ? errors?.["incident_others_specify"] : undefined) ||
+          (isOthersSpecificationField ? errors?.["others_specification"] : undefined)
         }
-        displayLabel={fieldToRender.label}
+        displayLabel={field.label}
         isRequired={isFieldRequired}
         span={span}
         dropdownOptions={dropdownOptions}
-        placeholder={fieldToRender.placeholder || `Enter ${fieldToRender.label}...`}
+        placeholder={resolvedPlaceholder}
+        helpText={validationMeta.helpText}
+        maxLength={validationMeta.maxLength}
         isNameField={false}
         isRepeaterField={isRepeaterField}
         isBsdField={isBsdField}
@@ -399,24 +460,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         isIntendedUseField={isIntendedUseField}
         isVasServicesField={isVasServicesField}
         isNatureOfComplaintField={isNatureOfComplaintField}
+        hideInlineOthersSpecify={hasSeparateOthersSpecField}
         isTimeField={isTimeField}
         othersSpecifyValue={(values && values["others_specification"]) || (values && values["If Others, Please Specify"]) || ""}
         onOthersSpecifyChange={(text) => onChange("others_specification", "If Others, Please Specify", text)}
-        incidentOthersSpecifyValue={
-          (values && values["incident_others_specify"]) ||
-          (values && values["Please specify"]) ||
-          (values && values["others_specification"]) ||
-          ""
-        }
-        onIncidentOthersSpecifyChange={(text) => {
-          onChange("incident_others_specify", "Please specify", text);
-          onChange("others_specification", "If Others, Please Specify", text);
-        }}
-        incidentOthersError={
-          errors?.["incident_others_specify"] ||
-          errors?.["Please specify"] ||
-          errors?.["others_specification"]
-        }
         isSignature={isSignature}
         isCheckbox={isCheckbox}
         isDropdown={isDropdown}
@@ -428,25 +475,38 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         isAmateurPermitService={isPermitService}
         isIndividualVar={applicantType === "individual"}
         showCallSign={!isPermitService}
-        hideAddButton={
-          isPermitService &&
-          !fIdLower.includes("particular") &&
-          !labelLower.includes("particular") &&
-          rawTargetId !== "fd000000-0000-0000-0000-000000000340"
-        }
         structuredNameData={structuredNameData}
         applicantName={applicantName}
         isBulk={isBulk}
         appMode={appMode}
         customRepeaterColumns={customRepeaterColumns}
         customAddButtonLabel={customAddButtonLabel}
-        onChange={onChange}
+        onChange={(fId, fLbl, newValue) => {
+          onChange(fId, fLbl, newValue);
+          if (isOthersSpecificationField && fId !== "others_specification") {
+            onChange("others_specification", fLbl, newValue);
+          }
+          if (isIncidentOthersField && fId !== "incident_others_specify") {
+            onChange("incident_others_specify", fLbl, newValue);
+          }
+        }}
         onStructuredNameChange={onStructuredNameChange}
         onDropdownChange={(v) => {
-          onChange(rawTargetId, fieldToRender.label, v);
+          if (isDetailsServiceField) {
+            onChange(rawTargetId, field.label, v);
+            const availableTypes = getTypesForService(v);
+            const firstType = availableTypes[0]?.value || "";
+            onChange("targetPermitType", "Type", firstType);
+            return;
+          }
+          if (isPermitTypeField) {
+            onChange(rawTargetId, field.label, v);
+            return;
+          }
+          onChange(rawTargetId, field.label, v);
           if (isIncidentTypeField && v !== "Others") {
             onChange("incident_others_specify", "Please specify", "");
-            onChange("others_specification", "If Others, Please Specify", "");
+            onChange("fd000000-0000-0000-0000-000000000338", "Please specify", "");
           }
           if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) {
             const found = regions.find((r: { id: string; name: string }) => r.name.toLowerCase() === v.toLowerCase() || r.id === v);
@@ -472,87 +532,21 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const t = (sec.title || "").trim().toLowerCase();
     if (hideSections.includes(k) || hideSections.includes(t)) return false;
 
-    // Step 3 is strictly for service/technical specifications.
-    // Applicant details are in ApplicantInformationFormSection,
-    // Declaration is signed upon submission (Step 5),
-    // and Payment is handled during/after assessment (Billing).
-    if (
-      k === "declaration" ||
-      t.includes("declaration") ||
-      k === "payment" ||
-      t.includes("payment") ||
+    // Personal Information is kept separately in ApplicantInformationFormSection.
+    // All other sections configured in Form Builder remain available on client.
+    const isPersonalInfoSec =
       k === "applicant" ||
       k === "applicantperson" ||
       k === "applicantparticulars" ||
       k === "applicantaddress" ||
       k === "applicantcontact" ||
-      k === "assistancerequest" ||
-      t.includes("special needs")
-    ) {
+      k === "applicant_information" ||
+      t === "applicant particulars" ||
+      t === "applicant details" ||
+      t === "applicant information";
+
+    if (isPersonalInfoSec) {
       return false;
-    }
-
-    const isBlockingSection =
-      k === "request_type_and_device_details" ||
-      k === "sim_details" ||
-      k === "supporting_documents" ||
-      k === "incident_and_demographic_info" ||
-      k === "unblocking_details_section" ||
-      t.includes("device particulars") ||
-      t.includes("sim card") ||
-      t.includes("proof of ownership") ||
-      t.includes("incident details") ||
-      t.includes("unblocking");
-
-    const isComplaintSection =
-      k === "particulars_of_service_provider" ||
-      k === "nature_of_complaint" ||
-      k === "complaint_details" ||
-      k === "broadcast_details" ||
-      t.includes("service provider") ||
-      t.includes("nature of complaint") ||
-      t.includes("details of complaint") ||
-      t.includes("broadcast");
-
-    if (isBlockingOrUnblocking && isComplaintSection) {
-      return false;
-    }
-    if (!isBlockingOrUnblocking && isBlockingSection) {
-      return false;
-    }
-
-    if (isBlocking) {
-      if (k === "supporting_documents" || t.includes("proof of ownership")) return false;
-      if (k === "unblocking_details_section" || t.includes("unblocking")) return false;
-    }
-
-    if (isUnblocking) {
-      if (k === "supporting_documents" || t.includes("proof of ownership")) return false;
-      if (k === "incident_and_demographic_info" || t.includes("incident details")) return false;
-    }
-
-    if (isTapePreservation) {
-      if (k === "nature_of_complaint" || t.includes("nature of complaint")) return false;
-      if (k === "particulars_of_service_provider" || t.includes("particulars of service provider")) return false;
-    } else {
-      if (k === "broadcast_details" || t.includes("broadcast")) return false;
-    }
-
-    if (flags.isAmateurPurchasePossessVariant) {
-      const isStationEquipmentSec =
-        k === "stationequipment" ||
-        k.includes("station") ||
-        t.includes("station") ||
-        k.includes("particular") ||
-        t.includes("particular");
-      const isIntendedUseSec =
-        k === "intendeduse" ||
-        k.includes("intended") ||
-        t.includes("intended");
-
-      if (!isStationEquipmentSec && !isIntendedUseSec) {
-        return false;
-      }
     }
 
     return evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext);
@@ -562,74 +556,51 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     <View style={styles.container}>
       {visibleSections.map((section, sIdx) => {
         const rawFields = section.fields || [];
-        const visibleFields = rawFields
-          .filter((f) => {
-            const rawTargetId = (f.fieldId || f.id || "").toLowerCase();
-            const labelLower = (f.label || "").toLowerCase();
-            if (
-              rawTargetId.includes("declaration") ||
-              labelLower.includes("declaration") ||
-              labelLower.includes("i hereby declare") ||
-              rawTargetId.includes("payment") ||
-              labelLower.includes("official receipt") ||
-              labelLower.includes("amount paid") ||
-              rawTargetId === "fd000000-0000-0000-0000-000000000010" ||
-              rawTargetId === "specialneeds" ||
-              labelLower.includes("special assistance") ||
-              labelLower.includes("special needs")
-            ) {
-              return false;
-            }
+        const visibleFields = rawFields.filter((f) => {
+          return isFieldRowVisible(f, section, evaluationContext);
+        });
 
-            // Client 4: Remove redundant fields for Blocking
-            if (isBlocking) {
-              if (rawTargetId === "action_requested" || labelLower.includes("action requested")) return false;
-              if (rawTargetId === "sex" || labelLower === "sex") return false;
-              if (rawTargetId === "age_group" || labelLower.includes("age group")) return false;
-              if (rawTargetId === "identity_proof_type" || rawTargetId === "proof_of_ownership_type" || labelLower.includes("government identification") || labelLower.includes("proof of ownership")) return false;
-            }
+        if (visibleFields.length === 0) {
+          // If all fields in this section are conditionally hidden for the current variant, hide the section
+          if (rawFields.length > 0) {
+            return null;
+          }
 
-            // Client 5: Remove redundant fields for Unblocking
-            if (isUnblocking) {
-              if (rawTargetId === "action_requested" || labelLower.includes("action requested")) return false;
-              if (rawTargetId === "sex" || labelLower === "sex") return false;
-              if (rawTargetId === "age_group" || labelLower.includes("age group")) return false;
-              if (rawTargetId === "identity_proof_type" || rawTargetId === "proof_of_ownership_type" || labelLower.includes("government identification") || labelLower.includes("proof of ownership")) return false;
-            }
+          const sectionDisplayNum = sIdx + 1;
+          const displaySectionTitle = section.title || "";
+          const displaySectionDesc = section.description;
 
-            if (flags.isAmateurPurchasePossessVariant) {
-              const secKey = (section.key || section.id || "").toLowerCase();
-              const secTitle = (section.title || "").toLowerCase();
-              const isStationSec =
-                secKey.includes("station") ||
-                secTitle.includes("station") ||
-                secKey.includes("particular") ||
-                secTitle.includes("particular");
-              if (isStationSec) {
-                const isParticulars =
-                  rawTargetId.includes("particular") ||
-                  labelLower.includes("particular") ||
-                  rawTargetId === "fd000000-0000-0000-0000-000000000340";
-                if (!isParticulars) {
-                  return false;
-                }
-              }
-            }
+          return (
+            <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionTitleRow}>
+                  <View style={styles.iconCircle}>
+                    <Text style={styles.iconCircleText}>{sectionDisplayNum}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sectionTitle}>{displaySectionTitle}</Text>
+                    {displaySectionDesc ? (
+                      <Text style={styles.sectionBadgeText}>{displaySectionDesc}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
 
-            return true;
-          })
-          .filter((f) => evaluateVisibilityCondition(f.visibilityCondition, evaluationContext));
-
-        if (visibleFields.length === 0) return null;
+              <View style={styles.emptySectionNotice}>
+                <Text style={styles.emptySectionNoticeTitle}>
+                  Empty Section (0 Fields Configured)
+                </Text>
+                <Text style={styles.emptySectionNoticeText}>
+                  This section has no fields in the form template. To keep what the form builder sees synchronized, this section is displayed so administrators can either add fields to it or delete it in the Admin Form Builder.
+                </Text>
+              </View>
+            </View>
+          );
+        }
 
         const sectionDisplayNum = sIdx + 1;
-
-        let displaySectionTitle = section.title || "";
-        let displaySectionDesc = section.description;
-        if (isTapePreservation && (section.key === "complaint_details" || (section.title && section.title.toLowerCase().includes("details of complaint")))) {
-          displaySectionTitle = "Request Details";
-          displaySectionDesc = "State briefly the details and reason for mandatory tape preservation";
-        }
+        const displaySectionTitle = section.title || "";
+        const displaySectionDesc = section.description;
 
         return (
           <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>

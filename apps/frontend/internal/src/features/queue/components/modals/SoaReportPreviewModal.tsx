@@ -19,7 +19,7 @@ import {
   SHADOWS,
   TYPOGRAPHY,
 } from '@edge/ui';
-import { applicationService } from '@edge/api';
+import { applicationService, extractOrNumbers } from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
 import {
   generateSoaPrintableHtml,
@@ -118,13 +118,7 @@ export function SoaReportPreviewModal({
   const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
   const [orTemplate, setOrTemplate] = useState<'portrait' | 'landscape'>('landscape');
 
-  const orRaw = app.payment?.orNumber ?? null;
-  const orList = orRaw
-    ? orRaw
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-    : [];
+  const orList = extractOrNumbers(app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber);
   const [selectedOrNumber, setSelectedOrNumber] = useState<string | null>(null);
   const effectiveSelectedOr = selectedOrNumber && orList.includes(selectedOrNumber)
     ? selectedOrNumber
@@ -292,9 +286,12 @@ export function SoaReportPreviewModal({
         const blobUrl = window.URL.createObjectURL(pdfBlob);
         const link = document.createElement('a');
         link.href = blobUrl;
-        const ref = targetDoc === 'or' && (resolvedOr || app.payment?.orNumber)
+        const rawRef = targetDoc === 'or' && (resolvedOr || app.payment?.orNumber)
           ? (resolvedOr || app.payment?.orNumber)
           : (app.referenceNumber ? app.referenceNumber : (app.id ? app.id.slice(0, 8).toUpperCase() : 'DOC'));
+        const ref = typeof rawRef === 'string'
+          ? rawRef.replace(/[,\s]+/g, '_').replace(/^_+|_+$/g, '')
+          : 'DOC';
         const suffix = targetDoc === 'or' ? `_${resolvedTemplate.toUpperCase()}` : '';
         link.download = `${targetDoc.toUpperCase()}_${ref}${suffix}.pdf`;
         document.body.appendChild(link);
@@ -343,7 +340,7 @@ export function SoaReportPreviewModal({
           : `PHP ${app.totalAmountDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`)
       : '________________';
     const orDateStr = isPaid ? formattedOpDate : '________________';
-    const officerName = app.cashierOfficer || 'Special Collecting Officer';
+    const officerName = app.cashierOfficer || (app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer');
 
     return (
       <View
@@ -368,9 +365,11 @@ export function SoaReportPreviewModal({
             <Text style={{ fontSize: 12, fontWeight: '800', letterSpacing: 0.3, textTransform: 'uppercase', color: isDark ? colors.neutral[100] : '#0f172a', marginTop: 1 }}>
               NATIONAL TELECOMMUNICATIONS COMMISSION
             </Text>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], marginTop: 1 }}>
-              {app.office || app.assignedTo || 'Regional Office No. VII'}
-            </Text>
+            {Boolean(app.office || app.assignedTo) && (
+              <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], marginTop: 1 }}>
+                {app.office || app.assignedTo}
+              </Text>
+            )}
             <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? colors.neutral[300] : '#1e293b', marginTop: 1 }}>
               General Fund
             </Text>
@@ -588,14 +587,14 @@ export function SoaReportPreviewModal({
             }}
           >
             <View style={{ width: 40, alignItems: 'center', borderRightWidth: 1, borderRightColor: isDark ? colors.neutral[600] : '#000000' }}>
-              <Text style={{ fontSize: 9.5, color: isDark ? colors.neutral[400] : '#475569' }}>1</Text>
+              <Text style={{ fontSize: 9.5, color: isDark ? colors.neutral[400] : '#475569' }}>-</Text>
             </View>
             <View style={{ flex: 1, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: isDark ? colors.neutral[600] : '#000000' }}>
-              <Text style={{ fontSize: 9.5, fontWeight: '600', color: isDark ? colors.neutral[200] : '#1e293b' }}>Land Bank of the Philippines</Text>
+              <Text style={{ fontSize: 9.5, color: isDark ? colors.neutral[500] : '#94a3b8' }}>______________________________</Text>
             </View>
             <View style={{ width: 140, paddingHorizontal: 8, alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#34d399' : '#047857', fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }) }}>
-                PHP {app.totalAmountDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <Text style={{ fontSize: 10, color: isDark ? colors.neutral[500] : '#94a3b8', fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }) }}>
+                PHP ________________
               </Text>
             </View>
           </View>
@@ -612,8 +611,8 @@ export function SoaReportPreviewModal({
               <Text style={{ fontSize: 9.5, fontWeight: '800', color: isDark ? colors.neutral[100] : '#0f172a' }}>TOTAL PHP</Text>
             </View>
             <View style={{ width: 140, paddingHorizontal: 8, alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 10.5, fontWeight: '800', color: isDark ? '#34d399' : '#047857', fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }) }}>
-                PHP {app.totalAmountDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <Text style={{ fontSize: 10.5, color: isDark ? colors.neutral[500] : '#94a3b8', fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }) }}>
+                ________________
               </Text>
             </View>
           </View>
@@ -664,7 +663,7 @@ export function SoaReportPreviewModal({
               {officerName}
             </Text>
             <Text style={{ fontSize: 8.5, fontStyle: 'italic', color: isDark ? colors.neutral[400] : '#64748b' }}>
-              Special Collecting Officer / Cashier
+              {app.office ? `Special Collecting Officer / Cashier, ${app.office}` : 'Special Collecting Officer / Cashier'}
             </Text>
             <View
               style={{
@@ -682,7 +681,13 @@ export function SoaReportPreviewModal({
                   color: isPaid ? (isDark ? '#34d399' : '#047857') : (isDark ? '#f59e0b' : '#d97706'),
                 }}
               >
-                {isPaid ? `PAID (OR #${app.payment.orNumber})` : 'PENDING CASHIER COLLECTION'}
+                {isPaid
+                  ? (orList.length > 1
+                      ? `PAID (OR: ${orList.join(', ')})`
+                      : (orList[0]?.toUpperCase().startsWith('OR')
+                          ? `PAID (${orList[0]})`
+                          : `PAID (OR #${orList[0] || 'Official'})`))
+                  : 'PENDING CASHIER COLLECTION'}
               </Text>
             </View>
           </View>
@@ -897,7 +902,7 @@ export function SoaReportPreviewModal({
                             Official Receipt (OR)
                           </Text>
                           <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                            Accountable Form 51 • #{app.payment?.orNumber || 'Official'}
+                            Accountable Form 51 • {effectiveSelectedOr || (orList.length > 0 ? orList.join(', ') : 'Official')}
                           </Text>
                         </View>
                         <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
@@ -1652,13 +1657,13 @@ export function SoaReportPreviewModal({
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Prepared By (Evaluator):</Text>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[900] }}>
-                      {app.soaPreparedByName || app.evaluatingOfficer || 'AUTHORIZED EVALUATOR'}
+                      {app.soaPreparedByName || app.evaluatingOfficer || (app.office ? `AUTHORIZED EVALUATOR (${app.office})` : 'AUTHORIZED EVALUATOR')}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Approved By (Chief, EOD):</Text>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[900] }}>
-                      {app.soaApprovedByName || app.issuingOfficer || app.endorsedTo || 'CHIEF, EOD'}
+                      {app.soaApprovedByName || app.issuingOfficer || app.endorsedTo || (app.office ? `CHIEF, EOD (${app.office})` : 'CHIEF, EOD')}
                     </Text>
                   </View>
                 </View>

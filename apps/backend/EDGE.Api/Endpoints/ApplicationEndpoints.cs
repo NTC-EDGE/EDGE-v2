@@ -14,6 +14,7 @@ using EDGE.Application.Applications.Commands.AddApplicantToApplication;
 using EDGE.Application.Applications.Commands.AdminUpdateApplication;
 using EDGE.Application.Applications.Commands.AdminUpdateApplicantProfile;
 using EDGE.Application.Applications.Commands.AdminUpdateFormValues;
+using EDGE.Application.Applications.Commands.BatchDeleteDraftApplications;
 using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
 using EDGE.Application.Applications.Commands.PreviewCsvImport;
@@ -25,6 +26,7 @@ using EDGE.Application.Applications.Commands.UpdateApplication;
 using EDGE.Application.Applications.Commands.UpdateApplicationApplicant;
 using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
+using EDGE.Application.Applications.Queries.GetApplicationActivities;
 using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetMyApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
@@ -78,6 +80,12 @@ public static class ApplicationEndpoints
             .WithName("GetAllApplications")
             .WithSummary("Retrieve all applications")
             .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
+
+        group.MapGet("/activities", GetApplicationActivities)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("GetApplicationActivities")
+            .WithSummary("Retrieve lightweight application activities feed")
+            .WithDescription("Retrieves paged application cards for the activities feed without heavy global metrics.");
 
         group.MapGet("/me", GetMyApplications)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
@@ -271,6 +279,12 @@ public static class ApplicationEndpoints
             .WithSummary("Delete user draft application")
             .WithDescription("Permanently removes a user's draft application and its associated entries.");
 
+        group.MapPost("/me/drafts/batch-delete", BatchDeleteDraftApplications)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("BatchDeleteMyDraftApplications")
+            .WithSummary("Batch delete user draft applications")
+            .WithDescription("Permanently removes multiple user draft applications and their associated entries.");
+
         group.MapDelete("/{id:guid}", DeleteDraftApplication)
             .WithName("DeleteDraftApplication")
             .WithSummary("Delete draft application")
@@ -413,6 +427,41 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> GetApplicationActivities(
+        [FromQuery] ApplicationStatus? status,
+        [FromQuery] string? queueTab,
+        [FromQuery] string? scope,
+        [FromQuery] int? pageNumber,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? searchTerm,
+        [FromQuery] string? mode,
+        [FromQuery] Guid? tenantId,
+        [FromQuery] string? role,
+        [FromQuery] string? assignedTo,
+        [FromQuery] string? fieldOffice,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetApplicationActivitiesQuery(
+            Status: status,
+            QueueTab: queueTab,
+            Scope: scope,
+            PageNumber: pageNumber,
+            PageSize: pageSize,
+            SearchTerm: searchTerm,
+            Mode: mode,
+            TenantId: tenantId,
+            FieldOffice: fieldOffice,
+            AssignedTo: assignedTo,
+            Role: role));
+        if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
+        {
+            return Results.Unauthorized();
+        }
+
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ViewOwnApplications)]
     public static async Task<IResult> GetMyApplications(
         [FromQuery] ApplicationStatus? status,
         [FromQuery] int? pageNumber,
@@ -505,6 +554,23 @@ public static class ApplicationEndpoints
         }
 
         return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> BatchDeleteDraftApplications(
+        BatchDeleteDraftApplicationsRequest request,
+        IValidator<BatchDeleteDraftApplicationsCommand> validator,
+        IMediator mediator)
+    {
+        var command = new BatchDeleteDraftApplicationsCommand(request.Ids);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     [HasPermission(Permissions.SubmitApplication)]
@@ -671,10 +737,18 @@ public static class ApplicationEndpoints
     public static async Task<IResult> AdminUpdateApplicationEndpoint(
         Guid id,
         [FromBody] AdminUpdateApplicationCommand command,
+        IValidator<AdminUpdateApplicationCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(command with { Id = id }, cancellationToken);
+        var effectiveCommand = command with { Id = id };
+        var validationResult = await validator.ValidateAsync(effectiveCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(effectiveCommand, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -684,10 +758,18 @@ public static class ApplicationEndpoints
         Guid id,
         Guid applicantId,
         [FromBody] AdminUpdateApplicantProfileCommand command,
+        IValidator<AdminUpdateApplicantProfileCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
+        var effectiveCommand = command with { ApplicationId = id, ApplicantId = applicantId };
+        var validationResult = await validator.ValidateAsync(effectiveCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(effectiveCommand, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -697,10 +779,18 @@ public static class ApplicationEndpoints
         Guid id,
         Guid applicantId,
         [FromBody] AdminUpdateFormValuesCommand command,
+        IValidator<AdminUpdateFormValuesCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
+        var effectiveCommand = command with { ApplicationId = id, ApplicantId = applicantId };
+        var validationResult = await validator.ValidateAsync(effectiveCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(effectiveCommand, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -1040,4 +1130,5 @@ public record SubmitPaymentRequest(
     string? CheckBank = null,
     DateTime? CheckDate = null
 );
+public record BatchDeleteDraftApplicationsRequest(List<Guid> Ids);
 

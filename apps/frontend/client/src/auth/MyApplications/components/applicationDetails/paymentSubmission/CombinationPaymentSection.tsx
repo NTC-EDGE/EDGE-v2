@@ -2,8 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { Icon, DatePickerInput } from '@edge/ui';
 import { PaymentItemMode } from '@edge/api';
-import { CombinationRow } from './paymentSubmissionTypes';
+import { CombinationRow, CheckProofFile } from './paymentSubmissionTypes';
 import { styles } from './paymentSubmissionStyles';
+import { CheckProofUploadField } from './CheckProofUploadField';
 
 interface CombinationPaymentSectionProps {
   totalAmountDue: number;
@@ -17,6 +18,7 @@ interface CombinationPaymentSectionProps {
   onAddRow: () => void;
   onRemoveRow: (id: string) => void;
   onUpdateRow: (id: string, updates: Partial<CombinationRow>) => void;
+  onPreviewCheckProof?: (file: CheckProofFile) => void;
 }
 
 export function CombinationPaymentSection({
@@ -31,6 +33,7 @@ export function CombinationPaymentSection({
   onAddRow,
   onRemoveRow,
   onUpdateRow,
+  onPreviewCheckProof,
 }: CombinationPaymentSectionProps) {
   return (
     <View style={styles.combinationContainer}>
@@ -216,6 +219,12 @@ export function CombinationPaymentSection({
                 placeholder="Check Date (YYYY-MM-DD)"
                 value={row.checkDate}
                 onChangeText={(val) => onUpdateRow(row.id, { checkDate: val })}
+              />
+              <CheckProofUploadField
+                compact={true}
+                file={row.checkProofFile ?? null}
+                onFileChange={(proof) => onUpdateRow(row.id, { checkProofFile: proof })}
+                onPreview={onPreviewCheckProof}
               />
             </View>
           )}

@@ -10,7 +10,9 @@ import {
   SubmitPaymentRequest,
 } from '@edge/api';
 import { useToast } from '../../../../../shared/components/Toast';
-import { ModeOfPayment, CombinationRow } from './paymentSubmissionTypes';
+import { resolveApplicationTenantId } from '../../../../../shared/helpers/tenantHelper';
+import { ModeOfPayment, CombinationRow, CheckProofFile } from './paymentSubmissionTypes';
+import { uploadCheckProof } from './checkProofUploadHelper';
 
 interface UseClientPaymentSubmissionProps {
   app: Application;
@@ -18,6 +20,8 @@ interface UseClientPaymentSubmissionProps {
   onSuccess: () => void;
   visible?: boolean;
 }
+
+
 
 export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }: UseClientPaymentSubmissionProps) {
   const toast = useToast();
@@ -35,6 +39,8 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
     return 0;
   }, [app]);
 
+  const tenantId = resolveApplicationTenantId(app);
+
   const [selectedMode, setSelectedMode] = useState<ModeOfPayment>('LandBank');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [payorName, setPayorName] = useState(app.applicantName || app.companyName || '');
@@ -46,6 +52,21 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
   const [checkNumber, setCheckNumber] = useState('');
   const [checkBank, setCheckBank] = useState('');
   const [checkDate, setCheckDate] = useState('');
+  const [checkProofFile, setCheckProofFile] = useState<CheckProofFile | null>(null);
+
+  // Preview state
+  const [previewDoc, setPreviewDoc] = useState<CheckProofFile | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const handleOpenPreview = (file: CheckProofFile) => {
+    setPreviewDoc(file);
+    setIsPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setIsPreviewOpen(false);
+    setPreviewDoc(null);
+  };
 
   // Combination items state
   const createDefaultCombinationItems = (): CombinationRow[] => {
@@ -60,6 +81,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        checkProofFile: null,
       },
       {
         id: 'item-2',
@@ -69,6 +91,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        checkProofFile: null,
       },
     ];
   };
@@ -86,6 +109,9 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       setCheckNumber('');
       setCheckBank('');
       setCheckDate('');
+      setCheckProofFile(null);
+      setPreviewDoc(null);
+      setIsPreviewOpen(false);
       setErrorMessage(null);
       setCombinationRows(createDefaultCombinationItems());
     }
@@ -111,6 +137,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        checkProofFile: null,
       },
       {
         id: 'item-2',
@@ -120,6 +147,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        checkProofFile: null,
       },
     ]);
     setErrorMessage(null);
@@ -137,6 +165,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        checkProofFile: null,
       },
       {
         id: 'item-2',
@@ -146,6 +175,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        checkProofFile: null,
       },
       {
         id: 'item-3',
@@ -155,6 +185,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        checkProofFile: null,
       },
     ]);
     setErrorMessage(null);
@@ -178,6 +209,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        checkProofFile: null,
       },
     ]);
     setErrorMessage(null);
@@ -278,7 +310,44 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       }
     }
 
+    if (tenantId === null) {
+      const msg = 'Regional office (tenant) context is missing for this application. Please refresh or contact support.';
+      setErrorMessage(msg);
+      toast.error('Missing Context', msg);
+      return;
+    }
+
     setIsSubmitting(true);
+
+    let singleProofFileId: string | null = null;
+    if (selectedMode === 'Check' && checkProofFile !== null) {
+      const uploadRes = await uploadCheckProof(checkProofFile, tenantId);
+      if (!uploadRes.success) {
+        setIsSubmitting(false);
+        const msg = `Check Proof Upload Failed: ${uploadRes.error}`;
+        setErrorMessage(msg);
+        toast.error('Upload Failed', msg);
+        return;
+      }
+      singleProofFileId = uploadRes.fileId;
+    }
+
+    const combinationProofIdMap = new Map<string, string>();
+    if (selectedMode === 'Combination') {
+      for (const row of combinationRows) {
+        if (row.mode === 'Check' && row.checkProofFile !== null && row.checkProofFile !== undefined) {
+          const uploadRes = await uploadCheckProof(row.checkProofFile, tenantId);
+          if (!uploadRes.success) {
+            setIsSubmitting(false);
+            const msg = `Check Proof Upload Failed for "${row.checkBank || 'Check'}": ${uploadRes.error}`;
+            setErrorMessage(msg);
+            toast.error('Upload Failed', msg);
+            return;
+          }
+          combinationProofIdMap.set(row.id, uploadRes.fileId);
+        }
+      }
+    }
 
     let mappedPaymentMethod: PaymentMethodDto;
     let primaryRef = '';
@@ -315,10 +384,16 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
             checkNumber: checkNumber.trim(),
             checkBank: checkBank.trim(),
             checkDate: checkDate.trim() || undefined,
+            proofFileId: singleProofFileId ?? undefined,
+            proofFileName: checkProofFile?.name,
+            proofFileUri: checkProofFile?.uri,
           },
         ],
         payorName: payorName.trim() || undefined,
         userNotes: remarks.trim() || undefined,
+        proofOfPaymentFileId: singleProofFileId ?? undefined,
+        proofFileName: checkProofFile?.name,
+        proofFileUri: checkProofFile?.uri,
       };
     } else if (selectedMode === 'Combination') {
       const hasCheck = combinationRows.some((r) => r.mode === 'Check');
@@ -329,15 +404,27 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       const firstOnline = combinationRows.find((r) => r.mode === 'Online' && r.referenceNumber.trim());
       primaryRef = firstCheck?.checkNumber.trim() || firstOnline?.referenceNumber.trim() || 'COMBINATION';
 
-      const breakdownItems: PaymentBreakdownItem[] = combinationRows.map((r, idx) => ({
-        id: `comb-${idx + 1}`,
-        mode: r.mode,
-        amount: Number(r.amount) || 0,
-        checkNumber: r.mode === 'Check' && r.checkNumber.trim() ? r.checkNumber.trim() : undefined,
-        checkBank: r.mode === 'Check' && r.checkBank.trim() ? r.checkBank.trim() : undefined,
-        checkDate: r.mode === 'Check' && r.checkDate.trim() ? r.checkDate.trim() : undefined,
-        referenceNumber: r.mode === 'Online' && r.referenceNumber.trim() ? r.referenceNumber.trim() : undefined,
-      }));
+      const firstCheckWithProof = combinationRows.find(
+        (r) => r.mode === 'Check' && combinationProofIdMap.has(r.id)
+      );
+      const firstCombProofId =
+        firstCheckWithProof !== undefined ? combinationProofIdMap.get(firstCheckWithProof.id) : undefined;
+
+      const breakdownItems: PaymentBreakdownItem[] = combinationRows.map((r, idx) => {
+        const rowProofId = combinationProofIdMap.get(r.id);
+        return {
+          id: `comb-${idx + 1}`,
+          mode: r.mode,
+          amount: Number(r.amount) || 0,
+          checkNumber: r.mode === 'Check' && r.checkNumber.trim() ? r.checkNumber.trim() : undefined,
+          checkBank: r.mode === 'Check' && r.checkBank.trim() ? r.checkBank.trim() : undefined,
+          checkDate: r.mode === 'Check' && r.checkDate.trim() ? r.checkDate.trim() : undefined,
+          referenceNumber: r.mode === 'Online' && r.referenceNumber.trim() ? r.referenceNumber.trim() : undefined,
+          proofFileId: rowProofId,
+          proofFileName: r.mode === 'Check' && r.checkProofFile ? r.checkProofFile.name : undefined,
+          proofFileUri: r.mode === 'Check' && r.checkProofFile ? r.checkProofFile.uri : undefined,
+        };
+      });
 
       breakdown = {
         isCombination: true,
@@ -345,6 +432,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         items: breakdownItems,
         payorName: payorName.trim() || undefined,
         userNotes: remarks.trim() || undefined,
+        proofOfPaymentFileId: firstCombProofId,
       };
     } else {
       mappedPaymentMethod = 'Online';
@@ -377,6 +465,9 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       ? (checkDate.trim() || undefined)
       : (checkRow?.checkDate.trim() || undefined);
 
+    const firstCombinationProofId = Array.from(combinationProofIdMap.values())[0] ?? null;
+    const finalProofFileId = selectedMode === 'Check' ? singleProofFileId : firstCombinationProofId;
+
     const payload: SubmitPaymentRequest = {
       orderOfPaymentId: app.op?.id,
       paymentMethod: mappedPaymentMethod,
@@ -384,6 +475,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       payorName: payorName.trim().length > 0 ? payorName.trim() : undefined,
       amountPaid: totalAmountDue > 0 ? totalAmountDue : undefined,
       remarks: serializedRemarks,
+      proofOfPaymentFileId: finalProofFileId,
       checkNumber: directCheckNumber,
       checkBank: directCheckBank,
       checkDate: directCheckDate,
@@ -421,6 +513,12 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
     setCheckBank,
     checkDate,
     setCheckDate,
+    checkProofFile,
+    setCheckProofFile,
+    previewDoc,
+    isPreviewOpen,
+    handleOpenPreview,
+    handleClosePreview,
     combinationRows,
     combinationTotalAllocated,
     allocationDifference,

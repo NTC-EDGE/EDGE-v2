@@ -28,7 +28,7 @@ export function FormRepeaterFileField({
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
         const first = res.assets[0];
-        if (first && typeof first.name === 'string') {
+        if (first && typeof first?.name === 'string') {
           onChange(first.name);
         }
       }
@@ -42,7 +42,7 @@ export function FormRepeaterFileField({
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      if (file && typeof file.name === 'string') {
+      if (file && typeof file?.name === 'string') {
         onChange(file.name);
       }
     }

@@ -11,6 +11,9 @@
     "axios": "^1.7.9",
     "swr": "^2.3.0"
   },
+  "devDependencies": {
+    "@types/node": "^24.0.0"
+  },
   "peerDependencies": {
     "react": "*"
   }

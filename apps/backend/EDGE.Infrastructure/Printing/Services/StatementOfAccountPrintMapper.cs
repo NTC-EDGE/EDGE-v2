@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using EDGE.Application.Common.Helpers;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Printing.Models;
@@ -16,12 +17,21 @@ public static class StatementOfAccountPrintMapper
         StatementOfAccount? soa = null,
         EDGE.Domain.Entities.Application? app = null,
         OrderOfPayment? op = null,
-        EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null)
+        EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null,
+        OfficialReceipt? receipt = null,
+        string? overrideOrNumber = null,
+        IEnumerable<OfficialReceipt>? receipts = null,
+        SoaNote? tenantSoaNote = null)
     {
         var model = new StatementOfAccountModel();
 
         // 1. Resolve effective Order of Payment reference
+        var paidOp = app?.OrdersOfPayment?
+            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+            .FirstOrDefault(o => o.Status == EDGE.Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
+
         var activeOp = op
+            ?? paidOp
             ?? app?.OrdersOfPayment.FirstOrDefault(o => soa != null && o.StatementOfAccountId == soa.Id)
             ?? app?.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
 
@@ -186,13 +196,130 @@ public static class StatementOfAccountPrintMapper
             }
         }
 
-        // 7. Linked Order of Payment & OR Stamp Box if paid
-        if (activeOp != null && !string.IsNullOrWhiteSpace(activeOp.OfficialReceiptNumber))
+        // 7. Linked Order of Payment & OR Stamp Box if paid - supports single or multiple Official Receipts
+        var allReceiptNumbers = new List<string>();
+
+        // Identify any explicitly cancelled receipts to avoid exposing stale or voided receipt numbers
+        var cancelledReceiptNumbers = (receipts ?? Enumerable.Empty<OfficialReceipt>())
+            .Concat(receipt != null ? new[] { receipt } : Enumerable.Empty<OfficialReceipt>())
+            .Where(r => r != null && (r.Status == ReceiptStatus.Cancelled || r.CancelledAt != null) && !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+            .Select(r => r.OfficialReceiptNumber.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(overrideOrNumber))
         {
-            model.OrNo = activeOp.OfficialReceiptNumber;
-            model.OrAmount = activeOp.AmountReceived > 0 ? $"P{activeOp.AmountReceived:N2}" : $"P{activeOp.AmountDue:N2}";
-            model.OrDate = activeOp.PaidAt?.ToString("MMMM dd, yyyy") ?? activeOp.CreatedAt.ToString("MMMM dd, yyyy");
-            model.OrBy = activeOp.Histories.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName ?? "Cashier";
+            allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(overrideOrNumber));
+        }
+        else
+        {
+            if (receipts != null)
+            {
+                allReceiptNumbers.AddRange(receipts
+                    .Where(r => r != null && r.Status != ReceiptStatus.Cancelled && r.CancelledAt == null && !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+                    .Select(r => r.OfficialReceiptNumber.Trim()));
+            }
+
+            if (receipt != null && receipt.Status != ReceiptStatus.Cancelled && receipt.CancelledAt == null && !string.IsNullOrWhiteSpace(receipt.OfficialReceiptNumber))
+            {
+                allReceiptNumbers.Add(receipt.OfficialReceiptNumber.Trim());
+            }
+
+            if (activeOp != null && activeOp.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(activeOp.OfficialReceiptNumber))
+            {
+                allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(activeOp.OfficialReceiptNumber));
+            }
+
+            if (app?.OrdersOfPayment != null)
+            {
+                foreach (var otherOp in app.OrdersOfPayment)
+                {
+                    if (otherOp.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(otherOp.OfficialReceiptNumber))
+                    {
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(otherOp.OfficialReceiptNumber));
+                    }
+                }
+            }
+
+            if (app?.IssuedDocumentDetails != null)
+            {
+                foreach (var doc in app.IssuedDocumentDetails)
+                {
+                    if (!string.IsNullOrWhiteSpace(doc.OfficialReceiptNumber))
+                    {
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(doc.OfficialReceiptNumber));
+                    }
+                }
+            }
+
+            if (activeOp?.Histories != null)
+            {
+                foreach (var h in activeOp.Histories)
+                {
+                    if (!string.IsNullOrWhiteSpace(h.OfficialReceiptNumber) &&
+                        (h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase))))
+                    {
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(h.OfficialReceiptNumber));
+                    }
+                }
+            }
+        }
+
+        var distinctOrNumbers = DelimitedStringHelper.ParseDistinctTokens(
+            allReceiptNumbers.Where(n => !cancelledReceiptNumbers.Contains(n.Trim())),
+            comparer: StringComparer.OrdinalIgnoreCase);
+
+        var effectiveOrNumber = DelimitedStringHelper.FormatOrDisplay(distinctOrNumbers);
+
+        model.OrNumbers = distinctOrNumbers;
+
+        bool isPaid = distinctOrNumbers.Count > 0
+            || (activeOp != null && activeOp.Status == EDGE.Domain.Enums.OpStatus.Paid)
+            || receipt != null
+            || (receipts != null && receipts.Any())
+            || (app != null && (app.Status == EDGE.Domain.Enums.ApplicationStatus.ForIssuance
+                             || app.Status == EDGE.Domain.Enums.ApplicationStatus.Completed
+                             || app.Status == EDGE.Domain.Enums.ApplicationStatus.Approved));
+
+        if (isPaid)
+        {
+            decimal effectiveAmount;
+            if (!string.IsNullOrWhiteSpace(overrideOrNumber))
+            {
+                var matchingReceipt = receipts?.FirstOrDefault(r => string.Equals(r.OfficialReceiptNumber?.Trim(), overrideOrNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+                    ?? (string.Equals(receipt?.OfficialReceiptNumber?.Trim(), overrideOrNumber.Trim(), StringComparison.OrdinalIgnoreCase) ? receipt : null);
+
+                effectiveAmount = matchingReceipt?.Amount > 0
+                    ? matchingReceipt.Amount
+                    : (activeOp?.AmountReceived > 0 ? activeOp.AmountReceived : (activeOp?.AmountDue ?? model.TotalAmount ?? 0));
+            }
+            else
+            {
+                var receiptsSum = receipts?.Where(r => r.Status != ReceiptStatus.Cancelled).Sum(r => r.Amount) ?? 0;
+                effectiveAmount = activeOp?.AmountReceived > 0
+                    ? activeOp.AmountReceived
+                    : (receiptsSum > 0
+                        ? receiptsSum
+                        : (receipt != null && receipt.Amount > 0
+                            ? receipt.Amount
+                            : (activeOp?.AmountDue ?? model.TotalAmount ?? 0)));
+            }
+
+            var effectiveDate = activeOp?.PaidAt
+                ?? receipt?.IssuedAt
+                ?? receipts?.OrderByDescending(r => r.IssuedAt).Select(r => (DateTime?)r.IssuedAt).FirstOrDefault()
+                ?? activeOp?.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.Timestamp
+                ?? (activeOp?.CreatedAt != default ? activeOp?.CreatedAt : (app?.CreatedAt != default ? app?.CreatedAt : DateTime.UtcNow));
+
+            var cashierStaff = activeOp?.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName
+                ?? app?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))?.StaffName
+                ?? (receipt?.IssuedByUser != null ? $"{receipt.IssuedByUser.FirstName} {receipt.IssuedByUser.LastName}".Trim() : null)
+                ?? (receipts?.FirstOrDefault(r => r.IssuedByUser != null)?.IssuedByUser != null ? $"{receipts.First(r => r.IssuedByUser != null).IssuedByUser!.FirstName} {receipts.First(r => r.IssuedByUser != null).IssuedByUser!.LastName}".Trim() : null)
+                ?? "Cashier";
+
+            model.OrNo = !string.IsNullOrWhiteSpace(effectiveOrNumber) ? effectiveOrNumber : "OR-RECORDED";
+            model.OrAmount = $"P{effectiveAmount:N2}";
+            model.OrDate = effectiveDate?.ToString("MMMM dd, yyyy") ?? DateTime.UtcNow.ToString("MMMM dd, yyyy");
+            model.OrBy = cashierStaff;
         }
 
         // 8. Signatures: Prepared By (Evaluator) & Approved By (Chief of EOD / Regional Director)
@@ -218,13 +345,17 @@ public static class StatementOfAccountPrintMapper
             ?? soa?.Histories.FirstOrDefault(h => h.Action == "Created" || h.StaffRole.Contains("Evaluator"))?.StaffName
             ?? activeOp?.Histories.FirstOrDefault(h => h.StaffRole.Contains("Evaluator"))?.StaffName;
 
-        model.PreparedByName = !string.IsNullOrWhiteSpace(evaluatorName) ? evaluatorName : "EVALUATOR";
-
         var fallbackRegionLabel = !string.IsNullOrWhiteSpace(app?.Region?.Code)
             ? $"NTC {app.Region.Code}"
             : (!string.IsNullOrWhiteSpace(app?.Region?.Name)
                 ? $"NTC {app.Region.Name}"
                 : (!string.IsNullOrWhiteSpace(app?.Office) ? app.Office : "NTC"));
+
+        model.PreparedByName = !string.IsNullOrWhiteSpace(evaluatorName)
+            ? evaluatorName
+            : (regionalSignatories != null
+                ? regionalSignatories.GetResolvedEvaluatorName()
+                : (!string.IsNullOrWhiteSpace(fallbackRegionLabel) && fallbackRegionLabel != "NTC" ? $"EVALUATOR, {fallbackRegionLabel}" : "EVALUATOR"));
 
         if (regionalSignatories != null)
         {
@@ -265,16 +396,43 @@ public static class StatementOfAccountPrintMapper
             model.ApprovedByTitle = $"Chief, Enforcement & Operations Division, {fallbackRegionLabel}";
         }
 
-        // 9. Remarks
+        // 9. Remarks & Notes
         // Statement of Account (SOA) is an assessment billing document, NOT a payment receipt.
-        // It must only contain assessment remarks from the evaluator/accountant, never payment submission notes or payment breakdowns.
-        if (!string.IsNullOrWhiteSpace(soa?.Remarks) && !soa.Remarks.Contains("[PAYMENT_BREAKDOWN"))
+        // It stores the immutable string snapshot of the regional SOA note / evaluator instructions saved on the record.
+        // If Remarks is present, it is used directly as the primary source of truth, ensuring historic client billing
+        // records remain unchanged even if the regional SOA note is subsequently updated in tenant settings.
+        var cleanRemarks = (!string.IsNullOrWhiteSpace(soa?.Remarks) && !soa.Remarks.Contains("[PAYMENT_BREAKDOWN"))
+            ? soa.Remarks.Trim()
+            : null;
+
+        if (!string.IsNullOrWhiteSpace(cleanRemarks))
         {
-            model.Remarks = $"{soa.Remarks}\n\n{model.Remarks}";
+            model.Remarks = cleanRemarks;
         }
-        else if (soa?.SoaNote != null && !string.IsNullOrWhiteSpace(soa.SoaNote.Notes))
+        else
         {
-            model.Remarks = $"{soa.SoaNote.Notes}\n\n{model.Remarks}";
+            var effectiveNote = soa?.SoaNote ?? tenantSoaNote;
+            var noteText = !string.IsNullOrWhiteSpace(effectiveNote?.Notes) ? effectiveNote.Notes.Trim() : null;
+            if (!string.IsNullOrWhiteSpace(noteText))
+            {
+                model.Remarks = noteText;
+            }
+            else if (!string.IsNullOrWhiteSpace(app?.Remarks) && !app.Remarks.Contains("[PAYMENT_BREAKDOWN"))
+            {
+                model.Remarks = app.Remarks.Trim();
+            }
+            else
+            {
+                // SOA Note is not hardcoded and comes purely from backend.
+                // If nothing is saved in SOA note and no tenant SOA note can be pulled from backend,
+                // keep Remarks empty.
+                model.Remarks = string.Empty;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(model.Remarks))
+        {
+            model.Remarks = string.Empty;
         }
 
         return model;

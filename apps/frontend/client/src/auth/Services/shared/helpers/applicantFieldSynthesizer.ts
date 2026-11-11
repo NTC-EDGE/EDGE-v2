@@ -1,5 +1,6 @@
-import { GeneralApplicantData } from '../hooks/useGeneralServiceWizard';
-import { isSuppressedValue, formatCompositeAddress } from '../../../../shared/formPreview';
+import { GeneralApplicantData } from '../types/generalApplicantTypes';
+import { isSuppressedValue } from '../../../../shared/formPreview/core/formPreviewFieldCheckers';
+import { formatCompositeAddress } from '../../../../shared/formPreview/core/formPreviewHelpers';
 
 /**
  * Static GUID registry — mirrors FastTrackSeederData.cs / CommonSeederData.cs GetFieldsPool().
@@ -27,6 +28,12 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'exam category':            'fd000000-0000-0000-0000-000000000007',
   'examinee type':            'fd000000-0000-0000-0000-000000000008',
   'selected exam elements':   'fd000000-0000-0000-0000-000000000009',
+  'elements':                 'fd000000-0000-0000-0000-000000000009',
+  'element':                  'fd000000-0000-0000-0000-000000000009',
+  'selected elements':        'fd000000-0000-0000-0000-000000000009',
+  'service variant & station class': 'fd000000-0000-0000-0000-000000000009',
+  'service variant':          'fd000000-0000-0000-0000-000000000024',
+  'application variant':      'fd000000-0000-0000-0000-000000000024',
   'special assistance details': 'fd000000-0000-0000-0000-000000000010',
   'admission slip number':    'fd000000-0000-0000-0000-000000000011',
 
@@ -61,10 +68,12 @@ export const FIELD_GUID_MAP: Record<string, string> = {
 
   // Education
   'school / university attended': 'fd000000-0000-0000-0000-000000000061',
-  'school attended':          'fd000000-0000-0000-0000-000000000061',
-  'course / degree program':  'fd000000-0000-0000-0000-000000000062',
-  'course taken':             'fd000000-0000-0000-0000-000000000062',
-  'year graduated':           'fd000000-0000-0000-0000-000000000063',
+  'school / university':          'fd000000-0000-0000-0000-000000000061',
+  'school attended':              'fd000000-0000-0000-0000-000000000061',
+  'course / degree program':      'fd000000-0000-0000-0000-000000000062',
+  'course / degree':              'fd000000-0000-0000-0000-000000000062',
+  'course taken':                 'fd000000-0000-0000-0000-000000000062',
+  'year graduated':               'fd000000-0000-0000-0000-000000000063',
 
   // Corporate & Representative
   'company / business name':  'fd000000-0000-0000-0000-000000000081',
@@ -252,6 +261,20 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'station particulars':      'fd000000-0000-0000-0000-000000000340',
   'station / class particulars': 'fd000000-0000-0000-0000-000000000340',
   'particulars of radio station': 'fd000000-0000-0000-0000-000000000340',
+
+  // Copy of Permits (NTC 1-21)
+  'detailsservice':           'fd000000-0000-0000-0000-000000000244',
+  'details_service':          'fd000000-0000-0000-0000-000000000244',
+  'targetpermittype':         'fd000000-0000-0000-0000-000000000245',
+  'target_permit_type':       'fd000000-0000-0000-0000-000000000245',
+  'permitno':                 'fd000000-0000-0000-0000-000000000246',
+  'permit_no':                'fd000000-0000-0000-0000-000000000246',
+  'permit no.':               'fd000000-0000-0000-0000-000000000246',
+  'permit no':                'fd000000-0000-0000-0000-000000000246',
+  'no of copies':             'fd000000-0000-0000-0000-000000000243',
+  'no. of copies':            'fd000000-0000-0000-0000-000000000243',
+  'no_of_copies':             'fd000000-0000-0000-0000-000000000243',
+  'noofcopies':               'fd000000-0000-0000-0000-000000000243',
 };
 
 const MONTH_NAMES = [
@@ -340,7 +363,7 @@ export function resolveCanonicalFieldId(
 
 /**
  * Synthesizes all filled fields from the applicant record (dynamic form fields,
- * standard applicant particulars, and specialized wizard models) into a unified,
+ * standard applicant details, and specialized wizard models) into a unified,
  * deduplicated list of FormFieldValue objects.
  */
 export function synthesizeAllApplicantFieldValues(
@@ -607,7 +630,20 @@ export function synthesizeAllApplicantFieldValues(
     addField(undefined, 'Number of Copies', cData.numberOfCopies);
   }
 
-  // ── 3. Standard Applicant Particulars ───────────────────────────────────────
+  // 2i. Copy of Permit Data
+  const cpData = applicant.copyOfPermitData;
+  if (cpData) {
+    addField('copyType', 'Copy Type', cpData.copyType);
+    addField('detailsService', 'DetailsService', cpData.detailsService);
+    addField('targetPermitType', 'Type', cpData.targetPermitType);
+    addField('permitNo', 'Permit no.', cpData.permitNo);
+    addField('noOfCopies', 'No. of Copies', cpData.numberOfCopies);
+    if (cpData.circumstances) {
+      addField('circumstances', 'Circumstances Relating to Lost/Mutilation of Permit', cpData.circumstances);
+    }
+  }
+
+  // ── 3. Standard Applicant Details ───────────────────────────────────────
   const fullName = [applicant.firstName, applicant.middleName, applicant.lastName, applicant.suffix]
     .filter(Boolean)
     .join(' ');
@@ -648,16 +684,42 @@ export function synthesizeAllApplicantFieldValues(
   if (applicant.region) addField(undefined, 'Region', applicant.region);
   if (applicant.zipCode) addField(undefined, 'Zip / Postal Code', applicant.zipCode);
 
-  const compositeAddress = formatCompositeAddress(applicant);
+  const compositeAddress = formatCompositeAddress({
+    street: applicant.street || applicant.address,
+    barangay: applicant.barangay,
+    city: applicant.city,
+    province: applicant.province,
+    region: applicant.region,
+    zipCode: applicant.zipCode,
+  });
   if (compositeAddress) addField(undefined, 'Complete Address', compositeAddress);
 
-  if (applicant.schoolName) addField(undefined, 'School / University Attended', applicant.schoolName);
-  if (applicant.courseDegree) addField(undefined, 'Course / Degree Program', applicant.courseDegree);
+  const schoolVal = applicant.schoolName || applicant.schoolAttended;
+  if (schoolVal) addField(undefined, 'School / University Attended', schoolVal);
+  const courseVal = applicant.courseDegree || applicant.courseTaken;
+  if (courseVal) addField(undefined, 'Course / Degree Program', courseVal);
   if (applicant.yearGraduated) addField(undefined, 'Year Graduated', applicant.yearGraduated);
   if (applicant.specialOrderNo) addField(undefined, 'Special Order No', applicant.specialOrderNo);
   if (applicant.examineeType) addField(undefined, 'Examinee Type', applicant.examineeType);
   if (applicant.examType) addField(undefined, 'Exam Category', applicant.examType);
   if (applicant.notes) addField(undefined, 'Special Notes / Remarks', applicant.notes);
+
+  // 3a. Exam / Service Variant & Element selections
+  const elemVal = applicant.selectedElementTitle || applicant.selectedOption || applicant.element || applicant.elements;
+  if (elemVal) {
+    addField('fd000000-0000-0000-0000-000000000009', 'Selected Exam Elements', elemVal);
+    addField('fd000000-0000-0000-0000-000000000025', 'Class of Station', elemVal);
+    addField('fd000000-0000-0000-0000-000000000101', 'Station Class', elemVal);
+    addField(undefined, 'Elements', elemVal);
+  }
+
+  const variantVal = applicant.selectedVariantName || applicant.examineeType || applicant.applicantType;
+  if (variantVal) {
+    addField('fd000000-0000-0000-0000-000000000008', 'Examinee Type', variantVal);
+    addField('fd000000-0000-0000-0000-000000000024', 'Permit / License Type', variantVal);
+    addField('fd000000-0000-0000-0000-000000000014', 'Type of Certificate', variantVal);
+    addField(undefined, 'Service Variant', variantVal);
+  }
 
   // ── 4. Align with DB Schema Fields if schema fields exist ───────────────────
   // If the schema defines specific fields, ensure any matching applicant values
@@ -704,16 +766,36 @@ export function synthesizeAllApplicantFieldValues(
       fallbackVal = applicant.city || null;
     } else if (lowerLabel.includes('barangay')) {
       fallbackVal = applicant.barangay || null;
-    } else if (lowerLabel.includes('street')) {
+    } else if (
+      lowerLabel.includes('street') &&
+      !lowerLabel.includes('station') &&
+      !lowerLabel.includes('seller') &&
+      !lowerLabel.includes('dealer')
+    ) {
       fallbackVal = applicant.street || null;
     } else if (lowerLabel.includes('zip') || lowerLabel.includes('postal')) {
       fallbackVal = applicant.zipCode || null;
-    } else if (lowerLabel.includes('address')) {
+    } else if (
+      lowerLabel.includes('address') &&
+      !lowerLabel.includes('station') &&
+      !lowerLabel.includes('installation') &&
+      !lowerLabel.includes('seller') &&
+      !lowerLabel.includes('dealer') &&
+      !lowerLabel.includes('exam') &&
+      !lowerLabel.includes('seminar') &&
+      !lowerLabel.includes('provider') &&
+      !lowerLabel.includes('vessel') &&
+      !lowerLabel.includes('aircraft')
+    ) {
       fallbackVal = compositeAddress || null;
     } else if (lowerLabel.includes('company')) {
       fallbackVal = applicant.companyName || null;
     } else if (lowerLabel.includes('representative')) {
       fallbackVal = repFullName || null;
+    } else if (lowerLabel.includes('element') || lowerLabel.includes('station class')) {
+      fallbackVal = elemVal || null;
+    } else if (lowerLabel.includes('variant')) {
+      fallbackVal = variantVal || null;
     }
 
     if (fallbackVal && !isSuppressedValue(fallbackVal)) {

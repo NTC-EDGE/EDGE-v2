@@ -13,6 +13,23 @@ namespace EDGE.Infrastructure.Persistence;
 /// </summary>
 public static class FastTrackFormSeeder
 {
+    private static readonly Dictionary<string, string> CanonicalFormDisplayNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["NTC_1_01"] = "NTC 1-01: Radio Operator Examination",
+        ["NTC_1_02"] = "NTC 1-02: Commercial Radio Operator Certificate",
+        ["NTC_1_03"] = "NTC 1-03: Amateur Radio Operator Certificate & License",
+        ["NTC_1_04"] = "NTC 1-04: Ship Station License",
+        ["NTC_1_09"] = "NTC 1-09: Permit to Purchase / Possess / Storage / Sell / Transfer",
+        ["NTC_1_11"] = "NTC 1-11: Radio Station License",
+        ["NTC_1_18"] = "NTC 1-18: CPE Supplier Accreditation & Equipment / Mobile Phone Permit",
+        ["NTC_1_19"] = "NTC 1-19: RFID / SRD / WDN Registration",
+        ["NTC_1_20"] = "NTC 1-20: Value-Added Service (VAS) Registration",
+        ["NTC_1_21"] = "NTC 1-21: Certified True Copy / Duplicate Copy",
+        ["NTC_1_22"] = "NTC 1-22: TVRO Registration & Station License",
+        ["NTC_1_24"] = "NTC 1-24: Request for Blocking / Unblocking of IMEI and SIM",
+        ["NTC_1_25"] = "NTC 1-25: Consumer Complaints & Tape Preservation"
+    };
+
     public static async Task SeedFormsInternalAsync(ApplicationDbContext context, ILogger? logger = null)
     {
         // 1. Seed Central Reusable Fields Pool (Deterministic GUIDs)
@@ -26,14 +43,30 @@ public static class FastTrackFormSeeder
             {
                 context.Fields.Add(f);
             }
-            else if (existing.Label != f.Label || existing.FieldType != f.FieldType || existing.ValidationRules != f.ValidationRules || existing.SyncBackOnSubmit != f.SyncBackOnSubmit || existing.IsDeleted)
+            else
             {
-                existing.IsDeleted = false;
-                existing.IsDeletedBy = string.Empty;
-                existing.Label = f.Label;
-                existing.FieldType = f.FieldType;
-                existing.ValidationRules = f.ValidationRules;
-                existing.SyncBackOnSubmit = f.SyncBackOnSubmit;
+                if (existing.IsDeleted)
+                {
+                    existing.IsDeleted = false;
+                    existing.IsDeletedBy = string.Empty;
+                }
+
+                // Preserve custom dropdown options and validation rules set by admin in Form Builder.
+                // Only seed default validation rules if the field currently has none.
+                if (string.IsNullOrWhiteSpace(existing.ValidationRules) || existing.ValidationRules == "{}" || existing.ValidationRules == "[]")
+                {
+                    existing.ValidationRules = f.ValidationRules;
+                }
+
+                if (string.IsNullOrWhiteSpace(existing.Label))
+                {
+                    existing.Label = f.Label;
+                }
+
+                if (string.IsNullOrWhiteSpace(existing.FieldType))
+                {
+                    existing.FieldType = f.FieldType;
+                }
             }
         }
         await context.SaveChangesAsync();
@@ -79,6 +112,34 @@ public static class FastTrackFormSeeder
                 logger
             );
         }
+
+        // 4. Purge any non-canonical redundant forms (strictly excluding variant and customized forms)
+        var canonicalFormIds = formDefs.Select(f => f.FormId).ToHashSet();
+        var obsoleteForms = await context.Forms
+            .IgnoreQueryFilters()
+            .Where(f => !canonicalFormIds.Contains(f.Id) && f.ServiceVariantId == null && f.BaseFormId == null && (f.IsDeleted || string.IsNullOrWhiteSpace(f.Name)))
+            .ToListAsync();
+
+        if (obsoleteForms.Count > 0)
+        {
+            var obsoleteFormIds = obsoleteForms.Select(f => f.Id).ToList();
+            var obsoleteSections = await context.FormSections
+                .IgnoreQueryFilters()
+                .Where(s => obsoleteFormIds.Contains(s.FormId))
+                .ToListAsync();
+            if (obsoleteSections.Count > 0)
+            {
+                var obsoleteSecIds = obsoleteSections.Select(s => s.Id).ToList();
+                var obsoleteSecFields = await context.SectionFields
+                    .Where(sf => obsoleteSecIds.Contains(sf.FormSectionId))
+                    .ToListAsync();
+                if (obsoleteSecFields.Count > 0) context.SectionFields.RemoveRange(obsoleteSecFields);
+                context.FormSections.RemoveRange(obsoleteSections);
+            }
+            context.Forms.RemoveRange(obsoleteForms);
+            await context.SaveChangesAsync();
+            logger?.LogInformation("Form Seeder: Cleaned up {Count} non-canonical redundant forms.", obsoleteForms.Count);
+        }
     }
 
     private static async Task SeedFormForService(
@@ -99,11 +160,15 @@ public static class FastTrackFormSeeder
 
         var existingForms = await context.Forms
             .IgnoreQueryFilters()
-            .Where(f => f.ServiceId == service.Id || f.Id == formId)
+            .Where(f => (f.ServiceId == service.Id && f.ServiceVariantId == null && f.BaseFormId == null) || f.Id == formId)
             .ToListAsync();
 
         var targetForm = existingForms.FirstOrDefault(f => f.Id == formId)
-                      ?? existingForms.FirstOrDefault(f => f.ServiceId == service.Id);
+                      ?? existingForms.FirstOrDefault(f => f.ServiceId == service.Id && f.ServiceVariantId == null && f.BaseFormId == null);
+
+        var resolvedFormName = CanonicalFormDisplayNames.TryGetValue(serviceKey, out var displayName)
+            ? displayName
+            : service.Name;
 
         if (targetForm == null)
         {
@@ -111,7 +176,10 @@ public static class FastTrackFormSeeder
             {
                 Id = formId,
                 ServiceId = service.Id,
+                Key = serviceKey,
+                Name = resolvedFormName,
                 Version = "1.0",
+                IsActive = true,
                 CategorySelectionRequired = false
             };
             context.Forms.Add(targetForm);
@@ -122,8 +190,13 @@ public static class FastTrackFormSeeder
             targetForm.IsDeleted = false;
             targetForm.IsDeletedBy = string.Empty;
             targetForm.ServiceId = service.Id;
+            targetForm.Name = resolvedFormName;
+            if (string.IsNullOrWhiteSpace(targetForm.Key)) targetForm.Key = serviceKey;
+            targetForm.IsActive = true;
 
-            var redundantForms = existingForms.Where(f => f.Id != targetForm.Id).ToList();
+            var redundantForms = existingForms
+                .Where(f => f.Id != targetForm.Id && f.ServiceVariantId == null && f.BaseFormId == null)
+                .ToList();
             if (redundantForms.Count > 0)
             {
                 var redundantFormIds = redundantForms.Select(f => f.Id).ToList();
@@ -155,24 +228,23 @@ public static class FastTrackFormSeeder
             .Select(g => g.First())
             .ToList();
 
-        var desiredKeys = deduplicatedSections.Select(s => s.Key.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var obsoleteSections = existingSections.Where(s => !desiredKeys.Contains((s.Key ?? string.Empty).Trim())).ToList();
-        if (obsoleteSections.Count > 0)
-        {
-            var obsoleteSecIds = obsoleteSections.Select(s => s.Id).ToList();
-            var obsoleteFields = await context.SectionFields
-                .Where(sf => obsoleteSecIds.Contains(sf.FormSectionId))
-                .ToListAsync();
-            if (obsoleteFields.Count > 0) context.SectionFields.RemoveRange(obsoleteFields);
-            context.FormSections.RemoveRange(obsoleteSections);
-            await context.SaveChangesAsync();
-            foreach (var obs in obsoleteSections) existingSections.Remove(obs);
-        }
-
+        // Preserve all existing and custom sections created by staff.
+        // We only add missing baseline sections; we do not purge user-created sections.
         int sectionOrder = 1;
+        var forbiddenSectionKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "applicant", "applicantPerson", "applicantAddress", "applicantContact", "applicantEducation",
+            "applicantParticulars", "applicant_information", "applicantInfo", "personalInfo", "personal_information",
+            "complainant", "typeOfCertificate", "permitType", "typeOfApplication", "applicationType",
+            "declaration", "declarationAndUndertaking", "declaration_section", "payment", "paymentDetails", "fees", "accounting", "cashier",
+            "deviceParticulars", "serviceProvider", "incidentParticulars", "natureOfComplaint", "details",
+            "respondentParticulars", "complaintParticulars", "broadcastParticulars", "assistanceRequest", "bsd", "vasRegistration"
+        };
+
         foreach (var (rawKey, title, fieldKeys) in deduplicatedSections)
         {
             var key = rawKey.Trim();
+            if (forbiddenSectionKeys.Contains(key)) continue;
             var sec = existingSections.FirstOrDefault(s => string.Equals((s.Key ?? string.Empty).Trim(), key, StringComparison.OrdinalIgnoreCase));
             if (sec == null)
             {
@@ -201,28 +273,29 @@ public static class FastTrackFormSeeder
             var currentFields = await context.SectionFields
                 .Where(sf => sf.FormSectionId == sec.Id)
                 .ToListAsync();
-            if (currentFields.Count > 0)
+
+            // Only seed baseline fields if the section currently has no fields.
+            // Never wipe out fields added or modified by staff.
+            if (currentFields.Count == 0 && fieldKeys != null && fieldKeys.Count > 0)
             {
-                context.SectionFields.RemoveRange(currentFields);
+                int fieldOrder = 1;
+                var deduplicatedFields = fieldKeys.Distinct().ToList();
+                foreach (var fk in deduplicatedFields)
+                {
+                    if (fieldsPool.TryGetValue(fk, out var f))
+                    {
+                        context.SectionFields.Add(new SectionField
+                        {
+                            FormSectionId = sec.Id,
+                            FieldId = f.Id,
+                            IsRequired = fk != "callSign" && fk != "serviceArea" && fk != "exactLocation" && fk != "longitude" && fk != "latitude" && fk != "bsdNo" && fk != "antennaType" && fk != "height" && fk != "gain" && fk != "directivity" && fk != "diameter" && fk != "polarization" && fk != "beamwidth" && fk != "antennaRemarks" && key != "antennaSystem" && key != "signalReception" && key != "bsd" && key != "assistanceRequest" && key != "applicantEducation" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
+                            OrderIndex = fieldOrder++
+                        });
+                    }
+                }
                 await context.SaveChangesAsync();
             }
 
-            int fieldOrder = 1;
-            var deduplicatedFields = fieldKeys.Distinct().ToList();
-            foreach (var fk in deduplicatedFields)
-            {
-                if (fieldsPool.TryGetValue(fk, out var f))
-                {
-                    context.SectionFields.Add(new SectionField
-                    {
-                        FormSectionId = sec.Id,
-                        FieldId = f.Id,
-                        IsRequired = fk != "callSign" && fk != "serviceArea" && fk != "exactLocation" && fk != "longitude" && fk != "latitude" && fk != "bsdNo" && fk != "antennaType" && fk != "height" && fk != "gain" && fk != "directivity" && fk != "diameter" && fk != "polarization" && fk != "beamwidth" && fk != "antennaRemarks" && key != "antennaSystem" && key != "signalReception" && key != "bsd" && key != "assistanceRequest" && key != "applicantEducation" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
-                        OrderIndex = fieldOrder++
-                    });
-                }
-            }
-            await context.SaveChangesAsync();
         }
     }
 }

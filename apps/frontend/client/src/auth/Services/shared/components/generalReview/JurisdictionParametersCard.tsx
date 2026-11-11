@@ -13,6 +13,8 @@ interface JurisdictionParametersCardProps {
   appModeLabel: string;
   variantLabel: string;
   scheduleSummaryText: string | null;
+  applicationTypeLabel?: string | null;
+  elementsLabel?: string | null;
 }
 
 export function JurisdictionParametersCard({
@@ -24,7 +26,21 @@ export function JurisdictionParametersCard({
   appModeLabel,
   variantLabel,
   scheduleSummaryText,
+  applicationTypeLabel,
+  elementsLabel,
 }: JurisdictionParametersCardProps) {
+  const effectiveElements = elementsLabel && elementsLabel.trim().length > 0
+    ? elementsLabel.trim()
+    : activeApplicant.selectedElementTitle && activeApplicant.selectedElementTitle.trim().length > 0
+    ? activeApplicant.selectedElementTitle.trim()
+    : null;
+
+  const effectiveAppType = applicationTypeLabel && applicationTypeLabel.trim().length > 0
+    ? applicationTypeLabel.trim()
+    : activeApplicant.examineeType && activeApplicant.examineeType.trim().length > 0
+    ? activeApplicant.examineeType.trim()
+    : null;
+
   return (
     <SectionCard icon="sliders" title="Application & Service Parameters" accentColor="#0F2C59">
       <View style={{ gap: 4 }}>
@@ -54,6 +70,15 @@ export function JurisdictionParametersCard({
         </View>
         {isExamService && activeApplicant.examineeType ? (
           <SummaryRow label="Examinee Classification" value={activeApplicant.examineeType} />
+        ) : null}
+        {effectiveAppType && (!isExamService || !activeApplicant.examineeType) ? (
+          <SummaryRow label="Application Type" value={effectiveAppType} />
+        ) : null}
+        {effectiveElements ? (
+          <SummaryRow
+            label={isExamService ? 'Selected Examination Element(s)' : 'Selected Element(s)'}
+            value={effectiveElements}
+          />
         ) : null}
         {scheduleSummaryText ? (
           <SummaryRow

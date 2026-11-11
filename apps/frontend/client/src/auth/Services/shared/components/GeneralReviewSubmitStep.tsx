@@ -3,7 +3,11 @@ import { DocumentPreviewModal } from '../../../../shared/components/DocumentPrev
 import { GeneralReviewSubmitStepProps, PreviewFileTarget } from './generalReview/generalReviewTypes';
 import { useGeneralReviewData } from './generalReview/useGeneralReviewData';
 import { useServiceForm } from '../hooks/useServiceForm';
-import { BaseApplicationPreview } from '../../../../shared/formPreview';
+import {
+  BaseApplicationPreview,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 import { HeroReviewHeader } from './generalReview/HeroReviewHeader';
 import { JurisdictionParametersCard } from './generalReview/JurisdictionParametersCard';
 import { BulkCohortReviewCard } from './generalReview/BulkCohortReviewCard';
@@ -14,6 +18,7 @@ import { DeviceRegReviewCard } from './generalReview/DeviceRegReviewCard';
 import { TvroRegReviewCard } from './generalReview/TvroRegReviewCard';
 import { VasReviewCard } from './generalReview/VasReviewCard';
 import { CopyOfCertReviewCard } from './generalReview/CopyOfCertReviewCard';
+import { CopyOfPermitReviewCard } from './generalReview/CopyOfPermitReviewCard';
 import { PermitDataReviewCard } from './generalReview/PermitDataReviewCard';
 import { PermitFeeSummaryCard } from './generalReview/PermitFeeSummaryCard';
 import { LicenseFeeSummaryCard } from './generalReview/LicenseFeeSummaryCard';
@@ -44,6 +49,19 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
 
   const reviewData = useGeneralReviewData(props);
   const { form } = useServiceForm(service.id, activeApplicant.selectedVariantId);
+  const serviceTitle = service?.title || service?.name || '';
+
+  const effectiveAppType = resolvePreviewApplicationType({
+    examineeType: activeApplicant.examineeType,
+    examType: activeApplicant.examType,
+    formFieldValues: reviewData.formFieldValues,
+  });
+
+  const effectiveElements = resolvePreviewElements({
+    selectedElementTitle: activeApplicant.selectedElementTitle,
+    selectedOption: activeApplicant.selectedOption,
+    formFieldValues: reviewData.formFieldValues,
+  });
 
   const handlePreviewFile = (file: PreviewFileTarget, label: string) => {
     setPreviewFile(file);
@@ -66,6 +84,14 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
         resolvedSex={reviewData.resolvedSex}
         resolvedCivilStatus={reviewData.resolvedCivilStatus}
         resolvedNationality={reviewData.resolvedNationality}
+        schoolAttended={reviewData.resolvedSchool}
+        courseTaken={reviewData.resolvedCourse}
+        yearGraduated={reviewData.resolvedYearGraduated}
+        specialOrderNo={reviewData.resolvedSpecialOrderNo}
+        selectedVariantName={reviewData.variantLabel || activeApplicant.selectedVariantName}
+        selectedVariantId={activeApplicant.selectedVariantId}
+        applicationType={effectiveAppType}
+        elements={effectiveElements}
         isExamService={reviewData.isExamService}
         isAmateurCertService={reviewData.isAmateurCertService}
         onPreviewFile={(uri, lbl) => handlePreviewFile(uri, lbl)}
@@ -87,11 +113,14 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
               appModeLabel={reviewData.appModeLabel}
               variantLabel={reviewData.variantLabel}
               scheduleSummaryText={reviewData.scheduleSummaryText}
+              applicationTypeLabel={effectiveAppType}
+              elementsLabel={effectiveElements}
             />
             <BulkCohortReviewCard
               appMode={appMode}
               applicants={applicants}
               currentApplicantIndex={currentApplicantIndex}
+              onSelectApplicant={props.onSelectApplicant}
             />
           </>
         }
@@ -110,7 +139,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
             <RadioCertReviewCard
               isCertificateService={reviewData.isCertificateService}
               isAmateurCertService={reviewData.isAmateurCertService}
-              serviceTitle={service.title}
+              serviceTitle={serviceTitle}
               radioCert={activeApplicant.radioCertData}
             />
 
@@ -121,27 +150,40 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
 
             <TvroRegReviewCard
               isCertificateService={reviewData.isCertificateService}
-              serviceTitle={service.title}
+              serviceTitle={serviceTitle}
               tvroReg={activeApplicant.tvroRegData}
             />
 
             <VasReviewCard
               isCertificateService={reviewData.isCertificateService}
-              serviceTitle={service.title}
+              serviceTitle={serviceTitle}
               vasData={activeApplicant.vasData}
               formFieldValues={activeApplicant.formFieldValues}
             />
 
-            <CopyOfCertReviewCard
-              serviceTitle={service.title}
-              copyOfCert={activeApplicant.copyOfCertData}
+            {!reviewData.isCopyOfPermitService && (
+              <CopyOfCertReviewCard
+                serviceTitle={serviceTitle}
+                copyOfCert={activeApplicant.copyOfCertData}
+              />
+            )}
+
+            <CopyOfPermitReviewCard
+              isPermitService={reviewData.isPermitService}
+              serviceTitle={serviceTitle}
+              copyOfPermit={activeApplicant.copyOfPermitData}
+              formFieldValues={activeApplicant.formFieldValues}
+              selectedVariantName={reviewData.variantLabel}
             />
 
-            <PermitDataReviewCard
-              isPermitService={reviewData.isPermitService}
-              permitData={activeApplicant.permitData}
-              hasDynamicForm={Boolean(form?.sections && form.sections.length > 0)}
-            />
+            {!reviewData.isCopyOfPermitService && (
+              <PermitDataReviewCard
+                isPermitService={reviewData.isPermitService}
+                serviceTitle={serviceTitle}
+                permitData={activeApplicant.permitData}
+                hasDynamicForm={Boolean(form?.sections && form.sections.length > 0)}
+              />
+            )}
           </>
         )}
         footerSlot={

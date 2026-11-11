@@ -43,10 +43,6 @@ export default function ProvincesPage() {
   const { data: provincesResponse, isLoading, mutate, error } = useProvinces(selectedRegionFilter || null);
   const provinces = provincesResponse?.data ?? [];
 
-  // Load municipalities to check references for deletion prevention
-  const { data: municipalitiesResponse } = useMunicipalities();
-  const municipalities = municipalitiesResponse?.data ?? [];
-
   // Modal Dialog states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -56,6 +52,11 @@ export default function ProvincesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Load municipalities to check references for deletion prevention only if any province is inactive or confirmation is open
+  const hasInactiveProvinces = provinces.some((p) => !p.isActive);
+  const { data: municipalitiesResponse } = useMunicipalities(null, undefined, hasInactiveProvinces || confirmOpen);
+  const municipalities = municipalitiesResponse?.data ?? [];
 
   const hasMunicipalities = (provinceId: string) => {
     return municipalities.some((m) => m.provinceId === provinceId);

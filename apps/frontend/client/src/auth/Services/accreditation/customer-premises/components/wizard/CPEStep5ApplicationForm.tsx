@@ -1,11 +1,58 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { COLORS, TYPOGRAPHY } from "@edge/ui";
 import { Select } from "../../../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../../../shared/components/ValidatedInput";
 import { DatePickerInput } from "../../../../../../shared/components/DatePickerInput";
 import { FormSignatureInput } from "../../../../../../shared/components/FormSignatureInput";
 import { ApplicantData } from "../../types/cpeTypes";
-import { certStyles } from "../../../../certificates/forms/CertificateFormStyles";
+
+function parseAppType(val: string): ApplicantData["appType"] {
+  if (val === "NEW" || val === "RENEWAL" || val === "MODIFICATION") {
+    return val;
+  }
+  return "NEW";
+}
+
+const certStyles = StyleSheet.create({
+  container: {
+    gap: 16,
+  },
+  formSection: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    gap: 14,
+  },
+  formSectionHeading: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.neutral[900],
+  },
+  formGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  formCol6: {
+    flexBasis: "48%",
+    flexGrow: 1,
+    minWidth: 220,
+  },
+  formCol12: {
+    width: "100%",
+  },
+  selectLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.neutral[800],
+    marginBottom: 6,
+  },
+});
 
 interface CPEStep5ApplicationFormProps {
   activeApplicant: ApplicantData;
@@ -14,7 +61,7 @@ interface CPEStep5ApplicationFormProps {
   errors: Record<string, string>;
   touched: Record<string, boolean>;
   handleScrollToSection?: (offset: number) => void;
-  styles?: any;
+  styles?: Record<string, unknown>;
   appMode?: "SINGLE" | "BULK" | "";
 }
 
@@ -38,7 +85,7 @@ export function CPEStep5ApplicationForm({
             <Text style={certStyles.selectLabel}>Application Type*</Text>
             <Select
               value={activeApplicant.appType || "NEW"}
-              onValueChange={(val) => updateActiveApplicant({ appType: val as any })}
+              onValueChange={(val) => updateActiveApplicant({ appType: parseAppType(val) })}
               options={[
                 { label: "New Accreditation", value: "NEW" },
                 { label: "Renewal of Accreditation", value: "RENEWAL" },

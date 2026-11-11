@@ -10,33 +10,45 @@ import { Icon } from '@edge/ui';
 import { COLORS, SPACING, TYPOGRAPHY } from '@edge/ui';
 import {
   Application,
+  ApplicationStatus,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
   formatRelativeTime,
+  isApplicationPaymentSubmitted,
+  isEligibleForRenewal,
+  getRenewalDaysRemaining,
 } from '../data/applicationsData';
 import {
   FIELD_ID_TYPE_OF_CERT,
   FIELD_ID_PERMIT_TYPE,
   FIELD_ID_APP_TYPE,
 } from '../../../shared/constants/fieldIds';
+import { formatOrDisplayNumber } from '../utils/clientSoaReportGenerator';
 
 interface ApplicationCardProps {
   app: Application;
   onPress: () => void;
+  onRenew?: (app: Application) => void;
   style?: object;
 }
 
 export function ApplicationCard({
   app,
   onPress,
+  onRenew,
   style,
 }: ApplicationCardProps) {
   const isBulk = app.mode === 'BULK';
   const primaryName = isBulk ? app.companyName : app.applicantName;
-  const statusColor = getStatusColor(app.status);
-  const statusBg = getStatusBgColor(app.status);
+  const isPaymentSubmitted = isApplicationPaymentSubmitted(app);
+  const effectiveStatus: ApplicationStatus = isPaymentSubmitted ? 'PAYMENT_SUBMITTED' : app.status;
+  const statusColor = getStatusColor(effectiveStatus);
+  const statusBg = getStatusBgColor(effectiveStatus);
   const totalApplicants = isBulk ? app.applicants.length : 1;
+  const eligibleForRenewal = isEligibleForRenewal(app);
+  const daysRemaining = getRenewalDaysRemaining(app);
+  const hasActiveRenewal = Boolean(app.hasActiveRenewal);
 
   const resolvedVariant =
     app.serviceVariantName ||
@@ -62,14 +74,15 @@ export function ApplicationCard({
 
   const isReadyForPayment =
     !isPaid &&
-    (app.status === 'READY_FOR_PAYMENT' ||
+    !isPaymentSubmitted &&
+    (effectiveStatus === 'READY_FOR_PAYMENT' ||
     (typeof app.rawStatus === 'string' && app.rawStatus.toUpperCase().includes('PAYMENT')));
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.88}
-      style={[styles.card, isPaid && { borderLeftColor: '#059669' }, style]}
+      style={[styles.card, isPaid && { borderLeftColor: '#059669' }, isPaymentSubmitted && { borderLeftColor: '#0284C7' }, style]}
     >
       {/* ── Card Top Header ────────────────────── */}
       <View style={styles.cardTopHeader}>
@@ -96,6 +109,70 @@ export function ApplicationCard({
             </Text>
           </View>
 
+          {hasActiveRenewal && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#EFF6FF',
+                borderColor: '#BFDBFE',
+                borderWidth: 1,
+                borderRadius: 20,
+                paddingVertical: 2,
+                paddingHorizontal: 8,
+                gap: 4,
+              }}
+            >
+              <Icon name="refresh-cw" size={10} color="#2563EB" />
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 10,
+                  fontWeight: TYPOGRAPHY.weights.semibold,
+                  color: '#2563EB',
+                }}
+              >
+                RENEWAL IN PROGRESS #{app.activeRenewalReferenceNumber ?? ''}
+              </Text>
+            </View>
+          )}
+
+          {eligibleForRenewal && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: daysRemaining !== null && daysRemaining <= 0 ? '#FEF2F2' : '#FFFBEB',
+                borderColor: daysRemaining !== null && daysRemaining <= 0 ? '#FECACA' : '#FDE68A',
+                borderWidth: 1,
+                borderRadius: 20,
+                paddingVertical: 2,
+                paddingHorizontal: 8,
+                gap: 4,
+              }}
+            >
+              <Icon
+                name={daysRemaining !== null && daysRemaining <= 0 ? 'alert-triangle' : 'clock'}
+                size={10}
+                color={daysRemaining !== null && daysRemaining <= 0 ? '#DC2626' : '#D97706'}
+              />
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 10,
+                  fontWeight: TYPOGRAPHY.weights.semibold,
+                  color: daysRemaining !== null && daysRemaining <= 0 ? '#DC2626' : '#D97706',
+                }}
+              >
+                {daysRemaining !== null && daysRemaining === 0
+                  ? 'EXPIRES TODAY'
+                  : daysRemaining !== null && daysRemaining < 0
+                  ? 'EXPIRED'
+                  : `EXPIRES IN ${daysRemaining}D`}
+              </Text>
+            </View>
+          )}
+
           {isPaid && (
             <View
               style={{
@@ -119,7 +196,7 @@ export function ApplicationCard({
                   color: '#059669',
                 }}
               >
-                OR #{orNumber}
+                {formatOrDisplayNumber(orNumber)}
               </Text>
             </View>
           )}
@@ -147,10 +224,36 @@ export function ApplicationCard({
                   color: '#7C3AED',
                 }}
               >
-                ASSESSMENT ONLY
+                FOR ASSESSMENT ONLY
               </Text>
             </View>
-          ) : null}
+          ) : (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#EFF6FF',
+                borderColor: '#BFDBFE',
+                borderWidth: 1,
+                borderRadius: 20,
+                paddingVertical: 2,
+                paddingHorizontal: 8,
+                gap: 4,
+              }}
+            >
+              <Icon name="file-text" size={10} color="#1D4ED8" />
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 10,
+                  fontWeight: TYPOGRAPHY.weights.semibold,
+                  color: '#1D4ED8',
+                }}
+              >
+                OFFICIAL APPLICATION
+              </Text>
+            </View>
+          )}
 
           <Text style={styles.refNumber}>#{app.referenceNumber}</Text>
         </View>
@@ -159,7 +262,7 @@ export function ApplicationCard({
           <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-              {getStatusLabel(app.status)}
+              {getStatusLabel(effectiveStatus)}
             </Text>
           </View>
         </View>
@@ -216,7 +319,35 @@ export function ApplicationCard({
           </Text>
         </View>
 
-        {isPaid ? (
+        {eligibleForRenewal ? (
+          <TouchableOpacity
+            onPress={(e) => {
+              if (onRenew) {
+                onRenew(app);
+              } else {
+                onPress();
+              }
+            }}
+            activeOpacity={0.8}
+            style={[
+              styles.viewDetailsBtn,
+              {
+                backgroundColor: '#D97706',
+                borderColor: '#B45309',
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 12,
+                gap: 6,
+              },
+            ]}
+          >
+            <Icon name="refresh-cw" size={13} color="#FFFFFF" />
+            <Text style={[styles.viewDetailsBtnText, { color: '#FFFFFF', fontWeight: '700' }]}>
+              Renew Application
+            </Text>
+            <Icon name="chevron-right" size={14} color="#FFFFFF" />
+          </TouchableOpacity>
+        ) : isPaid ? (
           <View style={[styles.viewDetailsBtn, { backgroundColor: '#059669', borderColor: '#047857' }]}>
             <Icon name="check-circle" size={13} color="#FFFFFF" />
             <Text style={[styles.viewDetailsBtnText, { marginLeft: 4, marginRight: 2 }]}>View Receipt</Text>
@@ -227,6 +358,12 @@ export function ApplicationCard({
             <Icon name="credit-card" size={13} color="#FFFFFF" />
             <Text style={styles.payNowBtnText}>Proceed to Payment</Text>
             <Icon name="chevron-right" size={14} color="#FFFFFF" />
+          </View>
+        ) : isPaymentSubmitted ? (
+          <View style={[styles.viewDetailsBtn, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
+            <Icon name="clock" size={13} color="#0284C7" />
+            <Text style={[styles.viewDetailsBtnText, { color: '#0284C7', marginLeft: 4, marginRight: 2 }]}>Awaiting Verification</Text>
+            <Icon name="chevron-right" size={14} color="#0284C7" />
           </View>
         ) : (
           <View style={styles.viewDetailsBtn}>
@@ -269,11 +406,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[20],
-    paddingVertical: 14,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 12,
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
   leftBadges: {
@@ -346,7 +485,7 @@ const styles = StyleSheet.create({
   },
 
   cardBody: {
-    padding: SPACING[20],
+    padding: SPACING[16],
     flex: 1,
     justifyContent: 'center',
   },
@@ -433,12 +572,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[20],
-    paddingVertical: 14,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
   footerInfo: {
@@ -446,6 +586,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flex: 1,
+    minWidth: 120,
   },
   footerInfoText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

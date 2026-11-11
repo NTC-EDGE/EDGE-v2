@@ -109,4 +109,34 @@ public class ReturnOpCommandHandlerTests
         _repositoryMock.Verify(r => r.AddSoaHistoryAsync(It.Is<SoaHistory>(h => h.ToStatus == SoaStatus.Returned), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_ShouldSetOpAndSoaStatusReturned_WhenReturnToSupervisor()
+    {
+        // Arrange
+        var soa = new StatementOfAccount { Id = Guid.NewGuid(), Status = SoaStatus.Approved };
+        var op = new OrderOfPayment
+        {
+            Id = Guid.NewGuid(),
+            Status = OpStatus.Billed,
+            StatementOfAccount = soa
+        };
+
+        var command = new ReturnOpCommand(op.Id, "Client failed to pay OP on time; endorsement to supervisor", ReturnTarget.Supervisor);
+
+        _repositoryMock
+            .Setup(r => r.GetOpByIdAsync(op.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(op);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        op.Status.Should().Be(OpStatus.Returned);
+        soa.Status.Should().Be(SoaStatus.Returned);
+
+        _repositoryMock.Verify(r => r.AddSoaHistoryAsync(It.Is<SoaHistory>(h => h.ToStatus == SoaStatus.Returned), It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

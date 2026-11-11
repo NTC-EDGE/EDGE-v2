@@ -161,19 +161,29 @@ function ServicesPageContent() {
           onDeleteVariant={p.setDeletingVariantId}
           categories={p.categories}
           services={p.servicesForNotes}
+          filterCategoryId={p.variantsFilterCategoryId}
+          onFilterCategoryChange={(catId) => { p.setVariantsFilterCategoryId(catId); p.setVariantsPage(1); }}
           filterServiceId={p.variantsFilterServiceId}
-          onFilterServiceChange={p.setVariantsFilterServiceId}
+          onFilterServiceChange={(svcId) => { p.setVariantsFilterServiceId(svcId); p.setVariantsPage(1); }}
           searchTerm={p.variantsSearch}
           onSearchChange={(val) => { p.setVariantsSearch(val); p.setVariantsPage(1); }}
-          onClearFilters={() => { p.setVariantsFilterServiceId(""); p.setVariantsSearch(""); p.setVariantsPage(1); }}
+          onClearFilters={() => { p.setVariantsFilterCategoryId(""); p.setVariantsFilterServiceId(""); p.setVariantsSearch(""); p.setVariantsPage(1); }}
         />
       )}
 
       {p.activeTab === "requirements" && (
         <RequirementsCatalogTab
-          loadingReqs={p.loadingReqs} pagedRequirements={p.pagedRequirements} filteredRequirements={p.filteredRequirements}
-          requirementsPage={p.requirementsPage} pageSize={p.pageSize} onPageChange={p.setRequirementsPage} onPageSizeChange={p.setPageSize}
-          onEditRequirement={p.handleOpenEditRequirement} onDeleteRequirement={p.setDeletingReqId}
+          loadingReqs={p.loadingReqs}
+          pagedRequirements={p.pagedRequirements}
+          totalCount={p.requirementsTotalCount}
+          requirementsPage={p.requirementsPage}
+          pageSize={p.pageSize}
+          onPageChange={p.setRequirementsPage}
+          onPageSizeChange={p.setPageSize}
+          searchTerm={p.requirementsSearch}
+          onSearchChange={(val) => { p.setRequirementsSearch(val); p.setRequirementsPage(1); }}
+          onEditRequirement={p.handleOpenEditRequirement}
+          onDeleteRequirement={p.setDeletingReqId}
         />
       )}
 

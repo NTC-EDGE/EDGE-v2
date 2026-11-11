@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Constants;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Applications.Dtos;
@@ -14,6 +15,36 @@ namespace EDGE.Application.Applications.Queries.GetApplicantServiceFormSubmissio
 
 public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<GetApplicantServiceFormSubmissionQuery, ApiResponse<ApplicationFormSubmissionDto>>
 {
+    private static bool IsApplicantProfileField(string? label)
+    {
+        if (string.IsNullOrWhiteSpace(label)) return false;
+        var lower = label.Trim().ToLowerInvariant();
+        return lower.Contains("name") ||
+               lower.Contains("birth") ||
+               lower.Contains("dob") ||
+               lower.Contains("address") ||
+               lower.Contains("contact") ||
+               lower.Contains("mobile") ||
+               lower.Contains("phone") ||
+               lower.Contains("email") ||
+               lower.Contains("gender") ||
+               lower.Contains("sex") ||
+               lower.Contains("civil status") ||
+               lower.Contains("civilstatus") ||
+               lower.Contains("marital") ||
+               lower.Contains("nationality") ||
+               lower.Contains("citizenship") ||
+               lower.Contains("signature") ||
+               lower.Contains("declaration") ||
+               lower.Contains("barangay") ||
+               lower.Contains("province") ||
+               lower.Contains("city") ||
+               lower.Contains("municipality") ||
+               lower.Contains("region") ||
+               lower.Contains("zip") ||
+               lower.Contains("postal");
+    }
+
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly IFormRepository _formRepository;
     private readonly IServiceRepository _serviceRepository;
@@ -80,10 +111,12 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
             return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Form layout schema for Service ID '{serviceId.Value}' was not found.");
         }
 
-        var valueMap = submission?.FieldValues
-            .GroupBy(fv => fv.FieldId)
-            .ToDictionary(g => g.Key, g => g.First().Value)
-            ?? new Dictionary<Guid, string>();
+        var valueMap = submission?.FieldValues != null
+            ? submission.FieldValues
+                .Where(fv => fv != null)
+                .GroupBy(fv => fv.FieldId)
+                .ToDictionary(g => g.Key, g => g.First().Value)
+            : new Dictionary<Guid, string>();
 
         var requiredSectionKeys = service != null && !string.IsNullOrWhiteSpace(service.Contract)
             ? _contractValidator.GetRequiredSectionKeys(service.Contract)
@@ -121,14 +154,18 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
                 }).ToList()
         };
 
-        // 4. Preserve any submitted fields that are not part of the form's defined sections
+        // 4. Preserve any submitted fields that are not part of the form's defined sections,
+        // excluding personal applicant profile fields that are already displayed in Applicant Details.
         var sectionFieldIds = form.Sections
             .SelectMany(s => s.SectionFields)
             .Select(sf => sf.FieldId)
             .ToHashSet();
 
         var extraFields = (submission?.FieldValues ?? Enumerable.Empty<FormFieldValue>())
-            .Where(fv => !sectionFieldIds.Contains(fv.FieldId) && !string.IsNullOrWhiteSpace(fv.Value))
+            .Where(fv => fv != null
+                         && !sectionFieldIds.Contains(fv.FieldId)
+                         && !IsApplicantProfileField(fv.Field?.Label ?? fv.CustomLabel)
+                         && !string.IsNullOrWhiteSpace(fv.Value))
             .GroupBy(fv => fv.FieldId)
             .Select(g => g.First())
             .Select((fv, idx) => new ApplicationFormFieldValueDto
@@ -147,8 +184,8 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
         {
             dto.Sections.Add(new ApplicationFormSectionDto
             {
-                Key = "additionalParticulars",
-                Title = "Application Particulars & Technical Specifications",
+                Key = "additionalSpecifications",
+                Title = "Additional Technical Specifications",
                 Required = false,
                 OrderIndex = form.Sections.Count + 1,
                 Fields = extraFields

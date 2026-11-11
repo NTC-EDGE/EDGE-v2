@@ -37,11 +37,11 @@ export interface UseTenantMembersReturn {
 
 const fetcher = (url: string) => apiClient.get<TenantMemberDto[]>(url).then((res) => res.data);
 
-const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 export function useTenantMembers(tenantId?: string): UseTenantMembersReturn {
-  const effectiveTenantId = (tenantId && tenantId.trim().length > 0) ? tenantId : DEFAULT_TENANT_ID;
-  const endpoint = `/api/v2/tenants/${effectiveTenantId}/members`;
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
+  const endpoint = effectiveTenantId ? `/api/v2/tenants/${effectiveTenantId}/members` : null;
 
   const { data, error, isLoading, mutate } = useSWR<TenantMemberDto[]>(
     endpoint,

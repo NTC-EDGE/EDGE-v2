@@ -8,6 +8,8 @@ using iText.Forms.Fields;
 using iText.Kernel.Colors;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas;
+using iText.IO.Image;
+using iText.Layout.Element;
 
 namespace EDGE.Infrastructure.Printing.Services.AcroForm;
 
@@ -144,6 +146,9 @@ public static class IssuedDocumentAcroFormFiller
                 // 12. Vector QR Code Placement
                 StampQrCode(pdfDoc, form, model);
 
+                // 13. Applicant Photo Placement (1" x 1")
+                StampApplicantPhoto(pdfDoc, form, model);
+
                 // Flatten all form fields to bake values into the statutory template
                 form.FlattenFields();
             }
@@ -194,6 +199,47 @@ public static class IssuedDocumentAcroFormFiller
         catch
         {
             // Fail gracefully if widget rectangle is invalid
+        }
+    }
+
+    private static void StampApplicantPhoto(PdfDocument pdfDoc, PdfAcroForm form, IssuedDocumentModel model)
+    {
+        if (model.ApplicantPhotoBytes == null || model.ApplicantPhotoBytes.Length == 0) return;
+
+        var photoField = form.GetField("ApplicantPhoto") ?? form.GetField("Photo") ?? form.GetField("Picture");
+        iText.Kernel.Geom.Rectangle? rect = null;
+        PdfPage page = pdfDoc.GetPage(1);
+
+        if (photoField != null)
+        {
+            var widgets = photoField.GetWidgets();
+            if (widgets != null && widgets.Count > 0)
+            {
+                var widget = widgets[0];
+                if (widget.GetPage() != null) page = widget.GetPage();
+                rect = widget.GetRectangle().ToRectangle();
+            }
+        }
+
+        if (rect == null && model.DocumentType == "Admission Slip")
+        {
+            // Standard NTC 1-01 Admission Slip photo coordinates (points): X: 541.0, Y: 649.0, W: 63.0, H: 76.0
+            rect = new iText.Kernel.Geom.Rectangle(541.0f, 649.0f, 63.0f, 76.0f);
+        }
+
+        if (rect != null)
+        {
+            try
+            {
+                var imageData = ImageDataFactory.Create(model.ApplicantPhotoBytes);
+                var image = new Image(imageData);
+                var canvas = new PdfCanvas(page);
+                canvas.AddXObjectFittedIntoRectangle(image.GetXObject(), rect);
+            }
+            catch
+            {
+                // Graceful fallback if image decoding fails
+            }
         }
     }
 }

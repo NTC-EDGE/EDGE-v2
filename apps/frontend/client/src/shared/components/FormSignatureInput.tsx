@@ -7,6 +7,7 @@ import {
   Image,
   StyleSheet,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useUser } from "@clerk/expo";
@@ -33,6 +34,8 @@ export function FormSignatureInput({
   isBulk = false,
   appMode,
 }: FormSignatureInputProps) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
   const isBulkMode = isBulk || appMode === "BULK";
   const { user: clerkUser } = useUser();
   const [activeTab, setActiveTab] = useState<"draw" | "type" | "upload">(isBulkMode ? "upload" : "draw");
@@ -361,13 +364,13 @@ export function FormSignatureInput({
       {/* Signature Signed State Display */}
       {hasSignature && !isEditing ? (
         <View style={styles.signedCard}>
-          <View style={styles.signedHeader}>
+          <View style={[styles.signedHeader, isMobile && { flexDirection: "column", alignItems: "flex-start", gap: 8 }]}>
             <View style={styles.verifiedBadge}>
               <Icon name="check-circle" size={14} color="#10B981" />
               <Text style={styles.verifiedBadgeText}>Digital Signature Attached</Text>
             </View>
 
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               <TouchableOpacity
                 onPress={handleStartEditing}
                 style={styles.editButton}
@@ -541,11 +544,11 @@ export function FormSignatureInput({
               </View>
 
               {/* Action Toolbar */}
-              <View style={styles.drawActionRow}>
+              <View style={[styles.drawActionRow, isMobile && { flexDirection: "column", gap: 8, alignItems: "stretch" }]}>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <TouchableOpacity
                     onPress={clearCanvas}
-                    style={styles.secondaryBtn}
+                    style={[styles.secondaryBtn, isMobile && { flex: 1, justifyContent: "center" }]}
                   >
                     <Icon name="trash-2" size={13} color="#EF4444" />
                     <Text style={[styles.secondaryBtnText, { color: "#EF4444" }]}>Clear</Text>
@@ -553,7 +556,7 @@ export function FormSignatureInput({
 
                   <TouchableOpacity
                     onPress={undoStroke}
-                    style={styles.secondaryBtn}
+                    style={[styles.secondaryBtn, isMobile && { flex: 1, justifyContent: "center" }]}
                   >
                     <Icon name="rotate-ccw" size={13} color="#64748B" />
                     <Text style={styles.secondaryBtnText}>Undo</Text>
@@ -566,6 +569,7 @@ export function FormSignatureInput({
                   style={[
                     styles.adoptButton,
                     !hasDrawnStrokes && styles.adoptButtonDisabled,
+                    isMobile && { width: "100%" },
                   ]}
                 >
                   <Icon name="check" size={15} color="#FFFFFF" />
@@ -610,6 +614,7 @@ export function FormSignatureInput({
                 style={[
                   styles.adoptButton,
                   !typedName.trim() && styles.adoptButtonDisabled,
+                  isMobile && { width: "100%" },
                 ]}
               >
                 <Icon name="check" size={15} color="#FFFFFF" />
@@ -684,18 +689,22 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     backgroundColor: "#F1F5F9",
     borderRadius: 8,
-    padding: 3,
+    padding: 4,
     marginBottom: 14,
-    gap: 4,
+    gap: 6,
   },
   tabButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: "48%",
+    minWidth: 120,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     borderRadius: 6,
     gap: 6,
   },
@@ -761,6 +770,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
   },
   secondaryBtn: {
     flexDirection: "row",
@@ -782,6 +793,7 @@ const styles = StyleSheet.create({
   inputWithActionRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 8,
   },
   textInput: {
@@ -912,6 +924,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
   },
   verifiedBadge: {
     flexDirection: "row",

@@ -19,7 +19,9 @@ export interface ExamApplicantData {
   street: string;
   zipCode: string;
   schoolName: string;
+  schoolAttended?: string;
   courseDegree: string;
+  courseTaken?: string;
   yearGraduated: string;
   specialOrderNo: string;
   email: string;
@@ -39,10 +41,10 @@ export const initialExamApplicant = (id: number): ExamApplicantData => ({
   firstName: "",
   middleName: "",
   suffix: "",
-  birthMonth: "January",
-  birthDay: "1",
-  birthYear: "2000",
-  sex: "Male",
+  birthMonth: "",
+  birthDay: "",
+  birthYear: "",
+  sex: "",
   nationality: "Filipino",
   regionName: "",
   province: "",

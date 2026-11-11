@@ -64,10 +64,23 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
             }
         }
 
+        bool isAssessmentCompletion = app.Intent == ApplicationIntent.AssessmentOnly &&
+            (newStatus == ApplicationStatus.ForAccountant || newStatus == ApplicationStatus.Completed || newStatus == ApplicationStatus.Approved);
+
+        if (isAssessmentCompletion)
+        {
+            newStatus = ApplicationStatus.Completed;
+            app.AssessedAt = DateTime.UtcNow;
+        }
+
         app.Status = newStatus;
         if (!string.IsNullOrWhiteSpace(request.Remarks))
         {
             app.Remarks = request.Remarks;
+        }
+        else if (isAssessmentCompletion)
+        {
+            app.Remarks = "Pre-Assessment completed by Evaluator. Statement of Account released to Applicant.";
         }
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -96,15 +109,73 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
 
             var staffRole = !string.IsNullOrWhiteSpace(request.StaffRole)
                 ? request.StaffRole
-                : (newStatus == ApplicationStatus.Evaluating ? "Evaluating Officer" :
+                : (isAssessmentCompletion ? "Evaluating Officer" :
+                   newStatus == ApplicationStatus.Evaluating ? "Evaluating Officer" :
                    newStatus == ApplicationStatus.ForAccountant ? "Evaluating Officer" :
                    newStatus == ApplicationStatus.PendingPayment ? "Accountant" :
                    newStatus == ApplicationStatus.Completed ? "Cashier" :
                    newStatus == ApplicationStatus.Returned ? "Return Officer" : "NTC Engineer");
 
-            // When Evaluator approves application/assessment to ForAccountant:
+            if (isAssessmentCompletion && (string.IsNullOrWhiteSpace(request.Action) || request.Action.Contains("Accountant")))
+            {
+                actionTitle = "Assessment Approved & SOA Released to Client";
+            }
+
+            // When Evaluator approves Assessment application:
+            // Complete application and release SOA directly to client (no Order of Payment or Accountant review needed)
+            if (isAssessmentCompletion)
+            {
+                var latestSoa = app.StatementsOfAccount?.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+                if (latestSoa != null)
+                {
+                    var prevSoaStatus = latestSoa.Status;
+                    latestSoa.Status = SoaStatus.Approved;
+                    latestSoa.ApprovedByUserId = actingUserId;
+                    latestSoa.ApprovedAt = DateTime.UtcNow;
+
+                    await _applicationRepository.AddSoaHistoryAsync(new SoaHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        StatementOfAccountId = latestSoa.Id,
+                        Action = "Assessment approved by Evaluator. Statement of Account released to Client.",
+                        FromStatus = prevSoaStatus,
+                        ToStatus = SoaStatus.Approved,
+                        PerformedByUserId = actingUserId,
+                        StaffName = staffName,
+                        StaffRole = staffRole,
+                        Remarks = request.Remarks ?? "Assessment SOA approved and released to Client",
+                        Timestamp = DateTime.UtcNow
+                    }, cancellationToken);
+                }
+
+                // If any dangling Orders of Payment exist from prior transitions (e.g. if the application transitioned back from an accountant or prior cycle),
+                // withdraw them to prevent active billing in cashier queues
+                if (app.OrdersOfPayment != null)
+                {
+                    foreach (var op in app.OrdersOfPayment.Where(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing))
+                    {
+                        var prevOpStatus = op.Status;
+                        op.Status = OpStatus.Returned;
+                        op.Remarks = "Withdrawn: Completed as Pre-Assessment without Order of Payment.";
+                        await _applicationRepository.AddOpHistoryAsync(new OpHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderOfPaymentId = op.Id,
+                            Action = "Order of Payment withdrawn. Assessment released directly without payment.",
+                            FromStatus = prevOpStatus,
+                            ToStatus = OpStatus.Returned,
+                            PerformedByUserId = actingUserId,
+                            StaffName = staffName,
+                            StaffRole = staffRole,
+                            Remarks = op.Remarks,
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
+                    }
+                }
+            }
+            // When Evaluator approves official application:
             // SOA status changes to FOR Order of Payment, and Order of Payment is initialized for Accountant review
-            if (newStatus == ApplicationStatus.ForAccountant)
+            else if (newStatus == ApplicationStatus.ForAccountant)
             {
                 var latestSoa = app.StatementsOfAccount?.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
                 if (latestSoa != null)
@@ -127,7 +198,7 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                     }, cancellationToken);
 
                     var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == latestSoa.Id)
-                                     ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing);
+                                     ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Returned);
 
                     if (existingOp == null)
                     {
@@ -159,7 +230,8 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                     }
                     else
                     {
-                        existingOp.Status = OpStatus.Returned;
+                        var prevOpStatus = existingOp.Status;
+                        existingOp.Status = OpStatus.Billed;
                         existingOp.AmountDue = latestSoa.TotalAmount;
                         existingOp.AmountReceived = 0;
                         existingOp.PaymentMethod = null;
@@ -169,6 +241,20 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                         existingOp.PaidAt = null;
                         existingOp.OfficialReceiptNumber = null;
                         existingOp.Remarks = request.Remarks;
+
+                        await _applicationRepository.AddOpHistoryAsync(new OpHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderOfPaymentId = existingOp.Id,
+                            Action = "Order of Payment re-submitted for Accountant review.",
+                            FromStatus = prevOpStatus,
+                            ToStatus = OpStatus.Billed,
+                            PerformedByUserId = actingUserId,
+                            StaffName = staffName,
+                            StaffRole = staffRole,
+                            Remarks = request.Remarks ?? "Re-submitted for Order of Payment review",
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
                     }
                 }
             }

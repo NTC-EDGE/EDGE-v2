@@ -19,10 +19,10 @@ export interface UseTenantClientsReturn {
   refetch: () => Promise<PaginatedApiResponse<TenantClientDto> | undefined>;
 }
 
-const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 export function useTenantClients(tenantId?: string | null, params?: UseTenantClientsParams): UseTenantClientsReturn {
-  const effectiveTenantId = tenantId && tenantId.trim().length > 0 ? tenantId : DEFAULT_TENANT_ID;
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
 
   const searchParams = new URLSearchParams();
   if (params?.pageNumber) searchParams.set('pageNumber', params.pageNumber.toString());
@@ -30,7 +30,9 @@ export function useTenantClients(tenantId?: string | null, params?: UseTenantCli
   if (params?.search && params.search.trim().length > 0) searchParams.set('search', params.search.trim());
 
   const queryString = searchParams.toString();
-  const endpoint = `/api/v2/tenants/${effectiveTenantId}/clients${queryString ? `?${queryString}` : ''}`;
+  const endpoint = effectiveTenantId
+    ? `/api/v2/tenants/${effectiveTenantId}/clients${queryString ? `?${queryString}` : ''}`
+    : null;
 
   const { data, error, isLoading, mutate } = useSWR<PaginatedApiResponse<TenantClientDto>>(
     endpoint,

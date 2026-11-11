@@ -18,6 +18,7 @@ import { COLORS, SHADOWS, SPACING } from "../../shared/theme/tokens";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 import { Input } from "../../shared/components/Input";
+import { ClientAnnouncementBanner } from "../../shared/components/ClientAnnouncementBanner";
 import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
 
 
@@ -736,10 +737,10 @@ export function LandingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Sticky Glassmorphic Header/Navbar - Logo positioned at far left */}
-      <View style={styles.headerOuter}>
-        <View style={styles.headerInner}>
-          <Logo height={84} />
+      {/* Sticky Glassmorphic Header/Navbar - Responsive height and Logo */}
+      <View style={[styles.headerOuter, { height: isDesktop ? 100 : 64 }]}>
+        <View style={[styles.headerInner, !isDesktop && { paddingHorizontal: 16 }]}>
+          <Logo height={isDesktop ? 72 : 36} />
 
           {isDesktop ? (
             <View style={styles.navLinks}>
@@ -798,9 +799,21 @@ export function LandingScreen() {
                 )}
               </Pressable>
             </View>
-          ) : null}
+          ) : (
+            <TouchableOpacity
+              onPress={() => navigation?.navigate("Login")}
+              style={styles.mobileHeaderLoginBtn}
+              activeOpacity={0.8}
+            >
+              <Lucide name="log-in" size={14} color="#FFFFFF" />
+              <Text style={styles.mobileHeaderLoginText}>Log In</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
+
+      {/* Dynamic System Announcements Broadcast Banner */}
+      <ClientAnnouncementBanner isMobile={!isDesktop} />
 
       <ScrollView
         ref={scrollViewRef}
@@ -853,6 +866,8 @@ export function LandingScreen() {
             styles.heroSection,
             isDesktop ? styles.heroSectionDesktop : null,
             {
+              paddingVertical: isDesktop ? 104 : 36,
+              paddingHorizontal: isDesktop ? 24 : 16,
               opacity: fadeAnimHero,
               transform: [
                 {
@@ -903,12 +918,20 @@ export function LandingScreen() {
               processes powered by EDGE.
             </Text>
 
-            <View style={styles.heroButtonsRow}>
+            <View style={[
+              styles.heroButtonsRow,
+              !isDesktop && {
+                flexDirection: "column",
+                width: "100%",
+                gap: 12,
+                alignItems: "stretch",
+              },
+            ]}>
               <Button
                 title="Get Started"
                 onPress={() => openGetStartedModal("choice")}
                 size="lg"
-                style={styles.heroPrimaryBtn}
+                style={isDesktop ? styles.heroPrimaryBtn : styles.heroPrimaryBtnMobile}
                 hoverStyle={styles.heroPrimaryBtnHovered}
                 icon={
                   <Lucide
@@ -923,7 +946,7 @@ export function LandingScreen() {
                 onPress={() => setIsTrackModalVisible(true)}
                 variant="outline"
                 size="lg"
-                style={styles.heroSecondaryBtn}
+                style={isDesktop ? styles.heroSecondaryBtn : styles.heroSecondaryBtnMobile}
                 hoverStyle={styles.heroSecondaryBtnHovered}
                 textStyle={{ color: "#2563EB" }}
                 hoverTextStyle={{ color: "#1D4ED8" }}

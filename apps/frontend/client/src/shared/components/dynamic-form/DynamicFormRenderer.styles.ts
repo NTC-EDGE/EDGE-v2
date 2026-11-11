@@ -96,4 +96,25 @@ export const dynamicFormStyles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 2,
   },
+  emptySectionNotice: {
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 8,
+    padding: 16,
+    marginVertical: 4,
+  },
+  emptySectionNoticeTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#92400E",
+    marginBottom: 4,
+  },
+  emptySectionNoticeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#B45309",
+    lineHeight: 18,
+  },
 });

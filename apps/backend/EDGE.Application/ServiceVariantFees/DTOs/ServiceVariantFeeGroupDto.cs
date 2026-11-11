@@ -11,5 +11,7 @@ public record ServiceVariantFeeGroupDto(
     decimal TotalBaseAmount,
     IReadOnlyList<ServiceVariantFeeDto> Fees,
     string? StatutoryFormula = null,
-    bool? ApplyLateRenewalSurcharge = null
+    bool? ApplyLateRenewalSurcharge = null,
+    string? VariantName = null,
+    string? ApplicationType = null
 );

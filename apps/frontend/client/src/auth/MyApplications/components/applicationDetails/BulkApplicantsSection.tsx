@@ -17,7 +17,12 @@ import {
 import { styles } from './applicationDetailsStyles';
 import { BulkMetricsGrid } from './BulkMetricsGrid';
 import { SingleApplicantSection } from './SingleApplicantSection';
-import { FormFieldValue } from '../../../../shared/formPreview';
+import {
+  FormFieldValue,
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 import { extractApplicantFullName } from './applicationDetailsHelpers';
 
 import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
@@ -97,8 +102,8 @@ export function BulkApplicantsSection({
         <Icon name="alert-circle" size={16} color="#B45309" />
         <Text style={styles.alertBannerText}>
           {approvedCount > 0 || declinedCount > 0
-            ? `${approvedCount} applicant(s) approved and ${declinedCount} declined. Select any applicant on the left to review their complete application details and attached documents.`
-            : `This bulk application contains ${totalSubmitted} submitted applicant(s). Select an applicant on the left to inspect their full particulars on the right.`}
+            ? `${approvedCount} applicant(s) complete and ${declinedCount} declined. Select any applicant on the left to review their complete application details and attached documents.`
+            : `This bulk application contains ${totalSubmitted} submitted applicant(s). Select an applicant on the left to inspect their full details on the right.`}
         </Text>
       </View>
 
@@ -302,6 +307,12 @@ export function BulkApplicantsSection({
                 companyName: activeApplicant.companyName || activeApplicant.details?.companyName || null,
                 representativeName: activeApplicant.representativeName || activeApplicant.details?.representativeName || null,
                 notes: activeApplicant.notes || activeApplicant.details?.notes || null,
+                schoolAttended: activeApplicant.schoolAttended || activeApplicant.details?.schoolAttended || activeApplicant.schoolName || activeApplicant.details?.schoolName || null,
+                schoolName: activeApplicant.schoolName || activeApplicant.details?.schoolName || activeApplicant.schoolAttended || activeApplicant.details?.schoolAttended || null,
+                courseTaken: activeApplicant.courseTaken || activeApplicant.details?.courseTaken || activeApplicant.courseDegree || activeApplicant.details?.courseDegree || null,
+                courseDegree: activeApplicant.courseDegree || activeApplicant.details?.courseDegree || activeApplicant.courseTaken || activeApplicant.details?.courseTaken || null,
+                yearGraduated: activeApplicant.yearGraduated || activeApplicant.details?.yearGraduated || null,
+                specialOrderNo: activeApplicant.specialOrderNo || activeApplicant.details?.specialOrderNo || null,
               }}
               primaryName={extractApplicantFullName(app, activeApplicant.details, activeApplicant)}
               formFieldValues={selectedApplicantFormFields}
@@ -311,7 +322,24 @@ export function BulkApplicantsSection({
                   ? `${activeApplicant.schedule.date} • ${activeApplicant.schedule.time} (${activeApplicant.schedule.venue})`
                   : scheduleSummaryText
               }
-              variantLabel={activeApplicant.applicationType || variantLabel}
+              variantLabel={resolvePreviewVariant({
+                serviceVariantName: activeApplicant.serviceVariantName || activeApplicant.applicationType || variantLabel,
+                variant: app.variant,
+                element: activeApplicant.element || app.element,
+                examineeType: activeApplicant.details?.examineeType,
+                formFieldValues: selectedApplicantFormFields,
+                fallback: variantLabel,
+              })}
+              applicationType={resolvePreviewApplicationType({
+                applicationType: activeApplicant.applicationType,
+                examineeType: activeApplicant.details?.examineeType,
+                element: activeApplicant.element || app.element,
+                formFieldValues: selectedApplicantFormFields,
+              })}
+              elements={resolvePreviewElements({
+                element: activeApplicant.element || app.element,
+                formFieldValues: selectedApplicantFormFields,
+              })}
               isDesktop={isDesktop}
               docs={selectedApplicantDocs}
               onPreviewFile={onPreviewFile}

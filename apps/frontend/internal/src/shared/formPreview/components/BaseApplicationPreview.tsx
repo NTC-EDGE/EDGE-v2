@@ -5,12 +5,19 @@ import {
   ServiceIdentifier,
   ActiveApplicantSnapshot,
 } from '../core/formPreviewTypes';
+import { detectCanonicalForm } from '../core/canonicalFormDefinitions';
 import { buildDynamicSections } from '../core/buildDynamicSections';
 import {
   isExamEducationField,
   isExamAssistanceField,
 } from '../core/formPreviewFieldCheckers';
+import {
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../core/formPreviewHelpers';
 import { getPreviewExtension } from '../extensions';
+import { EquivalentFormHeaderCard } from './EquivalentFormHeaderCard';
 import { ApplicantDetailsReviewCard } from './ApplicantDetailsReviewCard';
 import { DynamicFormSectionsReview } from './DynamicFormSectionsReview';
 import { ExamEducationReviewSection } from './ExamEducationReviewSection';
@@ -23,12 +30,15 @@ export interface BaseApplicationPreviewProps {
       id?: string;
       key?: string;
       title?: string;
-      fields?: Array<{ id?: string; fieldId?: string; label?: string }>;
+      visibilityCondition?: string | null;
+      fields?: Array<{ id?: string; fieldId?: string; label?: string; visibilityCondition?: string | null }>;
     }>;
+    serviceCode?: string;
+    version?: string;
   } | null;
   formFieldValues: FormFieldValue[];
   activeApplicant?: ActiveApplicantSnapshot;
-  // Resolved Applicant Particulars
+  // Resolved Applicant Details
   resolvedFullName?: string | null;
   resolvedEmail?: string;
   resolvedContactNo?: string;
@@ -37,11 +47,24 @@ export interface BaseApplicationPreviewProps {
   resolvedSex?: string | null;
   resolvedCivilStatus?: string | null;
   resolvedNationality?: string | null;
+  schoolAttended?: string | null;
+  schoolName?: string | null;
+  courseTaken?: string | null;
+  courseDegree?: string | null;
+  yearGraduated?: string | null;
+  specialOrderNo?: string | null;
   applicantType?: string;
   companyName?: string | null;
   representativeName?: string | null;
   notes?: string | null;
-  // Flags
+  // Service Variant Parameters
+  selectedVariantName?: string | null;
+  selectedVariantId?: string | null;
+  selectedVariantDescription?: string | null;
+  applicationType?: string | null;
+  elements?: string | null;
+  showEquivalentFormHeader?: boolean;
+  // Flags (optional, derived if not passed)
   isExamService?: boolean;
   isLicenseService?: boolean;
   isPermitService?: boolean;
@@ -71,10 +94,22 @@ export function BaseApplicationPreview({
   resolvedSex,
   resolvedCivilStatus,
   resolvedNationality,
+  schoolAttended,
+  schoolName,
+  courseTaken,
+  courseDegree,
+  yearGraduated,
+  specialOrderNo,
   applicantType,
   companyName,
   representativeName,
   notes,
+  selectedVariantName,
+  selectedVariantId,
+  selectedVariantDescription,
+  applicationType,
+  elements,
+  showEquivalentFormHeader = true,
   isExamService,
   isAmateurCertService,
   onPreviewFile = () => {},
@@ -88,12 +123,46 @@ export function BaseApplicationPreview({
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();
   const serviceTitleLower = (service.title || '').toLowerCase().trim();
 
+  const effectiveVariantName = resolvePreviewVariant({
+    variantName: selectedVariantName,
+    serviceVariantName: activeApplicant?.selectedVariantName,
+    variant: activeApplicant?.selectedVariant,
+    formFieldValues,
+  });
+
+  const effectiveVariantId =
+    selectedVariantId ||
+    activeApplicant?.selectedVariantId ||
+    null;
+
+  const effectiveApplicationType = resolvePreviewApplicationType({
+    applicationType,
+    examineeType: activeApplicant?.examineeType,
+    examType: activeApplicant?.examType,
+    element: activeApplicant?.element,
+    formFieldValues,
+  });
+
+  const effectiveElements = resolvePreviewElements({
+    elements,
+    selectedElementTitle: activeApplicant?.selectedElementTitle,
+    selectedOption: activeApplicant?.selectedOption,
+    element: activeApplicant?.element,
+    formFieldValues,
+  });
+
+  // Detect equivalent statutory application form from service + variant
+  const canonicalForm = useMemo(() => {
+    return detectCanonicalForm(service, effectiveVariantName);
+  }, [service, effectiveVariantName]);
+
   const isExam =
     isExamService ??
     (serviceCategoryLower.includes('exam') ||
       serviceTitleLower.includes('exam') ||
       serviceTitleLower.includes('admission') ||
-      serviceTitleLower.includes('operator examination'));
+      serviceTitleLower.includes('operator examination') ||
+      canonicalForm?.viewType === 'exam');
 
   const isAmateur =
     isAmateurCertService ??
@@ -107,7 +176,8 @@ export function BaseApplicationPreview({
     serviceTitleLower.includes('vas') ||
     serviceTitleLower.includes('value-added') ||
     (service.id || '').toLowerCase().includes('120') ||
-    (service.id || '').toLowerCase().includes('f20');
+    (service.id || '').toLowerCase().includes('f20') ||
+    canonicalForm?.viewType === 'vas_provider';
 
   const extension = getPreviewExtension(service);
 
@@ -118,8 +188,84 @@ export function BaseApplicationPreview({
       skipFieldIds: extension?.skipFieldIds,
       skipFieldLabels: extension?.skipFieldLabels,
       showApplicantCard,
+      selectedVariantName: effectiveVariantName,
+      selectedVariantId: effectiveVariantId,
+      serviceTitle: service.title,
+      serviceName: service.name,
+      serviceCode: form?.serviceCode,
+      applicationType: effectiveApplicationType || activeApplicant?.applicationType,
+      applicantType: (applicantType || activeApplicant?.applicantType || '').toLowerCase() === 'company' ? 'company' : 'individual',
     });
-  }, [form, formFieldValues, isAmateur, isVas, extension, showApplicantCard]);
+  }, [
+    form,
+    formFieldValues,
+    isAmateur,
+    isVas,
+    extension,
+    showApplicantCard,
+    effectiveVariantName,
+    effectiveVariantId,
+    service.title,
+    service.name,
+    form?.serviceCode,
+    effectiveApplicationType,
+    activeApplicant?.applicationType,
+    applicantType,
+    activeApplicant?.applicantType,
+  ]);
+
+  const schoolAttendedVal =
+    schoolAttended ||
+    schoolName ||
+    activeApplicant?.schoolAttended ||
+    activeApplicant?.schoolName ||
+    formFieldValues.find(
+      (fv) =>
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000006' ||
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000061' ||
+        fv.fieldLabel.toLowerCase().includes('school') ||
+        fv.fieldLabel.toLowerCase().includes('university')
+    )?.value ||
+    null;
+
+  const courseTakenVal =
+    courseTaken ||
+    courseDegree ||
+    activeApplicant?.courseTaken ||
+    activeApplicant?.courseDegree ||
+    formFieldValues.find(
+      (fv) =>
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000062' ||
+        fv.fieldLabel.toLowerCase().includes('course') ||
+        fv.fieldLabel.toLowerCase().includes('degree') ||
+        fv.fieldLabel.toLowerCase().includes('program')
+    )?.value ||
+    null;
+
+  const yearGraduatedVal =
+    yearGraduated ||
+    activeApplicant?.yearGraduated ||
+    formFieldValues.find(
+      (fv) =>
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000063' ||
+        fv.fieldLabel.toLowerCase().includes('year graduated') ||
+        fv.fieldLabel.toLowerCase().includes('yeargraduated')
+    )?.value ||
+    null;
+
+  const specialOrderNoVal =
+    specialOrderNo ||
+    activeApplicant?.specialOrderNo ||
+    formFieldValues.find(
+      (fv) =>
+        fv.fieldLabel.toLowerCase().includes('special order') ||
+        fv.fieldLabel.toLowerCase().includes('so number')
+    )?.value ||
+    null;
+
+  const hasEducationInApplicantCard = Boolean(
+    schoolAttendedVal || courseTakenVal || yearGraduatedVal || specialOrderNoVal
+  );
 
   const examEducationFields = useMemo(() => {
     if (!isExam) return [];
@@ -132,14 +278,13 @@ export function BaseApplicationPreview({
   }, [isExam, remainingFields]);
 
   const nonExamRemainingFields = useMemo(() => {
-    if (!isExam) return remainingFields;
+    if (isExam) return [];
     return remainingFields.filter(
       (f) =>
         !examEducationFields.some((ef) => ef.fieldId === f.fieldId || ef.fieldLabel === f.fieldLabel) &&
         !examAssistanceFields.some((af) => af.fieldId === f.fieldId || af.fieldLabel === f.fieldLabel)
     );
   }, [isExam, remainingFields, examEducationFields, examAssistanceFields]);
-
 
   const resolvedSig =
     signatureEntry ||
@@ -159,17 +304,37 @@ export function BaseApplicationPreview({
         }
       : null);
 
-  const applicantData = activeApplicant || {
+  const applicantData: ActiveApplicantSnapshot = activeApplicant || {
     applicantType,
     companyName,
     representativeName,
     notes,
+    schoolAttended: schoolAttendedVal,
+    schoolName: schoolAttendedVal,
+    courseTaken: courseTakenVal,
+    courseDegree: courseTakenVal,
+    yearGraduated: yearGraduatedVal,
+    specialOrderNo: specialOrderNoVal,
+    selectedVariantName: effectiveVariantName || undefined,
+    selectedVariantId: effectiveVariantId || undefined,
   };
 
   return (
     <View style={{ gap: 16 }}>
-      {/* Top Header Slot */}
+      {/* Top Header Slot (e.g. Hero banner, Jurisdiction, Bulk Cohort) */}
       {headerSlot}
+
+      {/* Equivalent Statutory Application Form Card */}
+      {showEquivalentFormHeader && canonicalForm && (
+        <EquivalentFormHeaderCard
+          canonicalForm={canonicalForm}
+          serviceTitle={service.title || service.name}
+          serviceVariantName={effectiveVariantName}
+          applicationType={effectiveApplicationType}
+          elements={effectiveElements}
+          version={form?.version || '1.0'}
+        />
+      )}
 
       {/* Extension Before Sections */}
       {extension?.sections
@@ -192,6 +357,10 @@ export function BaseApplicationPreview({
           resolvedSex={resolvedSex ?? null}
           resolvedCivilStatus={resolvedCivilStatus ?? null}
           resolvedNationality={resolvedNationality ?? null}
+          schoolAttended={schoolAttendedVal}
+          courseTaken={courseTakenVal}
+          yearGraduated={yearGraduatedVal}
+          specialOrderNo={specialOrderNoVal}
         />
       )}
 
@@ -209,6 +378,7 @@ export function BaseApplicationPreview({
         examEducationFields={examEducationFields}
         examAssistanceFields={examAssistanceFields}
         onPreviewFile={onPreviewFile}
+        suppressEducationSection={false}
       />
 
       {/* Extension After Sections */}
@@ -220,10 +390,10 @@ export function BaseApplicationPreview({
           </React.Fragment>
         ))}
 
-      {/* Fallback Specialized Cards */}
+      {/* Fallback Specialized Cards when dynamic sections are empty */}
       {dynamicSectionsToRender.length === 0 && renderSpecializedCards ? renderSpecializedCards() : null}
 
-      {/* Footer Slot */}
+      {/* Footer Slot (e.g. Attached Requirements / Documents) */}
       {footerSlot}
 
       {/* Digital Signature */}

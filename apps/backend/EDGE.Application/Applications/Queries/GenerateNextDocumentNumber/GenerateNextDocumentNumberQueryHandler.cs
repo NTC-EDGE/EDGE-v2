@@ -34,8 +34,60 @@ public class GenerateNextDocumentNumberQueryHandler : IRequestHandler<GenerateNe
         // Extract primary service details
         var primaryApplicant = app.ApplicationApplicants.FirstOrDefault()?.Applicant;
         var service = primaryApplicant?.Service;
+        var primaryVariant = primaryApplicant?.ServiceVariant;
         var categoryName = service?.ServiceCategory?.Name ?? "General";
         var isLicense = service?.ServiceCategory?.Type == ServiceCategoryType.License;
+
+        bool isRenewal = app.RenewedFromApplicationId.HasValue ||
+                         primaryVariant?.Type == ServiceVariantType.Renewal ||
+                         (primaryVariant?.Description != null && primaryVariant.Description.Contains("RENEWAL", StringComparison.OrdinalIgnoreCase)) ||
+                         (service?.Name != null && service.Name.Contains("RENEWAL", StringComparison.OrdinalIgnoreCase));
+
+        DateTime? previousExpiryDate = null;
+        string? previousLicenseNumber = null;
+
+        if (app.RenewedFromApplicationId.HasValue)
+        {
+            var prevApp = await _repository.GetByIdWithDetailsAsync(app.RenewedFromApplicationId.Value, cancellationToken);
+            var prevDoc = prevApp?.IssuedDocumentDetails?.OrderByDescending(d => d.IssueDate).FirstOrDefault();
+            if (prevDoc != null)
+            {
+                previousExpiryDate = prevDoc.ExpiryDate;
+                previousLicenseNumber = prevDoc.LicenseNumber;
+            }
+        }
+
+        if (!previousExpiryDate.HasValue || string.IsNullOrEmpty(previousLicenseNumber))
+        {
+            var allFields = app.FormSubmissions?.SelectMany(fs => fs.FieldValues).ToList() ?? new();
+            if (string.IsNullOrEmpty(previousLicenseNumber))
+            {
+                previousLicenseNumber = allFields.FirstOrDefault(f => (f.Field?.Label != null && f.Field.Label.Contains("License No", StringComparison.OrdinalIgnoreCase)) || f.FieldId.ToString().Contains("202"))?.Value;
+            }
+            if (!previousExpiryDate.HasValue)
+            {
+                var expVal = allFields.FirstOrDefault(f => (f.Field?.Label != null && f.Field.Label.Contains("Expiry", StringComparison.OrdinalIgnoreCase)) || f.FieldId.ToString().Contains("203"))?.Value;
+                if (!string.IsNullOrEmpty(expVal) && DateTime.TryParse(expVal, out var parsedExp))
+                {
+                    previousExpiryDate = parsedExp;
+                }
+            }
+        }
+
+        DateTime? recommendedExpiryDate = null;
+        if (isRenewal && previousExpiryDate.HasValue)
+        {
+            // statutory rule: expiration attaches to the original expiration date + 1 year (or evaluator can set 2)
+            recommendedExpiryDate = previousExpiryDate.Value.AddYears(1);
+        }
+        else if (isLicense)
+        {
+            recommendedExpiryDate = DateTime.UtcNow.AddYears(3);
+        }
+        else
+        {
+            recommendedExpiryDate = DateTime.UtcNow.AddYears(1);
+        }
 
         var prefix = $"NTC-{regionCode.Trim().ToUpper()}-{year}";
 
@@ -52,14 +104,20 @@ public class GenerateNextDocumentNumberQueryHandler : IRequestHandler<GenerateNe
                 SequenceNumber = 1,
                 OfficialReceiptNumber = existingIssued.OfficialReceiptNumber,
                 OriginalEvaluatorName = existingIssued.OriginalEvaluatorName ?? existingIssued.IssuedByStaffName,
-                IsPaid = true
+                IsPaid = true,
+                IsRenewal = isRenewal,
+                PreviousExpiryDate = previousExpiryDate,
+                RecommendedExpiryDate = existingIssued.ExpiryDate ?? recommendedExpiryDate,
+                PreviousLicenseNumber = previousLicenseNumber
             });
         }
 
         // Generate pseudo-sequential number using deterministic timestamp/random seed
         var randomSeq = Random.Shared.Next(1001, 9999);
         var recommendedFormNumber = $"{prefix}-FORM-{randomSeq}";
-        string? recommendedLicenseNumber = isLicense ? $"{prefix}-LIC-{randomSeq}" : null;
+        string? recommendedLicenseNumber = (isRenewal && !string.IsNullOrEmpty(previousLicenseNumber))
+            ? previousLicenseNumber
+            : (isLicense ? $"{prefix}-LIC-{randomSeq}" : null);
 
         var paidOp = app.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
         var orNumber = paidOp?.OfficialReceiptNumber;
@@ -80,7 +138,11 @@ public class GenerateNextDocumentNumberQueryHandler : IRequestHandler<GenerateNe
             SequenceNumber = randomSeq,
             OfficialReceiptNumber = orNumber,
             OriginalEvaluatorName = originalEvaluatorName,
-            IsPaid = paidOp != null
+            IsPaid = paidOp != null,
+            IsRenewal = isRenewal,
+            PreviousExpiryDate = previousExpiryDate,
+            RecommendedExpiryDate = recommendedExpiryDate,
+            PreviousLicenseNumber = previousLicenseNumber
         });
     }
 }

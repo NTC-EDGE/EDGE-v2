@@ -38,11 +38,15 @@ public class ApplicationDto
     public string? ServiceCategoryName { get; set; }
     public string? ServiceCategoryCode { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? Element { get; set; }
 
     public string? OfficialReceiptNumber { get; set; }
+    public List<string> OrNumbers { get; set; } = new();
     public decimal? AmountPaid { get; set; }
     public DateTime? PaidAt { get; set; }
     public string? EvaluatingOfficer { get; set; }
+    public string? AccountingOfficer { get; set; }
+    public string? CashierOfficer { get; set; }
     public string? IssuingOfficer { get; set; }
 
     public FilingUserDto? FilingUser { get; set; }
@@ -56,6 +60,11 @@ public class ApplicationDto
     public List<OrderOfPaymentDto> OrdersOfPayment { get; set; } = new();
     public List<ApplicationHistoryDto> Histories { get; set; } = new();
     public List<CorrectionAuditTrailDto> CorrectionAuditTrails { get; set; } = new();
+    public Guid? RenewedFromApplicationId { get; set; }
+    public bool HasActiveRenewal { get; set; }
+    public Guid? ActiveRenewalApplicationId { get; set; }
+    public string? ActiveRenewalReferenceNumber { get; set; }
+    public List<IssuedDocumentDetailSummaryDto> IssuedDocumentDetails { get; set; } = new();
 }
 
 public class FilingUserDto
@@ -76,6 +85,7 @@ public class ApplicationServiceDto
     public string? ServiceCategory { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? Element { get; set; }
     public Guid? SubmissionId { get; set; }
 }
 

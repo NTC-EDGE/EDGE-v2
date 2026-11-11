@@ -8,6 +8,14 @@ export type ModeOfPayment =
   | 'Check'
   | 'Combination';
 
+export interface CheckProofFile {
+  name: string;
+  uri: string;
+  type?: string;
+  size?: number;
+  file?: File | Blob;
+}
+
 export interface CombinationRow {
   id: string;
   mode: PaymentItemMode;
@@ -16,4 +24,5 @@ export interface CombinationRow {
   checkBank: string;
   checkDate: string;
   referenceNumber: string;
+  checkProofFile?: CheckProofFile | null;
 }

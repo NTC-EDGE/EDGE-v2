@@ -4,6 +4,9 @@ import {
   ApiResponse,
   ApplicationDto,
   ApplicationSummaryDto,
+  PagedApplicationListDto,
+  ApplicationActivityDto,
+  PagedApplicationActivitiesDto,
   UpdateApplicationStatusRequest,
   CreateSoaRequest,
   VerifyPaymentRequest,
@@ -29,6 +32,28 @@ export const applicationService = {
         { params }
       );
       return response.data.data ?? [];
+    });
+  },
+
+  async getActivities(params?: {
+    queueTab?: string;
+    scope?: 'queue' | 'region';
+    status?: string;
+    pageNumber?: number;
+    pageSize?: number;
+    searchTerm?: string;
+    mode?: string;
+    tenantId?: string;
+    role?: string;
+    assignedTo?: string;
+    fieldOffice?: string;
+  }) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<ApiResponse<PagedApplicationActivitiesDto>>(
+        '/api/v2/applications/activities',
+        { params }
+      );
+      return response.data.data;
     });
   },
 
@@ -311,60 +336,84 @@ export const applicationService = {
     });
   },
 
-  getSoaPrintUrl(applicationId: string): string {
+  getSoaPrintUrl(applicationId: string, orNumber?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/soa/print`;
+    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+      ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
+      : '';
+    return `${base}/api/v2/applications/${applicationId}/soa/print${query}`;
   },
 
-  getSoaDownloadUrl(applicationId: string): string {
+  getSoaDownloadUrl(applicationId: string, orNumber?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/soa/print?download=true`;
+    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+      ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
+      : '';
+    return `${base}/api/v2/applications/${applicationId}/soa/print?download=true${query}`;
   },
 
-  getOpPrintUrl(applicationId: string): string {
+  getOpPrintUrl(applicationId: string, orNumber?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/op/print`;
+    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+      ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
+      : '';
+    return `${base}/api/v2/applications/${applicationId}/op/print${query}`;
   },
 
-  getOpDownloadUrl(applicationId: string): string {
+  getOpDownloadUrl(applicationId: string, orNumber?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/op/print?download=true`;
+    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+      ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
+      : '';
+    return `${base}/api/v2/applications/${applicationId}/op/print?download=true${query}`;
   },
 
-  async previewSoaPdf(applicationId: string) {
+  async previewSoaPdf(applicationId: string, orNumber?: string) {
     return safeAsync(async () => {
+      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+        ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
+        : '';
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/soa/print`,
+        `/api/v2/applications/${applicationId}/soa/print${query}`,
         { responseType: 'blob' }
       );
       return response.data;
     });
   },
 
-  async downloadSoaPdf(applicationId: string) {
+  async downloadSoaPdf(applicationId: string, orNumber?: string) {
     return safeAsync(async () => {
+      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+        ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
+        : '';
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/soa/print?download=true`,
+        `/api/v2/applications/${applicationId}/soa/print?download=true${query}`,
         { responseType: 'blob' }
       );
       return response.data;
     });
   },
 
-  async previewOpPdf(applicationId: string) {
+  async previewOpPdf(applicationId: string, orNumber?: string) {
     return safeAsync(async () => {
+      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+        ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
+        : '';
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/op/print`,
+        `/api/v2/applications/${applicationId}/op/print${query}`,
         { responseType: 'blob' }
       );
       return response.data;
     });
   },
 
-  async downloadOpPdf(applicationId: string) {
+  async downloadOpPdf(applicationId: string, orNumber?: string) {
     return safeAsync(async () => {
+      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+        ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
+        : '';
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/op/print?download=true`,
+        `/api/v2/applications/${applicationId}/op/print?download=true${query}`,
         { responseType: 'blob' }
       );
       return response.data;

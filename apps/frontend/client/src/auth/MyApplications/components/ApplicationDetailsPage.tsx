@@ -29,6 +29,7 @@ import { DocumentPreviewFile } from '../../../shared/components/DocumentPreviewM
 import { useApi } from '../../../shared/hooks/useApi';
 import { useToast } from '../../../shared/components/Toast';
 import { ConvertToRealModal } from './applicationDetails/ConvertToRealModal';
+import { isEligibleForRenewal, getRenewalDaysRemaining } from '../data/applicationsData';
 import { ReassessmentModal } from './applicationDetails/ReassessmentModal';
 
 const TABLE_PAGE_SIZE = 6;
@@ -38,6 +39,7 @@ export { ApplicationDetailsPageProps };
 export function ApplicationDetailsPage({
   app: initialApp,
   onBack,
+  onRenew,
   onDownloadDoc,
 }: ApplicationDetailsPageProps) {
   const { width } = useWindowDimensions();
@@ -69,8 +71,11 @@ export function ApplicationDetailsPage({
     primaryName,
     singleApplicant,
     resolvedServiceVariant,
+    applicationTypeLabel,
+    elementsLabel,
     formFieldValues,
     currentStepIndex,
+    isAssessmentOnly,
     variantLabel,
     scheduleSummaryText,
     refetch,
@@ -223,9 +228,121 @@ export function ApplicationDetailsPage({
           statusBg={statusBg}
           statusColor={statusColor}
           resolvedServiceVariant={resolvedServiceVariant}
+          applicationType={applicationTypeLabel}
+          elements={elementsLabel}
           primaryName={primaryName}
           docsCount={docs.length}
         />
+
+        {/* Active Renewal in Progress Banner */}
+        {app.hasActiveRenewal && (
+          <View
+            style={{
+              backgroundColor: '#EFF6FF',
+              borderColor: '#60A5FA',
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <Icon name="refresh-cw" size={20} color="#2563EB" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E40AF' }}>
+                Renewal Application in Progress
+              </Text>
+              <Text style={{ fontSize: 13, color: '#1E3A8A', marginTop: 2 }}>
+                A renewal application has been filed for this license (Reference #{app.activeRenewalReferenceNumber ?? 'N/A'}).
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Eligible for Renewal Banner */}
+        {isEligibleForRenewal(app) && (() => {
+          const daysRemaining = getRenewalDaysRemaining(app);
+          const isExpired = daysRemaining !== null && daysRemaining <= 0;
+          const isOnDay = daysRemaining === 0;
+          const latestDoc = Array.isArray(app.issuedDocumentDetails) && app.issuedDocumentDetails.length > 0
+            ? app.issuedDocumentDetails.find((d) => d.expiryDate) ?? app.issuedDocumentDetails[0]
+            : undefined;
+          const formattedExpiry = latestDoc?.expiryDate
+            ? new Date(latestDoc.expiryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+            : undefined;
+
+          return (
+            <View
+              style={{
+                backgroundColor: isExpired ? '#FEF2F2' : '#FFFBEB',
+                borderColor: isExpired ? '#FECACA' : '#FDE68A',
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 16,
+                flexDirection: isDesktop ? 'row' : 'column',
+                alignItems: isDesktop ? 'center' : 'flex-start',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                <Icon
+                  name={isExpired ? 'alert-triangle' : 'refresh-cw'}
+                  size={22}
+                  color={isExpired ? '#DC2626' : '#D97706'}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '700',
+                      color: isExpired ? '#991B1B' : '#92400E',
+                    }}
+                  >
+                    {isOnDay
+                      ? 'Notice: Permit / License Expires Today'
+                      : isExpired
+                      ? 'Notice: Permit / License Has Expired'
+                      : `Permit / License Expiring Soon (${daysRemaining} Days Remaining)`}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isExpired ? '#B91C1C' : '#B45309',
+                      marginTop: 2,
+                    }}
+                  >
+                    {isExpired && formattedExpiry
+                      ? `Your application has been expired on ${formattedExpiry}. Please submit your renewal application immediately.`
+                      : 'Statutory renewal is available now. The new validity period will attach directly to the original expiration date.'}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => onRenew?.(app)}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: isExpired ? '#DC2626' : '#D97706',
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  alignSelf: isDesktop ? 'auto' : 'flex-end',
+                }}
+              >
+                <Icon name="refresh-cw" size={14} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
+                  Renew Application
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
 
         {/* Returned for Correction Alert Banner */}
         {(app.status === 'DECLINED' ||
@@ -279,8 +396,9 @@ export function ApplicationDetailsPage({
             currentStepIndex={currentStepIndex}
             serviceCategory={app.serviceCategory}
             serviceName={app.serviceName}
-            status={app.status}
+            status={app.rawStatus || app.status}
             remarks={app.remarks}
+            isAssessmentOnly={isAssessmentOnly}
           />
 
           <ClientBillingNoticeCard
@@ -350,6 +468,8 @@ export function ApplicationDetailsPage({
               isExamService={isExamService}
               scheduleSummaryText={scheduleSummaryText}
               variantLabel={variantLabel}
+              applicationType={applicationTypeLabel}
+              elements={elementsLabel}
               isDesktop={isDesktop}
               docs={docs}
               onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
@@ -375,19 +495,19 @@ export function ApplicationDetailsPage({
         onClose={() => handleSetPreviewCustomDoc(null)}
         onDownload={(file) => {
           if (typeof file === 'object' && file !== null && 'name' in file) {
-            const rawCategory = typeof file.category === 'string' ? file.category : 'ATTACHMENT';
+            const rawCategory = typeof file?.category === 'string' ? file.category : 'ATTACHMENT';
             let catVal: ApplicationDocument['category'] = 'ATTACHMENT';
             if (rawCategory === 'ADMISSION_SLIP' || rawCategory === 'RECEIPT' || rawCategory === 'SOA' || rawCategory === 'ISSUED_PERMIT') {
               catVal = rawCategory;
             }
             const docToDownload: ApplicationDocument = {
               id: previewCustomDoc?.referenceNumber || 'doc-preview',
-              name: file.name,
+              name: typeof file?.name === 'string' ? file.name : 'document',
               category: catVal,
-              type: file.type === 'IMAGE' ? 'IMAGE' : file.type === 'DOCX' ? 'DOCX' : file.type === 'ZIP' ? 'ZIP' : 'PDF',
-              size: file.size || '350 KB',
-              uploadedAt: file.uploadedAt || app.submittedAt || new Date().toISOString(),
-              url: file.uri,
+              type: file?.type === 'IMAGE' ? 'IMAGE' : file?.type === 'DOCX' ? 'DOCX' : file?.type === 'ZIP' ? 'ZIP' : 'PDF',
+              size: (typeof file?.size === 'string' || typeof file?.size === 'number') ? String(file.size) : '350 KB',
+              uploadedAt: (typeof file?.uploadedAt === 'string' ? file.uploadedAt : null) || app.submittedAt || new Date().toISOString(),
+              url: typeof file?.uri === 'string' ? file.uri : '',
             };
             if (onDownloadDoc !== undefined) {
               onDownloadDoc(docToDownload);
@@ -409,7 +529,15 @@ export function ApplicationDetailsPage({
         onSuccess={() => {
           setAppState((prev) => ({
             ...prev,
+            status: 'PAYMENT_SUBMITTED',
             remarks: 'Payment submitted via client. Waiting for Cashier verification.',
+            op: prev.op ? { ...prev.op, status: 'Processing' } : {
+              id: 'op-submitted',
+              opNumber: prev.opNumber || '',
+              status: 'Processing',
+              amountDue: prev.totalAmountDue || 0,
+              amountReceived: prev.totalAmountDue || 0,
+            },
           }));
           refetch();
         }}

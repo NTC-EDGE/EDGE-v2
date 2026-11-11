@@ -31,10 +31,6 @@ export default function RegionsPage() {
   const { data: regionsResponse, isLoading, mutate, error } = useRegions();
   const regions = regionsResponse?.data ?? [];
 
-  // Load provinces to check references for deletion prevention
-  const { data: provincesResponse } = useProvinces();
-  const provinces = provincesResponse?.data ?? [];
-
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
@@ -47,6 +43,11 @@ export default function RegionsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Load provinces to check references for deletion prevention only if any region is inactive or confirmation is open
+  const hasInactiveRegions = regions.some((r) => !r.isActive);
+  const { data: provincesResponse } = useProvinces(null, undefined, hasInactiveRegions || confirmOpen);
+  const provinces = provincesResponse?.data ?? [];
 
   const hasProvinces = (regionId: string) => {
     return provinces.some((p) => p.regionId === regionId);

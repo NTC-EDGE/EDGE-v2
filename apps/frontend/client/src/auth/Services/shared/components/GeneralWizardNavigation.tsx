@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 
 interface GeneralWizardNavigationProps {
@@ -17,6 +17,8 @@ export function GeneralWizardNavigation({
   onNext,
   nextDisabled = false,
 }: GeneralWizardNavigationProps) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
   const getNextButtonLabel = () => {
     if (step === 5) return "Submit Application";
     if (step === 4) return "Proceed to Review";
@@ -24,21 +26,23 @@ export function GeneralWizardNavigation({
   };
 
   return (
-    <View style={styles.fixedBottomBar}>
-      <View style={styles.innerContainer}>
+    <View style={[styles.fixedBottomBar, isMobile && { paddingHorizontal: 12, paddingVertical: 10 }]}>
+      <View style={[styles.innerContainer, isMobile && { gap: 8 }]}>
         {/* Step Indicator Pill */}
         <View style={styles.stepInfoContainer}>
-          <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>STEP {step} OF {totalSteps}</Text>
+          <View style={[styles.stepBadge, isMobile && { paddingHorizontal: 8, paddingVertical: 6 }]}>
+            <Text style={styles.stepBadgeText}>
+              {isMobile ? `STEP ${step}/${totalSteps}` : `STEP ${step} OF ${totalSteps}`}
+            </Text>
           </View>
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionsContainer}>
+        <View style={[styles.actionsContainer, isMobile && { flex: 1, gap: 8 }]}>
           <TouchableOpacity
             onPress={onBack}
             activeOpacity={0.7}
-            style={styles.backButton}
+            style={[styles.backButton, isMobile && { flex: 1, minWidth: 0, paddingHorizontal: 10 }]}
           >
             <Icon name="arrow-left" size={15} color={COLORS.neutral[700]} />
             <Text style={styles.backButtonText}>
@@ -53,6 +57,7 @@ export function GeneralWizardNavigation({
             style={[
               styles.nextButton,
               nextDisabled && styles.nextButtonDisabled,
+              isMobile && { flex: 1.4, minWidth: 0, paddingHorizontal: 12 },
             ]}
           >
             <Text style={styles.nextButtonText}>

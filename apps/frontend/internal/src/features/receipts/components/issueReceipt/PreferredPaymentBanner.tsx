@@ -117,6 +117,14 @@ export function PreferredPaymentBanner({
                 {item.mode === 'Check' && item.checkNumber ? ` (${item.checkBank || 'Bank'} #${item.checkNumber})` : ''}
                 {item.mode === 'Online' && item.referenceNumber ? ` (Ref: ${item.referenceNumber})` : ''}
               </Text>
+              {item.mode === 'Check' && Boolean(item.proofFileName || item.proofFileId) && (
+                <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Lucide name="paperclip" size={11} color="#1D4ED8" />
+                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#1D4ED8' }}>
+                    {item.proofFileName ? `Proof: ${item.proofFileName}` : 'Proof Attached'}
+                  </Text>
+                </View>
+              )}
               {isItemIssued && (
                 <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
                   <Text style={{ fontSize: 11, fontWeight: '800', color: '#166534' }}>

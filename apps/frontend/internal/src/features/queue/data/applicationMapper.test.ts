@@ -1,5 +1,6 @@
-import { mapApplicationDtoToUI } from './applicationMapper';
-import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
+import { mapApplicationDtoToUI, mapActivityDtoToUI } from './applicationMapper';
+import { ApplicationDto, ApplicationSummaryDto, ApplicationActivityDto } from '@edge/api';
+import { computeOfficerEvaluationState } from '../utils/officerEvaluationHelper';
 
 describe('applicationMapper', () => {
   it('correctly identifies Certificates category when serviceCategory is Certificates', () => {
@@ -478,6 +479,406 @@ describe('applicationMapper', () => {
 
       expect(uiForAccountant.status).toBe('Returned');
       expect(uiForAccountant.queueTab).toBe('history');
+    });
+
+    it('correctly treats application as unclaimed for Accountant and does not attribute evaluatingOfficer as accountingOfficer when forwarded to Accountant', () => {
+      const forwardedDto: ApplicationDto = {
+        id: 'app-fwd-1',
+        tenantId: 'tenant-1',
+        applicationNumber: 'APP-FWD-001',
+        referenceNumber: 'REF-FWD-001',
+        status: 'ForAccountant',
+        submissionMode: 'Single',
+        isGuest: false,
+        createdAt: '2026-09-20T10:00:00Z',
+        office: 'Regional Main Office',
+        remarks: 'Evaluation approved. Forwarded to Accountant.',
+        applicants: [
+          {
+            id: 'applicant-1',
+            tenantId: 'tenant-1',
+            isGuest: false,
+            applicantType: 'Individual',
+            details: {
+              id: 'det-1',
+              firstName: 'Juan',
+              lastName: 'Dela Cruz',
+              address: '123 Test St',
+              nationality: 'Filipino',
+              sex: 'Male',
+              contactNumber: '09123456789',
+              emailAddress: 'juan@example.com',
+            },
+            formFieldValues: [],
+          },
+        ],
+        services: [
+          {
+            id: 'srv-1',
+            serviceId: 'srv-1',
+            serviceName: 'Radio Station Permit',
+            serviceCategory: 'Permits',
+          },
+        ],
+        histories: [
+          {
+            id: 'h-1',
+            timestamp: '2026-09-20T10:00:00Z',
+            action: 'Evaluation Started',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            remarks: 'Evaluation started by Engr. Maria Santos.',
+            toStatus: 'Evaluating',
+          },
+          {
+            id: 'h-2',
+            timestamp: '2026-09-20T10:30:00Z',
+            action: 'Approved & Forwarded to Accountant',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            remarks: 'Evaluation approved. Forwarded to Accountant.',
+            toStatus: 'ForAccountant',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(forwardedDto, 'Accountant');
+
+      // 1. Evaluating officer is Engr. Maria Santos
+      expect(ui.evaluatingOfficer).toBe('Engr. Maria Santos');
+      // 2. Accounting officer must be undefined (unclaimed)
+      expect(ui.accountingOfficer).toBeUndefined();
+      // 3. Assigned to must NOT be Engr. Maria Santos
+      expect(ui.assignedTo).not.toBe('Engr. Maria Santos');
+
+      // 4. Test stage evaluation state for an Accountant user: Must be unclaimed so they can click "Take Application"!
+      const acctState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['ann accountant', 'accountant@ntc.gov.ph'],
+      });
+      expect(acctState.isStageUnclaimed).toBe(true);
+      expect(acctState.isStageClaimedByOther).toBe(false);
+      expect(acctState.isStageClaimedByMe).toBe(false);
+    });
+
+    it('correctly transitions to claimed by Accountant when Accountant takes application (Financial Review Started)', () => {
+      const claimedDto: ApplicationDto = {
+        id: 'app-fwd-2',
+        tenantId: 'tenant-1',
+        submissionMode: 'Single',
+        isGuest: false,
+        referenceNumber: 'REF-2026-FWD2',
+        applicationNumber: 'APP-2026-FWD2',
+        status: 'ForAccountant',
+        office: 'NTC Central Office',
+        createdAt: '2026-03-30T10:00:00.000Z',
+        lastModifiedAt: '2026-03-30T10:30:00.000Z',
+        intent: 'Regular',
+        services: [],
+        applicants: [],
+        histories: [
+          {
+            id: 'h1',
+            action: 'Evaluation Started',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            timestamp: '2026-03-30T10:00:00.000Z',
+            fromStatus: 'Submitted',
+            toStatus: 'Evaluating',
+          },
+          {
+            id: 'h2',
+            action: 'Approved & Forwarded to Accountant',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            remarks: 'Approved and forwarded to Accountant for review.',
+            timestamp: '2026-03-30T10:15:00.000Z',
+            fromStatus: 'Evaluating',
+            toStatus: 'ForAccountant',
+          },
+          {
+            id: 'h3',
+            action: 'Financial Review Started',
+            staffName: 'Ann Accountant',
+            staffRole: 'Accountant',
+            remarks: 'Financial review started by Ann Accountant. Authority claimed.',
+            timestamp: '2026-03-30T10:30:00.000Z',
+            fromStatus: 'ForAccountant',
+            toStatus: 'ForAccountant',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(claimedDto, 'Accountant');
+
+      // 1. Evaluating officer is still Engr. Maria Santos
+      expect(ui.evaluatingOfficer).toBe('Engr. Maria Santos');
+      // 2. Accounting officer is now Ann Accountant
+      expect(ui.accountingOfficer).toBe('Ann Accountant');
+      // 3. Assigned to is Ann Accountant
+      expect(ui.assignedTo).toBe('Ann Accountant');
+
+      // 4. Test stage evaluation state for Ann Accountant: Must be claimed by me!
+      const acctState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['ann accountant', 'accountant@ntc.gov.ph'],
+      });
+      expect(acctState.isStageUnclaimed).toBe(false);
+      expect(acctState.isStageClaimedByOther).toBe(false);
+      expect(acctState.isStageClaimedByMe).toBe(true);
+
+      // 5. Test stage evaluation state for another user: Must be locked / claimed by other!
+      const otherState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['other accountant', 'other@ntc.gov.ph'],
+      });
+      expect(otherState.isStageUnclaimed).toBe(false);
+      expect(otherState.isStageClaimedByOther).toBe(true);
+      expect(otherState.isStageClaimedByMe).toBe(false);
+    });
+
+    it('correctly transitions to unclaimed when Accountant releases application (Financial Review Released)', () => {
+      const releasedDto: ApplicationDto = {
+        id: 'app-fwd-release',
+        tenantId: 'tenant-1',
+        submissionMode: 'Single',
+        isGuest: false,
+        referenceNumber: 'REF-2026-REL1',
+        applicationNumber: 'APP-2026-REL1',
+        status: 'ForAccountant',
+        office: 'NTC Central Office',
+        createdAt: '2026-03-30T10:00:00.000Z',
+        lastModifiedAt: '2026-03-30T10:45:00.000Z',
+        intent: 'Regular',
+        services: [],
+        applicants: [],
+        histories: [
+          {
+            id: 'h1',
+            action: 'Evaluation Started',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            timestamp: '2026-03-30T10:00:00.000Z',
+            fromStatus: 'Submitted',
+            toStatus: 'Evaluating',
+          },
+          {
+            id: 'h2',
+            action: 'Approved & Forwarded to Accountant',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            timestamp: '2026-03-30T10:15:00.000Z',
+            fromStatus: 'Evaluating',
+            toStatus: 'ForAccountant',
+          },
+          {
+            id: 'h3',
+            action: 'Financial Review Started',
+            staffName: 'Ann Accountant',
+            staffRole: 'Accountant',
+            remarks: 'Financial review started by Ann Accountant. Authority claimed.',
+            timestamp: '2026-03-30T10:30:00.000Z',
+            fromStatus: 'ForAccountant',
+            toStatus: 'ForAccountant',
+          },
+          {
+            id: 'h4',
+            action: 'Financial Review Released',
+            staffName: 'Ann Accountant',
+            staffRole: 'Accountant',
+            remarks: 'Financial review released by Ann Accountant. Returned to queue.',
+            timestamp: '2026-03-30T10:45:00.000Z',
+            fromStatus: 'ForAccountant',
+            toStatus: 'ForAccountant',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(releasedDto, 'Accountant');
+
+      // 1. Accounting officer should be undefined / cleared
+      expect(ui.accountingOfficer).toBeUndefined();
+      // 2. AssignedTo should be office (not Ann Accountant)
+      expect(ui.assignedTo).toBe('NTC Central Office');
+
+      // 3. Test stage evaluation state for Ann Accountant: Must be unclaimed!
+      const acctState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['ann accountant', 'accountant@ntc.gov.ph'],
+      });
+      expect(acctState.isStageUnclaimed).toBe(true);
+      expect(acctState.isStageClaimedByOther).toBe(false);
+      expect(acctState.isStageClaimedByMe).toBe(false);
+
+      // 4. Test stage evaluation state for another accountant: Must also be unclaimed so they can take it!
+      const otherState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['other accountant', 'other@ntc.gov.ph'],
+      });
+      expect(otherState.isStageUnclaimed).toBe(true);
+      expect(otherState.isStageClaimedByOther).toBe(false);
+      expect(otherState.isStageClaimedByMe).toBe(false);
+    });
+
+    it('correctly transitions to unclaimed when Cashier releases application (Payment Verification Released)', () => {
+      const cashierReleasedDto: ApplicationDto = {
+        id: 'app-cashier-release',
+        tenantId: 'tenant-1',
+        submissionMode: 'Single',
+        isGuest: false,
+        referenceNumber: 'REF-2026-REL2',
+        applicationNumber: 'APP-2026-REL2',
+        status: 'PendingPayment',
+        office: 'NTC Central Office',
+        createdAt: '2026-03-30T10:00:00.000Z',
+        lastModifiedAt: '2026-03-30T11:00:00.000Z',
+        intent: 'Regular',
+        services: [],
+        applicants: [],
+        histories: [
+          {
+            id: 'h1',
+            action: 'Payment Verification Started',
+            staffName: 'Carlos Cashier',
+            staffRole: 'Cashier',
+            remarks: 'Payment verification started by Carlos Cashier. Authority claimed.',
+            timestamp: '2026-03-30T10:45:00.000Z',
+            fromStatus: 'PendingPayment',
+            toStatus: 'PendingPayment',
+          },
+          {
+            id: 'h2',
+            action: 'Payment Verification Released',
+            staffName: 'Carlos Cashier',
+            staffRole: 'Cashier',
+            remarks: 'Payment verification released by Carlos Cashier. Returned to queue.',
+            timestamp: '2026-03-30T11:00:00.000Z',
+            fromStatus: 'PendingPayment',
+            toStatus: 'PendingPayment',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(cashierReleasedDto, 'Cashier');
+
+      // 1. Cashier officer should be undefined / cleared
+      expect(ui.cashierOfficer).toBeUndefined();
+      // 2. AssignedTo should be office
+      expect(ui.assignedTo).toBe('NTC Central Office');
+
+      // 3. Test stage evaluation state for Carlos: Must be unclaimed!
+      const cashierState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['carlos cashier', 'cashier@ntc.gov.ph'],
+      });
+      expect(cashierState.isStageUnclaimed).toBe(true);
+      expect(cashierState.isStageClaimedByOther).toBe(false);
+      expect(cashierState.isStageClaimedByMe).toBe(false);
+
+      // 4. Test stage evaluation state for another cashier: Must also be unclaimed so they can take it!
+      const otherCashierState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['other cashier', 'other.cashier@ntc.gov.ph'],
+      });
+      expect(otherCashierState.isStageUnclaimed).toBe(true);
+      expect(otherCashierState.isStageClaimedByOther).toBe(false);
+      expect(otherCashierState.isStageClaimedByMe).toBe(false);
+    });
+  });
+
+  describe('mapActivityDtoToUI', () => {
+    it('correctly maps minimal ApplicationActivityDto to ApplicationData for activities feed', () => {
+      const dto: ApplicationActivityDto = {
+        id: 'act-1',
+        referenceNumber: 'APP-2026-001',
+        applicationNumber: 'APP-2026-001',
+        applicantName: 'Juan Dela Cruz',
+        applicantType: 'Individual',
+        serviceName: 'Radio Station License',
+        serviceCategory: 'Licenses',
+        serviceVariantName: 'New',
+        element: 'VHF',
+        status: 'Evaluating',
+        queueTab: 'pending',
+        fieldOffice: 'NCR - Central Office',
+        officerInCharge: 'Engr. Evaluator',
+        assignedTo: 'Engr. Evaluator',
+        evaluatingOfficer: 'Engr. Evaluator',
+        accountingOfficer: undefined,
+        cashierOfficer: undefined,
+        issuingOfficer: undefined,
+        endorsedTo: undefined,
+        submittedAt: '2026-11-05T08:00:00Z',
+        createdAt: '2026-11-05T08:00:00Z',
+        updatedAt: '2026-11-05T08:30:00Z',
+        submissionMode: 'Single',
+        isPinned: false,
+        isArchived: false,
+        officialReceiptNumber: 'OR-99881',
+      };
+
+      const ui = mapActivityDtoToUI(dto, 'Evaluator');
+
+      expect(ui.id).toBe('act-1');
+      expect(ui.applicant).toBe('Juan Dela Cruz');
+      expect(ui.applicantType).toBe('Individual');
+      expect(ui.referenceNumber).toBe('APP-2026-001');
+      expect(ui.applicationNumber).toBe('APP-2026-001');
+      expect(ui.serviceName).toBe('Radio Station License');
+      expect(ui.serviceCategory).toBe('Licenses');
+      expect(ui.serviceVariantName).toBe('New');
+      expect(ui.permitTitle).toBe('Radio Station License - New');
+      expect(ui.element).toBe('VHF');
+      expect(ui.category).toBe('Licenses');
+      expect(ui.status).toBe('Evaluating');
+      expect(ui.queueTab).toBe('pending');
+      expect(ui.office).toBe('NCR - Central Office');
+      expect(ui.assignedTo).toBe('Engr. Evaluator');
+      expect(ui.evaluatingOfficer).toBe('Engr. Evaluator');
+      expect(ui.createdAt).toBe('2026-11-05T08:00:00Z');
+      expect(ui.officialReceiptNumber).toBe('OR-99881');
+      expect(ui.isPinned).toBe(false);
+      expect(ui.isArchived).toBe(false);
+    });
+
+    it('falls back to serviceName when serviceVariantName is not provided', () => {
+      const dto: ApplicationActivityDto = {
+        id: 'act-2',
+        referenceNumber: 'APP-2026-002',
+        applicationNumber: 'APP-2026-002',
+        applicantName: 'Acme Corp',
+        applicantType: 'Company',
+        serviceName: 'Dealer Permit',
+        serviceCategory: 'Permits',
+        status: 'Submitted',
+        fieldOffice: 'Region VII',
+        submittedAt: '2026-11-05T09:00:00Z',
+        createdAt: '2026-11-05T09:00:00Z',
+        submissionMode: 'Single',
+        isPinned: false,
+        isArchived: false,
+      };
+
+      const ui = mapActivityDtoToUI(dto);
+
+      expect(ui.applicant).toBe('Acme Corp');
+      expect(ui.applicantType).toBe('Company');
+      expect(ui.permitTitle).toBe('Dealer Permit');
+      expect(ui.category).toBe('Permits');
+      expect(ui.office).toBe('Region VII');
+      expect(ui.status).toBe('Submitted');
     });
   });
 });

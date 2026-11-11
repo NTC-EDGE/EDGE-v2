@@ -32,6 +32,8 @@ public static class ReportEndpoints
     public static async Task<IResult> GetOperationalReportStatistics(
         Guid? tenantId,
         string? periodMode,
+        DateTime? startDate,
+        DateTime? endDate,
         int? year,
         int? quarter,
         int? month,
@@ -43,6 +45,8 @@ public static class ReportEndpoints
         var query = new GetOperationalReportStatisticsQuery(
             TenantId: tenantId,
             PeriodMode: periodMode,
+            StartDate: startDate,
+            EndDate: endDate,
             Year: year,
             Quarter: quarter,
             Month: month,

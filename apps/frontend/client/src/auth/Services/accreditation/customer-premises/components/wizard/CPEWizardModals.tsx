@@ -4,6 +4,7 @@ import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ApplicantData } from "../../types/cpeTypes";
 import { useToast } from "../../../../../../shared/components/Toast";
 import { SubmissionFailureModal } from "../../../../shared/components/SubmissionFailureModal";
+import { GeneralLoadingOverlay } from "../../../../shared/components/GeneralLoadingOverlay";
 
 interface CPEWizardModalsProps {
   isConfirmModalOpen: boolean;
@@ -358,7 +359,7 @@ export function CPEWizardModals({
                   marginBottom: 16,
                 }}
                 placeholder="Share any thoughts on the application process..."
-                placeholderTextColor={COLORS.neutral[400]}
+                placeholderTextColor="rgba(148, 163, 184, 0.65)"
                 multiline
                 value={feedbackComment}
                 onChangeText={setFeedbackComment}

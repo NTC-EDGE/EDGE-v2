@@ -1,13 +1,636 @@
 import { NTCService } from "../../data/servicesData";
+import { FormDto, FieldDto, FormSectionDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
+import {
+  parseOptions,
+  FormEvaluationContext,
+  evaluateContextOnlyVisibility,
+  isFieldContextVisible,
+  isFieldRowVisible,
+  extractFieldDependencyRules,
+  hasExplicitVariantCondition,
+  checkSingleDependency,
+} from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+
+export interface DropdownFieldValidation {
+  fieldId?: string;
+  header: string;
+  label: string;
+  allowedOptions: string[];
+}
 
 export interface SpreadsheetTemplateConfig {
   filename: string;
   headers: string[];
   sampleRows: string[][];
   description: string;
+  dropdownValidations?: DropdownFieldValidation[];
 }
 
-export function getSpreadsheetTemplateForService(service: NTCService): SpreadsheetTemplateConfig {
+export function normalizeHeaderSlug(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  return raw
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s*\[[^\]]*\]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function enrichStaticTemplate(config: SpreadsheetTemplateConfig): SpreadsheetTemplateConfig {
+  if (config.dropdownValidations && config.dropdownValidations.length > 0) {
+    return config;
+  }
+
+  const dropdowns: DropdownFieldValidation[] = [];
+  const knownDropdowns: Record<string, { label: string; options: string[] }> = {
+    sex: { label: "Sex", options: ["Male", "Female"] },
+    gender: { label: "Sex", options: ["Male", "Female"] },
+    entitytype: {
+      label: "Entity Type",
+      options: [
+        "Corporation",
+        "Single Proprietorship",
+        "Partnership",
+        "Government",
+        "Cooperative",
+        "Association",
+        "Non-Profit",
+      ],
+    },
+    examineetype: {
+      label: "Examinee Type",
+      options: ["First Taker", "Retaker", "Upgrade", "Removal"],
+    },
+    applicationtype: {
+      label: "Application Type",
+      options: ["NEW", "RENEWAL", "MODIFICATION"],
+    },
+    variation: {
+      label: "Variation",
+      options: ["Mobile", "Non-Mobile"],
+    },
+    registrationtype: {
+      label: "Registration Type",
+      options: ["Dealers", "Non-Dealers"],
+    },
+  };
+
+  for (const h of config.headers) {
+    const slug = normalizeHeaderSlug(h);
+    const match = knownDropdowns[slug];
+    if (match) {
+      dropdowns.push({
+        header: h,
+        label: match.label,
+        allowedOptions: match.options,
+      });
+    }
+  }
+
+  return {
+    ...config,
+    dropdownValidations: dropdowns,
+  };
+}
+
+function generateSampleValueForField(field: FieldDto, rowIndex: number): string {
+  const lbl = typeof field.label === "string" ? field.label.toLowerCase() : "";
+  const fType = typeof field.type === "string" ? field.type.toLowerCase() : "";
+
+  // If select, dropdown, or radio with options, pick one of the options
+  const parsed = parseOptions(field);
+  if (parsed.length > 0) {
+    const opt = parsed[rowIndex % parsed.length];
+    if (opt !== undefined && opt !== null) {
+      if (typeof opt.label === "string" && opt.label.length > 0) {
+        return opt.label;
+      }
+      if (typeof opt.value === "string" && opt.value.length > 0) {
+        return opt.value;
+      }
+    }
+  }
+
+  if (fType === "date") {
+    return rowIndex === 0 ? "2026-12-31" : "2027-06-30";
+  }
+  if (fType === "number" || fType === "integer") {
+    return rowIndex === 0 ? "1" : "2";
+  }
+  if (fType === "email") {
+    return rowIndex === 0 ? "engineer1@example.ph" : "technician2@example.ph";
+  }
+  if (fType === "tel" || fType === "phone" || lbl.includes("contact") || lbl.includes("mobile") || lbl.includes("phone")) {
+    return rowIndex === 0 ? "09171234567" : "09189876543";
+  }
+  if (fType === "checkbox" || fType === "boolean") {
+    return rowIndex === 0 ? "Yes" : "No";
+  }
+
+  // Smart label keyword matching
+  if (lbl.includes("engineer") || lbl.includes("supervisor")) {
+    return rowIndex === 0 ? "Engr. Roberto Dela Cruz" : "Engr. Maria Santos";
+  }
+  if (lbl.includes("technician")) {
+    return rowIndex === 0 ? "Juan Santos" : "Pedro Reyes";
+  }
+  if (lbl.includes("ece") || (lbl.includes("license") && lbl.includes("no"))) {
+    return rowIndex === 0 ? "PECE-0012948" : "PECE-0044912";
+  }
+  if (lbl.includes("call sign") || lbl.includes("callsign")) {
+    return rowIndex === 0 ? "DX1ABC" : "DW1XYZ";
+  }
+  if (lbl.includes("power") || lbl.includes("watt")) {
+    return rowIndex === 0 ? "100W" : "50W";
+  }
+  if (lbl.includes("school") || lbl.includes("university")) {
+    return rowIndex === 0 ? "University of the Philippines" : "Polytechnic University of the Philippines";
+  }
+  if (lbl.includes("course") || lbl.includes("degree")) {
+    return rowIndex === 0 ? "BS Electronics Engineering" : "BS Information Technology";
+  }
+  if (lbl.includes("graduat")) {
+    return rowIndex === 0 ? "2022" : "2020";
+  }
+  if (lbl.includes("special order") || lbl.includes("so no")) {
+    return rowIndex === 0 ? "SO-2022-00412" : "SO-2020-00891";
+  }
+  if (lbl.includes("vessel") || lbl.includes("ship")) {
+    return rowIndex === 0 ? "MV Emerald Sea" : "MV Pacific Star";
+  }
+  if (lbl.includes("serial")) {
+    return rowIndex === 0 ? "SN-849201" : "SN-849202";
+  }
+  if (lbl.includes("model")) {
+    return rowIndex === 0 ? "TX-5000" : "RX-200";
+  }
+  if (lbl.includes("brand") || lbl.includes("manufacturer")) {
+    return rowIndex === 0 ? "Motorola" : "Icom";
+  }
+  if (lbl.includes("frequency")) {
+    return rowIndex === 0 ? "144.000 MHz" : "430.000 MHz";
+  }
+  if (lbl.includes("year")) {
+    return rowIndex === 0 ? "1" : "3";
+  }
+
+  const baseLabel = typeof field.label === "string" && field.label.trim().length > 0 ? field.label.trim() : "Field";
+  return rowIndex === 0 ? `Sample ${baseLabel}` : `Example ${baseLabel}`;
+}
+
+interface ScopedFieldEntry {
+  field: FieldDto;
+  section: FormSectionDto;
+  hasVariantRule: boolean;
+}
+
+function matchesDependencyTarget(field: FieldDto, targetKey: string | undefined): boolean {
+  if (!targetKey || targetKey.trim().length === 0) return false;
+  const normTarget = normalizeHeaderSlug(targetKey);
+  const rawTargetLower = targetKey.trim().toLowerCase();
+  const fId = (field.fieldId || field.id || "").trim().toLowerCase();
+  const fLabel = (field.label || "").trim().toLowerCase();
+  const normLabel = normalizeHeaderSlug(field.label || "");
+
+  return (
+    (fId.length > 0 && fId === rawTargetLower) ||
+    (fLabel.length > 0 && fLabel === rawTargetLower) ||
+    (normTarget.length > 0 && normLabel === normTarget)
+  );
+}
+
+function isFieldDependencyReachable(
+  entry: ScopedFieldEntry,
+  allFormFields: FieldDto[],
+  contextVisibleEntries: ScopedFieldEntry[]
+): boolean {
+  const deps = extractFieldDependencyRules(entry.field, entry.section);
+  if (deps.length === 0) return true;
+
+  for (const dep of deps) {
+    const depTargets = [dep.fieldId, dep.fieldKey, dep.fieldLabel].filter(
+      (t): t is string => typeof t === "string" && t.trim().length > 0
+    );
+    if (depTargets.length === 0) continue;
+
+    const matchingInAllForm = allFormFields.filter((f) =>
+      depTargets.some((t) => matchesDependencyTarget(f, t))
+    );
+    const matchingVisible = contextVisibleEntries.filter((e) =>
+      depTargets.some((t) => matchesDependencyTarget(e.field, t))
+    );
+
+    // If the parent field exists in the form but is completely hidden in the current variant/context,
+    // then this dependent field can never be triggered in this variant.
+    if (matchingInAllForm.length > 0 && matchingVisible.length === 0) {
+      return false;
+    }
+
+    // If the parent field is visible and has dropdown options, verify that at least one allowed option
+    // can satisfy the dependency rule.
+    if (matchingVisible.length > 0) {
+      const parentDropdowns = matchingVisible.filter((p) => parseOptions(p.field).length > 0);
+      if (parentDropdowns.length === matchingVisible.length) {
+        let canSatisfy = false;
+        for (const parentEntry of parentDropdowns) {
+          const opts = parseOptions(parentEntry.field);
+          for (const opt of opts) {
+            const candidateValues = [opt.label, opt.value].filter(
+              (v): v is string => typeof v === "string" && v.trim().length > 0
+            );
+            for (const val of candidateValues) {
+              const mockValues: Record<string, string> = {};
+              for (const t of depTargets) {
+                mockValues[t] = val;
+              }
+              if (parentEntry.field.fieldId) mockValues[parentEntry.field.fieldId] = val;
+              if (parentEntry.field.id) mockValues[parentEntry.field.id] = val;
+              if (parentEntry.field.label) mockValues[parentEntry.field.label] = val;
+
+              if (checkSingleDependency(dep, mockValues)) {
+                canSatisfy = true;
+                break;
+              }
+            }
+            if (canSatisfy) break;
+          }
+          if (canSatisfy) break;
+        }
+        if (!canSatisfy) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+export function buildDynamicSpreadsheetTemplate(
+  service: NTCService,
+  form: FormDto,
+  evaluationContext?: FormEvaluationContext
+): SpreadsheetTemplateConfig | null {
+  if (!Array.isArray(form.sections) || form.sections.length === 0) {
+    return null;
+  }
+
+  const effectiveContext: FormEvaluationContext = {
+    serviceCategory: evaluationContext?.serviceCategory || service.category,
+    serviceTitle: evaluationContext?.serviceTitle || service.title,
+    serviceName: evaluationContext?.serviceName || form.serviceName || service.title,
+    serviceCode: evaluationContext?.serviceCode || form.serviceCode || service.code,
+    applicationType: evaluationContext?.applicationType || form.serviceVariantName,
+    variantType: evaluationContext?.variantType,
+    variantId: evaluationContext?.variantId || form.serviceVariantId,
+    variantName: evaluationContext?.variantName || form.serviceVariantName,
+    variantDescription:
+      evaluationContext?.variantDescription ||
+      evaluationContext?.variantName ||
+      form.serviceVariantName,
+    elementCodes: evaluationContext?.elementCodes,
+    elementNames: evaluationContext?.elementNames,
+    applicantType: evaluationContext?.applicantType,
+    formValues: evaluationContext?.formValues,
+  };
+
+  const excludedTypes = new Set([
+    "file",
+    "upload",
+    "attachment",
+    "document",
+    "signature",
+    "header",
+    "divider",
+    "button",
+    "label_only",
+    "static_text",
+  ]);
+
+  const sortedSections = [...form.sections].sort(
+    (a, b) => (typeof a.orderIndex === "number" ? a.orderIndex : 0) - (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+  );
+
+  const allFormFields: FieldDto[] = [];
+  const contextVisibleEntries: ScopedFieldEntry[] = [];
+
+  for (const sec of sortedSections) {
+    const secKey = typeof sec.key === "string" ? sec.key.toLowerCase() : "";
+    const secTitle = typeof sec.title === "string" ? sec.title.toLowerCase() : "";
+    if (
+      secKey.includes("upload") ||
+      secKey.includes("document") ||
+      secKey.includes("file") ||
+      secKey.includes("signature") ||
+      secTitle.includes("upload") ||
+      secTitle.includes("document") ||
+      secTitle.includes("signature")
+    ) {
+      continue;
+    }
+
+    if (!evaluateContextOnlyVisibility(sec.visibilityCondition, effectiveContext)) {
+      continue;
+    }
+
+    const fields = Array.isArray(sec.fields) ? sec.fields : [];
+    const sortedFields = [...fields].sort(
+      (a, b) => (typeof a.orderIndex === "number" ? a.orderIndex : 0) - (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+    );
+
+    for (const f of sortedFields) {
+      const fType = typeof (f.type || f.fieldType) === "string" ? (f.type || f.fieldType || "").toLowerCase().trim() : "";
+      if (excludedTypes.has(fType)) continue;
+
+      const fLabel = typeof f.label === "string" ? f.label.trim() : "";
+      if (fLabel.length === 0) continue;
+
+      allFormFields.push(f);
+
+      if (!isFieldContextVisible(f, sec, effectiveContext)) {
+        continue;
+      }
+
+      contextVisibleEntries.push({
+        field: f,
+        section: sec,
+        hasVariantRule: hasExplicitVariantCondition(f, sec),
+      });
+    }
+  }
+
+  const reachableEntries = contextVisibleEntries.filter((entry) =>
+    isFieldDependencyReachable(entry, allFormFields, contextVisibleEntries)
+  );
+
+  if (reachableEntries.length === 0) {
+    return null;
+  }
+
+  // Group by normalized label slug while respecting variant-specific overrides
+  const groupedBySlug = new Map<string, ScopedFieldEntry[]>();
+  const slugOrder: string[] = [];
+
+  for (const entry of reachableEntries) {
+    const fLabel = typeof entry.field.label === "string" ? entry.field.label.trim() : "";
+    const norm = normalizeHeaderSlug(fLabel);
+    if (!norm) continue;
+
+    const existing = groupedBySlug.get(norm);
+    if (!existing) {
+      groupedBySlug.set(norm, [entry]);
+      slugOrder.push(norm);
+    } else {
+      existing.push(entry);
+    }
+  }
+
+  // If a column has both variant-specific fields and generic base fields, keep the variant-specific overrides
+  for (const [slug, entries] of groupedBySlug.entries()) {
+    if (entries.length > 1) {
+      const variantSpecific = entries.filter((e) => e.hasVariantRule);
+      if (variantSpecific.length > 0) {
+        groupedBySlug.set(slug, variantSpecific);
+      }
+    }
+  }
+
+  const code = typeof service.code === "string" ? service.code.toUpperCase() : "";
+  const title = typeof service.title === "string" ? service.title.toUpperCase() : "";
+  const cat = typeof service.category === "string" ? service.category.toUpperCase() : "";
+
+  const isCorporateService =
+    effectiveContext.applicantType === "company" ||
+    code === "NTC_1_18" ||
+    title.includes("CUSTOMER PREMISES") ||
+    title.includes("ACCREDITATION") ||
+    title.includes("VALUE-ADDED") ||
+    title.includes("VAS") ||
+    title.includes("DEALER") ||
+    title.includes("MANUFACTURER") ||
+    cat.includes("ACCREDIT");
+
+  const baseCols: Array<{ header: string; sample1: string; sample2: string }> = isCorporateService
+    ? [
+        { header: "Business Name", sample1: "Acme Communications Corp.", sample2: "Metro Radio Supplies" },
+        { header: "Entity Type", sample1: "Corporation", sample2: "Single Proprietorship" },
+        { header: "DTI/SEC No", sample1: "SEC-CS202100982", sample2: "DTI-0981284" },
+        { header: "Contact Number", sample1: "09171234567", sample2: "09189876543" },
+        { header: "Email", sample1: "regulatory@acme.ph", sample2: "sales@metroradio.ph" },
+        { header: "Province", sample1: "Metro Manila", sample2: "Cebu" },
+        { header: "City", sample1: "Quezon City", sample2: "Cebu City" },
+        { header: "Barangay", sample1: "Diliman", sample2: "Mabolo" },
+        { header: "Street", sample1: "Commonwealth Ave", sample2: "MJ Cuenco Ave" },
+        { header: "Zip Code", sample1: "1101", sample2: "6000" },
+        { header: "Authorized Representative", sample1: "Juan Dela Cruz", sample2: "Maria Santos" },
+        { header: "Representative Position", sample1: "Managing Director", sample2: "General Manager" },
+      ]
+    : [
+        { header: "First Name", sample1: "Juan", sample2: "Maria" },
+        { header: "Middle Name", sample1: "Reyes", sample2: "Santos" },
+        { header: "Last Name", sample1: "Dela Cruz", sample2: "Aquino" },
+        { header: "Suffix", sample1: "", sample2: "Jr." },
+        { header: "Date of Birth", sample1: "1995-05-12", sample2: "1998-11-20" },
+        { header: "Sex", sample1: "Male", sample2: "Female" },
+        { header: "Nationality", sample1: "Filipino", sample2: "Filipino" },
+        { header: "Contact Number", sample1: "09171234567", sample2: "09189876543" },
+        { header: "Email", sample1: "juan.delacruz@example.ph", sample2: "maria.aquino@example.ph" },
+        { header: "Province", sample1: "Metro Manila", sample2: "Cebu" },
+        { header: "City", sample1: "Quezon City", sample2: "Cebu City" },
+        { header: "Barangay", sample1: "Diliman", sample2: "Mabolo" },
+        { header: "Street", sample1: "Commonwealth Ave", sample2: "MJ Cuenco Ave" },
+        { header: "Zip Code", sample1: "1101", sample2: "6000" },
+      ];
+
+  const headers: string[] = [];
+  const sampleRow1: string[] = [];
+  const sampleRow2: string[] = [];
+  const seenHeaderSlugs = new Set<string>();
+  const rowSampleValues: [Record<string, string>, Record<string, string>] = [{}, {}];
+
+  const collectDistinctOptions = (entries: ScopedFieldEntry[]): string[] => {
+    const optLabels: string[] = [];
+    for (const entry of entries) {
+      const opts = parseOptions(entry.field);
+      for (const opt of opts) {
+        const oLabel =
+          typeof opt.label === "string" && opt.label.trim().length > 0
+            ? opt.label.trim()
+            : typeof opt.value === "string"
+            ? opt.value.trim()
+            : "";
+        if (oLabel.length > 0 && !optLabels.includes(oLabel)) {
+          optLabels.push(oLabel);
+        }
+      }
+    }
+    return optLabels;
+  };
+
+  const recordSampleValue = (
+    rowIndex: 0 | 1,
+    headerLabel: string,
+    val: string,
+    field?: FieldDto
+  ) => {
+    const map = rowSampleValues[rowIndex];
+    map[headerLabel] = val;
+    map[headerLabel.toLowerCase().trim()] = val;
+    const slug = normalizeHeaderSlug(headerLabel);
+    if (slug) map[slug] = val;
+    if (field) {
+      if (field.fieldId) map[field.fieldId] = val;
+      if (field.id) map[field.id] = val;
+      if (field.label) {
+        map[field.label] = val;
+        map[field.label.toLowerCase().trim()] = val;
+      }
+    }
+  };
+
+  const isExamService =
+    code === "NTC_1_01" ||
+    title.includes("RADIO OPERATOR EXAM") ||
+    title.includes("EXAMINATION");
+
+  const dropdownValidations: DropdownFieldValidation[] = [];
+
+  for (const base of baseCols) {
+    const slug = normalizeHeaderSlug(base.header);
+    const matchingFormEntries = groupedBySlug.get(slug);
+    const configuredOpts = matchingFormEntries ? collectDistinctOptions(matchingFormEntries) : [];
+
+    if (matchingFormEntries && configuredOpts.length > 0) {
+      const primaryField = matchingFormEntries[0]?.field;
+      dropdownValidations.push({
+        fieldId: primaryField ? (typeof primaryField.fieldId === "string" ? primaryField.fieldId : primaryField.id) : undefined,
+        header: base.header,
+        label: base.header,
+        allowedOptions: configuredOpts,
+      });
+      const s1 = configuredOpts[0] || base.sample1;
+      const s2 = configuredOpts[1 % configuredOpts.length] || base.sample2;
+      headers.push(base.header);
+      sampleRow1.push(s1);
+      sampleRow2.push(s2);
+      recordSampleValue(0, base.header, s1, primaryField);
+      recordSampleValue(1, base.header, s2, primaryField);
+    } else {
+      headers.push(base.header);
+      sampleRow1.push(base.sample1);
+      sampleRow2.push(base.sample2);
+      recordSampleValue(0, base.header, base.sample1);
+      recordSampleValue(1, base.header, base.sample2);
+
+      if (slug === "sex" && !isCorporateService) {
+        dropdownValidations.push({
+          header: "Sex",
+          label: "Sex",
+          allowedOptions: ["Male", "Female"],
+        });
+      } else if (slug === "entitytype" && isCorporateService) {
+        dropdownValidations.push({
+          header: "Entity Type",
+          label: "Entity Type",
+          allowedOptions: [
+            "Corporation",
+            "Single Proprietorship",
+            "Partnership",
+            "Government",
+            "Cooperative",
+            "Association",
+            "Non-Profit",
+          ],
+        });
+      }
+    }
+
+    seenHeaderSlugs.add(slug);
+  }
+
+  if (isExamService && !groupedBySlug.has("examineetype")) {
+    dropdownValidations.push({
+      header: "Examinee Type",
+      label: "Examinee Type",
+      allowedOptions: ["First Taker", "Retaker", "Upgrade", "Removal"],
+    });
+  }
+
+  for (const slug of slugOrder) {
+    if (seenHeaderSlugs.has(slug)) {
+      continue;
+    }
+
+    const entries = groupedBySlug.get(slug);
+    if (!entries || entries.length === 0) continue;
+
+    seenHeaderSlugs.add(slug);
+
+    const primaryField = entries[0]?.field;
+    if (!primaryField) continue;
+
+    const rawLabel = typeof primaryField.label === "string" ? primaryField.label.trim() : "";
+    const optLabels = collectDistinctOptions(entries);
+    let headerText = rawLabel;
+
+    if (optLabels.length > 0) {
+      dropdownValidations.push({
+        fieldId: typeof primaryField.fieldId === "string" ? primaryField.fieldId : primaryField.id,
+        header: rawLabel,
+        label: rawLabel,
+        allowedOptions: optLabels,
+      });
+
+      if (optLabels.length <= 5) {
+        headerText = `${rawLabel} (${optLabels.join(" | ")})`;
+      } else {
+        headerText = `${rawLabel} (Options: ${optLabels.slice(0, 3).join(" | ")} | ...)`;
+      }
+    }
+
+    headers.push(headerText);
+
+    // Generate sample values per row while respecting inter-field visibility conditions
+    const rowIndices: Array<0 | 1> = [0, 1];
+    for (const rowIndex of rowIndices) {
+      const rowCtx: FormEvaluationContext = {
+        ...effectiveContext,
+        formValues: rowSampleValues[rowIndex],
+      };
+      const visibleEntryForRow = entries.find((e) =>
+        isFieldRowVisible(e.field, e.section, rowCtx)
+      );
+
+      if (visibleEntryForRow) {
+        const sampleVal = generateSampleValueForField(visibleEntryForRow.field, rowIndex);
+        if (rowIndex === 0) {
+          sampleRow1.push(sampleVal);
+        } else {
+          sampleRow2.push(sampleVal);
+        }
+        recordSampleValue(rowIndex, rawLabel, sampleVal, visibleEntryForRow.field);
+      } else {
+        if (rowIndex === 0) {
+          sampleRow1.push("");
+        } else {
+          sampleRow2.push("");
+        }
+      }
+    }
+  }
+
+  const rawFilename = (code || title || "NTC_Service").replace(/[^a-zA-Z0-9_-]/g, "_");
+  const filename = `${rawFilename}_Bulk_Template.csv`;
+
+  return {
+    filename,
+    headers,
+    sampleRows: [sampleRow1, sampleRow2],
+    description: `Official batch filing template for ${service.title || "NTC Service"} generated dynamically from configured Form Builder fields.`,
+    dropdownValidations,
+  };
+}
+
+function getStaticSpreadsheetTemplateForService(service: NTCService): SpreadsheetTemplateConfig {
   const code = (service.code || "").toUpperCase();
   const title = (service.title || "").toUpperCase();
 
@@ -503,6 +1126,22 @@ export function getSpreadsheetTemplateForService(service: NTCService): Spreadshe
     ],
     description: `Batch applicant intake template for ${service.title}.`,
   };
+}
+
+export function getSpreadsheetTemplateForService(
+  service: NTCService,
+  form?: FormDto | null,
+  evaluationContext?: FormEvaluationContext
+): SpreadsheetTemplateConfig {
+  if (form && Array.isArray(form.sections) && form.sections.length > 0) {
+    const dynamicTemplate = buildDynamicSpreadsheetTemplate(service, form, evaluationContext);
+    if (dynamicTemplate) {
+      return dynamicTemplate;
+    }
+  }
+
+  const staticConfig = getStaticSpreadsheetTemplateForService(service);
+  return enrichStaticTemplate(staticConfig);
 }
 
 export function generateCsvContent(config: SpreadsheetTemplateConfig): string {

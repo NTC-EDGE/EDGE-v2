@@ -1,14 +1,22 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
-import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRenderer";
+import { DynamicFormRenderer, FormDto } from "../../../../shared/components/DynamicFormRenderer";
 import { ApplicantInformationFormSection } from "./applicant-info/ApplicantInformationFormSection";
 import { FormSignatureInput } from "../../../../shared/components/FormSignatureInput";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
-import { evaluateVisibilityCondition, FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import {
+  evaluateVisibilityCondition,
+  isFieldContextVisible,
+  isFieldRowVisible,
+  FormEvaluationContext,
+  parseOptions,
+} from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { initialCopyOfPermitData } from "../../permits";
+import { PERMIT_DETAILS_SERVICE_OPTIONS } from "../../../../shared/components/dynamic-form/dynamicFormConstants";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
@@ -39,13 +47,82 @@ export function GeneralFilingDetailsStep({
   variants = [],
   variantElements = [],
 }: GeneralFilingDetailsStepProps) {
-  const { form, loading } = useServiceForm(service.id);
+  const { form, loading } = useServiceForm(service.id, activeApplicant.selectedVariantId);
 
   const isExamService =
     (service.category || "").toLowerCase().includes("exam") ||
     (service.title || "").toLowerCase().includes("exam") ||
     (service.title || "").toLowerCase().includes("admission") ||
     (service.title || "").toLowerCase().includes("operator examination");
+
+  const sTitle = (service.title || "").toLowerCase();
+  const sCat = (service.category || "").toLowerCase();
+  const sCode = (service.code || "").toLowerCase();
+  const isCopyOfPermit =
+    Boolean(
+      (sTitle.includes("copy") && sTitle.includes("permit")) ||
+      (sCat.includes("permit") && sTitle.includes("copy")) ||
+      sCode.includes("copy_permit") ||
+      sCode.includes("copy-permit")
+    );
+
+  const effectiveForm: FormDto | null = form && form.sections && form.sections.length > 0 ? form : null;
+
+  const { sexOptions, civilStatusOptions, suffixOptions } = useMemo(() => {
+    if (!effectiveForm?.sections) return { sexOptions: undefined, civilStatusOptions: undefined, suffixOptions: undefined };
+
+    const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const effectiveVariantName =
+      matchedVariantItem?.name ||
+      (matchedVariantItem?.description && matchedVariantItem?.type
+        ? `${matchedVariantItem.description} (${matchedVariantItem.type})`
+        : matchedVariantItem?.description || matchedVariantItem?.type || activeApplicant.selectedVariantName);
+
+    const ctx: FormEvaluationContext = {
+      serviceCategory: service.category,
+      serviceTitle: service.title,
+      serviceName: effectiveForm.serviceName || service.title,
+      serviceCode: effectiveForm.serviceCode || service.code,
+      variantType: matchedVariantItem?.type ? String(matchedVariantItem.type) : undefined,
+      variantId: activeApplicant.selectedVariantId || effectiveForm.serviceVariantId,
+      variantName: effectiveVariantName || effectiveForm.serviceVariantName,
+      variantDescription: matchedVariantItem?.description || effectiveVariantName || effectiveForm.serviceVariantName,
+      applicantType: activeApplicant.applicantType,
+    };
+
+    let sOpts: Array<{ label: string; value: string }> | undefined;
+    let csOpts: Array<{ label: string; value: string }> | undefined;
+    let sufOpts: Array<{ label: string; value: string }> | undefined;
+
+    for (const sec of effectiveForm.sections) {
+      for (const f of sec.fields || []) {
+        if (!isFieldContextVisible(f, sec, ctx)) continue;
+        const idLower = (f.fieldId || f.id || "").toLowerCase();
+        const lblLower = (f.label || "").toLowerCase();
+        const opts = parseOptions(f);
+        if (opts.length > 0) {
+          if (!sOpts && (idLower.includes("sex") || idLower.includes("gender") || lblLower === "sex" || lblLower === "gender")) {
+            sOpts = opts;
+          } else if (!csOpts && (idLower.includes("civilstatus") || idLower.includes("civil_status") || lblLower.includes("civil status"))) {
+            csOpts = opts;
+          } else if (!sufOpts && (idLower.includes("suffix") || lblLower.includes("suffix"))) {
+            sufOpts = opts;
+          }
+        }
+      }
+    }
+
+    return { sexOptions: sOpts, civilStatusOptions: csOpts, suffixOptions: sufOpts };
+  }, [
+    effectiveForm,
+    variants,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedVariantName,
+    activeApplicant.applicantType,
+    service.category,
+    service.title,
+    service.code,
+  ]);
 
   const isBulk = appMode === "BULK" && applicants.length > 1;
 
@@ -58,8 +135,22 @@ export function GeneralFilingDetailsStep({
     });
   }
 
+  // Pre-fill educational fields if present on applicant and not yet in dynamicValuesRecord
+  if (activeApplicant.schoolName && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000061"] && !dynamicValuesRecord["schoolName"]) {
+    dynamicValuesRecord["fd000000-0000-0000-0000-000000000061"] = activeApplicant.schoolName;
+    dynamicValuesRecord["schoolName"] = activeApplicant.schoolName;
+  }
+  if (activeApplicant.courseDegree && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000062"] && !dynamicValuesRecord["courseDegree"]) {
+    dynamicValuesRecord["fd000000-0000-0000-0000-000000000062"] = activeApplicant.courseDegree;
+    dynamicValuesRecord["courseDegree"] = activeApplicant.courseDegree;
+  }
+  if (activeApplicant.yearGraduated && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000063"] && !dynamicValuesRecord["yearGraduated"]) {
+    dynamicValuesRecord["fd000000-0000-0000-0000-000000000063"] = activeApplicant.yearGraduated;
+    dynamicValuesRecord["yearGraduated"] = activeApplicant.yearGraduated;
+  }
+
   useEffect(() => {
-    if (!form || !form.sections || form.sections.length === 0) {
+    if (!effectiveForm || !effectiveForm.sections || effectiveForm.sections.length === 0) {
       onRequiredFieldsChange?.([]);
       return;
     }
@@ -67,86 +158,56 @@ export function GeneralFilingDetailsStep({
     const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
     const matchedElementItem = variantElements.find((e) => String(e.id) === String(activeApplicant.selectedElementId));
 
+    const effectiveVariantName =
+      matchedVariantItem?.name ||
+      (matchedVariantItem?.description && matchedVariantItem?.type
+        ? `${matchedVariantItem.description} (${matchedVariantItem.type})`
+        : matchedVariantItem?.description || matchedVariantItem?.type);
+
     const evaluationContext: FormEvaluationContext = {
+      serviceCategory: service.category,
+      serviceTitle: service.title,
+      serviceName: effectiveForm.serviceName || service.title,
+      serviceCode: effectiveForm.serviceCode || service.code,
+      applicationType: matchedVariantItem?.type ? String(matchedVariantItem.type) : effectiveVariantName,
       variantType: matchedVariantItem?.type ? String(matchedVariantItem.type) : undefined,
       variantId: activeApplicant.selectedVariantId,
-      variantDescription: matchedVariantItem?.description || matchedVariantItem?.name,
+      variantName: effectiveVariantName,
+      variantDescription: matchedVariantItem?.description || effectiveVariantName,
       elementCodes: matchedElementItem?.code
         ? [matchedElementItem.code]
         : variantElements
             .map((e) => (typeof e.code === "string" ? e.code : undefined))
             .filter((c): c is string => Boolean(c)),
+      elementNames: matchedElementItem?.description
+        ? [matchedElementItem.description]
+        : variantElements
+            .map((e) => (typeof e.description === "string" ? e.description : undefined))
+            .filter((d): d is string => Boolean(d)),
       applicantType: activeApplicant.applicantType,
       formValues: dynamicValuesRecord,
     };
 
     const requiredFieldIds: string[] = [];
 
-    form.sections.forEach((sec) => {
+    effectiveForm.sections.forEach((sec) => {
       if (!sec) return;
       const k = (sec.key || sec.id || "").trim().toLowerCase();
       const t = (sec.title || "").trim().toLowerCase();
-      if (
-        k === "declaration" ||
-        t.includes("declaration") ||
-        k === "payment" ||
-        t.includes("payment") ||
+
+      // Personal Information is kept separately in ApplicantInformationFormSection.
+      const isPersonalInfoSec =
         k === "applicant" ||
         k === "applicantperson" ||
         k === "applicantparticulars" ||
         k === "applicantaddress" ||
         k === "applicantcontact" ||
-        k === "assistancerequest" ||
-        t.includes("special needs")
-      ) {
+        k === "applicant_information" ||
+        t === "applicant particulars" ||
+        t === "applicant information";
+
+      if (isPersonalInfoSec) {
         return;
-      }
-
-      const isBlockingSection =
-        k === "request_type_and_device_details" ||
-        k === "sim_details" ||
-        k === "supporting_documents" ||
-        k === "incident_and_demographic_info" ||
-        t.includes("device particulars") ||
-        t.includes("sim card") ||
-        t.includes("proof of ownership") ||
-        t.includes("incident details");
-
-      const isComplaintSection =
-        k === "particulars_of_service_provider" ||
-        k === "nature_of_complaint" ||
-        k === "complaint_details" ||
-        t.includes("service provider") ||
-        t.includes("nature of complaint") ||
-        t.includes("details of complaint");
-
-      const vDesc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || "").toLowerCase();
-      const vId = String(activeApplicant.selectedVariantId || "").toLowerCase();
-      const isUnblock = vDesc.includes("unblock") || vId.includes("402");
-      const isBlock = (vDesc.includes("block") || vId.includes("401")) && !isUnblock;
-      const isBlockOrUnblock = isBlock || isUnblock;
-      const isSpam = (vDesc.includes("spam") || vDesc.includes("scam") || vDesc.includes("threat") || vId.includes("403")) && !vDesc.includes("tape");
-      const isTelco = (vDesc.includes("telecommunications") || vDesc.includes("broadcast service") || vDesc.includes("provider") || vId.includes("404")) && !vDesc.includes("tape") && !isSpam;
-      const isTape = vDesc.includes("tape") || vDesc.includes("preservation") || vId.includes("405");
-
-      if (isBlockOrUnblock && isComplaintSection) return;
-      if (!isBlockOrUnblock && isBlockingSection) return;
-
-      if (isBlock) {
-        if (k === "supporting_documents" || t.includes("proof of ownership")) return;
-        if (k === "unblocking_details_section" || t.includes("unblocking")) return;
-      }
-
-      if (isUnblock) {
-        if (k === "supporting_documents" || t.includes("proof of ownership")) return;
-        if (k === "incident_and_demographic_info" || t.includes("incident details")) return;
-      }
-
-      if (isTape) {
-        if (k === "nature_of_complaint" || t.includes("nature of complaint")) return;
-        if (k === "particulars_of_service_provider" || t.includes("particulars of service provider")) return;
-      } else {
-        if (k === "broadcast_details" || t.includes("broadcast")) return;
       }
 
       if (!evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext)) {
@@ -157,27 +218,7 @@ export function GeneralFilingDetailsStep({
         if (!field || !field.isRequired) return;
 
         const rawTargetId = field.fieldId || field.id;
-        const idLower = (rawTargetId || "").toLowerCase();
-        const labelLower = (field.label || "").toLowerCase();
-        if (
-          rawTargetId?.toLowerCase().includes("declaration") ||
-          labelLower.includes("declaration") ||
-          labelLower.includes("i hereby declare") ||
-          rawTargetId?.toLowerCase().includes("payment") ||
-          labelLower.includes("official receipt") ||
-          labelLower.includes("amount paid")
-        ) {
-          return;
-        }
-
-        if (isBlock || isUnblock) {
-          if (idLower === "action_requested" || labelLower.includes("action requested")) return;
-          if (idLower === "sex" || labelLower === "sex") return;
-          if (idLower === "age_group" || labelLower.includes("age group")) return;
-          if (idLower === "identity_proof_type" || idLower === "proof_of_ownership_type" || labelLower.includes("government identification") || labelLower.includes("proof of ownership")) return;
-        }
-
-        if (!evaluateVisibilityCondition(field.visibilityCondition, evaluationContext)) {
+        if (!isFieldRowVisible(field, sec, evaluationContext)) {
           return;
         }
 
@@ -187,59 +228,91 @@ export function GeneralFilingDetailsStep({
       });
     });
 
-    const vDescOuter = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || "").toLowerCase();
-    const vIdOuter = String(activeApplicant.selectedVariantId || "").toLowerCase();
-    const isUnblockOuter = vDescOuter.includes("unblock") || vIdOuter.includes("402");
-    const isBlockOuter = (vDescOuter.includes("block") || vIdOuter.includes("401")) && !isUnblockOuter;
-    const isSpamOuter = (vDescOuter.includes("spam") || vDescOuter.includes("scam") || vDescOuter.includes("threat") || vIdOuter.includes("403")) && !vDescOuter.includes("tape");
-    const isTelcoOuter = (vDescOuter.includes("telecommunications") || vDescOuter.includes("broadcast service") || vDescOuter.includes("provider") || vIdOuter.includes("404")) && !vDescOuter.includes("tape") && !isSpamOuter;
-    const isTapeOuter = vDescOuter.includes("tape") || vDescOuter.includes("preservation") || vIdOuter.includes("405");
-
-    if (isUnblockOuter) {
-      if (!requiredFieldIds.includes("date_of_filing")) requiredFieldIds.push("date_of_filing");
-      if (!requiredFieldIds.includes("date_of_recovery")) requiredFieldIds.push("date_of_recovery");
-      if (!requiredFieldIds.includes("unblocking_details")) requiredFieldIds.push("unblocking_details");
-    }
-
-    if (isBlockOuter) {
-      const lossVal = dynamicValuesRecord["loss_reason"] || dynamicValuesRecord["Incident Type"] || "";
-      if (lossVal === "Others" && !requiredFieldIds.includes("incident_others_specify")) {
-        requiredFieldIds.push("incident_others_specify");
-      }
-    }
-
-    if (isTapeOuter) {
-      if (!requiredFieldIds.includes("broadcast_station")) requiredFieldIds.push("broadcast_station");
-      if (!requiredFieldIds.includes("program_name")) requiredFieldIds.push("program_name");
-      if (!requiredFieldIds.includes("time_of_airing")) requiredFieldIds.push("time_of_airing");
-      if (!requiredFieldIds.includes("anchor_commentator")) requiredFieldIds.push("anchor_commentator");
-      if (!requiredFieldIds.includes("date_of_incident")) requiredFieldIds.push("date_of_incident");
-      if (!requiredFieldIds.includes("state_briefly_details")) requiredFieldIds.push("state_briefly_details");
-    }
-
-    if (isSpamOuter || isTelcoOuter) {
-      const complaintVal = dynamicValuesRecord["complaint_types"] || dynamicValuesRecord["Nature of Complaint"] || "";
-      if (complaintVal.toLowerCase().includes("others") && !requiredFieldIds.includes("others_specification")) {
-        requiredFieldIds.push("others_specification");
-      }
-    }
-
     onRequiredFieldsChange?.(requiredFieldIds);
   }, [
-    form,
+    effectiveForm,
     activeApplicant.selectedVariantId,
     activeApplicant.selectedElementId,
     activeApplicant.applicantType,
     onRequiredFieldsChange,
     variants,
+    variantElements,
+    dynamicValuesRecord,
   ]);
 
   const handleDynamicFieldChange = (fieldId: string, fieldLabel: string, value: string) => {
     updateActiveApplicant((prevApp) => {
       const currentArr = prevApp.formFieldValues || [];
-      const filtered = currentArr.filter((item) => item.fieldId !== fieldId);
+      const fIdLower = fieldId.toLowerCase().trim();
+      const lblLower = fieldLabel.toLowerCase().trim();
+
+      const isMatchingField = (item: { fieldId: string; fieldLabel: string }) => {
+        const itemFId = (item.fieldId || '').toLowerCase().trim();
+        const itemLbl = (item.fieldLabel || '').toLowerCase().trim();
+        if (itemFId === fIdLower) return true;
+        if (lblLower.length > 0 && itemLbl === lblLower) return true;
+
+        const isPermitServiceAlias =
+          (fIdLower.includes('detailsservice') || fIdLower.includes('details_service') || fIdLower === 'fd000000-0000-0000-0000-000000000244') &&
+          (itemFId.includes('detailsservice') || itemFId.includes('details_service') || itemFId === 'fd000000-0000-0000-0000-000000000244' || itemLbl.includes('detailsservice'));
+        if (isPermitServiceAlias) return true;
+
+        const isPermitTypeAlias =
+          (fIdLower.includes('targetpermittype') || fIdLower.includes('target_permit_type') || fIdLower === 'fd000000-0000-0000-0000-000000000245') &&
+          (itemFId.includes('targetpermittype') || itemFId.includes('target_permit_type') || itemFId === 'fd000000-0000-0000-0000-000000000245' || itemLbl === 'type');
+        if (isPermitTypeAlias) return true;
+
+        const isCopiesAlias =
+          (fIdLower.includes('copies') || fIdLower === 'fd000000-0000-0000-0000-000000000243') &&
+          (itemFId.includes('copies') || itemFId === 'fd000000-0000-0000-0000-000000000243' || itemLbl.includes('copies'));
+        if (isCopiesAlias) return true;
+
+        const isPermitNoAlias =
+          (fIdLower.includes('permitno') || fIdLower.includes('permit_no') || fIdLower === 'fd000000-0000-0000-0000-000000000246') &&
+          (itemFId.includes('permitno') || itemFId.includes('permit_no') || itemFId === 'fd000000-0000-0000-0000-000000000246' || itemLbl.includes('permit no'));
+        if (isPermitNoAlias) return true;
+
+        return false;
+      };
+
+      const filtered = currentArr.filter((item) => !isMatchingField(item));
+      const nextArr = [...filtered, { fieldId, fieldLabel, value }];
+
+      const isCopyOfPermitService = isCopyOfPermit;
+
+      let nextCopyOfPermit = prevApp.copyOfPermitData;
+      if (isCopyOfPermitService) {
+        nextCopyOfPermit = {
+          ...(prevApp.copyOfPermitData || initialCopyOfPermitData(prevApp.id)),
+        };
+        const fIdLower = fieldId.toLowerCase();
+        const lblLower = fieldLabel.toLowerCase();
+        if (fIdLower.includes("detailsservice") || fIdLower.includes("details_service") || lblLower.includes("detailsservice")) {
+          nextCopyOfPermit.detailsService = value;
+        } else if (fIdLower.includes("targetpermittype") || fIdLower.includes("target_permit_type") || lblLower === "type") {
+          nextCopyOfPermit.targetPermitType = value;
+        } else if (fIdLower.includes("permitno") || fIdLower.includes("permit_no") || lblLower.includes("permit no")) {
+          nextCopyOfPermit.permitNo = value;
+        } else if (fIdLower.includes("copies") || lblLower.includes("copies")) {
+          nextCopyOfPermit.numberOfCopies = value;
+        } else if (fIdLower.includes("circumstances") || lblLower.includes("circumstances")) {
+          nextCopyOfPermit.circumstances = value;
+        }
+      }
+
+      const educationalUpdates: Partial<GeneralApplicantData> = {};
+      if (fIdLower.includes("0061") || lblLower.includes("school") || lblLower.includes("university")) {
+        educationalUpdates.schoolName = value;
+      } else if (fIdLower.includes("0062") || lblLower.includes("course") || lblLower.includes("degree")) {
+        educationalUpdates.courseDegree = value;
+      } else if (fIdLower.includes("0063") || (lblLower.includes("year") && lblLower.includes("grad"))) {
+        educationalUpdates.yearGraduated = value;
+      }
+
       return {
-        formFieldValues: [...filtered, { fieldId, fieldLabel, value }],
+        formFieldValues: nextArr,
+        ...(nextCopyOfPermit ? { copyOfPermitData: nextCopyOfPermit } : {}),
+        ...educationalUpdates,
       };
     });
   };
@@ -287,7 +360,23 @@ export function GeneralFilingDetailsStep({
   }, [activeApplicant.selectedVariantId, activeApplicant.selectedVariantName, variants, form, dynamicValuesRecord, updateActiveApplicant]);
 
   const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
-  const allowCompany = matchedVariant?.isIndividual === false || (!matchedVariant && !isExamService);
+  const allowCompany = matchedVariant !== undefined ? matchedVariant.isIndividual === false : !isExamService;
+  const allowIndividual = matchedVariant !== undefined ? matchedVariant.isIndividual === true : true;
+
+  // Enforce applicantType based on the service variant / application type:
+  // If the variant is for an Individual (or Exam), applicantType MUST be "individual" so the form asks for First Name, Middle Name, Last Name, etc.
+  // If the variant is for a Company, applicantType MUST be "company".
+  useEffect(() => {
+    if (matchedVariant?.isIndividual === true || isExamService) {
+      if (activeApplicant.applicantType !== "individual") {
+        updateActiveApplicant({ applicantType: "individual" });
+      }
+    } else if (matchedVariant?.isIndividual === false) {
+      if (activeApplicant.applicantType !== "company") {
+        updateActiveApplicant({ applicantType: "company" });
+      }
+    }
+  }, [matchedVariant?.isIndividual, isExamService, activeApplicant.applicantType, updateActiveApplicant]);
 
   const renderBulkCohortBanner = () => {
     if (!isBulk) return null;
@@ -334,15 +423,19 @@ export function GeneralFilingDetailsStep({
     <View style={styles.container}>
       {renderBulkCohortBanner()}
 
-      {/* 1. Standardized Applicant Particulars Section */}
+      {/* 1. Standardized Applicant Details Section */}
       <ApplicantInformationFormSection
         applicant={activeApplicant}
         onChange={(partial) => updateActiveApplicant(partial)}
         allowCompany={allowCompany}
+        allowIndividual={allowIndividual}
         isExamService={isExamService}
         includeSignature={false}
         errors={errors}
-        title={isBulk ? `Applicant #${currentApplicantIndex + 1} Information` : "Applicant Particulars"}
+        title={isBulk ? `Applicant #${currentApplicantIndex + 1} Information` : "Applicant Details"}
+        sexOptions={sexOptions}
+        civilStatusOptions={civilStatusOptions}
+        suffixOptions={suffixOptions}
       />
 
       {/* 2. Dynamic Service Specifications Section (100% Schema-Driven from Form Builder) */}
@@ -351,10 +444,10 @@ export function GeneralFilingDetailsStep({
           <ActivityIndicator size="small" color={COLORS.brand[700]} />
           <Text style={styles.loadingText}>Loading dynamic service specifications...</Text>
         </View>
-      ) : form && form.sections && form.sections.length > 0 ? (
+      ) : effectiveForm && effectiveForm.sections && effectiveForm.sections.length > 0 ? (
         <DynamicFormRenderer
           key={`dynamic-form-${activeApplicant.id || currentApplicantIndex}`}
-          form={form}
+          form={effectiveForm}
           values={dynamicValuesRecord}
           onChange={handleDynamicFieldChange}
           applicantName={getApplicantDisplayName(activeApplicant)}
@@ -477,7 +570,7 @@ const styles = StyleSheet.create({
   signatureCard: {
     backgroundColor: COLORS.neutral.white,
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     marginTop: 8,
@@ -491,7 +584,8 @@ const styles = StyleSheet.create({
   },
   signatureHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
     gap: 12,
   },
   iconCircle: {

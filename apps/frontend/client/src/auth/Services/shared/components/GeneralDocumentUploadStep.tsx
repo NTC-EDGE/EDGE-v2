@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity, useWindowDimensions } from "react-native";
 import { TYPOGRAPHY, COLORS, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import {
@@ -10,7 +10,6 @@ import {
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { SharedDocumentUpload } from "../../../../shared/components/SharedDocumentUpload";
 
-import { TouchableOpacity } from "react-native";
 
 interface GeneralDocumentUploadStepProps {
   service: NTCService;
@@ -39,6 +38,8 @@ export function GeneralDocumentUploadStep({
   onRemoveUpload,
   errors = {},
 }: GeneralDocumentUploadStepProps) {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
   const isLifetime =
     (service.title || "").toUpperCase().includes("LIFETIME AMATEUR") ||
     (activeApplicant.selectedVariantId && activeApplicant.selectedVariantId.includes("life"));
@@ -85,12 +86,14 @@ export function GeneralDocumentUploadStep({
             borderColor: "#93C5FD",
             borderRadius: 12,
             padding: 14,
-            flexDirection: "row",
-            alignItems: "center",
+            flexDirection: isDesktop ? "row" : "column",
+            alignItems: isDesktop ? "center" : "flex-start",
             justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 10,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1, minWidth: 200 }}>
             <View
               style={{
                 width: 32,
@@ -113,7 +116,7 @@ export function GeneralDocumentUploadStep({
             </View>
           </View>
 
-          <View style={{ flexDirection: "row", gap: 6 }}>
+          <View style={{ flexDirection: "row", gap: 6, alignSelf: isDesktop ? "center" : "flex-start" }}>
             {currentApplicantIndex > 0 && setCurrentApplicantIndex && (
               <TouchableOpacity
                 onPress={() => setCurrentApplicantIndex(currentApplicantIndex - 1)}
@@ -138,7 +141,7 @@ export function GeneralDocumentUploadStep({
         style={{
           backgroundColor: "#FFFFFF",
           borderRadius: 14,
-          padding: 18,
+          padding: 16,
           borderWidth: 1,
           borderColor: "#CBD5E1",
           borderLeftWidth: 5,
@@ -150,12 +153,21 @@ export function GeneralDocumentUploadStep({
           elevation: 2,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View
+          style={{
+            flexDirection: isDesktop ? "row" : "column",
+            alignItems: isDesktop ? "center" : "flex-start",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 10,
+            marginBottom: 8,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}>
             <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
               <Icon name="upload-cloud" size={15} color="#0F2C59" />
             </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59", flexShrink: 1 }}>
               Document Upload Requirements
             </Text>
           </View>
@@ -167,6 +179,7 @@ export function GeneralDocumentUploadStep({
               borderRadius: 12,
               paddingHorizontal: 10,
               paddingVertical: 4,
+              alignSelf: "flex-start",
             }}
           >
             <Text

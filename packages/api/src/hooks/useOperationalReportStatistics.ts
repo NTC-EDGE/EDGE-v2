@@ -20,6 +20,8 @@ export function useOperationalReportStatistics(
   const searchParams = new URLSearchParams();
   if (params?.tenantId) searchParams.set('tenantId', params.tenantId);
   if (params?.periodMode) searchParams.set('periodMode', params.periodMode);
+  if (params?.startDate) searchParams.set('startDate', params.startDate);
+  if (params?.endDate) searchParams.set('endDate', params.endDate);
   if (params?.year !== undefined) searchParams.set('year', params.year.toString());
   if (params?.quarter !== undefined) searchParams.set('quarter', params.quarter.toString());
   if (params?.month !== undefined) searchParams.set('month', params.month.toString());

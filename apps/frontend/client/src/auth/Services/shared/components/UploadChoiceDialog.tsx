@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, View, Text, TouchableOpacity, Alert } from "react-native";
+import { Modal, View, Text, TouchableOpacity } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 
 interface UploadChoiceDialogProps {
@@ -26,6 +26,10 @@ export function UploadChoiceDialog({
           padding: 24,
           borderWidth: 1,
           borderColor: "rgba(226, 232, 240, 0.8)",
+          shadowColor: "#000",
+          shadowOpacity: 0.15,
+          shadowRadius: 16,
+          elevation: 8,
         }}>
           {/* Top Icon Banner */}
           <View style={{ alignSelf: "center", width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.brand[500] + "22", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
@@ -33,13 +37,13 @@ export function UploadChoiceDialog({
           </View>
 
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: "700", color: COLORS.neutral[900], textAlign: "center", marginBottom: 6 }}>
-            Upload Scanned Document
+            Attach Document or Photo
           </Text>
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: COLORS.neutral[500], textAlign: "center", marginBottom: 24, paddingHorizontal: 12 }}>
             Choose a method to attach your required file:
           </Text>
 
-          {/* Option 1: File Browser */}
+          {/* Option 1: File Browser / Upload */}
           <TouchableOpacity
             onPress={onDocumentPick}
             style={{
@@ -58,15 +62,15 @@ export function UploadChoiceDialog({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral[800] }}>
-                Choose from Files
+                Upload a Photo or File
               </Text>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: COLORS.neutral[400] }}>
-                PDF, JPEG or PNG files
+                Select PDF, JPEG or PNG file from device
               </Text>
             </View>
           </TouchableOpacity>
 
-          {/* Option 2: Camera Scan Simulation */}
+          {/* Option 2: Live Camera Snapshot */}
           <TouchableOpacity
             onPress={onCameraLaunch}
             style={{
@@ -85,15 +89,15 @@ export function UploadChoiceDialog({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral[800] }}>
-                Scan using Camera
+                Take a Photo with Camera
               </Text>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: COLORS.neutral[400] }}>
-                Use device camera to take snapshot
+                Open live camera to capture document or ID
               </Text>
             </View>
           </TouchableOpacity>
 
-          {/* Cancel Actions */}
+          {/* Cancel Action */}
           <TouchableOpacity
             onPress={onClose}
             style={{

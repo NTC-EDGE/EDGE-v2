@@ -370,7 +370,7 @@ export function DashboardScreen(): React.ReactElement {
               </View>
             ) : (
               applications.slice(0, 5).map((app, idx) => {
-                const statusDot = app.status === 'Approved' ? '#10B981' :
+                const statusDot = app.status === 'Approved' || app.status === 'Completed' ? '#10B981' :
                   app.status === 'Returned' ? '#EF4444' :
                   app.status === 'Evaluating' ? '#3B82F6' : '#F59E0B';
 

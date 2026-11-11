@@ -5,6 +5,7 @@ import * as WebBrowser from "expo-web-browser";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { ActivityIndicator, View } from "react-native";
 import { useEffect } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@edge/ui";
 import { setTokenProvider } from "@edge/api";
 import { UnauthNavigation, AuthNavigation, clientLinking } from "./src/routes";
@@ -76,13 +77,15 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-        <ToastProvider>
-          <AppContent />
-          <StatusBar style="dark" />
-        </ToastProvider>
-      </ClerkProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+          <ToastProvider>
+            <AppContent />
+            <StatusBar style="dark" />
+          </ToastProvider>
+        </ClerkProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

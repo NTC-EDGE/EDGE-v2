@@ -268,6 +268,25 @@ export const styles = StyleSheet.create({
   dateText: {
     fontSize: 11,
   },
+  headerRightBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  overdueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  overdueText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#B91C1C',
+  },
   cardBody: {
     padding: 12,
   },
@@ -354,10 +373,45 @@ export const styles = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
+  },
+  cardFooterActionsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  viewDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  viewDetailsBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  endorseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  endorseBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   issueActionBtn: {
     flexDirection: 'row',

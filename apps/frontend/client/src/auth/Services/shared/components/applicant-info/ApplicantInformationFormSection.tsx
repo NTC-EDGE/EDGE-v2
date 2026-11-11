@@ -12,10 +12,14 @@ export interface ApplicantInformationFormSectionProps {
   applicant: GeneralApplicantData;
   onChange: (fields: Partial<GeneralApplicantData>) => void;
   allowCompany?: boolean;
+  allowIndividual?: boolean;
   isExamService?: boolean;
   includeSignature?: boolean;
   errors?: Record<string, string>;
   title?: string;
+  sexOptions?: Array<{ label: string; value: string }>;
+  civilStatusOptions?: Array<{ label: string; value: string }>;
+  suffixOptions?: Array<{ label: string; value: string }>;
 }
 
 const SUFFIX_OPTIONS = [
@@ -52,12 +56,33 @@ export function ApplicantInformationFormSection({
   applicant,
   onChange,
   allowCompany = true,
+  allowIndividual = true,
   isExamService = false,
   includeSignature = true,
   errors = {},
-  title = "Applicant Particulars",
+  title = "Applicant Details",
+  sexOptions,
+  civilStatusOptions,
+  suffixOptions,
 }: ApplicantInformationFormSectionProps) {
-  const isCompany = applicant.applicantType === "company";
+  const effectiveAllowCompany = !isExamService && allowCompany;
+  const effectiveAllowIndividual = allowIndividual;
+  const isCompany = effectiveAllowCompany && (!effectiveAllowIndividual || applicant.applicantType === "company");
+
+  const effectiveSexOptions =
+    sexOptions && sexOptions.length > 0 ? sexOptions : SEX_OPTIONS;
+  const effectiveCivilStatusOptions =
+    civilStatusOptions && civilStatusOptions.length > 0 ? civilStatusOptions : CIVIL_STATUS_OPTIONS;
+  const effectiveSuffixOptions =
+    suffixOptions && suffixOptions.length > 0 ? suffixOptions : SUFFIX_OPTIONS;
+
+  useEffect(() => {
+    if (!effectiveAllowCompany && applicant.applicantType === "company") {
+      onChange({ applicantType: "individual" });
+    } else if (!effectiveAllowIndividual && applicant.applicantType === "individual") {
+      onChange({ applicantType: "company" });
+    }
+  }, [effectiveAllowCompany, effectiveAllowIndividual, applicant.applicantType, onChange]);
 
   // Cascading Philippine Locations
   const [selectedRegionId, setSelectedRegionId] = useState<string | undefined>();
@@ -140,7 +165,7 @@ export function ApplicantInformationFormSection({
           </View>
         </View>
 
-        {allowCompany && (
+        {effectiveAllowCompany && effectiveAllowIndividual && (
           <View style={styles.toggleWrapper}>
             <TouchableOpacity
               style={[styles.toggleBtn, !isCompany && styles.toggleBtnActive]}
@@ -234,7 +259,7 @@ export function ApplicantInformationFormSection({
               <FormCol span={3}>
                 <Select
                   label="Suffix"
-                  options={SUFFIX_OPTIONS}
+                  options={effectiveSuffixOptions}
                   value={applicant.representativeSuffix || ""}
                   onValueChange={(val) => {
                     const fullName = [applicant.representativeFirstName, applicant.representativeMiddleName, applicant.representativeLastName, val].filter(Boolean).join(" ");
@@ -289,7 +314,7 @@ export function ApplicantInformationFormSection({
           <FormCol span={3}>
             <Select
               label="Suffix"
-              options={SUFFIX_OPTIONS}
+              options={effectiveSuffixOptions}
               value={applicant.suffix || ""}
               onValueChange={(val) => onChange({ suffix: val })}
             />
@@ -330,7 +355,7 @@ export function ApplicantInformationFormSection({
             <Select
               label="Sex"
               required
-              options={SEX_OPTIONS}
+              options={effectiveSexOptions}
               value={applicant.sex || ""}
               onValueChange={(val) => onChange({ sex: val })}
               error={errors["sex"]}
@@ -340,7 +365,7 @@ export function ApplicantInformationFormSection({
             <Select
               label="Civil Status"
               required
-              options={CIVIL_STATUS_OPTIONS}
+              options={effectiveCivilStatusOptions}
               value={applicant.civilStatus || ""}
               onValueChange={(val) => onChange({ civilStatus: val })}
               error={errors["civilStatus"]}
@@ -468,40 +493,7 @@ export function ApplicantInformationFormSection({
         </FormGrid>
       </View>
 
-      {/* 4. Academic Background (Exam Services) */}
-      {isExamService && (
-        <View style={{ marginTop: 14 }}>
-          <Text style={styles.subheading}>Academic Background</Text>
-          <FormGrid>
-            <FormCol span={4}>
-              <ValidatedInput
-                label="School / University Attended"
-                placeholder="e.g. University of the Philippines"
-                value={applicant.schoolName || ""}
-                onChangeText={(val) => onChange({ schoolName: val })}
-              />
-            </FormCol>
-            <FormCol span={4}>
-              <ValidatedInput
-                label="Course / Degree Program"
-                placeholder="e.g. BS Electronics Engineering"
-                value={applicant.courseDegree || ""}
-                onChangeText={(val) => onChange({ courseDegree: val })}
-              />
-            </FormCol>
-            <FormCol span={4}>
-              <ValidatedInput
-                label="Year Graduated"
-                placeholder="e.g. 2020"
-                value={applicant.yearGraduated || ""}
-                onChangeText={(val) => onChange({ yearGraduated: val })}
-              />
-            </FormCol>
-          </FormGrid>
-        </View>
-      )}
-
-      {/* 5. Applicant Signature */}
+      {/* 4. Applicant Signature */}
       {includeSignature && (
         <View style={{ marginTop: 14 }}>
           <Text style={styles.subheading}>Applicant Signature</Text>

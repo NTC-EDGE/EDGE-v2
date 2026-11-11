@@ -54,12 +54,6 @@ export function ExamStep4EducationInfo({
         touched={touched.yearGraduated}
         required
       />
-      <ValidatedInput
-        label="Special Order (SO) Number"
-        placeholder="SO Number (if applicable)"
-        value={activeApplicant.specialOrderNo}
-        onChangeText={(val: string) => updateActiveApplicant({ specialOrderNo: val })}
-      />
     </View>
   );
 }

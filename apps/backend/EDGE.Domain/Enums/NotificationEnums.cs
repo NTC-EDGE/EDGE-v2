@@ -6,7 +6,9 @@ public enum NotificationType
     GroupMention = 2,
     MeetingInvite = 3,
     MeetingStarted = 4,
-    SystemAnnouncement = 5
+    SystemAnnouncement = 5,
+    ApplicationRenewalReminder = 6,
+    ApplicationStatusUpdate = 7
 }
 
 public enum NotificationChannel

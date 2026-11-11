@@ -23,7 +23,7 @@ import {
   TYPOGRAPHY,
   toast,
 } from '@edge/ui';
-import { applicationService } from '@edge/api';
+import { applicationService, storageService, ApplicantRequirementItemDto } from '@edge/api';
 import { useAuthContext } from '../../../auth/context/AuthContext';
 import { ApplicationData } from '../../../../types/application';
 import {
@@ -45,6 +45,8 @@ import {
   generateAlignmentTestSheetHtml,
   openDocumentPrintWindow,
 } from '../../utils/documentPrintGenerator';
+
+const AVAILABLE_PAPER_SIZES: readonly PaperSize[] = ['letter', 'a4', 'folio', 'legal'];
 
 interface PdfLoadBarProps {
   height?: number;
@@ -224,6 +226,90 @@ export function IssuedDocumentPrintModal({
     };
   }, [visible, app.id, activeTarget, initialOptions, reloadKey]);
 
+  // Applicant 1x1 Photo URL for accountable form / admission slip
+  const [applicantPhotoUrl, setApplicantPhotoUrl] = useState<string | null>(
+    initialOptions?.applicantPhotoUrl ?? null
+  );
+
+  // Auto-detect applicant 1x1 photo from application requirements or query API
+  useEffect(() => {
+    let active = true;
+
+    // 1. Check pre-loaded requirements on app
+    if (app.requirements && app.requirements.length > 0) {
+      const match = app.requirements.find((r) => {
+        const lbl = (r.label || '').toLowerCase();
+        const fname = (r.filename || '').toLowerCase();
+        return (
+          lbl.includes('1x1') ||
+          lbl.includes('photo') ||
+          lbl.includes('picture') ||
+          fname.includes('1x1') ||
+          fname.includes('photo')
+        );
+      });
+      if (match?.thumbnailUri || match?.url) {
+        setApplicantPhotoUrl(match.thumbnailUri || match.url || null);
+        return;
+      }
+    }
+
+    // 2. Otherwise fetch from applicant requirements API if modal is visible
+    if (visible && app?.id) {
+      const activeApplicantId = app.applicantsList?.[0]?.id ?? app.id;
+      const loadReqs = async () => {
+        try {
+          const [res, err] = await applicationService.getApplicantRequirements(
+            app.id,
+            activeApplicantId
+          );
+          if (!active) return;
+          if (err === null && res?.data && Array.isArray(res.data)) {
+            const photoItem = res.data.find((item: ApplicantRequirementItemDto) => {
+              const name = (item.requirementName || '').toLowerCase();
+              return (
+                name.includes('1x1') ||
+                name.includes('photo') ||
+                name.includes('picture') ||
+                name.includes('id pic') ||
+                item.requirementId === '70000000-0000-0000-0000-000000000003' ||
+                item.requirementId === '70000000-0000-0000-0000-000000000033'
+              );
+            });
+
+            if (photoItem) {
+              if (
+                typeof photoItem.storedFileId === 'string' &&
+                photoItem.storedFileId.trim() !== '' &&
+                photoItem.storedFileId !== 'null'
+              ) {
+                const downloadUrl = storageService.getFileDownloadUrl(
+                  photoItem.storedFileId,
+                  app.tenantId
+                );
+                setApplicantPhotoUrl(downloadUrl);
+              } else if (
+                typeof photoItem.url === 'string' &&
+                photoItem.url.trim() !== '' &&
+                photoItem.url !== 'null'
+              ) {
+                setApplicantPhotoUrl(photoItem.url.trim());
+              }
+            }
+          }
+        } catch {
+          // Graceful fallback if requirements fetch fails
+        }
+      };
+
+      void loadReqs();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [visible, app.id, app.requirements, app.applicantsList, app.tenantId]);
+
   // Load workstation saved preferences for this specific report/template and user
   useEffect(() => {
     if (!visible) return;
@@ -267,6 +353,8 @@ export function IssuedDocumentPrintModal({
     signatoryName: initialOptions?.signatoryName || app.issuingOfficer || app.evaluatingOfficer || 'REGIONAL DIRECTOR',
     signatoryTitle: 'Regional Director / Authorized Officer',
     remarks: initialOptions?.remarks || app.note || 'Standard statutory authorization',
+    applicantPhotoUrl: applicantPhotoUrl || initialOptions?.applicantPhotoUrl,
+    qrCodeValue: initialOptions?.qrCodeValue || `NTC-VERIFY-${app.referenceNumber || app.applicationNumber || app.id.slice(0, 8).toUpperCase()}`,
   }), [
     paperSize,
     outputMode,
@@ -278,6 +366,7 @@ export function IssuedDocumentPrintModal({
     offsetYmm,
     showGhostWatermark,
     activeTemplate.id,
+    applicantPhotoUrl,
     initialOptions,
     app,
   ]);
@@ -428,7 +517,7 @@ export function IssuedDocumentPrintModal({
             },
           ]}
         >
-          {/* Top Header Bar */}
+          {/* Top Header Bar: Title, Subtitle, and Window Actions */}
           <View
             style={[
               styles.modalHeader,
@@ -448,20 +537,22 @@ export function IssuedDocumentPrintModal({
                   color={isDark ? colors.brand[400] : colors.brand[600]}
                 />
               </View>
-              <View>
+              <View style={styles.headerTitleWrap}>
                 <Text
                   style={[
                     styles.modalTitle,
                     { color: isDark ? colors.neutral[100] : colors.neutral[900] },
                   ]}
+                  numberOfLines={1}
                 >
-                  Statutory Document &amp; Accountable Form Printing
+                  Statutory Document & Accountable Form Printing
                 </Text>
                 <Text
                   style={[
                     styles.modalSubtitle,
                     { color: isDark ? colors.neutral[400] : colors.neutral[500] },
                   ]}
+                  numberOfLines={1}
                 >
                   Authentic statutory license, certificate, or permit filled from official cloud template for{' '}
                   <Text
@@ -476,143 +567,8 @@ export function IssuedDocumentPrintModal({
               </View>
             </View>
 
-            {/* Header Right Actions */}
+            {/* Header Right Window Action Buttons */}
             <View style={styles.headerRightActions}>
-              {/* Target / Mode Switcher Pills */}
-              <View
-                style={[
-                  styles.modePillGroup,
-                  { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
-                ]}
-              >
-                <TouchableOpacity
-                  onPress={() => setActiveTarget('pdf')}
-                  style={[
-                    styles.modePill,
-                    activeTarget === 'pdf' && {
-                      backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
-                      ...SHADOWS.card,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Lucide
-                    name="file-text"
-                    size={13}
-                    color={
-                      activeTarget === 'pdf'
-                        ? isDark
-                          ? colors.neutral[100]
-                          : colors.brand[600]
-                        : colors.neutral[500]
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.modePillText,
-                      {
-                        color:
-                          activeTarget === 'pdf'
-                            ? isDark
-                              ? colors.neutral[100]
-                              : colors.brand[700]
-                            : isDark
-                              ? colors.neutral[400]
-                              : colors.neutral[600],
-                        fontWeight: activeTarget === 'pdf' ? '700' : '500',
-                      },
-                    ]}
-                  >
-                    Official Cloud PDF
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setActiveTarget('accountable')}
-                  style={[
-                    styles.modePill,
-                    activeTarget === 'accountable' && {
-                      backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
-                      ...SHADOWS.card,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Lucide
-                    name="layers"
-                    size={13}
-                    color={
-                      activeTarget === 'accountable'
-                        ? isDark
-                          ? colors.neutral[100]
-                          : colors.brand[600]
-                        : colors.neutral[500]
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.modePillText,
-                      {
-                        color:
-                          activeTarget === 'accountable'
-                            ? isDark
-                              ? colors.neutral[100]
-                              : colors.brand[700]
-                            : isDark
-                              ? colors.neutral[400]
-                              : colors.neutral[600],
-                        fontWeight: activeTarget === 'accountable' ? '700' : '500',
-                      },
-                    ]}
-                  >
-                    Accountable Form
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setActiveTarget('calibration')}
-                  style={[
-                    styles.modePill,
-                    activeTarget === 'calibration' && {
-                      backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
-                      ...SHADOWS.card,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Lucide
-                    name="sliders"
-                    size={13}
-                    color={
-                      activeTarget === 'calibration'
-                        ? isDark
-                          ? colors.neutral[100]
-                          : colors.brand[600]
-                        : colors.neutral[500]
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.modePillText,
-                      {
-                        color:
-                          activeTarget === 'calibration'
-                            ? isDark
-                              ? colors.neutral[100]
-                              : colors.brand[700]
-                            : isDark
-                              ? colors.neutral[400]
-                              : colors.neutral[600],
-                        fontWeight: activeTarget === 'calibration' ? '700' : '500',
-                      },
-                    ]}
-                  >
-                    Tray Calibration
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Action Buttons: Refresh, Download, Print */}
               <TouchableOpacity
                 onPress={() => setReloadKey((k) => k + 1)}
                 style={[
@@ -623,6 +579,7 @@ export function IssuedDocumentPrintModal({
                   },
                 ]}
                 activeOpacity={0.7}
+                accessibilityLabel="Refresh Document Preview"
               >
                 <Lucide
                   name="refresh-cw"
@@ -673,6 +630,7 @@ export function IssuedDocumentPrintModal({
                   { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
                 ]}
                 activeOpacity={0.7}
+                accessibilityLabel="Close Print Dialog"
               >
                 <Lucide
                   name="x"
@@ -680,6 +638,168 @@ export function IssuedDocumentPrintModal({
                   color={isDark ? colors.neutral[400] : colors.neutral[600]}
                 />
               </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Sub-Header Toolbar: Dedicated Mode & Target Options Bar */}
+          <View
+            style={[
+              styles.modeSubHeader,
+              {
+                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200],
+              },
+            ]}
+          >
+            {/* Target / Mode Switcher Pills */}
+            <View
+              style={[
+                styles.modePillGroup,
+                { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200] },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() => setActiveTarget('pdf')}
+                style={[
+                  styles.modePill,
+                  activeTarget === 'pdf' && {
+                    backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
+                    ...SHADOWS.card,
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Lucide
+                  name="file-text"
+                  size={13}
+                  color={
+                    activeTarget === 'pdf'
+                      ? isDark
+                        ? colors.neutral[100]
+                        : colors.brand[600]
+                      : colors.neutral[500]
+                  }
+                />
+                <Text
+                  style={[
+                    styles.modePillText,
+                    {
+                      color:
+                        activeTarget === 'pdf'
+                          ? isDark
+                            ? colors.neutral[100]
+                            : colors.brand[700]
+                          : isDark
+                            ? colors.neutral[400]
+                            : colors.neutral[600],
+                      fontWeight: activeTarget === 'pdf' ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Official Cloud PDF
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setActiveTarget('accountable')}
+                style={[
+                  styles.modePill,
+                  activeTarget === 'accountable' && {
+                    backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
+                    ...SHADOWS.card,
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Lucide
+                  name="layers"
+                  size={13}
+                  color={
+                    activeTarget === 'accountable'
+                      ? isDark
+                        ? colors.neutral[100]
+                        : colors.brand[600]
+                      : colors.neutral[500]
+                  }
+                />
+                <Text
+                  style={[
+                    styles.modePillText,
+                    {
+                      color:
+                        activeTarget === 'accountable'
+                          ? isDark
+                            ? colors.neutral[100]
+                            : colors.brand[700]
+                          : isDark
+                            ? colors.neutral[400]
+                            : colors.neutral[600],
+                      fontWeight: activeTarget === 'accountable' ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Accountable Form
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setActiveTarget('calibration')}
+                style={[
+                  styles.modePill,
+                  activeTarget === 'calibration' && {
+                    backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
+                    ...SHADOWS.card,
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Lucide
+                  name="sliders"
+                  size={13}
+                  color={
+                    activeTarget === 'calibration'
+                      ? isDark
+                        ? colors.neutral[100]
+                        : colors.brand[600]
+                      : colors.neutral[500]
+                  }
+                />
+                <Text
+                  style={[
+                    styles.modePillText,
+                    {
+                      color:
+                        activeTarget === 'calibration'
+                          ? isDark
+                            ? colors.neutral[100]
+                            : colors.brand[700]
+                          : isDark
+                            ? colors.neutral[400]
+                            : colors.neutral[600],
+                      fontWeight: activeTarget === 'calibration' ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Tray Calibration
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Context Badge / Status indicator */}
+            <View style={styles.subHeaderContextWrap}>
+              <Text
+                style={[
+                  styles.subHeaderContextText,
+                  { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                ]}
+                numberOfLines={1}
+              >
+                {activeTarget === 'pdf'
+                  ? 'Official PDF Template • Pre-formatted Cloud Document'
+                  : activeTarget === 'accountable'
+                    ? `Pre-Printed Stationery Overlay • ${activeTemplate.code} (${activeTemplate.defaultPaperSize.toUpperCase()})`
+                    : `Hardware Tray Feed Offsets • X: ${offsetXmm > 0 ? `+${offsetXmm}` : offsetXmm} mm, Y: ${offsetYmm > 0 ? `+${offsetYmm}` : offsetYmm} mm`}
+              </Text>
             </View>
           </View>
 
@@ -921,7 +1041,7 @@ export function IssuedDocumentPrintModal({
                       PAPER SIZE
                     </Text>
                     <View style={styles.paperSizePillsWrap}>
-                      {(['letter', 'a4', 'folio', 'legal'] as PaperSize[]).map((sizeKey) => {
+                      {AVAILABLE_PAPER_SIZES.map((sizeKey) => {
                         const isSelected = paperSize === sizeKey;
                         return (
                           <TouchableOpacity
@@ -1182,7 +1302,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[20],
     paddingVertical: SPACING[12],
     borderBottomWidth: 1,
-    flexWrap: 'wrap',
     gap: SPACING[12],
   },
   headerLeft: {
@@ -1190,31 +1309,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING[12],
     flex: 1,
-    minWidth: 260,
+    minWidth: 0,
+  },
+  headerTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   modalTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 17,
+    fontSize: 16.5,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   modalSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12.5,
+    fontSize: 12,
     marginTop: 2,
   },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[8],
+    flexShrink: 0,
+  },
+  modeSubHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING[20],
+    paddingVertical: SPACING[8],
+    borderBottomWidth: 1,
     flexWrap: 'wrap',
+    gap: SPACING[12],
+  },
+  subHeaderContextWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subHeaderContextText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '500',
   },
   modePillGroup: {
     flexDirection: 'row',

@@ -24,6 +24,7 @@ export interface RequirementDocument {
   note?: string;
   filename: string;
   thumbnailUri?: string;
+  url?: string;
 }
 
 export interface ApplicationFormAttachment {
@@ -52,6 +53,7 @@ export interface PaymentDetails {
   method: 'cash' | 'check';
   paymentMethod?: string;
   orNumber: string;
+  orNumbers?: string[];
   checkNumber: string;
   checkName: string;
   checkBank?: string;
@@ -93,6 +95,10 @@ export interface ApplicantItem {
   evaluationRemarks?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
+  element?: string;
+  elements?: string;
+  applicationType?: string;
   submissionId?: string;
   contactNumber: string;
   email: string;
@@ -150,12 +156,16 @@ export interface ApplicationServiceItem {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
+  applicationType?: string;
   submissionId?: string;
 }
 
 export interface ApplicationData {
   id: string;
   tenantId?: string;
+  region?: string;
   referenceNumber: string;
   applicationNumber: string;
   applicant: string;
@@ -203,6 +213,8 @@ export interface ApplicationData {
   serviceName?: string;
   serviceCategory?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   office?: string;
   mode?: string;
   filingUser?: FilingUserData;
@@ -246,6 +258,7 @@ export interface ApplicationData {
   totalAmountDue: number;
   dueDate: string;
   payment: PaymentDetails;
+  orNumbers?: string[];
   correctionAuditTrail: AuditTrailEntry[];
   history: AuditTrailEntry[];
   companyDetails?: {
@@ -259,4 +272,5 @@ export interface ApplicationData {
   note: string;
   remarks?: string;
   soaRemarks?: string;
+  soaNoteText?: string;
 }

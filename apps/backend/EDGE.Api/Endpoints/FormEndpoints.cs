@@ -9,6 +9,7 @@ using EDGE.Application.Forms.Commands.CreateForm;
 using EDGE.Application.Forms.Commands.UpdateForm;
 using EDGE.Application.Forms.Commands.DeleteForm;
 using EDGE.Application.Forms.Commands.DuplicateForm;
+using EDGE.Application.Forms.Commands.ActivateForm;
 using EDGE.Application.Forms.Queries.GetForms;
 using EDGE.Application.Forms.Queries.GetFormById;
 using EDGE.Application.Forms.Dtos;
@@ -53,6 +54,11 @@ public static class FormEndpoints
             .WithSummary("Duplicate a form template")
             .WithDescription("Duplicates an existing dynamic form template into a new schema.");
 
+        forms.MapPost("/{id:guid}/activate", ActivateForm)
+            .WithName("ActivateForm")
+            .WithSummary("Set a form template as active")
+            .WithDescription("Activates a specific form template version for its service and deactivates any other active versions.");
+
         return group;
     }
 
@@ -76,9 +82,13 @@ public static class FormEndpoints
         int pageNumber = 1,
         int pageSize = 50,
         string? searchTerm = null,
-        Guid? serviceId = null)
+        Guid? serviceId = null,
+        Guid? serviceVariantId = null,
+        string? formKey = null,
+        Guid? serviceCategoryId = null,
+        bool? isActive = null)
     {
-        var result = await mediator.Send(new GetFormsQuery(pageNumber, pageSize, searchTerm, serviceId));
+        var result = await mediator.Send(new GetFormsQuery(pageNumber, pageSize, searchTerm, serviceId, serviceVariantId, formKey, serviceCategoryId, isActive));
         return Results.Ok(result);
     }
 
@@ -160,5 +170,26 @@ public static class FormEndpoints
         }
 
         return result.Succeeded ? Results.Created($"/api/v2/forms/{result.Data?.FormId}", result) : Results.BadRequest(result);
+    }
+
+    public static async Task<IResult> ActivateForm(
+        Guid id,
+        IValidator<ActivateFormCommand> validator,
+        IMediator mediator)
+    {
+        var command = new ActivateFormCommand(id);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        if (result.IsNotFound)
+        {
+            return Results.NotFound(result);
+        }
+
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 }

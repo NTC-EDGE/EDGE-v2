@@ -24,11 +24,18 @@ import { DocumentPreviewFile } from "../../../../shared/components/DocumentPrevi
 import { SectionHeader } from "./reviewComponents";
 import { reviewStyles as styles } from "./reviewStyles";
 import { ApplicantParticularsCard } from "../ApplicantParticularsCard";
-import { BaseApplicationPreview } from "../../../../shared/formPreview";
+import {
+  BaseApplicationPreview,
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from "../../../../shared/formPreview";
 import { ApplicantRequirementsSection } from "./ApplicantRequirementsSection";
 import { ApplicationHistoryTimeline } from "./ApplicationHistoryTimeline";
 import { isAllowedRequirementFileType } from "../../../../utils/fileValidation";
 import { resolveApplicantAuditHistory } from "../../utils/officerEvaluationHelper";
+import { EditApplicantProfileModal } from "../modals/EditApplicantProfileModal";
+import { EditFormValuesModal } from "../modals/EditFormValuesModal";
 
 export function ApplicantRecordTab({
   app,
@@ -73,6 +80,8 @@ export function ApplicantRecordTab({
   const [activeReqMenuId, setActiveReqMenuId] = useState<string | null>(null);
   const [localRemarks, setLocalRemarks] = useState(activeApplicant?.evaluationRemarks ?? '');
   const [toastState, setToastState] = useState<{ message: string; variant: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+  const [isEditFormValuesModalOpen, setIsEditFormValuesModalOpen] = useState(false);
 
   const { formData, isLoading: isLoadingForm } = useApplicationFormWithSubmission(app.id, activeApplicant?.id, activeApplicant?.serviceVariantId);
 
@@ -123,6 +132,31 @@ export function ApplicantRecordTab({
     [app, activeApplicant]
   );
 
+  const effectiveVariantName = resolvePreviewVariant({
+    variantName: activeApplicant?.serviceVariantName,
+    serviceVariantName: app.serviceVariantName,
+    variant: app.services?.find((s) => s.applicantId === activeApplicant?.id)?.serviceVariantName,
+    formFieldValues: flatFormValues,
+  });
+
+  const effectiveVariantId =
+    activeApplicant?.serviceVariantId ||
+    app.services?.find((s) => s.applicantId === activeApplicant?.id)?.serviceVariantId ||
+    null;
+
+  const effectiveAppType = resolvePreviewApplicationType({
+    applicationType: activeApplicant?.applicationType,
+    examineeType: undefined,
+    element: undefined,
+    formFieldValues: flatFormValues,
+  }) || (app.applicationType !== 'BULK' ? 'Regular' : undefined);
+
+  const effectiveElements = resolvePreviewElements({
+    element: activeApplicant?.element || activeApplicant?.elements || app.element || app.elements,
+    elements: activeApplicant?.elements || app.elements,
+    formFieldValues: flatFormValues,
+  });
+
   return (
     <View style={{ flex: 1, position: 'relative' }}>
       {toastState !== null && (
@@ -158,7 +192,31 @@ export function ApplicantRecordTab({
 
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} onScrollBeginDrag={() => setActiveReqMenuId(null)}>
         {/* 1. Profile */}
-        <SectionHeader title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"} />
+        <SectionHeader
+          title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "1. APPLICANT PROFILE DETAILS"}
+          rightAction={isEditable ? (
+            <Pressable
+              style={[
+                styles.inspectBtn,
+                {
+                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                  borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                  borderWidth: 1,
+                  paddingHorizontal: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                },
+              ]}
+              onPress={() => setIsEditProfileModalOpen(true)}
+            >
+              <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
+              <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: "600" }]}>
+                Edit Profile
+              </Text>
+            </Pressable>
+          ) : null}
+        />
         <View style={{ paddingHorizontal: SPACING[16] }}>
           {activeApplicant && (() => {
             const isCompanyRecord = activeApplicant.applicantType === 'Company' || (activeApplicant.applicantType !== 'Individual' && app.applicantType === 'Company');
@@ -187,9 +245,6 @@ export function ApplicantRecordTab({
                   companyContactNumber: isCompanyRecord ? (activeApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber) : undefined,
                   representativeName: isCompanyRecord ? app.filingUser?.name : undefined,
                   notes: activeApplicant.evaluationRemarks,
-                  schoolAttended: activeApplicant.schoolAttended,
-                  courseTaken: activeApplicant.courseTaken,
-                  yearGraduated: activeApplicant.yearGraduated,
                 }}
               />
             );
@@ -199,7 +254,31 @@ export function ApplicantRecordTab({
         {/* 2. Form submissions */}
         {(hasFormValues || isLoadingForm) && (
           <>
-            <SectionHeader title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS" />
+            <SectionHeader
+              title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS"
+              rightAction={isEditable ? (
+                <Pressable
+                  style={[
+                    styles.inspectBtn,
+                    {
+                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                      borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                      borderWidth: 1,
+                      paddingHorizontal: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                    },
+                  ]}
+                  onPress={() => setIsEditFormValuesModalOpen(true)}
+                >
+                  <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                  <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: "600" }]}>
+                    Edit Form Fields
+                  </Text>
+                </Pressable>
+              ) : null}
+            />
             <View style={{ paddingHorizontal: SPACING[16] }}>
               {isLoadingForm ? (
                 <View style={{ padding: 16, alignItems: 'center' }}>
@@ -211,6 +290,10 @@ export function ApplicantRecordTab({
                   service={{ id: activeApplicant?.serviceId || app.serviceId || '', title: app.serviceName || app.permitTitle, category: app.serviceCategory || app.category }}
                   form={formData}
                   formFieldValues={flatFormValues}
+                  selectedVariantName={effectiveVariantName}
+                  selectedVariantId={effectiveVariantId}
+                  applicationType={effectiveAppType}
+                  elements={effectiveElements}
                   activeApplicant={activeApplicant ? {
                     applicantType: activeApplicant.applicantType,
                     companyName: activeApplicant.companyDetails?.name,
@@ -228,7 +311,23 @@ export function ApplicantRecordTab({
                     civilStatus: activeApplicant.basicInfo?.civilStatus,
                     nationality: activeApplicant.basicInfo?.nationality,
                     notes: activeApplicant.evaluationRemarks,
+                    schoolAttended: activeApplicant.schoolAttended,
+                    courseTaken: activeApplicant.courseTaken,
+                    yearGraduated: activeApplicant.yearGraduated,
+                    selectedVariantName: effectiveVariantName || undefined,
+                    selectedVariantId: effectiveVariantId || undefined,
+                    element: effectiveElements || activeApplicant.element || undefined,
+                    elements: effectiveElements || activeApplicant.elements || undefined,
+                    selectedElementTitle: effectiveElements || activeApplicant.element || undefined,
                   } : undefined}
+                  schoolAttended={activeApplicant?.schoolAttended}
+                  courseTaken={activeApplicant?.courseTaken}
+                  yearGraduated={activeApplicant?.yearGraduated}
+                  isExamService={Boolean(
+                    (app.serviceCategory || app.category || '').toLowerCase().includes('exam') ||
+                    (app.serviceName || app.permitTitle || '').toLowerCase().includes('exam')
+                  )}
+                  showEquivalentFormHeader={false}
                   showApplicantCard={false}
                   showSignatureCard={true}
                   onPreviewFile={onPreviewFile}
@@ -255,6 +354,30 @@ export function ApplicantRecordTab({
 
         <View style={{ height: 80 }} />
       </ScrollView>
+
+      <EditApplicantProfileModal
+        visible={isEditProfileModalOpen}
+        onClose={() => setIsEditProfileModalOpen(false)}
+        applicationId={app.id}
+        applicant={activeApplicant}
+        onSuccess={async () => {
+          await mutateApplications(app.id);
+        }}
+      />
+
+      <EditFormValuesModal
+        visible={isEditFormValuesModalOpen}
+        onClose={() => setIsEditFormValuesModalOpen(false)}
+        applicationId={app.id}
+        applicantId={activeApplicant?.id || app.id}
+        applicantName={activeApplicant?.name}
+        submissionId={formData?.submissionId}
+        formSections={formData?.sections}
+        flatFormValues={flatFormValues}
+        onSuccess={async () => {
+          await mutateApplications(app.id);
+        }}
+      />
     </View>
   );
 }

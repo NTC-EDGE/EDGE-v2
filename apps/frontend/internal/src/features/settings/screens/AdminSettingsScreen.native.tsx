@@ -38,8 +38,9 @@ import {
   ModalInitialData,
 } from "../components/AdminSettingsModal";
 import { DeleteAdminItemModal } from "../components/DeleteAdminItemModal";
+import { SoaNotesTab } from "../components/SoaNotesTab";
 
-export type AdminTabType = "regional" | "services";
+export type AdminTabType = "regional" | "services" | "soa-notes";
 
 interface TabItem {
   id: AdminTabType;
@@ -50,6 +51,7 @@ interface TabItem {
 const TABS: TabItem[] = [
   { id: "regional", label: "Regional Configurations", icon: "sliders" },
   { id: "services", label: "Services & Prerequisites", icon: "layers" },
+  { id: "soa-notes", label: "SOA Notes & Billing Terms", icon: "file-text" },
 ];
 
 export function AdminSettingsScreen(): React.ReactElement {
@@ -304,7 +306,7 @@ export function AdminSettingsScreen(): React.ReactElement {
           </View>
 
           {/* Active Tab View */}
-          {activeTab === "regional" ? (
+          {activeTab === "regional" && (
             <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
               <RegionalConfigTab
                 configs={regionalConfigs}
@@ -317,9 +319,15 @@ export function AdminSettingsScreen(): React.ReactElement {
                 onDeleteBranchOffice={handleDeleteBranchOffice}
               />
             </AnimatedCard>
-          ) : (
+          )}
+          {activeTab === "services" && (
             <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
               <ServiceTreeConfigTab />
+            </AnimatedCard>
+          )}
+          {activeTab === "soa-notes" && (
+            <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
+              <SoaNotesTab tenantId={activeTenant?.id} tenantName={activeTenant?.name} />
             </AnimatedCard>
           )}
         </View>

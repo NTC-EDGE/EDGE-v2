@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { View, Text, TouchableOpacity, Alert, Platform, ActivityIndicator } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
@@ -17,6 +17,8 @@ import {
   downloadCsvFile,
   parseSpreadsheetContent,
 } from "../spreadsheet";
+import { useServiceForm } from "../hooks/useServiceForm";
+import { FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 export interface ServiceVariantItem {
   id: string;
@@ -176,7 +178,42 @@ export function GeneralFilingModeStep({
 
   const selectedClassId = selectedElementId || localSelectedClassId;
 
-  const templateConfig = getSpreadsheetTemplateForService(service);
+  const { form } = useServiceForm(service?.id, selectedVariantId);
+
+  const evaluationContext = useMemo<FormEvaluationContext>(() => {
+    const selectedElement = variantElements.find((e) => String(e.id) === String(selectedClassId));
+    return {
+      variantId: selectedVariantId || activeApplicant?.selectedVariantId || form?.serviceVariantId,
+      variantName:
+        currentVariant?.name ||
+        activeApplicant?.selectedVariantName ||
+        form?.serviceVariantName ||
+        service?.title,
+      variantDescription: currentVariant?.description,
+      variantType: currentVariant?.type,
+      applicantType: applicantType || activeApplicant?.applicantType,
+      elementCodes: selectedElement?.code ? [selectedElement.code] : undefined,
+      elementNames: selectedElement?.description
+        ? [selectedElement.description]
+        : activeApplicant?.selectedElementTitle
+          ? [activeApplicant.selectedElementTitle]
+          : undefined,
+    };
+  }, [
+    selectedVariantId,
+    activeApplicant,
+    currentVariant,
+    variantElements,
+    selectedClassId,
+    applicantType,
+    form,
+    service,
+  ]);
+
+  const templateConfig = useMemo(
+    () => getSpreadsheetTemplateForService(service, form, evaluationContext),
+    [service, form, evaluationContext]
+  );
 
   const displayVariants: ServiceVariantItem[] =
     variants.length > 0
@@ -393,20 +430,20 @@ export function GeneralFilingModeStep({
       }
 
       if (setUploadedFileName) {
-        setUploadedFileName(asset.name || "applicants_template.csv");
+        setUploadedFileName(asset?.name || "applicants_template.csv");
       }
 
       let fileText = "";
-      if (Platform.OS === "web" && asset.file) {
+      if (Platform.OS === "web" && asset?.file && typeof asset.file.text === "function") {
         fileText = await asset.file.text();
-      } else if (asset.uri) {
+      } else if (asset?.uri) {
         const response = await fetch(asset.uri);
         fileText = await response.text();
       }
 
       if (fileText && fileText.trim().length > 0) {
-        const parseResult = parseSpreadsheetContent(fileText, service);
-        if (parseResult.applicants.length > 0 && onApplicantsImported) {
+        const parseResult = parseSpreadsheetContent(fileText, service, form, evaluationContext);
+        if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }
         if (setIsFileUploaded) {
@@ -1106,10 +1143,9 @@ export function GeneralFilingModeStep({
                         placeholder="e.g., 123 Ayala Avenue, Tower One"
                         value={activeApplicant?.street || activeApplicant?.address || ""}
                         onChangeText={(val) => {
-                          const fullAddr = [val, activeApplicant?.barangay, activeApplicant?.city, activeApplicant?.province, activeApplicant?.region, activeApplicant?.zipCode].filter(Boolean).join(", ");
                           updateActiveApplicant?.({
                             street: val,
-                            address: fullAddr,
+                            address: val,
                           });
                         }}
                       />

@@ -11,6 +11,11 @@ import {
 import { Icon } from '@edge/ui';
 import { COLORS, SPACING, TYPOGRAPHY } from '@edge/ui';
 import {
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../shared/formPreview';
+import {
   BulkApplication,
   BulkApplicant,
   ApplicationStatus,
@@ -59,11 +64,22 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
   const statusColor = getStatusColor(app.status);
   const statusBg = getStatusBgColor(app.status);
   const documents = getAppDocuments(app);
+  const effectiveVariant = resolvePreviewVariant({
+    serviceVariantName: app.serviceVariantName,
+    variant: app.variant,
+    element: app.element,
+    formFieldValues: app.formFieldValues,
+    fallback: '',
+  });
+  const effectiveElements = resolvePreviewElements({
+    element: app.element,
+    formFieldValues: app.formFieldValues,
+  });
 
   // Derived metrics
   const totalSubmitted = app.applicants.length;
   const approvedCount = app.applicants.filter((a) => a.status === 'APPROVED').length;
-  const pendingCount = app.applicants.filter((a) => a.status === 'PENDING' || a.status === 'FOR_APPROVAL' || a.status === 'FOR_EVALUATION' || a.status === 'READY_FOR_PAYMENT').length;
+  const pendingCount = app.applicants.filter((a) => a.status === 'PENDING' || a.status === 'FOR_APPROVAL' || a.status === 'FOR_EVALUATION' || a.status === 'READY_FOR_PAYMENT' || a.status === 'PAYMENT_SUBMITTED').length;
   const declinedCount = app.applicants.filter((a) => a.status === 'DECLINED').length;
 
   // Filter batch applicants
@@ -102,6 +118,20 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
                   {getStatusLabel(app.status)}
                 </Text>
               </View>
+              {effectiveVariant ? (
+                <View style={[styles.bulkBadge, { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE' }]}>
+                  <Text style={[styles.bulkBadgeText, { color: '#4338CA' }]}>
+                    {effectiveVariant}
+                  </Text>
+                </View>
+              ) : null}
+              {effectiveElements ? (
+                <View style={[styles.bulkBadge, { backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A' }]}>
+                  <Text style={[styles.bulkBadgeText, { color: '#B45309' }]}>
+                    Elements: {effectiveElements}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <Text style={styles.refNumber}>#{app.referenceNumber}</Text>
             <Text style={styles.companyName}>{app.companyName}</Text>
@@ -157,7 +187,7 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
                 </View>
 
                 <View style={styles.metricCard}>
-                  <Text style={styles.metricLabel}>APPROVED</Text>
+                  <Text style={styles.metricLabel}>COMPLETE</Text>
                   <Text style={[styles.metricValue, { color: '#16A34A' }]}>{approvedCount}</Text>
                   <Text style={styles.metricSub}>Clearance granted</Text>
                 </View>
@@ -333,6 +363,168 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
           )}
         </ScrollView>
       </View>
+    
+      {selectedApplicant !== null && (
+        <View style={styles.applicantDetailOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setSelectedApplicant(null)}
+          />
+          <View style={styles.applicantDetailModal}>
+            <View style={styles.applicantDetailHeader}>
+              <View style={{ flex: 1 }}>
+                <View style={styles.badgeRow}>
+                  <StatusChip status={selectedApplicant.status} />
+                  <View style={[styles.bulkBadge, { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0' }]}>
+                    <Text style={[styles.bulkBadgeText, { color: '#16A34A' }]}>
+                      {resolvePreviewApplicationType({
+                        applicationType: selectedApplicant.applicationType,
+                        examineeType: selectedApplicant.details?.examineeType,
+                        element: selectedApplicant.element || app.element,
+                        formFieldValues: selectedApplicant.formFieldValues,
+                      }) || selectedApplicant.applicationType}
+                    </Text>
+                  </View>
+                  {resolvePreviewVariant({
+                    serviceVariantName: selectedApplicant.serviceVariantName || app.serviceVariantName,
+                    variant: app.variant,
+                    element: selectedApplicant.element || app.element,
+                    examineeType: selectedApplicant.details?.examineeType,
+                    formFieldValues: selectedApplicant.formFieldValues,
+                    fallback: '',
+                  }) ? (
+                    <View style={[styles.bulkBadge, { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE' }]}>
+                      <Text style={[styles.bulkBadgeText, { color: '#4338CA' }]}>
+                        {resolvePreviewVariant({
+                          serviceVariantName: selectedApplicant.serviceVariantName || app.serviceVariantName,
+                          variant: app.variant,
+                          element: selectedApplicant.element || app.element,
+                          examineeType: selectedApplicant.details?.examineeType,
+                          formFieldValues: selectedApplicant.formFieldValues,
+                          fallback: '',
+                        })}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {resolvePreviewElements({
+                    element: selectedApplicant.element || app.element,
+                    formFieldValues: selectedApplicant.formFieldValues,
+                  }) ? (
+                    <View style={[styles.bulkBadge, { backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A' }]}>
+                      <Text style={[styles.bulkBadgeText, { color: '#B45309' }]}>
+                        Elements: {resolvePreviewElements({
+                          element: selectedApplicant.element || app.element,
+                          formFieldValues: selectedApplicant.formFieldValues,
+                        })}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.applicantDetailName}>{selectedApplicant.name}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelectedApplicant(null)}
+                style={styles.closeBtn}
+                activeOpacity={0.8}
+              >
+                <Icon name="x" size={16} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ padding: SPACING[16] }} showsVerticalScrollIndicator={false}>
+              <View style={styles.detailGrid}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Application Type:</Text>
+                  <Text style={styles.detailVal}>
+                    {resolvePreviewApplicationType({
+                      applicationType: selectedApplicant.applicationType,
+                      examineeType: selectedApplicant.details?.examineeType,
+                      element: selectedApplicant.element || app.element,
+                      formFieldValues: selectedApplicant.formFieldValues,
+                    }) || selectedApplicant.applicationType}
+                  </Text>
+                </View>
+                {resolvePreviewVariant({
+                  serviceVariantName: selectedApplicant.serviceVariantName || app.serviceVariantName,
+                  variant: app.variant,
+                  element: selectedApplicant.element || app.element,
+                  examineeType: selectedApplicant.details?.examineeType,
+                  formFieldValues: selectedApplicant.formFieldValues,
+                  fallback: '',
+                }) ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Service Variant:</Text>
+                    <Text style={styles.detailVal}>
+                      {resolvePreviewVariant({
+                        serviceVariantName: selectedApplicant.serviceVariantName || app.serviceVariantName,
+                        variant: app.variant,
+                        element: selectedApplicant.element || app.element,
+                        examineeType: selectedApplicant.details?.examineeType,
+                        formFieldValues: selectedApplicant.formFieldValues,
+                        fallback: '',
+                      })}
+                    </Text>
+                  </View>
+                ) : null}
+                {resolvePreviewElements({
+                  element: selectedApplicant.element || app.element,
+                  formFieldValues: selectedApplicant.formFieldValues,
+                }) ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Examination Element(s):</Text>
+                    <Text style={[styles.detailVal, { color: '#B45309', fontWeight: '700' }]}>
+                      {resolvePreviewElements({
+                        element: selectedApplicant.element || app.element,
+                        formFieldValues: selectedApplicant.formFieldValues,
+                      })}
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>SOA Billing:</Text>
+                  <Text style={styles.detailVal}>
+                    {selectedApplicant.includedInSOA ? 'Included in Batch SOA' : 'Excluded from SOA'}
+                  </Text>
+                </View>
+                {selectedApplicant.sex ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Sex:</Text>
+                    <Text style={styles.detailVal}>{selectedApplicant.sex}</Text>
+                  </View>
+                ) : null}
+                {selectedApplicant.nationality ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Nationality:</Text>
+                    <Text style={styles.detailVal}>{selectedApplicant.nationality}</Text>
+                  </View>
+                ) : null}
+                {selectedApplicant.mobileNumber ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Mobile Number:</Text>
+                    <Text style={styles.detailVal}>{selectedApplicant.mobileNumber}</Text>
+                  </View>
+                ) : null}
+                {selectedApplicant.email ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Email Address:</Text>
+                    <Text style={styles.detailVal}>{selectedApplicant.email}</Text>
+                  </View>
+                ) : null}
+                {selectedApplicant.schedule ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Exam Schedule:</Text>
+                    <Text style={styles.detailVal}>
+                      {selectedApplicant.schedule.date} • {selectedApplicant.schedule.time} ({selectedApplicant.schedule.venue})
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -780,4 +972,70 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.brand[700],
   },
+
+  applicantDetailOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+  },
+  applicantDetailModal: {
+    width: '90%',
+    maxWidth: 560,
+    maxHeight: '80%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  applicantDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    padding: SPACING[16],
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    backgroundColor: '#F8FAFC',
+  },
+  applicantDetailName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 4,
+  },
+  detailGrid: {
+    gap: 10,
+    paddingBottom: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: 12,
+  },
+  detailLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+    flex: 1,
+  },
+  detailVal: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: '#0F172A',
+    fontWeight: '500',
+    flex: 2,
+    textAlign: 'right',
+  },
+
 });

@@ -28,6 +28,8 @@ public static class FastTrackSeederData
     public static readonly string Ntc120Contract = CertificatesCategorySeederData.Ntc120Contract;
     public static readonly string Ntc121Contract = CertificatesCategorySeederData.Ntc121Contract;
     public static readonly string Ntc122Contract = CertificatesCategorySeederData.Ntc122Contract;
+    public static readonly string Ntc124Contract = RequestsAndComplaintsCategorySeederData.Ntc124Contract;
+    public static readonly string Ntc125Contract = RequestsAndComplaintsCategorySeederData.Ntc125Contract;
     public static readonly string NtcReqComplaintsContract = RequestsAndComplaintsCategorySeederData.NtcReqComplaintsContract;
 
     public static Dictionary<string, string> GetContractMap()

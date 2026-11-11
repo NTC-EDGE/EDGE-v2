@@ -16,17 +16,6 @@ export const DeviceRegistrationPreview: PreviewExtension = {
       id.includes('50000000-0000-0000-0000-000000000022')
     );
   },
-  skipFieldIds: [
-    'fd000000-0000-0000-0000-000000000084', // makeTypeModel
-    'fd000000-0000-0000-0000-000000000085', // deviceType
-    'fd000000-0000-0000-0000-000000000087', // serialNumbers
-    'fd000000-0000-0000-0000-000000000086', // dtiSecRegistration
-  ],
-  skipFieldLabels: [
-    'sec / dti registration number',
-    'make / type / model',
-    'device / equipment type',
-    'serial number(s)',
-    'registered devices',
-  ],
+  skipFieldIds: [],
+  skipFieldLabels: [],
 };

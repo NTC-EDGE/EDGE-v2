@@ -12,6 +12,9 @@ export interface PaymentBreakdownItem {
   isIssued?: boolean;
   orNumber?: string | null;
   issuedAt?: string | null;
+  proofFileId?: string;
+  proofFileName?: string;
+  proofFileUri?: string;
 }
 
 export interface PaymentBreakdown {
@@ -20,6 +23,9 @@ export interface PaymentBreakdown {
   items: PaymentBreakdownItem[];
   payorName?: string;
   userNotes?: string;
+  proofOfPaymentFileId?: string;
+  proofFileName?: string;
+  proofFileUri?: string;
 }
 
 const BREAKDOWN_TAG_START = '[PAYMENT_BREAKDOWN:';

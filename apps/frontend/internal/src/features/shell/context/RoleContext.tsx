@@ -54,7 +54,8 @@ export const ROLE_NAVIGATION_LINKS = {
   Admin: [
     { name: 'Dashboard',            screen: 'Dashboard',        icon: 'grid',           group: 'Workspace' },
     { name: 'Activities',           screen: 'Activities',       icon: 'activity',       group: 'Operations' },
-    { name: 'Form Builder',         screen: 'FormBuilder',      icon: 'layout',         group: 'Operations' },
+    // Temporarily hidden — Form Builder is managed in the Admin portal
+    // { name: 'Form Builder',         screen: 'FormBuilder',      icon: 'layout',         group: 'Operations' },
     { name: 'Receipt Management',   screen: 'ReceiptManagement',icon: 'printer',        group: 'Operations' },
     { name: 'Schedule',             screen: 'Schedule',         icon: 'calendar',       group: 'Operations' },
     { name: 'Announcements',        screen: 'Announcements',    icon: 'volume-2',       group: 'Communication' },
@@ -86,7 +87,8 @@ export const ROLE_NAVIGATION_LINKS = {
   'Regional Director': [
     { name: 'Dashboard',            screen: 'Dashboard',        icon: 'grid',           group: 'Workspace' },
     { name: 'Activities',           screen: 'Activities',       icon: 'activity',       group: 'Operations' },
-    { name: 'Form Builder',         screen: 'FormBuilder',      icon: 'layout',         group: 'Operations' },
+    // Temporarily hidden — Form Builder is managed in the Admin portal
+    // { name: 'Form Builder',         screen: 'FormBuilder',      icon: 'layout',         group: 'Operations' },
     { name: 'Receipt Management',   screen: 'ReceiptManagement',icon: 'printer',        group: 'Operations' },
     { name: 'Schedule',             screen: 'Schedule',         icon: 'calendar',       group: 'Operations' },
     { name: 'Announcements',        screen: 'Announcements',    icon: 'volume-2',       group: 'Communication' },

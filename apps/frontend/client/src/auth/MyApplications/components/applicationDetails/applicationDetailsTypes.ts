@@ -3,6 +3,7 @@ import { ApplicationDocument, ApplicationStatus, RawRequirement, normalizeApplic
 export interface ApplicationDetailsPageProps {
   app: import('../../data/applicationsData').Application;
   onBack: () => void;
+  onRenew?: (app: import('../../data/applicationsData').Application) => void;
   onDownloadDoc?: (doc: ApplicationDocument) => void;
 }
 
@@ -81,7 +82,8 @@ export const getApplicantStepProgress = (status: string | undefined | null): num
   switch (normalizeApplicationStatus(status)) {
     case 'PENDING': return 1;
     case 'FOR_EVALUATION': return 2;
-    case 'READY_FOR_PAYMENT': return 3;
+    case 'READY_FOR_PAYMENT':
+    case 'PAYMENT_SUBMITTED': return 3;
     case 'FOR_APPROVAL': return 4;
     case 'APPROVED': return 5;
     case 'DECLINED': return 4;

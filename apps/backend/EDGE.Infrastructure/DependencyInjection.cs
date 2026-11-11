@@ -172,6 +172,9 @@ public static class DependencyInjection
 
         services.AddHangfireServer();
 
+        // Register background jobs
+        services.AddTransient<EDGE.Infrastructure.Jobs.ProcessExpiringApplicationsJob>();
+
         // Register Database Initializer Hosted Service to apply migrations and seed data on startup
         services.AddHostedService<DatabaseInitializerHostedService>();
 

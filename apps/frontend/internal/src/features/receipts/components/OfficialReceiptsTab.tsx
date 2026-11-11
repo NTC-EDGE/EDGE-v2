@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
 import { usePermissions } from '../../shell/context/PermissionContext';
+import { useRole } from '../../shell/context/RoleContext';
 import { OfficialReceiptDto, NextAvailableOrDto, PendingPaymentDto } from '@edge/api';
 import { styles } from './officialReceipts/officialReceiptsStyles';
 import { OfficialReceiptsBanner } from './officialReceipts/OfficialReceiptsBanner';
@@ -22,6 +23,8 @@ interface OfficialReceiptsTabProps {
   nextOr?: NextAvailableOrDto;
   onOpenIssueModal: () => void;
   onIssueReceiptForPendingPayment: (p: PendingPaymentDto) => void;
+  onViewDetailsForPendingPayment?: (p: PendingPaymentDto) => void;
+  onEndorsePendingPayment?: (p: PendingPaymentDto) => void;
   onViewReceipt: (r: OfficialReceiptDto) => void;
   onEditReceipt: (r: OfficialReceiptDto) => void;
   onCancelReceipt: (r: OfficialReceiptDto) => void;
@@ -44,6 +47,8 @@ export function OfficialReceiptsTab({
   nextOr,
   onOpenIssueModal,
   onIssueReceiptForPendingPayment,
+  onViewDetailsForPendingPayment,
+  onEndorsePendingPayment,
   onViewReceipt,
   onEditReceipt,
   onCancelReceipt,
@@ -51,11 +56,32 @@ export function OfficialReceiptsTab({
 }: OfficialReceiptsTabProps) {
   const { colors } = useTheme();
   const [activeSubView, setActiveSubView] = useState<ReceiptsSubView>('pending');
-  const { hasPermission, isSuperAdmin, isAdmin } = usePermissions();
+  const { currentRole } = useRole();
+  const { hasPermission, isSuperAdmin, isAdmin, canVerifyCashier } = usePermissions();
 
-  const canIssueReceipt = isSuperAdmin || isAdmin || hasPermission('receipts.issue') || hasPermission('billing.collect');
-  const canEditReceiptPerm = isSuperAdmin || isAdmin || hasPermission('receipts.edit');
-  const canCancelReceiptPerm = isSuperAdmin || isAdmin || hasPermission('receipts.cancel');
+  const isCashierRole = currentRole === 'Cashier' || canVerifyCashier;
+  const canIssueReceipt =
+    isSuperAdmin ||
+    isAdmin ||
+    isCashierRole ||
+    hasPermission('receipts.issue') ||
+    hasPermission('billing.collect');
+  const canEndorse =
+    isSuperAdmin ||
+    isAdmin ||
+    isCashierRole ||
+    hasPermission('billing.op_return') ||
+    hasPermission('applications.evaluate');
+  const canEditReceiptPerm =
+    isSuperAdmin ||
+    isAdmin ||
+    isCashierRole ||
+    hasPermission('receipts.edit');
+  const canCancelReceiptPerm =
+    isSuperAdmin ||
+    isAdmin ||
+    isCashierRole ||
+    hasPermission('receipts.cancel');
 
   return (
     <View style={styles.container}>
@@ -133,7 +159,10 @@ export function OfficialReceiptsTab({
           onSearchChange={onSearchChange}
           onRefresh={onRefresh}
           canIssueReceipt={canIssueReceipt}
+          canEndorse={canEndorse}
           onIssueReceiptForPendingPayment={onIssueReceiptForPendingPayment}
+          onViewDetailsForPendingPayment={onViewDetailsForPendingPayment}
+          onEndorsePendingPayment={onEndorsePendingPayment}
         />
       )}
 

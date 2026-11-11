@@ -8,5 +8,7 @@ public record GetAnnouncementsQuery(
     int PageNumber = 1,
     int PageSize = 10,
     string? SearchTerm = null,
-    string? Type = null
+    string? Type = null,
+    bool? IsActive = null,
+    string? TargetAudience = null
 ) : IRequest<PaginatedApiResponse<SystemAnnouncementDto>>;

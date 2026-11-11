@@ -166,7 +166,7 @@ export function GenerateSoaModal({
         setIsManualMode(false);
       }
 
-      setRemarks(app.soaRemarks || app.remarks || 'Please settle this Statement of Account on or before the due date.');
+      setRemarks(app.soaRemarks || app.remarks || '');
       setSelectedSoaNoteId(app.soaNoteId ?? null);
       fetchBackendCalculatedFees();
     }
@@ -180,7 +180,7 @@ export function GenerateSoaModal({
         tenantSoaNotes.find((n) => n.code === 'DEFAULT' || n.title?.toLowerCase().includes('default')) ??
         tenantSoaNotes[0];
 
-      if (!isExistingSoa || !remarks || remarks === 'Please settle this Statement of Account on or before the due date.') {
+      if (!isExistingSoa || !remarks.trim()) {
         if (match?.notes) {
           setRemarks(match.notes);
           setSelectedSoaNoteId(match.id);

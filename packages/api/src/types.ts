@@ -646,6 +646,8 @@ export interface ServiceVariantDetail {
   serviceId: string;
   serviceName?: string | null;
   type?: string | null;
+  variantName?: string | null;
+  applicationType?: string | null;
 }
 
 export type FeeCalculationMode = 'StandardMultiplier' | 'CustomFormula' | 'TieredMatrix' | number;
@@ -706,6 +708,8 @@ export interface ServiceVariantFeeGroup {
   serviceId?: string | null;
   serviceName?: string | null;
   variantType?: string | null;
+  variantName?: string | null;
+  applicationType?: string | null;
   totalBaseAmount: number;
   fees: ServiceVariantFee[];
   statutoryFormula?: string | null;
@@ -717,6 +721,8 @@ export interface ServiceVariantElementFeeGroup {
   serviceId?: string | null;
   serviceName?: string | null;
   variantType?: string | null;
+  variantName?: string | null;
+  applicationType?: string | null;
   totalBaseAmount: number;
   elementFees: ServiceVariantElementFee[];
   statutoryFormula?: string | null;
@@ -936,6 +942,8 @@ export interface StatementOfAccountDto {
   approvedAt?: string;
   remarks?: string;
   soaNoteId?: string;
+  soaNoteText?: string;
+  orNumbers?: string[];
   preparedByName?: string;
   preparedByTitle?: string;
   approvedByName?: string;
@@ -966,6 +974,7 @@ export interface OrderOfPaymentDto {
   amountReceived: number;
   paymentMethod?: PaymentMethodDto;
   officialReceiptNumber?: string;
+  orNumbers?: string[];
   checkNumber?: string;
   checkName?: string;
   checkBank?: string;
@@ -1013,6 +1022,8 @@ export interface ApplicationServiceDto {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   submissionId?: string;
 }
 
@@ -1075,10 +1086,14 @@ export interface ApplicantDto {
   userId?: string;
   isGuest: boolean;
   applicantType: string;
+  applicationType?: string;
   status?: string;
   evaluationRemarks?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   submissionId?: string;
   details?: ApplicantDetailDto;
   company?: CompanyDetailDto;
@@ -1126,7 +1141,10 @@ export interface ApplicationDto {
   serviceCategoryCode?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   officialReceiptNumber?: string;
+  orNumbers?: string[];
   soaNumber?: string;
   opNumber?: string;
   amountPaid?: number;
@@ -1146,6 +1164,10 @@ export interface ApplicationDto {
   cashierOfficer?: string;
   assignedOfficerName?: string;
   assignedOfficerRole?: string;
+  renewedFromApplicationId?: string;
+  hasActiveRenewal?: boolean;
+  activeRenewalApplicationId?: string;
+  activeRenewalReferenceNumber?: string;
 }
 
 export interface IssuedDocumentDetailDto {
@@ -1193,15 +1215,23 @@ export interface GeneratedDocumentNumbersDto {
   officialReceiptNumber?: string;
   originalEvaluatorName?: string;
   isPaid: boolean;
+  isRenewal?: boolean;
+  previousExpiryDate?: string;
+  recommendedExpiryDate?: string;
+  previousLicenseNumber?: string;
 }
 
 export interface ApplicantSummaryDto {
   id: string;
   applicantType: string;
+  applicationType?: string;
   status?: string;
   evaluationRemarks?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   submissionId?: string;
   name: string;
   company?: CompanyDetailDto;
@@ -1236,7 +1266,10 @@ export interface ApplicationSummaryDto {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   officialReceiptNumber?: string;
+  orNumbers?: string[];
   soaNumber?: string;
   opNumber?: string;
   amountPaid?: number;
@@ -1256,6 +1289,10 @@ export interface ApplicationSummaryDto {
   cashierOfficer?: string;
   assignedOfficerName?: string;
   assignedOfficerRole?: string;
+  renewedFromApplicationId?: string;
+  hasActiveRenewal?: boolean;
+  activeRenewalApplicationId?: string;
+  activeRenewalReferenceNumber?: string;
 }
 
 // ─── Paged Applications & Statistics ────────────────────
@@ -1281,6 +1318,45 @@ export interface PagedApplicationListDto {
   hasPreviousPage: boolean;
   hasNextPage: boolean;
   statistics?: ApplicationStatisticsDto;
+}
+
+export interface ApplicationActivityDto {
+  id: string;
+  referenceNumber: string;
+  applicationNumber?: string;
+  applicantName: string;
+  applicantType: string;
+  submissionMode: string;
+  serviceName: string;
+  serviceCategory?: string;
+  serviceVariantName?: string;
+  element?: string;
+  status: string;
+  queueTab?: string;
+  fieldOffice?: string;
+  officerInCharge?: string;
+  assignedTo?: string;
+  evaluatingOfficer?: string;
+  accountingOfficer?: string;
+  cashierOfficer?: string;
+  issuingOfficer?: string;
+  endorsedTo?: string;
+  submittedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  isPinned: boolean;
+  isArchived: boolean;
+  officialReceiptNumber?: string;
+}
+
+export interface PagedApplicationActivitiesDto {
+  items: ApplicationActivityDto[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 export interface UpdateApplicationStatusRequest {
@@ -1362,7 +1438,7 @@ export interface SubmitPaymentRequest {
   checkDate?: string | null;
 }
 
-export type ReturnTargetDto = 'Accountant' | 'Evaluator';
+export type ReturnTargetDto = 'Accountant' | 'Evaluator' | 'Supervisor';
 
 export interface ReturnOpRequest {
   remarks: string;

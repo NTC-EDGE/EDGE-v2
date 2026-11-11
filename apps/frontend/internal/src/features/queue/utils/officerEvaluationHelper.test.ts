@@ -470,6 +470,60 @@ describe("officerEvaluationHelper", () => {
         expect(stateA.isStageClaimedByMe).toBe(false);
         expect(stateA.isStageClaimedByOther).toBe(false);
       });
+
+      it("returns application to unclaimed state if Accountant releases authority back to queue", () => {
+        const releasedApp = createMockApp({
+          status: "ForAccountant",
+          assignedTo: "NTC Central Office",
+          accountingOfficer: undefined,
+          history: [
+            {
+              id: "h1",
+              action: "Financial Review Released",
+              staff: "Ann Accountant",
+              role: "Accountant",
+              timestamp: "Sep 21, 2026",
+            },
+          ],
+        });
+
+        const state = computeOfficerEvaluationState({
+          application: releasedApp,
+          identifiers: ["ann accountant", "accountant@ntc.gov.ph"],
+          isAdmin: false,
+        });
+
+        expect(state.isStageUnclaimed).toBe(true);
+        expect(state.isStageClaimedByMe).toBe(false);
+        expect(state.isStageClaimedByOther).toBe(false);
+      });
+
+      it("returns application to unclaimed state if Cashier releases authority back to queue", () => {
+        const releasedApp = createMockApp({
+          status: "PendingPayment",
+          assignedTo: "NTC Central Office",
+          cashierOfficer: undefined,
+          history: [
+            {
+              id: "h1",
+              action: "Payment Verification Released",
+              staff: "Carlos Cashier",
+              role: "Cashier",
+              timestamp: "Sep 21, 2026",
+            },
+          ],
+        });
+
+        const state = computeOfficerEvaluationState({
+          application: releasedApp,
+          identifiers: ["carlos cashier", "cashier@ntc.gov.ph"],
+          isAdmin: false,
+        });
+
+        expect(state.isStageUnclaimed).toBe(true);
+        expect(state.isStageClaimedByMe).toBe(false);
+        expect(state.isStageClaimedByOther).toBe(false);
+      });
     });
   });
 

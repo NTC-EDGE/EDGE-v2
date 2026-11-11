@@ -62,10 +62,7 @@ public static class ExamsCategorySeederData
             { ""code"": ""Class C"", ""condition"": ""For Class D Holder"", ""description"": ""For Class D Holder, Elements 3 & 4"" },
             { ""code"": ""Class D"", ""condition"": ""Standard"", ""description"": ""Element 2"" }
         ],
-        ""requiredSections"": [
-            { ""key"": ""applicantPerson"", ""required"": true },
-            { ""key"": ""applicantEducation"", ""required"": false }
-        ],
+        ""requiredSections"": [],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
             ""examCategories"": [""Radiotelegraphy"", ""Radiotelephony"", ""Amateur"", ""Restricted Radio Operator Certificate - Aircraft""]
@@ -278,7 +275,10 @@ public static class ExamsCategorySeederData
 
     public static List<ServiceFormDef> GetFormDefs() => new()
     {
-        new("NTC_1_01", Guid.Parse("f0100000-0000-0000-0000-000000000001"), Guid.Parse("f01a0000-0000-0000-0000-000000000000"), new())
+        new("NTC_1_01", Guid.Parse("f0100000-0000-0000-0000-000000000001"), Guid.Parse("f01a0000-0000-0000-0000-000000000000"), new()
+        {
+            new("educationalBackground", "Educational Background & Qualifications", new() { "schoolName", "courseDegree", "yearGraduated" })
+        })
     };
 
     public static List<ServiceInformationDef> GetServiceInformations() => new()

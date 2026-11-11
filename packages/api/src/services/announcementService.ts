@@ -27,9 +27,18 @@ export const announcementService = {
   /**
    * Fetch all system announcements
    */
-  async getAnnouncements() {
+  async getAnnouncements(params?: {
+    isActive?: boolean;
+    targetAudience?: string;
+    type?: string;
+    pageNumber?: number;
+    pageSize?: number;
+    searchTerm?: string;
+  }) {
     return safeAsync(async () => {
-      const response = await apiClient.get<ApiResponse<SystemAnnouncementDto[]>>('/api/v2/announcements');
+      const response = await apiClient.get<ApiResponse<SystemAnnouncementDto[]>>('/api/v2/announcements', {
+        params,
+      });
       return response.data.data ?? [];
     }, 'Failed to fetch announcements');
   },

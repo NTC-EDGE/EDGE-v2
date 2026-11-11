@@ -30,6 +30,9 @@ export interface RadioOperatorCertData {
   employmentLocation: string;
   weightKg: string;
   heightCm: string;
+  nameOfEmployer?: string;
+  companyAddress?: string;
+  remarks?: string;
   
   // Exam / Seminar Details
   placeOfExamSeminar: string;
