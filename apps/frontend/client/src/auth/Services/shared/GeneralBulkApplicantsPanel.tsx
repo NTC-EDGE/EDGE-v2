@@ -15,6 +15,8 @@ import {
   GeneralApplicantData,
   isGeneralApplicantComplete,
   ServiceRequirementItem,
+  ServiceVariantInfo,
+  ServiceVariantElementInfo,
 } from "./hooks/useGeneralServiceWizard";
 export { isGeneralApplicantComplete };
 import { getApplicantDisplayName } from "./helpers/applicantDisplayHelper";
@@ -28,6 +30,7 @@ import {
   parseSpreadsheetContent,
 } from "./spreadsheet";
 import { useServiceForm } from "./hooks/useServiceForm";
+import { FormEvaluationContext } from "../../../shared/components/dynamic-form/dynamicFormUtils";
 
 interface GeneralBulkApplicantsPanelProps {
   applicants: GeneralApplicantData[];
@@ -43,6 +46,8 @@ interface GeneralBulkApplicantsPanelProps {
   onSubmitAll?: () => void;
   service: NTCService;
   variantRequirements?: Array<ServiceRequirementItem | string>;
+  variants?: ServiceVariantInfo[];
+  variantElements?: ServiceVariantElementInfo[];
 }
 
 export function GeneralBulkApplicantsPanel({
@@ -58,6 +63,8 @@ export function GeneralBulkApplicantsPanel({
   onSubmitAll,
   service,
   variantRequirements = [],
+  variants = [],
+  variantElements = [],
 }: GeneralBulkApplicantsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "COMPLETE" | "PENDING">("ALL");
@@ -80,8 +87,34 @@ export function GeneralBulkApplicantsPanel({
   const completeCount = applicants.filter((app) => isGeneralApplicantComplete(app, service, variantRequirements)).length;
   const pendingCount = applicants.length - completeCount;
 
-  const { form } = useServiceForm(service?.id);
-  const templateConfig = useMemo(() => getSpreadsheetTemplateForService(service, form), [service, form]);
+  const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
+  const selectedVariantId = activeApplicant?.selectedVariantId;
+  const currentVariant = variants.find((v) => String(v.id) === String(selectedVariantId));
+
+  const { form } = useServiceForm(service?.id, selectedVariantId);
+
+  const evaluationContext = useMemo<FormEvaluationContext>(() => {
+    const selectedElementId = activeApplicant?.selectedElementId;
+    const selectedElement = variantElements.find((e) => String(e.id) === String(selectedElementId));
+    return {
+      variantId: selectedVariantId || form?.serviceVariantId,
+      variantName: activeApplicant?.selectedVariantName || currentVariant?.name || form?.serviceVariantName || service?.title,
+      variantDescription: currentVariant?.description,
+      variantType: currentVariant?.type,
+      applicantType: activeApplicant?.applicantType,
+      elementCodes: selectedElement?.code ? [selectedElement.code] : undefined,
+      elementNames: selectedElement?.description
+        ? [selectedElement.description]
+        : activeApplicant?.selectedElementTitle
+          ? [activeApplicant.selectedElementTitle]
+          : undefined,
+    };
+  }, [activeApplicant, selectedVariantId, currentVariant, variantElements, form, service]);
+
+  const templateConfig = useMemo(
+    () => getSpreadsheetTemplateForService(service, form, evaluationContext),
+    [service, form, evaluationContext]
+  );
 
   const handleDownloadTemplate = () => {
     const csvContent = generateCsvContent(templateConfig);
@@ -119,7 +152,7 @@ export function GeneralBulkApplicantsPanel({
       }
 
       if (fileText && fileText.trim().length > 0) {
-        const parseResult = parseSpreadsheetContent(fileText, service, form);
+        const parseResult = parseSpreadsheetContent(fileText, service, form, evaluationContext);
         if (parseResult.totalRows === 0) {
           toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the template.");
           return;

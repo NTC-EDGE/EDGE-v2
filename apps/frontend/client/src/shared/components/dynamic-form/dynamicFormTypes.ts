@@ -31,6 +31,8 @@ export interface FormDto {
   formId?: string;
   version: string;
   serviceId?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
   serviceName?: string;
   serviceCode?: string;
   name?: string;

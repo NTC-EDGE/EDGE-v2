@@ -1,6 +1,6 @@
 import { useCallback, MutableRefObject } from "react";
 import { FormSchema, ServiceVariantToolbarItem } from "../types";
-import { convertBackendFormToSchema, convertSchemaToBackendSections, isRecord } from "../utils";
+import { convertBackendFormToSchema, convertSchemaToBackendSections, isRecord, findMatchingVariant } from "../utils";
 import { ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
 import { useFormBuilderService, UpdateFormRequest } from "@/services/formBuilderService";
 
@@ -60,19 +60,17 @@ export function useFormSaveAndNavigation(params: {
             form: current,
           };
         }
-        const sections = convertSchemaToBackendSections(formToSave.fields);
-        const resolvedKey = formToSave.key || (formToSave.serviceCode ? formToSave.serviceCode : undefined);
-
         // Check if saving for a specific service variant
         let targetVariantId: string | undefined = formToSave.serviceVariantId;
         if (!targetVariantId && selectedVariant && selectedVariant !== "ALL") {
-          const matchedVariant = backendServiceVariants?.find(
-            (v) => v.name.toLowerCase().trim() === selectedVariant.toLowerCase().trim()
-          );
+          const matchedVariant = findMatchingVariant(backendServiceVariants, selectedVariant);
           if (matchedVariant && matchedVariant.id && !matchedVariant.id.startsWith("var-")) {
             targetVariantId = matchedVariant.id;
           }
         }
+
+        const sections = convertSchemaToBackendSections(formToSave.fields, targetVariantId);
+        const resolvedKey = formToSave.key || (formToSave.serviceCode ? formToSave.serviceCode : undefined);
 
         if (targetVariantId) {
           const variantPayload: UpdateFormRequest = {
@@ -83,7 +81,7 @@ export function useFormSaveAndNavigation(params: {
             baseFormId: formToSave.baseFormId || masterBaseForm?.id || formToSave.id,
             name: formToSave.name,
             version: formToSave.version || "1.0",
-            isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
+            isActive: formToSave.isPublished ?? formToSave.isActive ?? true,
             categorySelectionRequired: false,
             sections,
           };

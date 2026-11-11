@@ -18,6 +18,7 @@ import {
   parseSpreadsheetContent,
 } from "../spreadsheet";
 import { useServiceForm } from "../hooks/useServiceForm";
+import { FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 export interface ServiceVariantItem {
   id: string;
@@ -178,7 +179,41 @@ export function GeneralFilingModeStep({
   const selectedClassId = selectedElementId || localSelectedClassId;
 
   const { form } = useServiceForm(service?.id, selectedVariantId);
-  const templateConfig = useMemo(() => getSpreadsheetTemplateForService(service, form), [service, form]);
+
+  const evaluationContext = useMemo<FormEvaluationContext>(() => {
+    const selectedElement = variantElements.find((e) => String(e.id) === String(selectedClassId));
+    return {
+      variantId: selectedVariantId || activeApplicant?.selectedVariantId || form?.serviceVariantId,
+      variantName:
+        currentVariant?.name ||
+        activeApplicant?.selectedVariantName ||
+        form?.serviceVariantName ||
+        service?.title,
+      variantDescription: currentVariant?.description,
+      variantType: currentVariant?.type,
+      applicantType: applicantType || activeApplicant?.applicantType,
+      elementCodes: selectedElement?.code ? [selectedElement.code] : undefined,
+      elementNames: selectedElement?.description
+        ? [selectedElement.description]
+        : activeApplicant?.selectedElementTitle
+          ? [activeApplicant.selectedElementTitle]
+          : undefined,
+    };
+  }, [
+    selectedVariantId,
+    activeApplicant,
+    currentVariant,
+    variantElements,
+    selectedClassId,
+    applicantType,
+    form,
+    service,
+  ]);
+
+  const templateConfig = useMemo(
+    () => getSpreadsheetTemplateForService(service, form, evaluationContext),
+    [service, form, evaluationContext]
+  );
 
   const displayVariants: ServiceVariantItem[] =
     variants.length > 0
@@ -407,7 +442,7 @@ export function GeneralFilingModeStep({
       }
 
       if (fileText && fileText.trim().length > 0) {
-        const parseResult = parseSpreadsheetContent(fileText, service, form);
+        const parseResult = parseSpreadsheetContent(fileText, service, form, evaluationContext);
         if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }

@@ -108,7 +108,8 @@ public class DuplicateFormCommandHandler : IRequestHandler<DuplicateFormCommand,
                     IsRequired = sf.IsRequired,
                     OrderIndex = sf.OrderIndex,
                     ValidationRules = sf.Field?.ValidationRules,
-                    VisibilityCondition = sf.VisibilityCondition
+                    VisibilityCondition = sf.VisibilityCondition,
+                    Options = FormFieldDto.ExtractOptions(sf.Field?.ValidationRules)
                 }).ToList()
             }).ToList()
         };

@@ -90,7 +90,7 @@ public class GetFormByVariantIdQueryHandler : IRequestHandler<GetFormByVariantId
             ServiceId = form.ServiceId,
             ServiceName = form.Service?.Name ?? service.Name,
             ServiceCode = form.Service?.Code ?? service.Code,
-            ServiceVariantId = form.ServiceVariantId,
+            ServiceVariantId = form.ServiceVariantId ?? variant.Id,
             ServiceVariantName = form.ServiceVariant?.Description ?? variant.Description,
             BaseFormId = form.BaseFormId,
             BaseFormKey = form.BaseForm?.Key,
@@ -121,7 +121,8 @@ public class GetFormByVariantIdQueryHandler : IRequestHandler<GetFormByVariantId
                             IsRequired = sf.IsRequired,
                             OrderIndex = sf.OrderIndex,
                             ValidationRules = sf.Field?.ValidationRules,
-                            VisibilityCondition = sf.VisibilityCondition
+                            VisibilityCondition = sf.VisibilityCondition,
+                            Options = FormFieldDto.ExtractOptions(sf.Field?.ValidationRules)
                         }).ToList()
                 }).ToList()
         };

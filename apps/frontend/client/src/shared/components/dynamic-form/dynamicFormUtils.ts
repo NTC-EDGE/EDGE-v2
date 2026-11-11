@@ -168,29 +168,35 @@ export interface ValidationRulesMetadata {
 
 export function parseValidationRulesMetadata(field: FieldDto): ValidationRulesMetadata {
   const meta: ValidationRulesMetadata = {};
-  if (typeof field.validationRules === "string" && field.validationRules.trim().startsWith("{")) {
+  let parsed: unknown = field.validationRules;
+
+  if (typeof parsed === "string" && parsed.trim().length > 0) {
     try {
-      const parsed: unknown = JSON.parse(field.validationRules);
-      if (isRecord(parsed)) {
-        if (parsed.cols === 1 || parsed.cols === 2) {
-          meta.cols = parsed.cols;
-        }
-        if (typeof parsed.placeholder === "string" && parsed.placeholder.trim().length > 0) {
-          meta.placeholder = parsed.placeholder.trim();
-        }
-        if (typeof parsed.helpText === "string" && parsed.helpText.trim().length > 0) {
-          meta.helpText = parsed.helpText.trim();
-        }
-        if (typeof parsed.minLength === "number") meta.minLength = parsed.minLength;
-        if (typeof parsed.maxLength === "number") meta.maxLength = parsed.maxLength;
-        if (typeof parsed.min === "number") meta.min = parsed.min;
-        if (typeof parsed.max === "number") meta.max = parsed.max;
-        if (typeof parsed.acceptedFileTypes === "string") meta.acceptedFileTypes = parsed.acceptedFileTypes;
-        if (typeof parsed.maxFileSizeMb === "number") meta.maxFileSizeMb = parsed.maxFileSizeMb;
+      parsed = JSON.parse(parsed.trim());
+      if (typeof parsed === "string" && (parsed.trim().startsWith("{") || parsed.trim().startsWith("["))) {
+        parsed = JSON.parse(parsed.trim());
       }
     } catch {
-      // Ignore invalid JSON
+      return meta;
     }
+  }
+
+  if (isRecord(parsed)) {
+    if (parsed.cols === 1 || parsed.cols === 2) {
+      meta.cols = parsed.cols;
+    }
+    if (typeof parsed.placeholder === "string" && parsed.placeholder.trim().length > 0) {
+      meta.placeholder = parsed.placeholder.trim();
+    }
+    if (typeof parsed.helpText === "string" && parsed.helpText.trim().length > 0) {
+      meta.helpText = parsed.helpText.trim();
+    }
+    if (typeof parsed.minLength === "number") meta.minLength = parsed.minLength;
+    if (typeof parsed.maxLength === "number") meta.maxLength = parsed.maxLength;
+    if (typeof parsed.min === "number") meta.min = parsed.min;
+    if (typeof parsed.max === "number") meta.max = parsed.max;
+    if (typeof parsed.acceptedFileTypes === "string") meta.acceptedFileTypes = parsed.acceptedFileTypes;
+    if (typeof parsed.maxFileSizeMb === "number") meta.maxFileSizeMb = parsed.maxFileSizeMb;
   }
   return meta;
 }
@@ -213,17 +219,17 @@ export function parseOptions(field: FieldDto): Array<{ label: string; value: str
       const rawId = item["id"];
       const label =
         typeof rawLabel === "string"
-          ? rawLabel
+          ? rawLabel.trim()
           : typeof rawName === "string"
-          ? rawName
+          ? rawName.trim()
           : typeof rawValue === "string"
-          ? rawValue
+          ? rawValue.trim()
           : "";
       const value =
         typeof rawValue === "string"
-          ? rawValue
+          ? rawValue.trim()
           : typeof rawId === "string"
-          ? rawId
+          ? rawId.trim()
           : label;
       if (label.length > 0 || value.length > 0) {
         return {
@@ -249,32 +255,41 @@ export function parseOptions(field: FieldDto): Array<{ label: string; value: str
     }
   }
 
-  // 2. Parsed from validationRules (supports raw JSON array string and { options: [...] } envelope)
-  if (field.validationRules !== null && field.validationRules !== undefined && typeof field.validationRules === "string") {
-    try {
-      const parsed: unknown = JSON.parse(field.validationRules);
-      let targetArray: unknown[] | null = null;
-      if (Array.isArray(parsed)) {
-        targetArray = parsed;
-      } else if (isRecord(parsed)) {
-        const rawOpts = parsed["options"];
-        if (Array.isArray(rawOpts)) {
-          targetArray = rawOpts;
+  // 2. Parsed from validationRules (supports raw JSON array string and { options: [...] } envelope, string or object)
+  if (field.validationRules !== null && field.validationRules !== undefined) {
+    let parsed: unknown = field.validationRules;
+    if (typeof parsed === "string" && parsed.trim().length > 0) {
+      try {
+        parsed = JSON.parse(parsed.trim());
+        if (typeof parsed === "string" && (parsed.trim().startsWith("{") || parsed.trim().startsWith("["))) {
+          parsed = JSON.parse(parsed.trim());
+        }
+      } catch {
+        parsed = null;
+      }
+    }
+
+    let targetArray: unknown[] | null = null;
+    if (Array.isArray(parsed)) {
+      targetArray = parsed;
+    } else if (isRecord(parsed)) {
+      const rawOpts = parsed["options"];
+      if (Array.isArray(rawOpts)) {
+        targetArray = rawOpts;
+      }
+    }
+
+    if (targetArray !== null && targetArray.length > 0) {
+      const list: Array<{ label: string; value: string }> = [];
+      for (let i = 0; i < targetArray.length; i++) {
+        const norm = normalizeItem(targetArray[i]);
+        if (norm !== null) {
+          list.push(norm);
         }
       }
-
-      if (targetArray !== null) {
-        const list: Array<{ label: string; value: string }> = [];
-        for (let i = 0; i < targetArray.length; i++) {
-          const norm = normalizeItem(targetArray[i]);
-          if (norm !== null) {
-            list.push(norm);
-          }
-        }
+      if (list.length > 0) {
         return list;
       }
-    } catch {
-      // Ignored if not JSON
     }
   }
 
@@ -549,7 +564,74 @@ function toStringArray(val: unknown): string[] {
   return [];
 }
 
-export function evaluateVisibilityCondition(
+export function matchesVariantRule(v: string, context: FormEvaluationContext): boolean {
+  const normalizeAlphaNum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const vUpper = v.toUpperCase().trim();
+  const normV = normalizeAlphaNum(v);
+  if (!normV || vUpper === "__NONE__") return false;
+
+  const vType = (context.variantType || "").toUpperCase().trim();
+  const vId = (context.variantId || "").trim();
+  const vDesc = (context.variantDescription || "").toUpperCase().trim();
+  const vName = (context.variantName || "").toUpperCase().trim();
+  const vCombined = vDesc && vType ? `${vDesc} (${vType})` : vDesc || vType;
+  const normCombined = normalizeAlphaNum(vCombined);
+  const normType = normalizeAlphaNum(vType);
+  const normDesc = normalizeAlphaNum(vDesc);
+  const normName = normalizeAlphaNum(vName);
+  const normId = normalizeAlphaNum(vId);
+
+  // 1. Direct ID match
+  if (vId.length > 0 && (v === vId || normV === normId)) {
+    return true;
+  }
+
+  // 2. Direct exact normalized match
+  if (
+    (normCombined.length > 0 && normV === normCombined) ||
+    (normName.length > 0 && normV === normName) ||
+    (normDesc.length > 0 && normV === normDesc) ||
+    (normType.length > 0 && normV === normType)
+  ) {
+    return true;
+  }
+
+  // 3. Parentheses handling: e.g. v = "Commercial Broadcast (New)"
+  if (v.includes("(")) {
+    const vParenMatch = v.match(/\(([^)]+)\)/);
+    const parenContent = vParenMatch ? normalizeAlphaNum(vParenMatch[1]) : "";
+    const baseContent = normalizeAlphaNum(v.replace(/\([^)]*\)/g, ""));
+
+    // Both base and paren must match context if both exist
+    const baseMatches =
+      baseContent.length >= 3 &&
+      ((normDesc.length >= 3 && (normDesc.includes(baseContent) || baseContent.includes(normDesc))) ||
+        (normName.length >= 3 && (normName.includes(baseContent) || baseContent.includes(normName))));
+
+    const parenMatches = parenContent.length > 0 && normType.length > 0 && parenContent === normType;
+
+    if (baseMatches && parenMatches) {
+      return true;
+    }
+    return false;
+  }
+
+  // 4. Containment match for non-parenthesized rules (e.g. v = "Commercial Broadcast")
+  // Both sides must have meaningful length >= 3 to prevent empty substring matching
+  if (normV.length >= 3) {
+    if (
+      (normDesc.length >= 3 && (normDesc.includes(normV) || normV.includes(normDesc))) ||
+      (normName.length >= 3 && (normName.includes(normV) || normV.includes(normName))) ||
+      (normCombined.length >= 3 && (normCombined.includes(normV) || normV.includes(normCombined)))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function evaluateContextOnlyVisibility(
   condition: string | null | undefined,
   context: FormEvaluationContext
 ): boolean {
@@ -623,69 +705,14 @@ export function evaluateVisibilityCondition(
         ...toStringArray(rule.variantType),
       ];
       if (variants.length > 0) {
-        const normalizeAlphaNum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const vType = (context.variantType || "").toUpperCase().trim();
-        const vId = (context.variantId || "").trim();
-        const vDesc = (context.variantDescription || "").toUpperCase().trim();
-        const vName = (context.variantName || "").toUpperCase().trim();
-        const vCombined = vDesc && vType ? `${vDesc} (${vType})` : vDesc || vType;
-        const normCombined = normalizeAlphaNum(vCombined);
-        const normType = normalizeAlphaNum(vType);
-        const normDesc = normalizeAlphaNum(vDesc);
-        const normName = normalizeAlphaNum(vName);
-
-        const matches = variants.some((v) => {
-          const vUpper = v.toUpperCase().trim();
-          const normV = normalizeAlphaNum(v);
-          if (!normV || vUpper === "__NONE__") return false;
-          if (v.includes("(")) {
-            return (
-              normV === normCombined ||
-              (normName.length > 0 && normV === normName)
-            );
-          }
-          return (
-            vUpper === vType ||
-            normV === normType ||
-            v === vId ||
-            (normDesc.length > 0 && normDesc.includes(normV)) ||
-            (normName.length > 0 && normName.includes(normV)) ||
-            (normCombined.length > 0 && normCombined.includes(normV))
-          );
-        });
+        const matches = variants.some((v) => matchesVariantRule(v, context));
         if (!matches) return false;
       }
 
       // Negative Variant Match (Excluded)
       const excludedVariants = toStringArray(rule.excludedVariants);
       if (excludedVariants.length > 0) {
-        const normalizeAlphaNum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const vType = (context.variantType || "").toUpperCase().trim();
-        const vId = (context.variantId || "").trim();
-        const vDesc = (context.variantDescription || "").toUpperCase().trim();
-        const vName = (context.variantName || "").toUpperCase().trim();
-        const vCombined = vDesc && vType ? `${vDesc} (${vType})` : vDesc || vType;
-        const normCombined = normalizeAlphaNum(vCombined);
-        const normType = normalizeAlphaNum(vType);
-        const normDesc = normalizeAlphaNum(vDesc);
-        const normName = normalizeAlphaNum(vName);
-
-        const isExcluded = excludedVariants.some((v) => {
-          const vUpper = v.toUpperCase().trim();
-          const normV = normalizeAlphaNum(v);
-          if (!normV) return false;
-          if (v.includes("(")) {
-            return normV === normCombined || (normName.length > 0 && normV === normName);
-          }
-          return (
-            vUpper === vType ||
-            normV === normType ||
-            v === vId ||
-            (normDesc.length > 0 && normDesc.includes(normV)) ||
-            (normName.length > 0 && normName.includes(normV)) ||
-            (normCombined.length > 0 && normCombined.includes(normV))
-          );
-        });
+        const isExcluded = excludedVariants.some((v) => matchesVariantRule(v, context));
         if (isExcluded) return false;
       }
 
@@ -711,34 +738,13 @@ export function evaluateVisibilityCondition(
         if (context.applicantType && !applicantTypes.includes(context.applicantType)) {
           return false;
         }
-      } else if (typeof rule.applicantType === "string" && rule.applicantType !== context.applicantType) {
+      } else if (
+        typeof rule.applicantType === "string" &&
+        rule.applicantType.trim().length > 0 &&
+        context.applicantType &&
+        rule.applicantType.trim().toLowerCase() !== context.applicantType.toLowerCase()
+      ) {
         return false;
-      }
-
-      // Dynamic Inter-field Dependencies (`fieldDependencies`, `dependsOn`, or top-level `field`)
-      const rawDeps = rule.fieldDependencies ?? rule.dependsOn;
-      if (rawDeps && context.formValues) {
-        const depList = Array.isArray(rawDeps) ? rawDeps : [rawDeps];
-        for (const depItem of depList) {
-          if (isRecord(depItem)) {
-            const singleDep: SingleDependencyRule = {
-              fieldId: typeof depItem.fieldId === "string" ? depItem.fieldId : typeof depItem.field === "string" ? depItem.field : undefined,
-              fieldKey: typeof depItem.fieldKey === "string" ? depItem.fieldKey : undefined,
-              fieldLabel: typeof depItem.fieldLabel === "string" ? depItem.fieldLabel : undefined,
-              operator: typeof depItem.operator === "string" ? depItem.operator : undefined,
-              value: depItem.value,
-            };
-            if (!checkSingleDependency(singleDep, context.formValues)) return false;
-          }
-        }
-      } else if (typeof rule.field === "string" && rule.field.trim().length > 0) {
-        if (!context.formValues) return false;
-        const singleDep: SingleDependencyRule = {
-          fieldId: rule.field.trim(),
-          operator: typeof rule.operator === "string" ? rule.operator : "equals",
-          value: rule.value,
-        };
-        if (!checkSingleDependency(singleDep, context.formValues)) return false;
       }
 
       return true;
@@ -761,6 +767,226 @@ export function evaluateVisibilityCondition(
   } catch {
     return true;
   }
+}
+
+export function evaluateVisibilityCondition(
+  condition: string | null | undefined,
+  context: FormEvaluationContext
+): boolean {
+  if (!condition || !condition.trim()) return true;
+  if (!evaluateContextOnlyVisibility(condition, context)) return false;
+
+  try {
+    const trimmed = condition.trim();
+
+    if (trimmed.startsWith("{")) {
+      const rule: unknown = JSON.parse(trimmed);
+      if (!isRecord(rule)) return true;
+
+      // Dynamic Inter-field Dependencies (`fieldDependencies`, `dependsOn`, or top-level `field`)
+      const rawDeps = rule.fieldDependencies ?? rule.dependsOn;
+      if (rawDeps) {
+        const depList = Array.isArray(rawDeps) ? rawDeps : [rawDeps];
+        const validDeps: SingleDependencyRule[] = [];
+        for (const depItem of depList) {
+          if (isRecord(depItem)) {
+            const fId =
+              typeof depItem.fieldId === "string"
+                ? depItem.fieldId.trim()
+                : typeof depItem.field === "string"
+                ? depItem.field.trim()
+                : undefined;
+            const fKey = typeof depItem.fieldKey === "string" ? depItem.fieldKey.trim() : undefined;
+            const fLabel = typeof depItem.fieldLabel === "string" ? depItem.fieldLabel.trim() : undefined;
+            if ((fId && fId.length > 0) || (fKey && fKey.length > 0) || (fLabel && fLabel.length > 0)) {
+              validDeps.push({
+                fieldId: fId,
+                fieldKey: fKey,
+                fieldLabel: fLabel,
+                operator: typeof depItem.operator === "string" ? depItem.operator : undefined,
+                value: depItem.value,
+              });
+            }
+          }
+        }
+        if (validDeps.length > 0) {
+          if (!context.formValues) return false;
+          for (const singleDep of validDeps) {
+            if (!checkSingleDependency(singleDep, context.formValues)) return false;
+          }
+        }
+      } else if (typeof rule.field === "string" && rule.field.trim().length > 0) {
+        if (!context.formValues) return false;
+        const singleDep: SingleDependencyRule = {
+          fieldId: rule.field.trim(),
+          fieldKey: typeof rule.fieldKey === "string" ? rule.fieldKey.trim() : undefined,
+          fieldLabel: typeof rule.fieldLabel === "string" ? rule.fieldLabel.trim() : undefined,
+          operator: typeof rule.operator === "string" ? rule.operator : "equals",
+          value: rule.value,
+        };
+        if (!checkSingleDependency(singleDep, context.formValues)) return false;
+      }
+
+      return true;
+    }
+
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+export function extractFieldConditions(field: FieldDto, section?: FormSectionDto): string[] {
+  const conditions: string[] = [];
+  const addCond = (c: unknown) => {
+    if (typeof c === "string" && c.trim().length > 0) {
+      const trimmed = c.trim();
+      if (!conditions.includes(trimmed)) {
+        conditions.push(trimmed);
+      }
+    } else if (isRecord(c) && Object.keys(c).length > 0) {
+      const str = JSON.stringify(c);
+      if (!conditions.includes(str)) {
+        conditions.push(str);
+      }
+    }
+  };
+
+  if (section?.visibilityCondition) {
+    addCond(section.visibilityCondition);
+  }
+
+  if (typeof field.validationRules === "string" && field.validationRules.trim().length > 0) {
+    try {
+      let parsed: unknown = JSON.parse(field.validationRules.trim());
+      if (typeof parsed === "string" && parsed.trim().startsWith("{")) {
+        parsed = JSON.parse(parsed.trim());
+      }
+      if (isRecord(parsed)) {
+        addCond(parsed["sectionVisibilityCondition"]);
+        addCond(parsed["condition"]);
+        addCond(parsed["visibilityCondition"]);
+      }
+    } catch {
+      // ignore non-JSON validationRules
+    }
+  }
+
+  if (field.visibilityCondition) {
+    addCond(field.visibilityCondition);
+  }
+
+  return conditions;
+}
+
+export function isFieldContextVisible(
+  field: FieldDto,
+  section: FormSectionDto | undefined,
+  context: FormEvaluationContext
+): boolean {
+  const conditions = extractFieldConditions(field, section);
+  for (const cond of conditions) {
+    if (!evaluateContextOnlyVisibility(cond, context)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function isFieldRowVisible(
+  field: FieldDto,
+  section: FormSectionDto | undefined,
+  context: FormEvaluationContext
+): boolean {
+  const conditions = extractFieldConditions(field, section);
+  for (const cond of conditions) {
+    if (!evaluateVisibilityCondition(cond, context)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function extractFieldDependencyRules(
+  field: FieldDto,
+  section?: FormSectionDto
+): SingleDependencyRule[] {
+  const conditions = extractFieldConditions(field, section);
+  const deps: SingleDependencyRule[] = [];
+
+  for (const cond of conditions) {
+    if (!cond.startsWith("{")) continue;
+    try {
+      const rule: unknown = JSON.parse(cond);
+      if (!isRecord(rule)) continue;
+
+      const rawDeps = rule.fieldDependencies ?? rule.dependsOn;
+      if (rawDeps) {
+        const depList = Array.isArray(rawDeps) ? rawDeps : [rawDeps];
+        for (const depItem of depList) {
+          if (isRecord(depItem)) {
+            const fId =
+              typeof depItem.fieldId === "string"
+                ? depItem.fieldId.trim()
+                : typeof depItem.field === "string"
+                ? depItem.field.trim()
+                : undefined;
+            const fKey = typeof depItem.fieldKey === "string" ? depItem.fieldKey.trim() : undefined;
+            const fLabel = typeof depItem.fieldLabel === "string" ? depItem.fieldLabel.trim() : undefined;
+            if ((fId && fId.length > 0) || (fKey && fKey.length > 0) || (fLabel && fLabel.length > 0)) {
+              deps.push({
+                fieldId: fId,
+                fieldKey: fKey,
+                fieldLabel: fLabel,
+                operator: typeof depItem.operator === "string" ? depItem.operator : "equals",
+                value: depItem.value,
+              });
+            }
+          }
+        }
+      } else if (typeof rule.field === "string" && rule.field.trim().length > 0) {
+        deps.push({
+          fieldId: rule.field.trim(),
+          fieldKey: typeof rule.fieldKey === "string" ? rule.fieldKey.trim() : undefined,
+          fieldLabel: typeof rule.fieldLabel === "string" ? rule.fieldLabel.trim() : undefined,
+          operator: typeof rule.operator === "string" ? rule.operator : "equals",
+          value: rule.value,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return deps;
+}
+
+export function hasExplicitVariantCondition(
+  field: FieldDto,
+  section?: FormSectionDto
+): boolean {
+  const conditions = extractFieldConditions(field, section);
+  for (const cond of conditions) {
+    if (cond.startsWith("{")) {
+      try {
+        const rule: unknown = JSON.parse(cond);
+        if (isRecord(rule)) {
+          const variants = [
+            ...toStringArray(rule.variants),
+            ...toStringArray(rule.variantType),
+            ...toStringArray(rule.applicationTypes),
+            ...toStringArray(rule.variantDescription),
+          ];
+          if (variants.length > 0) return true;
+        }
+      } catch {
+        // ignore
+      }
+    } else if (cond.includes("variant:")) {
+      return true;
+    }
+  }
+  return false;
 }
 
 

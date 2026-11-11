@@ -135,6 +135,123 @@ public class VariantFormCommandTests
         result.Data.Sections[0].Fields[0].Label.Should().Be("Business Name");
     }
 
+    [Fact]
+    public void FormFieldDto_ExtractOptions_ParsesOptionsFromValidationRulesJson()
+    {
+        // 1. Array of string options
+        var arrayJson = "[\"AM\", \"FM\", \"HF\"]";
+        var arrayResult = FormFieldDto.ExtractOptions(arrayJson);
+        arrayResult.Should().NotBeNull();
+        arrayResult!.Should().HaveCount(3);
+        arrayResult[0].Label.Should().Be("AM");
+        arrayResult[0].Value.Should().Be("AM");
+
+        // 2. Object envelope with options array containing objects
+        var objectEnvelopeJson = "{\"options\": [{\"id\": \"1\", \"label\": \"AM 530 - 1710 kHz\", \"value\": \"am\"}, {\"id\": \"2\", \"label\": \"FM 88 - 108 MHz\", \"value\": \"fm\"}]}";
+        var objectResult = FormFieldDto.ExtractOptions(objectEnvelopeJson);
+        objectResult.Should().NotBeNull();
+        objectResult!.Should().HaveCount(2);
+        objectResult[0].Id.Should().Be("1");
+        objectResult[0].Label.Should().Be("AM 530 - 1710 kHz");
+        objectResult[0].Value.Should().Be("am");
+        objectResult[1].Id.Should().Be("2");
+        objectResult[1].Label.Should().Be("FM 88 - 108 MHz");
+        objectResult[1].Value.Should().Be("fm");
+
+        // 3. Null or whitespace validation rules
+        FormFieldDto.ExtractOptions(null).Should().BeNull();
+        FormFieldDto.ExtractOptions("   ").Should().BeNull();
+        FormFieldDto.ExtractOptions("invalid json").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SaveVariantForm_WhenFieldHasDropdownOptions_ExtractsAndPopulatesOptionsDto()
+    {
+        var serviceId = Guid.NewGuid();
+        var variantId = Guid.NewGuid();
+        var variant = new ServiceVariant
+        {
+            Id = variantId,
+            ServiceId = serviceId,
+            Description = "Commercial Broadcast Variant",
+            Type = ServiceVariantType.New
+        };
+
+        var baseForm = new Form
+        {
+            Id = Guid.NewGuid(),
+            Key = "ntc_commercial_base",
+            ServiceId = serviceId,
+            Name = "Commercial Broadcast Base Form"
+        };
+
+        var optionsJson = "{\"options\": [{\"id\": \"opt-1\", \"label\": \"Option Alpha\", \"value\": \"alpha\"}, {\"id\": \"opt-2\", \"label\": \"Option Beta\", \"value\": \"beta\"}]}";
+        var savedForm = new Form
+        {
+            Id = Guid.NewGuid(),
+            Key = $"var_{variantId}",
+            ServiceId = serviceId,
+            ServiceVariantId = variantId,
+            BaseFormId = baseForm.Id,
+            Name = "Commercial Broadcast Custom Variant Form",
+            Version = "1.0",
+            IsActive = true,
+            Sections = new List<FormSection>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Key = "sec_broadcast",
+                    Title = "Broadcast Options",
+                    OrderIndex = 0,
+                    SectionFields = new List<SectionField>
+                    {
+                        new()
+                        {
+                            FieldId = Guid.NewGuid(),
+                            IsRequired = true,
+                            OrderIndex = 0,
+                            Field = new Field
+                            {
+                                Label = "Modulation Type",
+                                FieldType = "select",
+                                ValidationRules = optionsJson
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        _mockVariantRepo.Setup(r => r.GetByIdAsync(variantId, It.IsAny<CancellationToken>())).ReturnsAsync(variant);
+        _mockFormRepo.Setup(r => r.GetFormByServiceIdAsync(serviceId, null, null, It.IsAny<CancellationToken>())).ReturnsAsync(baseForm);
+        _mockFormRepo.Setup(r => r.GetActiveVariantFormAsync(variantId, It.IsAny<CancellationToken>())).ReturnsAsync((Form?)null);
+        _mockFormRepo.Setup(r => r.SaveFormStructureAsync(
+            It.IsAny<Guid>(), serviceId, "1.0", false, It.IsAny<List<FormSectionDto>>(),
+            "Custom Variant", true, $"var_{variantId}", variantId, baseForm.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(savedForm);
+
+        var handler = new SaveVariantFormCommandHandler(_mockVariantRepo.Object, _mockFormRepo.Object);
+        var command = new SaveVariantFormCommand(
+            VariantId: variantId,
+            Sections: new List<FormSectionDto>(),
+            Name: "Custom Variant",
+            Version: "1.0",
+            IsActive: true);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Sections[0].Fields[0].Label.Should().Be("Modulation Type");
+        result.Data.Sections[0].Fields[0].Options.Should().NotBeNull();
+        result.Data.Sections[0].Fields[0].Options!.Should().HaveCount(2);
+        result.Data.Sections[0].Fields[0].Options![0].Label.Should().Be("Option Alpha");
+        result.Data.Sections[0].Fields[0].Options![0].Value.Should().Be("alpha");
+        result.Data.Sections[0].Fields[0].Options![1].Label.Should().Be("Option Beta");
+        result.Data.Sections[0].Fields[0].Options![1].Value.Should().Be("beta");
+    }
+
     #endregion
 
     #region ActivateVariantForm Tests

@@ -3,7 +3,7 @@ import { FormSchema, FormField, FieldType, ServiceVariantToolbarItem } from "../
 import {
   createDefaultField, generateId, reorderFieldsWithSections, duplicateFieldWithSection,
   deleteFieldOrSectionForVariant, resetVariantToBaseFields, isExclusiveToVariant,
-  excludeVariantFromField, isFormSchema, convertBackendFormToSchema,
+  excludeVariantFromField, isFormSchema, convertBackendFormToSchema, findMatchingVariant,
 } from "../utils";
 import { ToastMessage } from "@/components/ui/toast-notification";
 import { useFormBuilderService } from "@/services/formBuilderService";
@@ -52,27 +52,49 @@ export function useBuilderFieldActions(params: {
       }
 
       // Check if we can fetch dedicated variant form from the dedicated endpoint
-      const matchedVariant = backendServiceVariants?.find(
-        (v) => v.name.toLowerCase().trim() === variantName.toLowerCase().trim()
-      );
-      if (matchedVariant?.id && !matchedVariant.id.startsWith("var-") && formService?.getVariantForm) {
-        try {
-          const res = await formService.getVariantForm(matchedVariant.id).catch(() => null);
-          if (res && res.succeeded && res.data) {
-            const freshSchema = convertBackendFormToSchema(res.data);
-            const combined: FormSchema = {
-              ...freshSchema,
-              name: activeForm?.name || freshSchema.name,
-              description: activeForm?.description || freshSchema.description,
-              serviceName: activeForm?.serviceName || freshSchema.serviceName,
-              serviceCode: activeForm?.serviceCode || freshSchema.serviceCode,
+      const matchedVariant = findMatchingVariant(backendServiceVariants, variantName);
+      if (matchedVariant?.id && !matchedVariant.id.startsWith("var-")) {
+        let loadedCustomized = false;
+        if (formService?.getVariantForm) {
+          try {
+            const res = await formService.getVariantForm(matchedVariant.id).catch(() => null);
+            if (res && res.succeeded && res.data) {
+              const freshSchema = convertBackendFormToSchema(res.data);
+              const combined: FormSchema = {
+                ...freshSchema,
+                name: activeForm?.name || freshSchema.name,
+                description: activeForm?.description || freshSchema.description,
+                serviceName: activeForm?.serviceName || freshSchema.serviceName,
+                serviceCode: activeForm?.serviceCode || freshSchema.serviceCode,
+                serviceVariantId: matchedVariant.id,
+                serviceVariantName: matchedVariant.name,
+              };
+              setActiveForm(combined);
+              originalFormRef.current = JSON.stringify(combined);
+              setIsDirty(false);
+              loadedCustomized = true;
+            }
+          } catch {
+            // If variant form fails to load, fallback to base form with variant scope
+          }
+        }
+        if (!loadedCustomized) {
+          const base = masterBaseForm || activeForm;
+          if (base) {
+            const initializedVariantForm: FormSchema = {
+              ...base,
+              serviceVariantId: matchedVariant.id,
+              serviceVariantName: matchedVariant.name,
+              baseFormId: base.baseFormId || base.id,
+              name: `${matchedVariant.name} Form`,
+              isPublished: true,
+              isActive: true,
+              updatedAt: new Date().toISOString(),
             };
-            setActiveForm(combined);
-            originalFormRef.current = JSON.stringify(combined);
+            setActiveForm(initializedVariantForm);
+            originalFormRef.current = JSON.stringify(initializedVariantForm);
             setIsDirty(false);
           }
-        } catch {
-          // If variant form fails to load, preserve current active form
         }
       }
     },
@@ -129,9 +151,7 @@ export function useBuilderFieldActions(params: {
     async (v: string) => {
       if (!activeForm || v === "ALL") return;
 
-      const matchedVariant = backendServiceVariants?.find(
-        (item) => item.name.toLowerCase().trim() === v.toLowerCase().trim()
-      );
+      const matchedVariant = findMatchingVariant(backendServiceVariants, v);
 
       if (matchedVariant?.id && !matchedVariant.id.startsWith("var-") && formService?.revertVariantForm) {
         try {

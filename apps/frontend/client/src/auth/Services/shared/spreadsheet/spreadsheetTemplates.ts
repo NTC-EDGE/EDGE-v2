@@ -1,25 +1,111 @@
 import { NTCService } from "../../data/servicesData";
-import { FormDto, FieldDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
-import { parseOptions } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { FormDto, FieldDto, FormSectionDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
+import {
+  parseOptions,
+  FormEvaluationContext,
+  evaluateContextOnlyVisibility,
+  isFieldContextVisible,
+  isFieldRowVisible,
+  extractFieldDependencyRules,
+  hasExplicitVariantCondition,
+  checkSingleDependency,
+} from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+
+export interface DropdownFieldValidation {
+  fieldId?: string;
+  header: string;
+  label: string;
+  allowedOptions: string[];
+}
 
 export interface SpreadsheetTemplateConfig {
   filename: string;
   headers: string[];
   sampleRows: string[][];
   description: string;
+  dropdownValidations?: DropdownFieldValidation[];
+}
+
+export function normalizeHeaderSlug(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  return raw
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s*\[[^\]]*\]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function enrichStaticTemplate(config: SpreadsheetTemplateConfig): SpreadsheetTemplateConfig {
+  if (config.dropdownValidations && config.dropdownValidations.length > 0) {
+    return config;
+  }
+
+  const dropdowns: DropdownFieldValidation[] = [];
+  const knownDropdowns: Record<string, { label: string; options: string[] }> = {
+    sex: { label: "Sex", options: ["Male", "Female"] },
+    gender: { label: "Sex", options: ["Male", "Female"] },
+    entitytype: {
+      label: "Entity Type",
+      options: [
+        "Corporation",
+        "Single Proprietorship",
+        "Partnership",
+        "Government",
+        "Cooperative",
+        "Association",
+        "Non-Profit",
+      ],
+    },
+    examineetype: {
+      label: "Examinee Type",
+      options: ["First Taker", "Retaker", "Upgrade", "Removal"],
+    },
+    applicationtype: {
+      label: "Application Type",
+      options: ["NEW", "RENEWAL", "MODIFICATION"],
+    },
+    variation: {
+      label: "Variation",
+      options: ["Mobile", "Non-Mobile"],
+    },
+    registrationtype: {
+      label: "Registration Type",
+      options: ["Dealers", "Non-Dealers"],
+    },
+  };
+
+  for (const h of config.headers) {
+    const slug = normalizeHeaderSlug(h);
+    const match = knownDropdowns[slug];
+    if (match) {
+      dropdowns.push({
+        header: h,
+        label: match.label,
+        allowedOptions: match.options,
+      });
+    }
+  }
+
+  return {
+    ...config,
+    dropdownValidations: dropdowns,
+  };
 }
 
 function generateSampleValueForField(field: FieldDto, rowIndex: number): string {
   const lbl = typeof field.label === "string" ? field.label.toLowerCase() : "";
   const fType = typeof field.type === "string" ? field.type.toLowerCase() : "";
 
-  // If select or radio with options, pick one of the options
-  if (Array.isArray(field.options) && field.options.length > 0) {
-    const parsed = parseOptions(field);
-    if (parsed.length > 0) {
-      const opt = parsed[rowIndex % parsed.length];
-      if (opt && typeof opt.label === "string" && opt.label.length > 0) {
+  // If select, dropdown, or radio with options, pick one of the options
+  const parsed = parseOptions(field);
+  if (parsed.length > 0) {
+    const opt = parsed[rowIndex % parsed.length];
+    if (opt !== undefined && opt !== null) {
+      if (typeof opt.label === "string" && opt.label.length > 0) {
         return opt.label;
+      }
+      if (typeof opt.value === "string" && opt.value.length > 0) {
+        return opt.value;
       }
     }
   }
@@ -91,13 +177,121 @@ function generateSampleValueForField(field: FieldDto, rowIndex: number): string 
   return rowIndex === 0 ? `Sample ${baseLabel}` : `Example ${baseLabel}`;
 }
 
+interface ScopedFieldEntry {
+  field: FieldDto;
+  section: FormSectionDto;
+  hasVariantRule: boolean;
+}
+
+function matchesDependencyTarget(field: FieldDto, targetKey: string | undefined): boolean {
+  if (!targetKey || targetKey.trim().length === 0) return false;
+  const normTarget = normalizeHeaderSlug(targetKey);
+  const rawTargetLower = targetKey.trim().toLowerCase();
+  const fId = (field.fieldId || field.id || "").trim().toLowerCase();
+  const fLabel = (field.label || "").trim().toLowerCase();
+  const normLabel = normalizeHeaderSlug(field.label || "");
+
+  return (
+    (fId.length > 0 && fId === rawTargetLower) ||
+    (fLabel.length > 0 && fLabel === rawTargetLower) ||
+    (normTarget.length > 0 && normLabel === normTarget)
+  );
+}
+
+function isFieldDependencyReachable(
+  entry: ScopedFieldEntry,
+  allFormFields: FieldDto[],
+  contextVisibleEntries: ScopedFieldEntry[]
+): boolean {
+  const deps = extractFieldDependencyRules(entry.field, entry.section);
+  if (deps.length === 0) return true;
+
+  for (const dep of deps) {
+    const depTargets = [dep.fieldId, dep.fieldKey, dep.fieldLabel].filter(
+      (t): t is string => typeof t === "string" && t.trim().length > 0
+    );
+    if (depTargets.length === 0) continue;
+
+    const matchingInAllForm = allFormFields.filter((f) =>
+      depTargets.some((t) => matchesDependencyTarget(f, t))
+    );
+    const matchingVisible = contextVisibleEntries.filter((e) =>
+      depTargets.some((t) => matchesDependencyTarget(e.field, t))
+    );
+
+    // If the parent field exists in the form but is completely hidden in the current variant/context,
+    // then this dependent field can never be triggered in this variant.
+    if (matchingInAllForm.length > 0 && matchingVisible.length === 0) {
+      return false;
+    }
+
+    // If the parent field is visible and has dropdown options, verify that at least one allowed option
+    // can satisfy the dependency rule.
+    if (matchingVisible.length > 0) {
+      const parentDropdowns = matchingVisible.filter((p) => parseOptions(p.field).length > 0);
+      if (parentDropdowns.length === matchingVisible.length) {
+        let canSatisfy = false;
+        for (const parentEntry of parentDropdowns) {
+          const opts = parseOptions(parentEntry.field);
+          for (const opt of opts) {
+            const candidateValues = [opt.label, opt.value].filter(
+              (v): v is string => typeof v === "string" && v.trim().length > 0
+            );
+            for (const val of candidateValues) {
+              const mockValues: Record<string, string> = {};
+              for (const t of depTargets) {
+                mockValues[t] = val;
+              }
+              if (parentEntry.field.fieldId) mockValues[parentEntry.field.fieldId] = val;
+              if (parentEntry.field.id) mockValues[parentEntry.field.id] = val;
+              if (parentEntry.field.label) mockValues[parentEntry.field.label] = val;
+
+              if (checkSingleDependency(dep, mockValues)) {
+                canSatisfy = true;
+                break;
+              }
+            }
+            if (canSatisfy) break;
+          }
+          if (canSatisfy) break;
+        }
+        if (!canSatisfy) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 export function buildDynamicSpreadsheetTemplate(
   service: NTCService,
-  form: FormDto
+  form: FormDto,
+  evaluationContext?: FormEvaluationContext
 ): SpreadsheetTemplateConfig | null {
   if (!Array.isArray(form.sections) || form.sections.length === 0) {
     return null;
   }
+
+  const effectiveContext: FormEvaluationContext = {
+    serviceCategory: evaluationContext?.serviceCategory || service.category,
+    serviceTitle: evaluationContext?.serviceTitle || service.title,
+    serviceName: evaluationContext?.serviceName || form.serviceName || service.title,
+    serviceCode: evaluationContext?.serviceCode || form.serviceCode || service.code,
+    applicationType: evaluationContext?.applicationType || form.serviceVariantName,
+    variantType: evaluationContext?.variantType,
+    variantId: evaluationContext?.variantId || form.serviceVariantId,
+    variantName: evaluationContext?.variantName || form.serviceVariantName,
+    variantDescription:
+      evaluationContext?.variantDescription ||
+      evaluationContext?.variantName ||
+      form.serviceVariantName,
+    elementCodes: evaluationContext?.elementCodes,
+    elementNames: evaluationContext?.elementNames,
+    applicantType: evaluationContext?.applicantType,
+    formValues: evaluationContext?.formValues,
+  };
 
   const excludedTypes = new Set([
     "file",
@@ -116,8 +310,8 @@ export function buildDynamicSpreadsheetTemplate(
     (a, b) => (typeof a.orderIndex === "number" ? a.orderIndex : 0) - (typeof b.orderIndex === "number" ? b.orderIndex : 0)
   );
 
-  const dynamicFields: FieldDto[] = [];
-  const seenDynamicLabels = new Set<string>();
+  const allFormFields: FieldDto[] = [];
+  const contextVisibleEntries: ScopedFieldEntry[] = [];
 
   for (const sec of sortedSections) {
     const secKey = typeof sec.key === "string" ? sec.key.toLowerCase() : "";
@@ -134,28 +328,70 @@ export function buildDynamicSpreadsheetTemplate(
       continue;
     }
 
+    if (!evaluateContextOnlyVisibility(sec.visibilityCondition, effectiveContext)) {
+      continue;
+    }
+
     const fields = Array.isArray(sec.fields) ? sec.fields : [];
     const sortedFields = [...fields].sort(
       (a, b) => (typeof a.orderIndex === "number" ? a.orderIndex : 0) - (typeof b.orderIndex === "number" ? b.orderIndex : 0)
     );
 
     for (const f of sortedFields) {
-      const fType = typeof f.type === "string" ? f.type.toLowerCase().trim() : "";
+      const fType = typeof (f.type || f.fieldType) === "string" ? (f.type || f.fieldType || "").toLowerCase().trim() : "";
       if (excludedTypes.has(fType)) continue;
 
       const fLabel = typeof f.label === "string" ? f.label.trim() : "";
       if (fLabel.length === 0) continue;
 
-      const norm = fLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
-      if (!seenDynamicLabels.has(norm)) {
-        seenDynamicLabels.add(norm);
-        dynamicFields.push(f);
+      allFormFields.push(f);
+
+      if (!isFieldContextVisible(f, sec, effectiveContext)) {
+        continue;
       }
+
+      contextVisibleEntries.push({
+        field: f,
+        section: sec,
+        hasVariantRule: hasExplicitVariantCondition(f, sec),
+      });
     }
   }
 
-  if (dynamicFields.length === 0) {
+  const reachableEntries = contextVisibleEntries.filter((entry) =>
+    isFieldDependencyReachable(entry, allFormFields, contextVisibleEntries)
+  );
+
+  if (reachableEntries.length === 0) {
     return null;
+  }
+
+  // Group by normalized label slug while respecting variant-specific overrides
+  const groupedBySlug = new Map<string, ScopedFieldEntry[]>();
+  const slugOrder: string[] = [];
+
+  for (const entry of reachableEntries) {
+    const fLabel = typeof entry.field.label === "string" ? entry.field.label.trim() : "";
+    const norm = normalizeHeaderSlug(fLabel);
+    if (!norm) continue;
+
+    const existing = groupedBySlug.get(norm);
+    if (!existing) {
+      groupedBySlug.set(norm, [entry]);
+      slugOrder.push(norm);
+    } else {
+      existing.push(entry);
+    }
+  }
+
+  // If a column has both variant-specific fields and generic base fields, keep the variant-specific overrides
+  for (const [slug, entries] of groupedBySlug.entries()) {
+    if (entries.length > 1) {
+      const variantSpecific = entries.filter((e) => e.hasVariantRule);
+      if (variantSpecific.length > 0) {
+        groupedBySlug.set(slug, variantSpecific);
+      }
+    }
   }
 
   const code = typeof service.code === "string" ? service.code.toUpperCase() : "";
@@ -163,6 +399,7 @@ export function buildDynamicSpreadsheetTemplate(
   const cat = typeof service.category === "string" ? service.category.toUpperCase() : "";
 
   const isCorporateService =
+    effectiveContext.applicantType === "company" ||
     code === "NTC_1_18" ||
     title.includes("CUSTOMER PREMISES") ||
     title.includes("ACCREDITATION") ||
@@ -208,27 +445,177 @@ export function buildDynamicSpreadsheetTemplate(
   const sampleRow1: string[] = [];
   const sampleRow2: string[] = [];
   const seenHeaderSlugs = new Set<string>();
+  const rowSampleValues: [Record<string, string>, Record<string, string>] = [{}, {}];
+
+  const collectDistinctOptions = (entries: ScopedFieldEntry[]): string[] => {
+    const optLabels: string[] = [];
+    for (const entry of entries) {
+      const opts = parseOptions(entry.field);
+      for (const opt of opts) {
+        const oLabel =
+          typeof opt.label === "string" && opt.label.trim().length > 0
+            ? opt.label.trim()
+            : typeof opt.value === "string"
+            ? opt.value.trim()
+            : "";
+        if (oLabel.length > 0 && !optLabels.includes(oLabel)) {
+          optLabels.push(oLabel);
+        }
+      }
+    }
+    return optLabels;
+  };
+
+  const recordSampleValue = (
+    rowIndex: 0 | 1,
+    headerLabel: string,
+    val: string,
+    field?: FieldDto
+  ) => {
+    const map = rowSampleValues[rowIndex];
+    map[headerLabel] = val;
+    map[headerLabel.toLowerCase().trim()] = val;
+    const slug = normalizeHeaderSlug(headerLabel);
+    if (slug) map[slug] = val;
+    if (field) {
+      if (field.fieldId) map[field.fieldId] = val;
+      if (field.id) map[field.id] = val;
+      if (field.label) {
+        map[field.label] = val;
+        map[field.label.toLowerCase().trim()] = val;
+      }
+    }
+  };
+
+  const isExamService =
+    code === "NTC_1_01" ||
+    title.includes("RADIO OPERATOR EXAM") ||
+    title.includes("EXAMINATION");
+
+  const dropdownValidations: DropdownFieldValidation[] = [];
 
   for (const base of baseCols) {
-    const slug = base.header.toLowerCase().replace(/[^a-z0-9]/g, "");
-    headers.push(base.header);
-    sampleRow1.push(base.sample1);
-    sampleRow2.push(base.sample2);
+    const slug = normalizeHeaderSlug(base.header);
+    const matchingFormEntries = groupedBySlug.get(slug);
+    const configuredOpts = matchingFormEntries ? collectDistinctOptions(matchingFormEntries) : [];
+
+    if (matchingFormEntries && configuredOpts.length > 0) {
+      const primaryField = matchingFormEntries[0]?.field;
+      dropdownValidations.push({
+        fieldId: primaryField ? (typeof primaryField.fieldId === "string" ? primaryField.fieldId : primaryField.id) : undefined,
+        header: base.header,
+        label: base.header,
+        allowedOptions: configuredOpts,
+      });
+      const s1 = configuredOpts[0] || base.sample1;
+      const s2 = configuredOpts[1 % configuredOpts.length] || base.sample2;
+      headers.push(base.header);
+      sampleRow1.push(s1);
+      sampleRow2.push(s2);
+      recordSampleValue(0, base.header, s1, primaryField);
+      recordSampleValue(1, base.header, s2, primaryField);
+    } else {
+      headers.push(base.header);
+      sampleRow1.push(base.sample1);
+      sampleRow2.push(base.sample2);
+      recordSampleValue(0, base.header, base.sample1);
+      recordSampleValue(1, base.header, base.sample2);
+
+      if (slug === "sex" && !isCorporateService) {
+        dropdownValidations.push({
+          header: "Sex",
+          label: "Sex",
+          allowedOptions: ["Male", "Female"],
+        });
+      } else if (slug === "entitytype" && isCorporateService) {
+        dropdownValidations.push({
+          header: "Entity Type",
+          label: "Entity Type",
+          allowedOptions: [
+            "Corporation",
+            "Single Proprietorship",
+            "Partnership",
+            "Government",
+            "Cooperative",
+            "Association",
+            "Non-Profit",
+          ],
+        });
+      }
+    }
+
     seenHeaderSlugs.add(slug);
   }
 
-  for (const f of dynamicFields) {
-    const rawLabel = typeof f.label === "string" ? f.label.trim() : "";
-    const slug = rawLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (isExamService && !groupedBySlug.has("examineetype")) {
+    dropdownValidations.push({
+      header: "Examinee Type",
+      label: "Examinee Type",
+      allowedOptions: ["First Taker", "Retaker", "Upgrade", "Removal"],
+    });
+  }
 
+  for (const slug of slugOrder) {
     if (seenHeaderSlugs.has(slug)) {
       continue;
     }
 
+    const entries = groupedBySlug.get(slug);
+    if (!entries || entries.length === 0) continue;
+
     seenHeaderSlugs.add(slug);
-    headers.push(rawLabel);
-    sampleRow1.push(generateSampleValueForField(f, 0));
-    sampleRow2.push(generateSampleValueForField(f, 1));
+
+    const primaryField = entries[0]?.field;
+    if (!primaryField) continue;
+
+    const rawLabel = typeof primaryField.label === "string" ? primaryField.label.trim() : "";
+    const optLabels = collectDistinctOptions(entries);
+    let headerText = rawLabel;
+
+    if (optLabels.length > 0) {
+      dropdownValidations.push({
+        fieldId: typeof primaryField.fieldId === "string" ? primaryField.fieldId : primaryField.id,
+        header: rawLabel,
+        label: rawLabel,
+        allowedOptions: optLabels,
+      });
+
+      if (optLabels.length <= 5) {
+        headerText = `${rawLabel} (${optLabels.join(" | ")})`;
+      } else {
+        headerText = `${rawLabel} (Options: ${optLabels.slice(0, 3).join(" | ")} | ...)`;
+      }
+    }
+
+    headers.push(headerText);
+
+    // Generate sample values per row while respecting inter-field visibility conditions
+    const rowIndices: Array<0 | 1> = [0, 1];
+    for (const rowIndex of rowIndices) {
+      const rowCtx: FormEvaluationContext = {
+        ...effectiveContext,
+        formValues: rowSampleValues[rowIndex],
+      };
+      const visibleEntryForRow = entries.find((e) =>
+        isFieldRowVisible(e.field, e.section, rowCtx)
+      );
+
+      if (visibleEntryForRow) {
+        const sampleVal = generateSampleValueForField(visibleEntryForRow.field, rowIndex);
+        if (rowIndex === 0) {
+          sampleRow1.push(sampleVal);
+        } else {
+          sampleRow2.push(sampleVal);
+        }
+        recordSampleValue(rowIndex, rawLabel, sampleVal, visibleEntryForRow.field);
+      } else {
+        if (rowIndex === 0) {
+          sampleRow1.push("");
+        } else {
+          sampleRow2.push("");
+        }
+      }
+    }
   }
 
   const rawFilename = (code || title || "NTC_Service").replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -239,20 +626,11 @@ export function buildDynamicSpreadsheetTemplate(
     headers,
     sampleRows: [sampleRow1, sampleRow2],
     description: `Official batch filing template for ${service.title || "NTC Service"} generated dynamically from configured Form Builder fields.`,
+    dropdownValidations,
   };
 }
 
-export function getSpreadsheetTemplateForService(
-  service: NTCService,
-  form?: FormDto | null
-): SpreadsheetTemplateConfig {
-  if (form && Array.isArray(form.sections) && form.sections.length > 0) {
-    const dynamicTemplate = buildDynamicSpreadsheetTemplate(service, form);
-    if (dynamicTemplate) {
-      return dynamicTemplate;
-    }
-  }
-
+function getStaticSpreadsheetTemplateForService(service: NTCService): SpreadsheetTemplateConfig {
   const code = (service.code || "").toUpperCase();
   const title = (service.title || "").toUpperCase();
 
@@ -748,6 +1126,22 @@ export function getSpreadsheetTemplateForService(
     ],
     description: `Batch applicant intake template for ${service.title}.`,
   };
+}
+
+export function getSpreadsheetTemplateForService(
+  service: NTCService,
+  form?: FormDto | null,
+  evaluationContext?: FormEvaluationContext
+): SpreadsheetTemplateConfig {
+  if (form && Array.isArray(form.sections) && form.sections.length > 0) {
+    const dynamicTemplate = buildDynamicSpreadsheetTemplate(service, form, evaluationContext);
+    if (dynamicTemplate) {
+      return dynamicTemplate;
+    }
+  }
+
+  const staticConfig = getStaticSpreadsheetTemplateForService(service);
+  return enrichStaticTemplate(staticConfig);
 }
 
 export function generateCsvContent(config: SpreadsheetTemplateConfig): string {

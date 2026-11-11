@@ -10,6 +10,7 @@ import { getSpreadsheetTemplateForService, generateCsvContent } from "./spreadsh
 import { downloadCsvFile } from "./fileDownloadHelper";
 import { parseSpreadsheetContent, CsvParseResult } from "./csvParser";
 import { useServiceForm } from "../hooks/useServiceForm";
+import { FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 interface BulkSpreadsheetImportSectionProps {
   service: NTCService;
@@ -22,6 +23,9 @@ interface BulkSpreadsheetImportSectionProps {
   uploadedFileName: string;
   setUploadedFileName: (name: string) => void;
   onApplicantsImported: (applicants: GeneralApplicantData[]) => void;
+  selectedVariantId?: string;
+  selectedVariantName?: string;
+  applicantType?: "individual" | "company";
 }
 
 export function BulkSpreadsheetImportSection({
@@ -35,13 +39,27 @@ export function BulkSpreadsheetImportSection({
   uploadedFileName,
   setUploadedFileName,
   onApplicantsImported,
+  selectedVariantId,
+  selectedVariantName,
+  applicantType,
 }: BulkSpreadsheetImportSectionProps) {
   const [loading, setLoading] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [parseResult, setParseResult] = useState<CsvParseResult | null>(null);
 
-  const { form } = useServiceForm(service?.id);
-  const templateConfig = useMemo(() => getSpreadsheetTemplateForService(service, form), [service, form]);
+  const { form } = useServiceForm(service?.id, selectedVariantId);
+  const evaluationContext = useMemo<FormEvaluationContext>(
+    () => ({
+      variantId: selectedVariantId || form?.serviceVariantId,
+      variantName: selectedVariantName || form?.serviceVariantName || service?.title,
+      applicantType,
+    }),
+    [selectedVariantId, selectedVariantName, applicantType, form, service]
+  );
+  const templateConfig = useMemo(
+    () => getSpreadsheetTemplateForService(service, form, evaluationContext),
+    [service, form, evaluationContext]
+  );
   const toast = useToast();
 
   // ── Download Template Handler ───────────────────────────────────────────────
@@ -94,7 +112,7 @@ export function BulkSpreadsheetImportSection({
         return;
       }
 
-      const result = parseSpreadsheetContent(fileText, service, form);
+      const result = parseSpreadsheetContent(fileText, service, form, evaluationContext);
       if (result.totalRows === 0) {
         toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the official template.");
         setLoading(false);
@@ -314,6 +332,40 @@ export function BulkSpreadsheetImportSection({
                 ))}
               </View>
             </ScrollView>
+
+            {/* Strict Dropdown Field Constraints */}
+            {Boolean(templateConfig.dropdownValidations && templateConfig.dropdownValidations.length > 0) && (
+              <View style={styles.dropdownConstraintsSection}>
+                <View style={styles.dropdownConstraintsHeader}>
+                  <Icon name="check-circle" size={14} color={COLORS.brand[800]} style={{ marginRight: 6 }} />
+                  <Text style={styles.dropdownConstraintsTitle}>
+                    STRICT DROPDOWN FIELD CONSTRAINTS ({(templateConfig.dropdownValidations?.length ?? 0)} FIELDS)
+                  </Text>
+                </View>
+                <Text style={styles.dropdownConstraintsDesc}>
+                  Spreadsheet cells for these columns must strictly match one of the allowed options listed below. Values will be automatically normalized upon import:
+                </Text>
+                <View style={styles.dropdownFieldsList}>
+                  {templateConfig.dropdownValidations?.map((item, idx) => (
+                    <View key={item.fieldId || idx} style={styles.dropdownFieldCard}>
+                      <View style={styles.dropdownFieldHeaderRow}>
+                        <Text style={styles.dropdownFieldName}>{item.label}</Text>
+                        <Text style={styles.dropdownFieldOptionCount}>
+                          {item.allowedOptions.length} allowed {item.allowedOptions.length === 1 ? "option" : "options"}
+                        </Text>
+                      </View>
+                      <View style={styles.dropdownChipsRow}>
+                        {item.allowedOptions.map((opt, oIdx) => (
+                          <View key={oIdx} style={styles.dropdownChip}>
+                            <Text style={styles.dropdownChipText}>{opt}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
         </View>
       )}
@@ -619,6 +671,78 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     width: 140,
+  },
+  dropdownConstraintsSection: {
+    marginTop: 16,
+    padding: 14,
+    backgroundColor: "#f8fafc",
+    borderRadius: RADIUS.input,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+  },
+  dropdownConstraintsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  dropdownConstraintsTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.brand[800],
+    letterSpacing: 0.5,
+  },
+  dropdownConstraintsDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[600],
+    marginBottom: 10,
+  },
+  dropdownFieldsList: {
+    gap: 8,
+  },
+  dropdownFieldCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.input,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+  },
+  dropdownFieldHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  dropdownFieldName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+  },
+  dropdownFieldOptionCount: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[500],
+  },
+  dropdownChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  dropdownChip: {
+    backgroundColor: "#eff6ff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  dropdownChipText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: COLORS.brand[800],
   },
   modalOverlay: {
     flex: 1,
