@@ -494,4 +494,198 @@ describe("Dynamic Form Builder Spreadsheet Templates & Parsing", () => {
     expect(examResult.results[0]?.remarks.some((r) => r.includes("Invalid Examinee Type \"UnauthorizedTaker\". Must strictly be one of: First Taker, Retaker, Upgrade, Removal."))).toBe(true);
     expect(examResult.applicants.length).toBe(0);
   });
+
+  it("strictly follows service variant conditions and excludedVariants for dropdowns in bulk template and CSV parser", () => {
+    const variantForm: FormDto = {
+      formId: "form-var-override-01",
+      version: "1.0",
+      serviceId: "serv-cpe-01",
+      serviceVariantId: "var-renewal-id",
+      serviceVariantName: "CPE Supplier Accreditation (RENEWAL)",
+      sections: [
+        {
+          key: "accreditation_details",
+          title: "Accreditation Details",
+          orderIndex: 1,
+          fields: [
+            {
+              // Base field excluded on Renewal variant
+              fieldId: "fld-base-tier",
+              label: "Accreditation Tier",
+              type: "select",
+              isRequired: true,
+              orderIndex: 1,
+              options: [
+                { label: "Provisional New", value: "PROV_NEW" },
+                { label: "Standard New", value: "STD_NEW" },
+              ],
+              validationRules: JSON.stringify({
+                condition: {
+                  excludedVariants: ["var-renewal-id"],
+                },
+              }),
+            },
+            {
+              // Variant-specific field only for Renewal variant
+              fieldId: "fld-renewal-tier",
+              label: "Renewal Classification Tier",
+              type: "select",
+              isRequired: true,
+              orderIndex: 2,
+              options: [
+                { label: "Tier 1 Renewal (3 Years)", value: "TIER_1_REN" },
+                { label: "Tier 2 Renewal (5 Years)", value: "TIER_2_REN" },
+              ],
+              validationRules: JSON.stringify({
+                condition: {
+                  variants: ["var-renewal-id"],
+                },
+              }),
+            },
+            {
+              // Field for Modification variant only (should NOT appear in Renewal)
+              fieldId: "fld-mod-reason",
+              label: "Modification Reason",
+              type: "select",
+              isRequired: true,
+              orderIndex: 3,
+              options: [
+                { label: "Change of Address", value: "ADDR" },
+                { label: "Additional Equipment", value: "EQUIP" },
+              ],
+              validationRules: JSON.stringify({
+                condition: {
+                  variants: ["var-modification-id"],
+                },
+              }),
+            },
+          ],
+        },
+      ],
+    };
+
+    const evalContext = {
+      variantId: "var-renewal-id",
+      variantName: "CPE Supplier Accreditation (RENEWAL)",
+      variantType: "Renewal",
+    };
+
+    const template = getSpreadsheetTemplateForService(dummyService, variantForm, evalContext);
+
+    // Excluded base field and other-variant field must NOT appear in template headers
+    expect(template.headers.some((h) => h.includes("Accreditation Tier"))).toBe(false);
+    expect(template.headers.some((h) => h.includes("Modification Reason"))).toBe(false);
+
+    // Renewal variant dropdown field MUST appear with its exact options
+    expect(
+      template.headers.some((h) =>
+        h.includes("Renewal Classification Tier (Tier 1 Renewal (3 Years) | Tier 2 Renewal (5 Years))")
+      )
+    ).toBe(true);
+
+    // Verify CSV parser enforces only the active variant's dropdown options and required fields
+    const csvContent = generateCsvContent(template);
+    const validParse = parseSpreadsheetContent(csvContent, dummyService, variantForm, evalContext);
+    expect(validParse.validCount).toBe(2);
+    expect(validParse.invalidCount).toBe(0);
+    expect(
+      validParse.applicants[0]?.formFieldValues?.find((fv) => fv.fieldId === "fld-renewal-tier")?.value
+    ).toBe("Tier 1 Renewal (3 Years)");
+
+    // Providing an option from the excluded base field must fail validation
+    const colIdx = template.headers.findIndex((h) => h.includes("Renewal Classification Tier"));
+    const invalidRow = [...(template.sampleRows[0] || [])];
+    invalidRow[colIdx] = "Provisional New";
+    const invalidCsv = generateCsvContent({ ...template, sampleRows: [invalidRow] });
+    const invalidParse = parseSpreadsheetContent(invalidCsv, dummyService, variantForm, evalContext);
+    expect(invalidParse.validCount).toBe(0);
+    expect(invalidParse.invalidCount).toBe(1);
+    expect(
+      invalidParse.results[0]?.remarks.some((r) =>
+        r.includes("Invalid value \"Provisional New\" for \"Renewal Classification Tier\"")
+      )
+    ).toBe(true);
+  });
+
+  it("evaluates inter-field dependency conditions per row in bulk template and CSV parser", () => {
+    const conditionalForm: FormDto = {
+      formId: "form-cond-01",
+      version: "1.0",
+      serviceId: "serv-cpe-01",
+      sections: [
+        {
+          key: "equipment_source",
+          title: "Equipment Source Details",
+          orderIndex: 1,
+          fields: [
+            {
+              fieldId: "fld-acq-mode",
+              label: "Acquisition Mode",
+              type: "select",
+              isRequired: true,
+              orderIndex: 1,
+              options: [
+                { label: "Imported", value: "Imported" },
+                { label: "Locally Sourced", value: "Locally Sourced" },
+              ],
+            },
+            {
+              // Only visible and required when Acquisition Mode === "Imported"
+              fieldId: "fld-import-port",
+              label: "Port of Entry",
+              type: "select",
+              isRequired: true,
+              orderIndex: 2,
+              options: [
+                { label: "Port of Manila", value: "POM" },
+                { label: "NAIA Customs", value: "NAIA" },
+              ],
+              visibilityCondition: JSON.stringify({
+                field: "fld-acq-mode",
+                operator: "equals",
+                value: "Imported",
+              }),
+            },
+          ],
+        },
+      ],
+    };
+
+    const template = getSpreadsheetTemplateForService(dummyService, conditionalForm);
+    const acqIdx = template.headers.findIndex((h) => h.includes("Acquisition Mode"));
+    const portIdx = template.headers.findIndex((h) => h.includes("Port of Entry"));
+
+    expect(acqIdx).toBeGreaterThanOrEqual(0);
+    expect(portIdx).toBeGreaterThanOrEqual(0);
+
+    // Row 1 has Acquisition Mode = "Imported", so Port of Entry sample value is populated
+    expect(template.sampleRows[0]?.[acqIdx]).toBe("Imported");
+    expect(template.sampleRows[0]?.[portIdx]).toBe("Port of Manila");
+
+    // Row 2 has Acquisition Mode = "Locally Sourced", so Port of Entry condition is false and sample is blank
+    expect(template.sampleRows[1]?.[acqIdx]).toBe("Locally Sourced");
+    expect(template.sampleRows[1]?.[portIdx]).toBe("");
+
+    // Parsing the generated template must pass both rows (Row 2 is valid even though Port of Entry is empty)
+    const csvContent = generateCsvContent(template);
+    const parseResult = parseSpreadsheetContent(csvContent, dummyService, conditionalForm);
+    expect(parseResult.totalRows).toBe(2);
+    expect(parseResult.validCount).toBe(2);
+    expect(parseResult.invalidCount).toBe(0);
+
+    // Row 1 has Port of Entry populated, Row 2 skips hidden Port of Entry
+    expect(parseResult.applicants[0]?.formFieldValues?.find((f) => f.fieldId === "fld-import-port")?.value).toBe(
+      "Port of Manila"
+    );
+    expect(parseResult.applicants[1]?.formFieldValues?.find((f) => f.fieldId === "fld-import-port")).toBeUndefined();
+
+    // If Row 1 has Acquisition Mode = "Imported" but Port of Entry is empty, it MUST fail validation
+    const rowMissingRequiredPort = [...(template.sampleRows[0] || [])];
+    rowMissingRequiredPort[portIdx] = "";
+    const invalidCsv = generateCsvContent({ ...template, sampleRows: [rowMissingRequiredPort] });
+    const invalidParse = parseSpreadsheetContent(invalidCsv, dummyService, conditionalForm);
+    expect(invalidParse.validCount).toBe(0);
+    expect(invalidParse.invalidCount).toBe(1);
+    expect(invalidParse.results[0]?.remarks.some((r) => r.includes("Port of Entry is required"))).toBe(true);
+  });
 });
