@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -37,7 +38,8 @@ public class BatchDeleteDraftApplicationsCommandHandler : IRequestHandler<BatchD
         try
         {
             int deletedCount = 0;
-            foreach (var id in request.Ids)
+            var distinctIds = request.Ids.Distinct().ToList();
+            foreach (var id in distinctIds)
             {
                 var app = await _applicationRepository.GetByIdAsync(id, cancellationToken);
                 if (app != null)
