@@ -10,6 +10,7 @@ import { getSpreadsheetTemplateForService, generateCsvContent } from "./spreadsh
 import { downloadCsvFile } from "./fileDownloadHelper";
 import { parseSpreadsheetContent, CsvParseResult } from "./csvParser";
 import { useServiceForm } from "../hooks/useServiceForm";
+import { FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 interface BulkSpreadsheetImportSectionProps {
   service: NTCService;
@@ -22,6 +23,9 @@ interface BulkSpreadsheetImportSectionProps {
   uploadedFileName: string;
   setUploadedFileName: (name: string) => void;
   onApplicantsImported: (applicants: GeneralApplicantData[]) => void;
+  selectedVariantId?: string;
+  selectedVariantName?: string;
+  applicantType?: "individual" | "company";
 }
 
 export function BulkSpreadsheetImportSection({
@@ -35,13 +39,27 @@ export function BulkSpreadsheetImportSection({
   uploadedFileName,
   setUploadedFileName,
   onApplicantsImported,
+  selectedVariantId,
+  selectedVariantName,
+  applicantType,
 }: BulkSpreadsheetImportSectionProps) {
   const [loading, setLoading] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [parseResult, setParseResult] = useState<CsvParseResult | null>(null);
 
-  const { form } = useServiceForm(service?.id);
-  const templateConfig = useMemo(() => getSpreadsheetTemplateForService(service, form), [service, form]);
+  const { form } = useServiceForm(service?.id, selectedVariantId);
+  const evaluationContext = useMemo<FormEvaluationContext>(
+    () => ({
+      variantId: selectedVariantId || form?.serviceVariantId,
+      variantName: selectedVariantName || form?.serviceVariantName || service?.title,
+      applicantType,
+    }),
+    [selectedVariantId, selectedVariantName, applicantType, form, service]
+  );
+  const templateConfig = useMemo(
+    () => getSpreadsheetTemplateForService(service, form, evaluationContext),
+    [service, form, evaluationContext]
+  );
   const toast = useToast();
 
   // ── Download Template Handler ───────────────────────────────────────────────
@@ -94,7 +112,7 @@ export function BulkSpreadsheetImportSection({
         return;
       }
 
-      const result = parseSpreadsheetContent(fileText, service, form);
+      const result = parseSpreadsheetContent(fileText, service, form, evaluationContext);
       if (result.totalRows === 0) {
         toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the official template.");
         setLoading(false);

@@ -1,7 +1,15 @@
 import { GeneralApplicantData, initialGeneralApplicant } from "../types/generalApplicantTypes";
 import { NTCService } from "../../data/servicesData";
-import { FormDto, FieldDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
-import { parseOptions } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { FormDto, FieldDto, FormSectionDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
+import {
+  parseOptions,
+  FormEvaluationContext,
+  evaluateContextOnlyVisibility,
+  isFieldContextVisible,
+  isFieldRowVisible,
+  extractFieldDependencyRules,
+  hasExplicitVariantCondition,
+} from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 export interface ParsedRowResult {
   rowNumber: number;
@@ -59,7 +67,8 @@ export function parseCsvLine(line: string): string[] {
 export function parseSpreadsheetContent(
   csvContent: string,
   service: NTCService,
-  form?: FormDto | null
+  form?: FormDto | null,
+  evaluationContext?: FormEvaluationContext
 ): CsvParseResult {
   const lines = csvContent
     .split(/\r\n|\n|\r/)
@@ -76,33 +85,77 @@ export function parseSpreadsheetContent(
     };
   }
 
+  const effectiveContext: FormEvaluationContext = {
+    serviceCategory: evaluationContext?.serviceCategory || service.category,
+    serviceTitle: evaluationContext?.serviceTitle || service.title,
+    serviceName: evaluationContext?.serviceName || form?.serviceName || service.title,
+    serviceCode: evaluationContext?.serviceCode || form?.serviceCode || service.code,
+    applicationType: evaluationContext?.applicationType || form?.serviceVariantName,
+    variantType: evaluationContext?.variantType,
+    variantId: evaluationContext?.variantId || form?.serviceVariantId,
+    variantName: evaluationContext?.variantName || form?.serviceVariantName,
+    variantDescription:
+      evaluationContext?.variantDescription ||
+      evaluationContext?.variantName ||
+      form?.serviceVariantName,
+    elementCodes: evaluationContext?.elementCodes,
+    elementNames: evaluationContext?.elementNames,
+    applicantType: evaluationContext?.applicantType,
+    formValues: evaluationContext?.formValues,
+  };
+
   const rawHeaders = parseCsvLine(lines[0] || "");
   const headers = rawHeaders.map((h) => normalizeHeaderKey(h));
 
-  const formFields: FieldDto[] = [];
+  interface ScopedFormField {
+    field: FieldDto;
+    section: FormSectionDto;
+    hasVariantRule: boolean;
+  }
+
+  const formFields: ScopedFormField[] = [];
   if (form && Array.isArray(form.sections)) {
     for (const sec of form.sections) {
+      if (!evaluateContextOnlyVisibility(sec.visibilityCondition, effectiveContext)) {
+        continue;
+      }
       const secFields = Array.isArray(sec.fields) ? sec.fields : [];
       for (const f of secFields) {
         if (typeof f.label === "string" && f.label.trim().length > 0) {
-          formFields.push(f);
+          if (!isFieldContextVisible(f, sec, effectiveContext)) {
+            continue;
+          }
+          formFields.push({
+            field: f,
+            section: sec,
+            hasVariantRule: hasExplicitVariantCondition(f, sec),
+          });
         }
       }
     }
   }
 
-  interface HeaderFieldMapping {
+  interface HeaderFieldCandidate {
     colIndex: number;
     field: FieldDto;
+    section: FormSectionDto;
     normalizedLabel: string;
+    hasVariantRule: boolean;
   }
 
-  const headerFieldMappings: HeaderFieldMapping[] = [];
+  const rawMappingsByCol = new Map<number, HeaderFieldCandidate[]>();
+  const colOrder: number[] = [];
 
-  for (const f of formFields) {
+  for (const sf of formFields) {
+    const f = sf.field;
     const rawLabel = typeof f.label === "string" ? f.label : "";
     const normLabel = normalizeHeaderKey(rawLabel);
-    const normId = typeof f.fieldId === "string" ? f.fieldId.toLowerCase().replace(/[^a-z0-9]/g, "") : (typeof f.id === "string" ? f.id.toLowerCase().replace(/[^a-z0-9]/g, "") : "");
+    const normId =
+      typeof f.fieldId === "string"
+        ? f.fieldId.toLowerCase().replace(/[^a-z0-9]/g, "")
+        : typeof f.id === "string"
+        ? f.id.toLowerCase().replace(/[^a-z0-9]/g, "")
+        : "";
 
     let foundIndex = -1;
     for (let h = 0; h < headers.length; h++) {
@@ -126,13 +179,47 @@ export function parseSpreadsheetContent(
     }
 
     if (foundIndex !== -1) {
-      headerFieldMappings.push({
+      const existing = rawMappingsByCol.get(foundIndex);
+      const candidate: HeaderFieldCandidate = {
         colIndex: foundIndex,
         field: f,
+        section: sf.section,
         normalizedLabel: normLabel,
-      });
+        hasVariantRule: sf.hasVariantRule,
+      };
+      if (!existing) {
+        rawMappingsByCol.set(foundIndex, [candidate]);
+        colOrder.push(foundIndex);
+      } else {
+        existing.push(candidate);
+      }
     }
   }
+
+  // If a column has both variant-specific fields and generic base fields, keep the variant-specific overrides
+  for (const [colIdx, candidates] of rawMappingsByCol.entries()) {
+    if (candidates.length > 1) {
+      const variantSpecific = candidates.filter((c) => c.hasVariantRule);
+      if (variantSpecific.length > 0) {
+        rawMappingsByCol.set(colIdx, variantSpecific);
+      }
+    }
+  }
+
+  const hasCustomDropdownForSlug = (slugs: string[]): boolean => {
+    for (const candidates of rawMappingsByCol.values()) {
+      for (const c of candidates) {
+        if (slugs.includes(c.normalizedLabel) && parseOptions(c.field).length > 0) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const hasCustomSexDropdown = hasCustomDropdownForSlug(["sex", "gender"]);
+  const hasCustomExamineeDropdown = hasCustomDropdownForSlug(["examineetype", "takertype", "applicantcategory"]);
+  const hasCustomEntityDropdown = hasCustomDropdownForSlug(["entitytype", "businesstype", "companytype"]);
 
   const results: ParsedRowResult[] = [];
   const applicants: GeneralApplicantData[] = [];
@@ -212,7 +299,7 @@ export function parseSpreadsheetContent(
 
     const remarks: string[] = [];
 
-    // Strict validation for standard dropdown fields
+    // Strict validation for standard dropdown fields (unless overridden by Form Builder dropdown)
     const rawSex = getVal("sex", "gender");
     let sex = "Male";
     if (rawSex.length > 0) {
@@ -221,6 +308,8 @@ export function parseSpreadsheetContent(
         sex = "Male";
       } else if (sLower === "female" || sLower === "f") {
         sex = "Female";
+      } else if (hasCustomSexDropdown) {
+        sex = rawSex.trim();
       } else {
         remarks.push(`Invalid Sex "${rawSex}". Must strictly be either "Male" or "Female".`);
         sex = rawSex;
@@ -239,6 +328,8 @@ export function parseSpreadsheetContent(
       const matchedExaminee = validExamineeTypes.find((t) => t.toLowerCase().replace(/[^a-z0-9]/g, "") === normExaminee);
       if (matchedExaminee !== undefined) {
         examineeType = matchedExaminee;
+      } else if (hasCustomExamineeDropdown) {
+        examineeType = rawExamineeType.trim();
       } else if (isExamService) {
         remarks.push(`Invalid Examinee Type "${rawExamineeType}". Must strictly be one of: ${validExamineeTypes.join(", ")}.`);
         examineeType = rawExamineeType;
@@ -257,7 +348,7 @@ export function parseSpreadsheetContent(
       "Non-Profit",
     ];
     const rawEntityType = getVal("entitytype", "businesstype", "companytype");
-    if (rawEntityType.length > 0 && isComp) {
+    if (rawEntityType.length > 0 && isComp && !hasCustomEntityDropdown) {
       const normEntity = rawEntityType.toLowerCase().replace(/[^a-z0-9]/g, "");
       const matchedEntity = validEntityTypes.find((t) => t.toLowerCase().replace(/[^a-z0-9]/g, "") === normEntity);
       if (matchedEntity === undefined) {
@@ -352,24 +443,130 @@ export function parseSpreadsheetContent(
       notes: notes,
     };
 
-    // Extract dynamic fields configured in the Form Builder
+    // Build row-level formValues dictionary for evaluating inter-field visibility conditions
+    const rowFormValues: Record<string, string> = { ...rowDict };
+    for (let h = 0; h < rawHeaders.length && h < cols.length; h++) {
+      const rawH = rawHeaders[h];
+      const cellV = cols[h] || "";
+      if (rawH) {
+        rowFormValues[rawH] = cellV;
+        rowFormValues[rawH.toLowerCase().trim()] = cellV;
+        const baseHeader = rawH.replace(/\s*\([^)]*\)/g, "").trim();
+        if (baseHeader) {
+          rowFormValues[baseHeader] = cellV;
+          rowFormValues[baseHeader.toLowerCase()] = cellV;
+        }
+      }
+    }
+    for (const colIdx of colOrder) {
+      const candidates = rawMappingsByCol.get(colIdx) || [];
+      const cellV = (cols[colIdx] || "").trim();
+      for (const c of candidates) {
+        if (c.field.fieldId) rowFormValues[c.field.fieldId] = cellV;
+        if (c.field.id) rowFormValues[c.field.id] = cellV;
+        if (c.field.label) {
+          rowFormValues[c.field.label] = cellV;
+          rowFormValues[c.field.label.toLowerCase().trim()] = cellV;
+        }
+      }
+    }
+
+    const rowContext: FormEvaluationContext = {
+      ...effectiveContext,
+      applicantType: evaluationContext?.applicantType || (isComp ? "company" : "individual"),
+      formValues: rowFormValues,
+    };
+
+    // Extract dynamic fields configured in the Form Builder while strictly enforcing form conditions
     const dynamicFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
 
-    for (const mapping of headerFieldMappings) {
-      const cellRaw = cols[mapping.colIndex];
+    for (const colIdx of colOrder) {
+      const candidates = rawMappingsByCol.get(colIdx);
+      if (!candidates || candidates.length === 0) continue;
+
+      const cellRaw = cols[colIdx];
       let cellVal = typeof cellRaw === "string" ? cellRaw.trim() : "";
 
-      const fieldId = typeof mapping.field.fieldId === "string" && mapping.field.fieldId.trim().length > 0
-        ? mapping.field.fieldId.trim()
-        : (typeof mapping.field.id === "string" && mapping.field.id.trim().length > 0 ? mapping.field.id.trim() : `field-${mapping.normalizedLabel}`);
+      const visibleCandidates = candidates.filter((c) =>
+        isFieldRowVisible(c.field, c.section, rowContext)
+      );
 
-      const fieldLabel = typeof mapping.field.label === "string" && mapping.field.label.trim().length > 0
-        ? mapping.field.label.trim()
-        : mapping.normalizedLabel;
+      // If no candidate field in this column has its visibility condition met on this row:
+      if (visibleCandidates.length === 0) {
+        if (cellVal.length > 0) {
+          // Even if hidden, if the user supplied a value in a dropdown column, check if it matches any candidate option
+          const allOptions: Array<{ label: string; value: string }> = [];
+          for (const c of candidates) {
+            for (const opt of parseOptions(c.field)) {
+              allOptions.push(opt);
+            }
+          }
+          if (allOptions.length > 0) {
+            const normCell = cellVal.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const matchedOpt = allOptions.find((opt) => {
+              const optLabel = typeof opt.label === "string" ? opt.label.trim() : "";
+              const optValue = typeof opt.value === "string" ? opt.value.trim() : "";
+              return (
+                normCell === optLabel.toLowerCase().replace(/[^a-z0-9]/g, "") ||
+                normCell === optValue.toLowerCase().replace(/[^a-z0-9]/g, "") ||
+                cellVal.toLowerCase() === optLabel.toLowerCase() ||
+                cellVal.toLowerCase() === optValue.toLowerCase()
+              );
+            });
+            if (matchedOpt === undefined) {
+              const fallbackLabel =
+                typeof candidates[0]?.field.label === "string" && candidates[0].field.label.trim().length > 0
+                  ? candidates[0].field.label.trim()
+                  : candidates[0]?.normalizedLabel || "Field";
+              const allowedLabels = Array.from(
+                new Set(
+                  allOptions
+                    .map((o) => (typeof o.label === "string" && o.label.length > 0 ? o.label : o.value))
+                    .filter(Boolean)
+                )
+              ).join(", ");
+              remarks.push(
+                `Invalid value "${cellVal}" for "${fallbackLabel}". Must strictly match one of the allowed dropdown options: ${allowedLabels}.`
+              );
+            }
+          }
+        }
+        // Do not require or populate fields whose visibility condition is false for this row
+        continue;
+      }
+
+      // Prefer a candidate with explicit dependency rules if multiple are visible
+      const activeMapping =
+        visibleCandidates.find((c) => extractFieldDependencyRules(c.field, c.section).length > 0) ||
+        visibleCandidates[0];
+      if (!activeMapping) continue;
+
+      const fieldId =
+        typeof activeMapping.field.fieldId === "string" && activeMapping.field.fieldId.trim().length > 0
+          ? activeMapping.field.fieldId.trim()
+          : typeof activeMapping.field.id === "string" && activeMapping.field.id.trim().length > 0
+          ? activeMapping.field.id.trim()
+          : `field-${activeMapping.normalizedLabel}`;
+
+      const fieldLabel =
+        typeof activeMapping.field.label === "string" && activeMapping.field.label.trim().length > 0
+          ? activeMapping.field.label.trim()
+          : activeMapping.normalizedLabel;
 
       if (cellVal.length > 0) {
-        // Strict Dropdown / Options Validation
-        const fieldOptions = parseOptions(mapping.field);
+        // Collect options from visible candidates for this row
+        const fieldOptions: Array<{ label: string; value: string }> = [];
+        for (const vc of visibleCandidates) {
+          for (const opt of parseOptions(vc.field)) {
+            const exists = fieldOptions.some(
+              (existing) => existing.label === opt.label && existing.value === opt.value
+            );
+            if (!exists) {
+              fieldOptions.push(opt);
+            }
+          }
+        }
+
         if (fieldOptions.length > 0) {
           const normCell = cellVal.toLowerCase().replace(/[^a-z0-9]/g, "");
           const matchedOpt = fieldOptions.find((opt) => {
@@ -386,15 +583,24 @@ export function parseSpreadsheetContent(
           });
 
           if (matchedOpt !== undefined) {
-            cellVal = (typeof matchedOpt.label === "string" && matchedOpt.label.trim().length > 0)
-              ? matchedOpt.label.trim()
-              : (typeof matchedOpt.value === "string" ? matchedOpt.value.trim() : cellVal);
+            cellVal =
+              typeof matchedOpt.label === "string" && matchedOpt.label.trim().length > 0
+                ? matchedOpt.label.trim()
+                : typeof matchedOpt.value === "string"
+                ? matchedOpt.value.trim()
+                : cellVal;
+            // Update rowFormValues with canonical option label so downstream dependent fields match accurately
+            rowFormValues[fieldId] = cellVal;
+            rowFormValues[fieldLabel] = cellVal;
+            rowFormValues[fieldLabel.toLowerCase()] = cellVal;
           } else {
             const allowedLabels = fieldOptions
               .map((o) => (typeof o.label === "string" && o.label.length > 0 ? o.label : o.value))
               .filter(Boolean)
               .join(", ");
-            remarks.push(`Invalid value "${cellVal}" for "${fieldLabel}". Must strictly match one of the allowed dropdown options: ${allowedLabels}.`);
+            remarks.push(
+              `Invalid value "${cellVal}" for "${fieldLabel}". Must strictly match one of the allowed dropdown options: ${allowedLabels}.`
+            );
           }
         }
 
@@ -406,7 +612,11 @@ export function parseSpreadsheetContent(
 
         // Bidirectional sync with standard applicant properties
         const lblLower = fieldLabel.toLowerCase();
-        if (lblLower.includes("school") || lblLower.includes("university")) {
+        if (lblLower === "sex" || lblLower === "gender") {
+          appObj.sex = cellVal;
+        } else if (lblLower.includes("examinee type")) {
+          appObj.examineeType = cellVal;
+        } else if (lblLower.includes("school") || lblLower.includes("university")) {
           appObj.schoolName = cellVal;
         } else if (lblLower.includes("course") || lblLower.includes("degree")) {
           appObj.courseDegree = cellVal;
@@ -419,7 +629,7 @@ export function parseSpreadsheetContent(
         }
       }
 
-      const isMandatory = mapping.field.isRequired === true;
+      const isMandatory = visibleCandidates.some((vc) => vc.field.isRequired === true);
       if (isMandatory && cellVal.length === 0) {
         remarks.push(`${fieldLabel} is required.`);
       }
@@ -500,8 +710,13 @@ export function parseSpreadsheetContent(
       appObj.vasData.address = address;
       appObj.vasData.years = years;
       const entityType = getVal("typeofentity", "entitytype", "businessentitytype");
-      if (entityType) {
-        appObj.vasData.serviceType = entityType as "Single Proprietorship" | "Corporation" | "Partnership" | "Others";
+      if (
+        entityType === "Single Proprietorship" ||
+        entityType === "Corporation" ||
+        entityType === "Partnership" ||
+        entityType === "Others"
+      ) {
+        appObj.vasData.serviceType = entityType;
       }
       const cpcnNo = getVal("cpcnpacano", "cpcnlicenseno", "cpcnno", "cpcn");
       if (cpcnNo) {
