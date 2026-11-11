@@ -250,4 +250,248 @@ describe("Dynamic Form Builder Spreadsheet Templates & Parsing", () => {
     const schoolFv = firstApplicant?.formFieldValues?.find((fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000061");
     expect(schoolFv?.value).toBe("University of the Philippines");
   });
+
+  it("annotates dropdown fields in headers and populates dropdownValidations config", () => {
+    const serviceWithDropdown: NTCService = {
+      id: "serv-vas-01",
+      code: "NTC_1_20",
+      title: "Value Added Service Registration",
+      category: "Registrations",
+      description: "VAS Provider Registration",
+      requirements: [],
+      fee: "PHP 1,000.00",
+      time: "2 working days",
+    };
+
+    const formWithDropdown: FormDto = {
+      formId: "form-vas-01",
+      version: "1.0",
+      serviceId: "serv-vas-01",
+      sections: [
+        {
+          key: "details",
+          title: "Service Details",
+          orderIndex: 1,
+          fields: [
+            {
+              fieldId: "fld-sub-category",
+              label: "Subscription Category",
+              type: "select",
+              isRequired: true,
+              options: [
+                { label: "Commercial Public", value: "COMM_PUB" },
+                { label: "Internal Corporate", value: "INT_CORP" },
+                { label: "Government Dedicated", value: "GOV_DED" },
+              ],
+              orderIndex: 1,
+            },
+          ],
+        },
+      ],
+    };
+
+    const template = getSpreadsheetTemplateForService(serviceWithDropdown, formWithDropdown);
+    expect(template).toBeDefined();
+
+    // Verify annotated header
+    expect(template.headers.some((h) => h.includes("Subscription Category (Commercial Public | Internal Corporate | Government Dedicated)"))).toBe(true);
+
+    // Verify dropdownValidations entry
+    expect(template.dropdownValidations).toBeDefined();
+    const subCatValidation = template.dropdownValidations?.find((v) => v.label === "Subscription Category");
+    expect(subCatValidation).toBeDefined();
+    expect(subCatValidation?.allowedOptions).toEqual(["Commercial Public", "Internal Corporate", "Government Dedicated"]);
+
+    // Verify sample rows draw valid dropdown options
+    const colIdx = template.headers.findIndex((h) => h.includes("Subscription Category"));
+    expect(colIdx).toBeGreaterThanOrEqual(0);
+    expect(template.sampleRows[0]?.[colIdx]).toBe("Commercial Public");
+    expect(template.sampleRows[1]?.[colIdx]).toBe("Internal Corporate");
+  });
+
+  it("strictly accepts valid dropdown options and normalizes values to canonical option labels", () => {
+    const serviceWithDropdown: NTCService = {
+      id: "serv-vas-01",
+      code: "NTC_1_20",
+      title: "Value Added Service Registration",
+      category: "Registrations",
+      description: "VAS Provider Registration",
+      requirements: [],
+      fee: "PHP 1,000.00",
+      time: "2 working days",
+    };
+
+    const formWithDropdown: FormDto = {
+      formId: "form-vas-01",
+      version: "1.0",
+      serviceId: "serv-vas-01",
+      sections: [
+        {
+          key: "details",
+          title: "Service Details",
+          orderIndex: 1,
+          fields: [
+            {
+              fieldId: "fld-sub-category",
+              label: "Subscription Category",
+              type: "select",
+              isRequired: true,
+              options: [
+                { label: "Commercial Public", value: "COMM_PUB" },
+                { label: "Internal Corporate", value: "INT_CORP" },
+              ],
+              orderIndex: 1,
+            },
+          ],
+        },
+      ],
+    };
+
+    const template = getSpreadsheetTemplateForService(serviceWithDropdown, formWithDropdown);
+    const colIdx = template.headers.findIndex((h) => h.includes("Subscription Category"));
+
+    // Provide lowercase value matching value code "int_corp"
+    const customRow = [...(template.sampleRows[0] || [])];
+    customRow[colIdx] = "int_corp";
+
+    const customTemplate = {
+      ...template,
+      sampleRows: [customRow],
+    };
+
+    const csvContent = generateCsvContent(customTemplate);
+    const parseResult = parseSpreadsheetContent(csvContent, serviceWithDropdown, formWithDropdown);
+
+    expect(parseResult.totalRows).toBe(1);
+    expect(parseResult.validCount).toBe(1);
+    expect(parseResult.invalidCount).toBe(0);
+
+    const app = parseResult.applicants[0];
+    expect(app).toBeDefined();
+    const fv = app?.formFieldValues?.find((f) => f.fieldId === "fld-sub-category");
+    expect(fv).toBeDefined();
+    // Normalized to canonical option label
+    expect(fv?.value).toBe("Internal Corporate");
+  });
+
+  it("strictly rejects invalid dropdown options and excludes invalid rows from applicants cohort", () => {
+    const serviceWithDropdown: NTCService = {
+      id: "serv-vas-01",
+      code: "NTC_1_20",
+      title: "Value Added Service Registration",
+      category: "Registrations",
+      description: "VAS Provider Registration",
+      requirements: [],
+      fee: "PHP 1,000.00",
+      time: "2 working days",
+    };
+
+    const formWithDropdown: FormDto = {
+      formId: "form-vas-01",
+      version: "1.0",
+      serviceId: "serv-vas-01",
+      sections: [
+        {
+          key: "details",
+          title: "Service Details",
+          orderIndex: 1,
+          fields: [
+            {
+              fieldId: "fld-sub-category",
+              label: "Subscription Category",
+              type: "select",
+              isRequired: true,
+              options: [
+                { label: "Commercial Public", value: "COMM_PUB" },
+                { label: "Internal Corporate", value: "INT_CORP" },
+              ],
+              orderIndex: 1,
+            },
+          ],
+        },
+      ],
+    };
+
+    const template = getSpreadsheetTemplateForService(serviceWithDropdown, formWithDropdown);
+    const colIdx = template.headers.findIndex((h) => h.includes("Subscription Category"));
+
+    // Provide completely illegal dropdown option
+    const rowWithInvalidDropdown = [...(template.sampleRows[0] || [])];
+    rowWithInvalidDropdown[colIdx] = "Military Restricted (Unauthorized)";
+
+    // And a valid second row
+    const rowWithValidDropdown = [...(template.sampleRows[1] || [])];
+    rowWithValidDropdown[colIdx] = "Commercial Public";
+
+    const customTemplate = {
+      ...template,
+      sampleRows: [rowWithInvalidDropdown, rowWithValidDropdown],
+    };
+
+    const csvContent = generateCsvContent(customTemplate);
+    const parseResult = parseSpreadsheetContent(csvContent, serviceWithDropdown, formWithDropdown);
+
+    expect(parseResult.totalRows).toBe(2);
+    expect(parseResult.validCount).toBe(1);
+    expect(parseResult.invalidCount).toBe(1);
+
+    // Verify row 1 error
+    const row1 = parseResult.results[0];
+    expect(row1?.status).toBe("Invalid");
+    expect(row1?.remarks.some((r) => r.includes("Must strictly match one of the allowed dropdown options"))).toBe(true);
+
+    // Verify only the valid row was pushed to applicants
+    expect(parseResult.applicants.length).toBe(1);
+    expect(parseResult.applicants[0]?.formFieldValues?.find((f) => f.fieldId === "fld-sub-category")?.value).toBe("Commercial Public");
+  });
+
+  it("strictly enforces standard dropdown fields (Sex, Examinee Type, Entity Type)", () => {
+    // 1. Invalid Sex
+    const individualCsv = [
+      "First Name,Last Name,Email,Contact Number,Date of Birth,Sex,Province,City,Barangay,Street,Zip Code",
+      "Juan,Dela Cruz,juan@example.ph,09171234567,1995-01-01,InvalidSex,Metro Manila,Quezon City,Diliman,123 Main,1101",
+    ].join("\r\n");
+
+    const individualService: NTCService = {
+      id: "serv-indiv-01",
+      code: "NTC_1_05",
+      title: "Individual Permit Service",
+      category: "Permits",
+      description: "Individual radio permit service",
+      requirements: [],
+      fee: "PHP 500.00",
+      time: "1 day",
+    };
+
+    const indivResult = parseSpreadsheetContent(individualCsv, individualService, null);
+    expect(indivResult.totalRows).toBe(1);
+    expect(indivResult.validCount).toBe(0);
+    expect(indivResult.invalidCount).toBe(1);
+    expect(indivResult.results[0]?.remarks.some((r) => r.includes("Invalid Sex \"InvalidSex\". Must strictly be either \"Male\" or \"Female\"."))).toBe(true);
+    expect(indivResult.applicants.length).toBe(0);
+
+    // 2. Invalid Examinee Type in Exam Service
+    const examCsv = [
+      "First Name,Last Name,Email,Contact Number,Date of Birth,Sex,Province,City,Barangay,Street,Zip Code,School Name,Course / Degree,Year Graduated,Examinee Type",
+      "Juan,Dela Cruz,juan@example.ph,09171234567,1995-01-01,Male,Metro Manila,Quezon City,Diliman,123 Main,1101,UP,BS ECE,2022,UnauthorizedTaker",
+    ].join("\r\n");
+
+    const examService: NTCService = {
+      id: "serv-exam-01",
+      code: "NTC_1_01",
+      title: "Radio Operator Examination",
+      category: "Exams",
+      description: "Exam admission slip service",
+      requirements: [],
+      fee: "PHP 150.00",
+      time: "1 day",
+    };
+
+    const examResult = parseSpreadsheetContent(examCsv, examService, null);
+    expect(examResult.totalRows).toBe(1);
+    expect(examResult.validCount).toBe(0);
+    expect(examResult.invalidCount).toBe(1);
+    expect(examResult.results[0]?.remarks.some((r) => r.includes("Invalid Examinee Type \"UnauthorizedTaker\". Must strictly be one of: First Taker, Retaker, Upgrade, Removal."))).toBe(true);
+    expect(examResult.applicants.length).toBe(0);
+  });
 });

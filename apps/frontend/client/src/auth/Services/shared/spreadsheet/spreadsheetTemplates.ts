@@ -2,24 +2,101 @@ import { NTCService } from "../../data/servicesData";
 import { FormDto, FieldDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
 import { parseOptions } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
+export interface DropdownFieldValidation {
+  fieldId?: string;
+  header: string;
+  label: string;
+  allowedOptions: string[];
+}
+
 export interface SpreadsheetTemplateConfig {
   filename: string;
   headers: string[];
   sampleRows: string[][];
   description: string;
+  dropdownValidations?: DropdownFieldValidation[];
+}
+
+export function normalizeHeaderSlug(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  return raw
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s*\[[^\]]*\]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function enrichStaticTemplate(config: SpreadsheetTemplateConfig): SpreadsheetTemplateConfig {
+  if (config.dropdownValidations && config.dropdownValidations.length > 0) {
+    return config;
+  }
+
+  const dropdowns: DropdownFieldValidation[] = [];
+  const knownDropdowns: Record<string, { label: string; options: string[] }> = {
+    sex: { label: "Sex", options: ["Male", "Female"] },
+    gender: { label: "Sex", options: ["Male", "Female"] },
+    entitytype: {
+      label: "Entity Type",
+      options: [
+        "Corporation",
+        "Single Proprietorship",
+        "Partnership",
+        "Government",
+        "Cooperative",
+        "Association",
+        "Non-Profit",
+      ],
+    },
+    examineetype: {
+      label: "Examinee Type",
+      options: ["First Taker", "Retaker", "Upgrade", "Removal"],
+    },
+    applicationtype: {
+      label: "Application Type",
+      options: ["NEW", "RENEWAL", "MODIFICATION"],
+    },
+    variation: {
+      label: "Variation",
+      options: ["Mobile", "Non-Mobile"],
+    },
+    registrationtype: {
+      label: "Registration Type",
+      options: ["Dealers", "Non-Dealers"],
+    },
+  };
+
+  for (const h of config.headers) {
+    const slug = normalizeHeaderSlug(h);
+    const match = knownDropdowns[slug];
+    if (match) {
+      dropdowns.push({
+        header: h,
+        label: match.label,
+        allowedOptions: match.options,
+      });
+    }
+  }
+
+  return {
+    ...config,
+    dropdownValidations: dropdowns,
+  };
 }
 
 function generateSampleValueForField(field: FieldDto, rowIndex: number): string {
   const lbl = typeof field.label === "string" ? field.label.toLowerCase() : "";
   const fType = typeof field.type === "string" ? field.type.toLowerCase() : "";
 
-  // If select or radio with options, pick one of the options
-  if (Array.isArray(field.options) && field.options.length > 0) {
-    const parsed = parseOptions(field);
-    if (parsed.length > 0) {
-      const opt = parsed[rowIndex % parsed.length];
-      if (opt && typeof opt.label === "string" && opt.label.length > 0) {
+  // If select, dropdown, or radio with options, pick one of the options
+  const parsed = parseOptions(field);
+  if (parsed.length > 0) {
+    const opt = parsed[rowIndex % parsed.length];
+    if (opt !== undefined && opt !== null) {
+      if (typeof opt.label === "string" && opt.label.length > 0) {
         return opt.label;
+      }
+      if (typeof opt.value === "string" && opt.value.length > 0) {
+        return opt.value;
       }
     }
   }
@@ -210,23 +287,92 @@ export function buildDynamicSpreadsheetTemplate(
   const seenHeaderSlugs = new Set<string>();
 
   for (const base of baseCols) {
-    const slug = base.header.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const slug = normalizeHeaderSlug(base.header);
     headers.push(base.header);
     sampleRow1.push(base.sample1);
     sampleRow2.push(base.sample2);
     seenHeaderSlugs.add(slug);
   }
 
+  const isExamService =
+    code === "NTC_1_01" ||
+    title.includes("RADIO OPERATOR EXAM") ||
+    title.includes("EXAMINATION");
+
+  const dropdownValidations: DropdownFieldValidation[] = [];
+
+  if (!isCorporateService) {
+    dropdownValidations.push({
+      header: "Sex",
+      label: "Sex",
+      allowedOptions: ["Male", "Female"],
+    });
+  }
+
+  if (isCorporateService) {
+    dropdownValidations.push({
+      header: "Entity Type",
+      label: "Entity Type",
+      allowedOptions: [
+        "Corporation",
+        "Single Proprietorship",
+        "Partnership",
+        "Government",
+        "Cooperative",
+        "Association",
+        "Non-Profit",
+      ],
+    });
+  }
+
+  if (isExamService) {
+    dropdownValidations.push({
+      header: "Examinee Type",
+      label: "Examinee Type",
+      allowedOptions: ["First Taker", "Retaker", "Upgrade", "Removal"],
+    });
+  }
+
   for (const f of dynamicFields) {
     const rawLabel = typeof f.label === "string" ? f.label.trim() : "";
-    const slug = rawLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const slug = normalizeHeaderSlug(rawLabel);
 
     if (seenHeaderSlugs.has(slug)) {
       continue;
     }
 
     seenHeaderSlugs.add(slug);
-    headers.push(rawLabel);
+
+    const opts = parseOptions(f);
+    let headerText = rawLabel;
+    if (opts.length > 0) {
+      const optLabels: string[] = [];
+      for (const opt of opts) {
+        const oLabel = typeof opt.label === "string" && opt.label.trim().length > 0
+          ? opt.label.trim()
+          : (typeof opt.value === "string" ? opt.value.trim() : "");
+        if (oLabel.length > 0 && !optLabels.includes(oLabel)) {
+          optLabels.push(oLabel);
+        }
+      }
+
+      if (optLabels.length > 0) {
+        dropdownValidations.push({
+          fieldId: typeof f.fieldId === "string" ? f.fieldId : f.id,
+          header: rawLabel,
+          label: rawLabel,
+          allowedOptions: optLabels,
+        });
+
+        if (optLabels.length <= 5) {
+          headerText = `${rawLabel} (${optLabels.join(" | ")})`;
+        } else {
+          headerText = `${rawLabel} (Options: ${optLabels.slice(0, 3).join(" | ")} | ...)`;
+        }
+      }
+    }
+
+    headers.push(headerText);
     sampleRow1.push(generateSampleValueForField(f, 0));
     sampleRow2.push(generateSampleValueForField(f, 1));
   }
@@ -239,20 +385,11 @@ export function buildDynamicSpreadsheetTemplate(
     headers,
     sampleRows: [sampleRow1, sampleRow2],
     description: `Official batch filing template for ${service.title || "NTC Service"} generated dynamically from configured Form Builder fields.`,
+    dropdownValidations,
   };
 }
 
-export function getSpreadsheetTemplateForService(
-  service: NTCService,
-  form?: FormDto | null
-): SpreadsheetTemplateConfig {
-  if (form && Array.isArray(form.sections) && form.sections.length > 0) {
-    const dynamicTemplate = buildDynamicSpreadsheetTemplate(service, form);
-    if (dynamicTemplate) {
-      return dynamicTemplate;
-    }
-  }
-
+function getStaticSpreadsheetTemplateForService(service: NTCService): SpreadsheetTemplateConfig {
   const code = (service.code || "").toUpperCase();
   const title = (service.title || "").toUpperCase();
 
@@ -748,6 +885,21 @@ export function getSpreadsheetTemplateForService(
     ],
     description: `Batch applicant intake template for ${service.title}.`,
   };
+}
+
+export function getSpreadsheetTemplateForService(
+  service: NTCService,
+  form?: FormDto | null
+): SpreadsheetTemplateConfig {
+  if (form && Array.isArray(form.sections) && form.sections.length > 0) {
+    const dynamicTemplate = buildDynamicSpreadsheetTemplate(service, form);
+    if (dynamicTemplate) {
+      return dynamicTemplate;
+    }
+  }
+
+  const staticConfig = getStaticSpreadsheetTemplateForService(service);
+  return enrichStaticTemplate(staticConfig);
 }
 
 export function generateCsvContent(config: SpreadsheetTemplateConfig): string {

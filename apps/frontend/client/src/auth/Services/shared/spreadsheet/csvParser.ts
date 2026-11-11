@@ -1,6 +1,7 @@
 import { GeneralApplicantData, initialGeneralApplicant } from "../types/generalApplicantTypes";
 import { NTCService } from "../../data/servicesData";
 import { FormDto, FieldDto } from "../../../../shared/components/dynamic-form/dynamicFormTypes";
+import { parseOptions } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 export interface ParsedRowResult {
   rowNumber: number;
@@ -17,6 +18,17 @@ export interface CsvParseResult {
   invalidCount: number;
   results: ParsedRowResult[];
   applicants: GeneralApplicantData[];
+}
+
+export function normalizeHeaderKey(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  return raw
+    .replace(/\s*\([^)]*options[^)]*\)/gi, "")
+    .replace(/\s*\([^)]*\|[^)]*\)/g, "")
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s*\[[^\]]*\]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 export function parseCsvLine(line: string): string[] {
@@ -52,7 +64,7 @@ export function parseSpreadsheetContent(
   const lines = csvContent
     .split(/\r\n|\n|\r/)
     .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+    .filter((l) => l.length > 0 && !l.startsWith("#"));
 
   if (lines.length <= 1) {
     return {
@@ -65,7 +77,7 @@ export function parseSpreadsheetContent(
   }
 
   const rawHeaders = parseCsvLine(lines[0] || "");
-  const headers = rawHeaders.map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+  const headers = rawHeaders.map((h) => normalizeHeaderKey(h));
 
   const formFields: FieldDto[] = [];
   if (form && Array.isArray(form.sections)) {
@@ -88,7 +100,8 @@ export function parseSpreadsheetContent(
   const headerFieldMappings: HeaderFieldMapping[] = [];
 
   for (const f of formFields) {
-    const normLabel = typeof f.label === "string" ? f.label.toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+    const rawLabel = typeof f.label === "string" ? f.label : "";
+    const normLabel = normalizeHeaderKey(rawLabel);
     const normId = typeof f.fieldId === "string" ? f.fieldId.toLowerCase().replace(/[^a-z0-9]/g, "") : (typeof f.id === "string" ? f.id.toLowerCase().replace(/[^a-z0-9]/g, "") : "");
 
     let foundIndex = -1;
@@ -139,9 +152,21 @@ export function parseSpreadsheetContent(
 
     const getVal = (...keys: string[]): string => {
       for (const k of keys) {
-        const normalized = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const normalized = normalizeHeaderKey(k);
         if (rowDict[normalized] !== undefined && rowDict[normalized] !== "") {
           return rowDict[normalized] || "";
+        }
+      }
+      for (const k of keys) {
+        const normalized = normalizeHeaderKey(k);
+        if (normalized.length >= 4) {
+          for (const dictKey of Object.keys(rowDict)) {
+            if (dictKey.includes(normalized) || (dictKey.length >= 4 && normalized.includes(dictKey))) {
+              if (rowDict[dictKey] !== undefined && rowDict[dictKey] !== "") {
+                return rowDict[dictKey] || "";
+              }
+            }
+          }
         }
       }
       return "";
@@ -154,7 +179,6 @@ export function parseSpreadsheetContent(
     const email = getVal("email", "emailaddress");
     const contactNo = getVal("contactnumber", "contactno", "phone", "mobile", "cellphone");
     const birthDate = getVal("dateofbirth", "birthdate", "dob");
-    const sex = getVal("sex", "gender") || "Male";
     const nationality = getVal("nationality", "citizenship") || "Filipino";
     const region = getVal("region", "regionname");
     const province = getVal("province", "state");
@@ -167,7 +191,6 @@ export function parseSpreadsheetContent(
     const yearGraduated = getVal("yeargraduated", "graduatedyear", "graduationyear", "yeargrad");
     const specialOrderNo = getVal("specialorderno", "specialorder", "sono", "so", "specialordernumber");
     const examType = getVal("examtype", "examcategory", "applicationtype", "apptype", "category") || "Radiotelephony";
-    const examineeType = getVal("examineetype", "takertype", "applicantcategory") || "First Taker";
     const selectedOption = getVal("selectedoption", "classelement", "elements", "element", "class", "optionclass", "radiooption") || "1PHN - Elements 1, 2, 3 & 4";
     const appType = getVal("applicationtype", "apptype", "examcategory") || "NEW";
     const years = getVal("noofyears", "numberofyears", "years") || "1";
@@ -189,6 +212,59 @@ export function parseSpreadsheetContent(
 
     const remarks: string[] = [];
 
+    // Strict validation for standard dropdown fields
+    const rawSex = getVal("sex", "gender");
+    let sex = "Male";
+    if (rawSex.length > 0) {
+      const sLower = rawSex.trim().toLowerCase();
+      if (sLower === "male" || sLower === "m") {
+        sex = "Male";
+      } else if (sLower === "female" || sLower === "f") {
+        sex = "Female";
+      } else {
+        remarks.push(`Invalid Sex "${rawSex}". Must strictly be either "Male" or "Female".`);
+        sex = rawSex;
+      }
+    }
+
+    const isExamService = (service.code || "").toUpperCase() === "NTC_1_01" ||
+      (service.title || "").toUpperCase().includes("EXAM") ||
+      (service.title || "").toUpperCase().includes("RADIO OPERATOR");
+
+    const validExamineeTypes = ["First Taker", "Retaker", "Upgrade", "Removal"];
+    const rawExamineeType = getVal("examineetype", "takertype", "applicantcategory");
+    let examineeType = "First Taker";
+    if (rawExamineeType.length > 0) {
+      const normExaminee = rawExamineeType.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matchedExaminee = validExamineeTypes.find((t) => t.toLowerCase().replace(/[^a-z0-9]/g, "") === normExaminee);
+      if (matchedExaminee !== undefined) {
+        examineeType = matchedExaminee;
+      } else if (isExamService) {
+        remarks.push(`Invalid Examinee Type "${rawExamineeType}". Must strictly be one of: ${validExamineeTypes.join(", ")}.`);
+        examineeType = rawExamineeType;
+      }
+    }
+
+    const isComp = applicantTypeVal.toLowerCase().includes("comp") || applicantTypeVal.toLowerCase().includes("org") || Boolean(companyName);
+
+    const validEntityTypes = [
+      "Corporation",
+      "Single Proprietorship",
+      "Partnership",
+      "Government",
+      "Cooperative",
+      "Association",
+      "Non-Profit",
+    ];
+    const rawEntityType = getVal("entitytype", "businesstype", "companytype");
+    if (rawEntityType.length > 0 && isComp) {
+      const normEntity = rawEntityType.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matchedEntity = validEntityTypes.find((t) => t.toLowerCase().replace(/[^a-z0-9]/g, "") === normEntity);
+      if (matchedEntity === undefined) {
+        remarks.push(`Invalid Entity Type "${rawEntityType}". Must strictly match one of: ${validEntityTypes.join(", ")}.`);
+      }
+    }
+
     if (!firstName && !lastName) {
       remarks.push("Name or Business Name is missing.");
     }
@@ -200,10 +276,6 @@ export function parseSpreadsheetContent(
     if (!contactNo) {
       remarks.push("Contact Number is required.");
     }
-
-    const isExamService = (service.code || "").toUpperCase() === "NTC_1_01" ||
-      (service.title || "").toUpperCase().includes("EXAM") ||
-      (service.title || "").toUpperCase().includes("RADIO OPERATOR");
 
     if (isExamService) {
       if (!lastName) remarks.push("Last Name is required.");
@@ -240,8 +312,6 @@ export function parseSpreadsheetContent(
         }
       }
     }
-
-    const isComp = applicantTypeVal.toLowerCase().includes("comp") || applicantTypeVal.toLowerCase().includes("org") || Boolean(companyName);
 
     const appObj: GeneralApplicantData = {
       ...initialGeneralApplicant(i),
@@ -287,7 +357,7 @@ export function parseSpreadsheetContent(
 
     for (const mapping of headerFieldMappings) {
       const cellRaw = cols[mapping.colIndex];
-      const cellVal = typeof cellRaw === "string" ? cellRaw.trim() : "";
+      let cellVal = typeof cellRaw === "string" ? cellRaw.trim() : "";
 
       const fieldId = typeof mapping.field.fieldId === "string" && mapping.field.fieldId.trim().length > 0
         ? mapping.field.fieldId.trim()
@@ -298,6 +368,36 @@ export function parseSpreadsheetContent(
         : mapping.normalizedLabel;
 
       if (cellVal.length > 0) {
+        // Strict Dropdown / Options Validation
+        const fieldOptions = parseOptions(mapping.field);
+        if (fieldOptions.length > 0) {
+          const normCell = cellVal.toLowerCase().replace(/[^a-z0-9]/g, "");
+          const matchedOpt = fieldOptions.find((opt) => {
+            const optLabel = typeof opt.label === "string" ? opt.label.trim() : "";
+            const optValue = typeof opt.value === "string" ? opt.value.trim() : "";
+            const normOptLabel = optLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const normOptVal = optValue.toLowerCase().replace(/[^a-z0-9]/g, "");
+            return (
+              normCell === normOptLabel ||
+              normCell === normOptVal ||
+              cellVal.toLowerCase() === optLabel.toLowerCase() ||
+              cellVal.toLowerCase() === optValue.toLowerCase()
+            );
+          });
+
+          if (matchedOpt !== undefined) {
+            cellVal = (typeof matchedOpt.label === "string" && matchedOpt.label.trim().length > 0)
+              ? matchedOpt.label.trim()
+              : (typeof matchedOpt.value === "string" ? matchedOpt.value.trim() : cellVal);
+          } else {
+            const allowedLabels = fieldOptions
+              .map((o) => (typeof o.label === "string" && o.label.length > 0 ? o.label : o.value))
+              .filter(Boolean)
+              .join(", ");
+            remarks.push(`Invalid value "${cellVal}" for "${fieldLabel}". Must strictly match one of the allowed dropdown options: ${allowedLabels}.`);
+          }
+        }
+
         dynamicFieldValues.push({
           fieldId,
           fieldLabel,
@@ -441,7 +541,9 @@ export function parseSpreadsheetContent(
       applicantData: appObj,
     });
 
-    applicants.push(appObj);
+    if (isValid) {
+      applicants.push(appObj);
+    }
   }
 
   const validCount = results.filter((r) => r.status === "Valid").length;
