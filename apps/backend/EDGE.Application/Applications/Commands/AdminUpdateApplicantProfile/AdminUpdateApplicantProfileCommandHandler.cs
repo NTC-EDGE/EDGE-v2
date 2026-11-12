@@ -175,6 +175,11 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
             }
 
             // Audit & update Barangay, City, Province, Region
+            if (request.BarangayId.HasValue && request.BarangayId.Value != Guid.Empty && request.BarangayId.Value != detail.BarangayId)
+            {
+                detail.BarangayId = request.BarangayId.Value;
+            }
+
             if (request.Barangay != null)
             {
                 var oldBrgy = detail.Barangay?.Name ?? string.Empty;

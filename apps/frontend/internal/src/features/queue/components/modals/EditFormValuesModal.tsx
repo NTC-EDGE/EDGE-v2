@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast, DatePickerInput } from "@edge/ui";
-import { applicationService } from "@edge/api";
+import { applicationService, useGeographicLocations } from "@edge/api";
+import { LocationSuggestionInput } from "./LocationSuggestionInput";
 
 function extractError(err: unknown): string {
   if (typeof err === "object" && err !== null && Reflect.has(err, "message")) {
@@ -52,6 +53,28 @@ function isDateFormField(field: EditFormFieldItem): boolean {
     return true;
   }
   return false;
+}
+
+function getLocationFieldKind(field: EditFormFieldItem): "province" | "municipality" | "barangay" | null {
+  const lbl = (field.fieldLabel || "").toLowerCase().trim();
+  if (lbl === "province" || lbl === "province / state" || lbl.endsWith("province")) {
+    return "province";
+  }
+  if (
+    lbl === "city" ||
+    lbl === "municipality" ||
+    lbl === "city / municipality" ||
+    lbl === "city/municipality" ||
+    lbl === "municipality / city" ||
+    lbl.endsWith("city / municipality") ||
+    lbl.endsWith("municipality")
+  ) {
+    return "municipality";
+  }
+  if (lbl === "barangay" || lbl.endsWith("barangay")) {
+    return "barangay";
+  }
+  return null;
 }
 
 interface EditFormSectionItem {
@@ -167,6 +190,80 @@ export function EditFormValuesModal({
     ];
   }, [formSections, flatFormValues, editedValues]);
 
+  const activeGeoContext = React.useMemo(() => {
+    let provinceName = "";
+    let municipalityName = "";
+    let provinceFieldId = "";
+    let municipalityFieldId = "";
+    let barangayFieldId = "";
+
+    for (const sec of displaySections) {
+      for (const f of sec.fields) {
+        const kind = getLocationFieldKind(f);
+        const val = (editedValues[f.fieldId] ?? f.value ?? "").trim();
+        if (kind === "province") {
+          provinceFieldId = f.fieldId;
+          if (val) provinceName = val;
+        } else if (kind === "municipality") {
+          municipalityFieldId = f.fieldId;
+          if (val) municipalityName = val;
+        } else if (kind === "barangay") {
+          barangayFieldId = f.fieldId;
+        }
+      }
+    }
+
+    return {
+      provinceName,
+      municipalityName,
+      provinceFieldId,
+      municipalityFieldId,
+      barangayFieldId,
+    };
+  }, [displaySections, editedValues]);
+
+  const {
+    provinces,
+    municipalities,
+    barangays,
+    resolvedMunicipalityId,
+    loadingProvinces,
+    loadingMunicipalities,
+    loadingBarangays,
+  } = useGeographicLocations({
+    provinceName: activeGeoContext.provinceName,
+    municipalityName: activeGeoContext.municipalityName,
+  });
+
+  const provinceOptions = React.useMemo(
+    () =>
+      provinces.map((p) => ({
+        id: p.id,
+        name: p.name,
+        subtitle: p.region?.code || p.region?.name,
+      })),
+    [provinces]
+  );
+
+  const municipalityOptions = React.useMemo(
+    () =>
+      municipalities.map((m) => ({
+        id: m.id,
+        name: m.name,
+        subtitle: m.province?.name,
+      })),
+    [municipalities]
+  );
+
+  const barangayOptions = React.useMemo(
+    () =>
+      barangays.map((b) => ({
+        id: b.id,
+        name: b.name,
+      })),
+    [barangays]
+  );
+
   const handleSave = async () => {
     setIsSaving(true);
     setErrorMessage(null);
@@ -267,7 +364,11 @@ export function EditFormValuesModal({
           )}
 
           {/* Form Fields Scroll */}
-          <ScrollView style={modalStyles.scrollBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={modalStyles.scrollBody}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {displaySections.map((sec, secIdx) => (
               <View key={sec.id || `sec-${secIdx}`} style={modalStyles.sectionBlock}>
                 <Text
@@ -290,13 +391,20 @@ export function EditFormValuesModal({
                 ) : null}
 
                 <View style={{ gap: 12, marginTop: 8 }}>
-                  {sec.fields.map((f) => {
+                  {sec.fields.map((f, fIdx) => {
                     const currentVal = editedValues[f.fieldId] ?? f.value ?? "";
-                    const isDate = isDateFormField({ ...f, value: currentVal });
-                    const isLongText = !isDate && (currentVal.length > 50 || currentVal.includes("\n"));
+                    const locationKind = getLocationFieldKind(f);
+                    const isDate = !locationKind && isDateFormField({ ...f, value: currentVal });
+                    const isLongText = !locationKind && !isDate && (currentVal.length > 50 || currentVal.includes("\n"));
 
                     return (
-                      <View key={f.fieldId} style={modalStyles.fieldGroup}>
+                      <View
+                        key={f.fieldId}
+                        style={[
+                          modalStyles.fieldGroup,
+                          locationKind ? { zIndex: 100 - fIdx } : undefined,
+                        ]}
+                      >
                         <Text
                           style={[
                             modalStyles.fieldLabel,
@@ -305,7 +413,51 @@ export function EditFormValuesModal({
                         >
                           {f.fieldLabel}
                         </Text>
-                        {isDate ? (
+                        {locationKind === "province" ? (
+                          <LocationSuggestionInput
+                            value={currentVal}
+                            onChangeText={(text) => handleFieldChange(f.fieldId, text)}
+                            onSelectOption={(opt) => {
+                              handleFieldChange(f.fieldId, opt.name);
+                            }}
+                            options={provinceOptions}
+                            loading={loadingProvinces}
+                            placeholder="Select or type province"
+                            emptyHint="No matching province found"
+                          />
+                        ) : locationKind === "municipality" ? (
+                          <LocationSuggestionInput
+                            value={currentVal}
+                            onChangeText={(text) => handleFieldChange(f.fieldId, text)}
+                            onSelectOption={(opt) => {
+                              handleFieldChange(f.fieldId, opt.name);
+                              const matchedMuni = municipalities.find((m) => m.id === opt.id);
+                              if (matchedMuni?.province?.name && activeGeoContext.provinceFieldId) {
+                                handleFieldChange(activeGeoContext.provinceFieldId, matchedMuni.province.name);
+                              }
+                            }}
+                            options={municipalityOptions}
+                            loading={loadingMunicipalities}
+                            placeholder="Select or type city / municipality"
+                            emptyHint="No matching city / municipality found"
+                          />
+                        ) : locationKind === "barangay" ? (
+                          <LocationSuggestionInput
+                            value={currentVal}
+                            onChangeText={(text) => handleFieldChange(f.fieldId, text)}
+                            onSelectOption={(opt) => {
+                              handleFieldChange(f.fieldId, opt.name);
+                            }}
+                            options={barangayOptions}
+                            loading={loadingBarangays}
+                            placeholder="Select or type barangay"
+                            emptyHint={
+                              !resolvedMunicipalityId
+                                ? "Select a valid City / Municipality first to load barangays"
+                                : "No matching barangay found"
+                            }
+                          />
+                        ) : isDate ? (
                           <DatePickerInput
                             value={currentVal}
                             onChangeText={(text) => handleFieldChange(f.fieldId, text)}

@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast, DatePickerInput } from "@edge/ui";
-import { applicationService } from "@edge/api";
+import { applicationService, useGeographicLocations } from "@edge/api";
 import { ApplicantItem } from "../../../../types/application";
 import { splitFullName } from "../../data/applicationMapper";
+import { LocationSuggestionInput } from "./LocationSuggestionInput";
 
 function extractError(err: unknown): string {
   if (typeof err === "object" && err !== null && Reflect.has(err, "message")) {
@@ -52,6 +53,7 @@ export function EditApplicantProfileModal({
   const [contactNumber, setContactNumber] = useState("");
   const [address, setAddress] = useState("");
   const [barangay, setBarangay] = useState("");
+  const [barangayId, setBarangayId] = useState<string | undefined>(undefined);
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
   const [region, setRegion] = useState("");
@@ -60,6 +62,49 @@ export function EditApplicantProfileModal({
   const [sex, setSex] = useState("");
   const [civilStatus, setCivilStatus] = useState("");
   const [nationality, setNationality] = useState("");
+
+  const {
+    provinces,
+    municipalities,
+    barangays,
+    resolvedMunicipalityId,
+    loadingProvinces,
+    loadingMunicipalities,
+    loadingBarangays,
+  } = useGeographicLocations({
+    regionName: region,
+    provinceName: province,
+    municipalityName: city,
+  });
+
+  const provinceOptions = React.useMemo(
+    () =>
+      provinces.map((p) => ({
+        id: p.id,
+        name: p.name,
+        subtitle: p.region?.code || p.region?.name,
+      })),
+    [provinces]
+  );
+
+  const municipalityOptions = React.useMemo(
+    () =>
+      municipalities.map((m) => ({
+        id: m.id,
+        name: m.name,
+        subtitle: m.province?.name,
+      })),
+    [municipalities]
+  );
+
+  const barangayOptions = React.useMemo(
+    () =>
+      barangays.map((b) => ({
+        id: b.id,
+        name: b.name,
+      })),
+    [barangays]
+  );
 
   // Company fields
   const [companyName, setCompanyName] = useState("");
@@ -128,6 +173,7 @@ export function EditApplicantProfileModal({
         ""
       );
       setBarangay(applicant.barangay || findFv((l) => l.includes("barangay")) || "");
+      setBarangayId(undefined);
       setCity(applicant.city || findFv((l) => l.includes("city") || l.includes("municipality")) || "");
       setProvince(applicant.province || findFv((l) => l.includes("province")) || "");
       setRegion(applicant.region || findFv((l) => l.includes("region")) || "");
@@ -187,6 +233,7 @@ export function EditApplicantProfileModal({
       contactNumber: trimmedContact,
       address: trimmedAddress,
       barangay: trimmedBarangay,
+      barangayId: barangayId || undefined,
       city: trimmedCity,
       province: trimmedProvince,
       region: trimmedRegion,
@@ -338,7 +385,11 @@ export function EditApplicantProfileModal({
           )}
 
           {/* Form Fields Scroll */}
-          <ScrollView style={modalStyles.scrollBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={modalStyles.scrollBody}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* 1. Legal Name Section */}
             <Text
               style={[
@@ -462,43 +513,90 @@ export function EditApplicantProfileModal({
                 placeholderTextColor="#94A3B8"
               />
             </View>
-            <View style={modalStyles.fieldRow}>
-              <View style={modalStyles.fieldCol}>
-                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  Barangay
-                </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                  value={barangay}
-                  onChangeText={setBarangay}
-                  placeholder="Barangay"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-              <View style={modalStyles.fieldCol}>
-                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  City / Municipality
-                </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                  value={city}
-                  onChangeText={setCity}
-                  placeholder="City"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-            </View>
-            <View style={modalStyles.fieldRow}>
-              <View style={modalStyles.fieldCol}>
+            <View style={[modalStyles.fieldRow, { zIndex: 30 }]}>
+              <View style={[modalStyles.fieldCol, { zIndex: 32 }]}>
                 <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
                   Province
                 </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+                <LocationSuggestionInput
                   value={province}
-                  onChangeText={setProvince}
-                  placeholder="Province"
-                  placeholderTextColor="#94A3B8"
+                  onChangeText={(text) => {
+                    setProvince(text);
+                  }}
+                  onSelectOption={(opt) => {
+                    const prevProvince = province.trim().toLowerCase();
+                    setProvince(opt.name);
+                    const matchedProv = provinces.find((p) => p.id === opt.id);
+                    if (matchedProv?.region?.name) {
+                      setRegion(matchedProv.region.name);
+                    }
+                    if (prevProvince && prevProvince !== opt.name.trim().toLowerCase()) {
+                      setCity("");
+                      setBarangay("");
+                      setBarangayId(undefined);
+                    }
+                  }}
+                  options={provinceOptions}
+                  loading={loadingProvinces}
+                  placeholder="Select or type province"
+                  emptyHint="No matching province found"
+                />
+              </View>
+              <View style={[modalStyles.fieldCol, { zIndex: 31 }]}>
+                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                  City / Municipality
+                </Text>
+                <LocationSuggestionInput
+                  value={city}
+                  onChangeText={(text) => {
+                    setCity(text);
+                    setBarangayId(undefined);
+                  }}
+                  onSelectOption={(opt) => {
+                    const prevCity = city.trim().toLowerCase();
+                    setCity(opt.name);
+                    const matchedMuni = municipalities.find((m) => m.id === opt.id);
+                    if (matchedMuni?.province?.name) {
+                      setProvince(matchedMuni.province.name);
+                    }
+                    if (matchedMuni?.province?.region?.name) {
+                      setRegion(matchedMuni.province.region.name);
+                    }
+                    if (prevCity && prevCity !== opt.name.trim().toLowerCase()) {
+                      setBarangay("");
+                      setBarangayId(undefined);
+                    }
+                  }}
+                  options={municipalityOptions}
+                  loading={loadingMunicipalities}
+                  placeholder="Select or type city / municipality"
+                  emptyHint="No matching city / municipality found"
+                />
+              </View>
+            </View>
+            <View style={[modalStyles.fieldRow, { zIndex: 20 }]}>
+              <View style={[modalStyles.fieldCol, { zIndex: 22 }]}>
+                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                  Barangay
+                </Text>
+                <LocationSuggestionInput
+                  value={barangay}
+                  onChangeText={(text) => {
+                    setBarangay(text);
+                    setBarangayId(undefined);
+                  }}
+                  onSelectOption={(opt) => {
+                    setBarangay(opt.name);
+                    setBarangayId(opt.id);
+                  }}
+                  options={barangayOptions}
+                  loading={loadingBarangays}
+                  placeholder="Select or type barangay"
+                  emptyHint={
+                    !resolvedMunicipalityId
+                      ? "Select a valid City / Municipality first to load barangays"
+                      : "No matching barangay found"
+                  }
                 />
               </View>
               <View style={modalStyles.fieldCol}>

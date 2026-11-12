@@ -16,6 +16,7 @@ public record AdminUpdateApplicantProfileCommand : IRequest<ApiResponse<Guid>>
     public string? ContactNumber { get; init; }
     public string? Email { get; init; }
     public string? Address { get; init; }
+    public Guid? BarangayId { get; init; }
     public string? Barangay { get; init; }
     public string? City { get; init; }
     public string? Province { get; init; }
