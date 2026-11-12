@@ -9,7 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast } from "@edge/ui";
+import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast, DatePickerInput } from "@edge/ui";
 import { applicationService } from "@edge/api";
 import { ApplicantItem } from "../../../../types/application";
 import { splitFullName } from "../../data/applicationMapper";
@@ -528,14 +528,13 @@ export function EditApplicantProfileModal({
             <View style={modalStyles.fieldRow}>
               <View style={modalStyles.fieldCol}>
                 <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  Date of Birth (YYYY-MM-DD)
+                  Date of Birth
                 </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+                <DatePickerInput
                   value={dob}
                   onChangeText={setDob}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#94A3B8"
+                  maxDate={new Date().toISOString().split("T")[0]}
                 />
               </View>
               <View style={modalStyles.fieldCol}>

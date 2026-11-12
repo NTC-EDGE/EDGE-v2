@@ -9,7 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast } from "@edge/ui";
+import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast, DatePickerInput } from "@edge/ui";
 import { applicationService } from "@edge/api";
 
 function extractError(err: unknown): string {
@@ -23,7 +23,35 @@ function extractError(err: unknown): string {
 interface EditFormFieldItem {
   fieldId: string;
   fieldLabel: string;
+  fieldType?: string;
   value: string;
+}
+
+function isDateFormField(field: EditFormFieldItem): boolean {
+  const fType = (field.fieldType || "").toLowerCase().trim();
+  if (fType === "date" || fType === "datepicker" || fType === "datetime") {
+    return true;
+  }
+  const lbl = (field.fieldLabel || "").toLowerCase().trim();
+  if (
+    lbl.includes("birth") ||
+    lbl === "dob" ||
+    lbl.includes("date of") ||
+    lbl.includes("issue date") ||
+    lbl.includes("date issued") ||
+    lbl.includes("expiry date") ||
+    lbl.includes("expiration date") ||
+    lbl.includes("validity date") ||
+    lbl.includes("check date") ||
+    (/\bdate\b/.test(lbl) && !lbl.includes("update") && !lbl.includes("up to date") && !lbl.includes("candidate"))
+  ) {
+    return true;
+  }
+  const val = (field.value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(val)) {
+    return true;
+  }
+  return false;
 }
 
 interface EditFormSectionItem {
@@ -48,6 +76,7 @@ interface EditFormValuesModalProps {
       fieldId?: string;
       id?: string;
       label?: string;
+      type?: string;
       value?: string | null;
     }>;
   }>;
@@ -117,6 +146,7 @@ export function EditFormValuesModal({
           return {
             fieldId: fid,
             fieldLabel: f.label || "Field",
+            fieldType: f.type,
             value: editedValues[fid] ?? f.value ?? "",
           };
         }),
@@ -262,7 +292,8 @@ export function EditFormValuesModal({
                 <View style={{ gap: 12, marginTop: 8 }}>
                   {sec.fields.map((f) => {
                     const currentVal = editedValues[f.fieldId] ?? f.value ?? "";
-                    const isLongText = currentVal.length > 50 || currentVal.includes("\n");
+                    const isDate = isDateFormField({ ...f, value: currentVal });
+                    const isLongText = !isDate && (currentVal.length > 50 || currentVal.includes("\n"));
 
                     return (
                       <View key={f.fieldId} style={modalStyles.fieldGroup}>
@@ -274,22 +305,30 @@ export function EditFormValuesModal({
                         >
                           {f.fieldLabel}
                         </Text>
-                        <TextInput
-                          style={[
-                            modalStyles.input,
-                            isLongText && modalStyles.textArea,
-                            {
-                              backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                              color: isDark ? colors.neutral[100] : colors.neutral[900],
-                              borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
-                            },
-                          ]}
-                          value={currentVal}
-                          onChangeText={(text) => handleFieldChange(f.fieldId, text)}
-                          placeholder={`Enter ${f.fieldLabel.toLowerCase()}`}
-                          placeholderTextColor="#94A3B8"
-                          multiline={isLongText}
-                        />
+                        {isDate ? (
+                          <DatePickerInput
+                            value={currentVal}
+                            onChangeText={(text) => handleFieldChange(f.fieldId, text)}
+                            placeholder="YYYY-MM-DD"
+                          />
+                        ) : (
+                          <TextInput
+                            style={[
+                              modalStyles.input,
+                              isLongText && modalStyles.textArea,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                                color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                              },
+                            ]}
+                            value={currentVal}
+                            onChangeText={(text) => handleFieldChange(f.fieldId, text)}
+                            placeholder={`Enter ${f.fieldLabel.toLowerCase()}`}
+                            placeholderTextColor="#94A3B8"
+                            multiline={isLongText}
+                          />
+                        )}
                       </View>
                     );
                   })}
