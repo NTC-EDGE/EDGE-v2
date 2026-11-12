@@ -47,6 +47,7 @@ public class ApplicantDetailDto
     public string? Suffix { get; set; }
     public string Nationality { get; set; } = string.Empty;
     public string Sex { get; set; } = string.Empty;
+    public string? CivilStatus { get; set; }
     public double? Height { get; set; }
     public double? Weight { get; set; }
     public DateOnly BirthDate { get; set; }

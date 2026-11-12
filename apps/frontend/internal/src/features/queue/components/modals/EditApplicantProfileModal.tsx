@@ -12,6 +12,7 @@ import {
 import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast } from "@edge/ui";
 import { applicationService } from "@edge/api";
 import { ApplicantItem } from "../../../../types/application";
+import { splitFullName } from "../../data/applicationMapper";
 
 function extractError(err: unknown): string {
   if (typeof err === "object" && err !== null && Reflect.has(err, "message")) {
@@ -26,7 +27,7 @@ interface EditApplicantProfileModalProps {
   onClose: () => void;
   applicationId: string;
   applicant: ApplicantItem | null;
-  onSuccess: () => Promise<void> | void;
+  onSuccess: (updatedApplicant?: ApplicantItem) => Promise<void> | void;
 }
 
 export function EditApplicantProfileModal({
@@ -40,7 +41,7 @@ export function EditApplicantProfileModal({
 
   const isCompany =
     applicant?.applicantType === "Company" ||
-    Boolean(applicant?.companyDetails?.name);
+    Boolean(applicant?.companyDetails?.name || applicant?.company?.name);
 
   // Form states
   const [firstName, setFirstName] = useState("");
@@ -73,33 +74,85 @@ export function EditApplicantProfileModal({
   useEffect(() => {
     if (applicant) {
       const basic = applicant.basicInfo;
-      setFirstName(basic?.firstName ?? "");
-      setMiddleName(basic?.middleName ?? "");
-      setLastName(basic?.lastName ?? "");
-      setSuffix(basic?.extensionName ?? "");
-      setEmail(applicant.email ?? "");
-      setContactNumber(applicant.contactNumber ?? "");
-      setAddress(applicant.streetAddress ?? applicant.address ?? "");
-      setBarangay(applicant.barangay ?? "");
-      setCity(applicant.city ?? "");
-      setProvince(applicant.province ?? "");
-      setRegion(applicant.region ?? "");
-      setZipCode(applicant.zipCode ?? "");
-      setDob(basic?.dob ?? "");
-      setSex(basic?.sex ?? "");
-      setCivilStatus(basic?.civilStatus ?? "");
-      setNationality(basic?.nationality ?? "Filipino");
+      const fvs = applicant.formFieldValues ?? [];
+      const findFv = (predicate: (lbl: string) => boolean): string => {
+        const match = fvs.find((f) => predicate((f.fieldLabel || "").toLowerCase().trim()));
+        return match && typeof match.value === "string" ? match.value.trim() : "";
+      };
 
-      const comp = applicant.companyDetails;
-      setCompanyName(comp?.name ?? "");
-      setCompanyRegNo(comp?.registrationNumber ?? "");
-      setCompanyAddress(comp?.address ?? "");
-      setCompanyEmail(comp?.email ?? "");
-      setCompanyContact(comp?.contactNumber ?? "");
+      const rawFirst = basic?.firstName?.trim() ?? "";
+      const rawMiddle = basic?.middleName?.trim() ?? "";
+      const rawLast = basic?.lastName?.trim() ?? "";
+      const rawSuffix = basic?.extensionName?.trim() ?? "";
+
+      const fvFirst = findFv((l) => l === "first name" || l === "given name" || l.includes("first name"));
+      const fvMiddle = findFv((l) => l === "middle name" || l === "middle initial" || l.includes("middle name"));
+      const fvLast = findFv((l) => l === "last name" || l === "surname" || l === "family name" || l.includes("last name"));
+      const fvSuffix = findFv((l) => l === "suffix" || l.includes("suffix") || l.includes("extension"));
+      const fvFullName = findFv((l) => l.includes("full name") || l.includes("applicant name") || l.includes("name of applicant"));
+
+      const parsedFallbackName = splitFullName(
+        (!rawLast && rawFirst.includes(" "))
+          ? rawFirst
+          : (applicant.name || fvFullName || "")
+      );
+
+      const resolvedFirst =
+        (rawLast ? rawFirst : (rawFirst && !rawFirst.includes(" ") ? rawFirst : "")) ||
+        fvFirst ||
+        parsedFallbackName.firstName ||
+        rawFirst;
+      const resolvedMiddle = rawMiddle || fvMiddle || parsedFallbackName.middleName || "";
+      const resolvedLast = rawLast || fvLast || parsedFallbackName.lastName || "";
+      const resolvedSuffix = rawSuffix || fvSuffix || parsedFallbackName.suffix || "";
+
+      setFirstName(resolvedFirst);
+      setMiddleName(resolvedMiddle);
+      setLastName(resolvedLast);
+      setSuffix(resolvedSuffix);
+
+      setEmail(
+        applicant.email ||
+        findFv((l) => (l.includes("email") || l.includes("e-mail")) && !l.includes("company")) ||
+        ""
+      );
+      setContactNumber(
+        applicant.contactNumber ||
+        findFv((l) => (l.includes("contact") || l.includes("mobile") || l.includes("phone") || l.includes("telephone")) && !l.includes("company")) ||
+        ""
+      );
+      setAddress(
+        applicant.streetAddress ||
+        applicant.address ||
+        findFv((l) => l === "address" || l.includes("street") || l.includes("house") || l.includes("unit no")) ||
+        ""
+      );
+      setBarangay(applicant.barangay || findFv((l) => l.includes("barangay")) || "");
+      setCity(applicant.city || findFv((l) => l.includes("city") || l.includes("municipality")) || "");
+      setProvince(applicant.province || findFv((l) => l.includes("province")) || "");
+      setRegion(applicant.region || findFv((l) => l.includes("region")) || "");
+      setZipCode(applicant.zipCode || findFv((l) => l.includes("zip") || l.includes("postal")) || "");
+
+      const rawDob = basic?.dob || applicant.dob || findFv((l) => l.includes("birth") || l === "dob") || "";
+      const cleanDob = rawDob.startsWith("0001-01-01") || rawDob.startsWith("1900-01-01")
+        ? ""
+        : (rawDob.includes("T") ? (rawDob.split("T")[0] ?? "") : rawDob);
+
+      setDob(cleanDob);
+      setSex(basic?.sex || applicant.sex || findFv((l) => l.includes("sex") || l.includes("gender")) || "");
+      setCivilStatus(basic?.civilStatus || applicant.civilStatus || findFv((l) => l.includes("civil") || l.includes("marital")) || "");
+      setNationality(basic?.nationality || applicant.nationality || findFv((l) => l.includes("nationality") || l.includes("citizenship")) || "Filipino");
+
+      const comp = applicant.companyDetails ?? applicant.company;
+      setCompanyName(comp?.name || findFv((l) => l.includes("company name") || l.includes("business name") || l.includes("corporate name")) || "");
+      setCompanyRegNo(comp?.registrationNumber || findFv((l) => l.includes("registration") || l.includes("sec") || l.includes("dti")) || "");
+      setCompanyAddress(comp?.address || findFv((l) => l.includes("company address") || l.includes("corporate address") || l.includes("business address")) || "");
+      setCompanyEmail(comp?.email || findFv((l) => l.includes("company email") || l.includes("corporate email")) || "");
+      setCompanyContact(comp?.contactNumber || findFv((l) => l.includes("company contact") || l.includes("company phone")) || "");
 
       setErrorMessage(null);
     }
-  }, [applicant]);
+  }, [applicant, visible]);
 
   const handleSave = async () => {
     if (!applicant) return;
@@ -107,27 +160,49 @@ export function EditApplicantProfileModal({
     setIsSaving(true);
     setErrorMessage(null);
 
+    const trimmedFirst = firstName.trim();
+    const trimmedMiddle = middleName.trim();
+    const trimmedLast = lastName.trim();
+    const trimmedSuffix = suffix.trim();
+    const trimmedEmail = email.trim();
+    const trimmedContact = contactNumber.trim();
+    const trimmedAddress = address.trim();
+    const trimmedBarangay = barangay.trim();
+    const trimmedCity = city.trim();
+    const trimmedProvince = province.trim();
+    const trimmedRegion = region.trim();
+    const trimmedZip = zipCode.trim();
+    const trimmedDob = dob.trim();
+    const trimmedSex = sex.trim();
+    const trimmedCivilStatus = civilStatus.trim();
+    const trimmedNationality = nationality.trim() || "Filipino";
+
     const payload: Record<string, unknown> = {
       applicantType: isCompany ? "Company" : "Individual",
-      firstName: firstName.trim(),
-      middleName: middleName.trim() || undefined,
-      lastName: lastName.trim(),
-      suffix: suffix.trim() || undefined,
-      email: email.trim(),
-      contactNumber: contactNumber.trim(),
-      address: address.trim(),
-      zipCode: zipCode.trim() || undefined,
-      dob: dob.trim() || undefined,
-      sex: sex.trim() || undefined,
-      nationality: nationality.trim() || undefined,
+      firstName: trimmedFirst,
+      middleName: trimmedMiddle,
+      lastName: trimmedLast,
+      suffix: trimmedSuffix,
+      email: trimmedEmail,
+      contactNumber: trimmedContact,
+      address: trimmedAddress,
+      barangay: trimmedBarangay,
+      city: trimmedCity,
+      province: trimmedProvince,
+      region: trimmedRegion,
+      zipCode: trimmedZip,
+      dob: trimmedDob || undefined,
+      sex: trimmedSex,
+      civilStatus: trimmedCivilStatus,
+      nationality: trimmedNationality,
     };
 
     if (isCompany) {
-      payload.companyName = companyName.trim() || undefined;
-      payload.companyRegistrationNumber = companyRegNo.trim() || undefined;
-      payload.companyAddress = companyAddress.trim() || undefined;
+      payload.companyName = companyName.trim();
+      payload.companyRegistrationNumber = companyRegNo.trim();
+      payload.companyAddress = companyAddress.trim();
       payload.companyEmail = companyEmail.trim() || undefined;
-      payload.companyContactNumber = companyContact.trim() || undefined;
+      payload.companyContactNumber = companyContact.trim();
     }
 
     try {
@@ -142,8 +217,58 @@ export function EditApplicantProfileModal({
         return;
       }
 
+      const updatedFullName = [trimmedFirst, trimmedMiddle, trimmedLast, trimmedSuffix]
+        .filter((p) => p.length > 0)
+        .join(" ")
+        .trim();
+
+      const updatedCompanyDetails = isCompany
+        ? {
+            name: companyName.trim(),
+            registrationNumber: companyRegNo.trim(),
+            address: companyAddress.trim(),
+            email: companyEmail.trim(),
+            contactNumber: companyContact.trim(),
+          }
+        : applicant.companyDetails;
+
+      const updatedApplicant: ApplicantItem = {
+        ...applicant,
+        name: updatedFullName || applicant.name,
+        email: trimmedEmail,
+        contactNumber: trimmedContact,
+        address: trimmedAddress,
+        streetAddress: trimmedAddress,
+        barangay: trimmedBarangay,
+        city: trimmedCity,
+        province: trimmedProvince,
+        region: trimmedRegion,
+        zipCode: trimmedZip,
+        dob: trimmedDob,
+        sex: trimmedSex,
+        civilStatus: trimmedCivilStatus,
+        nationality: trimmedNationality,
+        basicInfo: {
+          firstName: trimmedFirst,
+          middleName: trimmedMiddle,
+          lastName: trimmedLast,
+          extensionName: trimmedSuffix,
+          dob: trimmedDob,
+          placeOfBirth: applicant.basicInfo?.placeOfBirth ?? "",
+          sex: trimmedSex,
+          weight: applicant.basicInfo?.weight ?? 0,
+          height: applicant.basicInfo?.height ?? 0,
+          nationality: trimmedNationality,
+          civilStatus: trimmedCivilStatus,
+          employmentStatus: applicant.basicInfo?.employmentStatus ?? "",
+          occupation: applicant.basicInfo?.occupation ?? "",
+        },
+        company: updatedCompanyDetails,
+        companyDetails: updatedCompanyDetails,
+      };
+
       toast.success("Applicant Profile Updated");
-      await onSuccess();
+      await onSuccess(updatedApplicant);
       onClose();
     } catch (e: unknown) {
       setErrorMessage(extractError(e));

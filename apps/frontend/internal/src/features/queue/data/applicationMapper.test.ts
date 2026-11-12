@@ -938,5 +938,70 @@ describe('applicationMapper', () => {
       expect(ui.applicantsList?.[0]?.applicationType).toBe('First Taker');
       expect(ui.applicantsList?.[0]?.element).toBe('Class C — Elements 2, 3 & 4');
     });
+
+    it('populates basicInfo (firstName, middleName, lastName, extensionName, dob, sex, civilStatus, nationality) and companyDetails on applicantsList items for EditApplicantProfileModal', () => {
+      const dto: ApplicationDto = {
+        id: 'app-profile-edit-1',
+        tenantId: 'tenant-1',
+        applicationNumber: 'APP-PROF-001',
+        referenceNumber: 'REF-PROF-001',
+        status: 'Evaluating',
+        submissionMode: 'Single',
+        isGuest: false,
+        createdAt: '2026-11-10T10:00:00Z',
+        filingUser: {
+          id: 'user-1',
+          name: 'Maria Clara De Los Santos Jr.',
+          email: 'maria.santos@example.com',
+          accountType: 'Individual',
+        },
+        applicants: [
+          {
+            id: 'applicant-prof-1',
+            tenantId: 'tenant-1',
+            isGuest: false,
+            applicantType: 'Individual',
+            details: {
+              id: 'det-1',
+              address: '45 Mabini St',
+              barangayName: 'Poblacion',
+              cityMunicipalityName: 'Makati City',
+              provinceName: 'Metro Manila',
+              regionName: 'NCR',
+              zipCode: '1210',
+              firstName: '',
+              lastName: '',
+              nationality: 'Filipino',
+              sex: 'Female',
+              civilStatus: 'Single',
+              birthDate: '1995-08-20',
+              contactNumber: '09171234567',
+              emailAddress: 'maria.santos@example.com',
+            },
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        histories: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(dto);
+      const item = ui.applicantsList?.[0];
+      expect(item).toBeDefined();
+      expect(item?.basicInfo?.firstName).toBe('Maria');
+      expect(item?.basicInfo?.middleName).toBe('Clara');
+      expect(item?.basicInfo?.lastName).toBe('De Los Santos');
+      expect(item?.basicInfo?.extensionName).toBe('Jr.');
+      expect(item?.basicInfo?.dob).toBe('1995-08-20');
+      expect(item?.basicInfo?.sex).toBe('Female');
+      expect(item?.basicInfo?.civilStatus).toBe('Single');
+      expect(item?.basicInfo?.nationality).toBe('Filipino');
+      expect(item?.barangay).toBe('Poblacion');
+      expect(item?.city).toBe('Makati City');
+      expect(item?.province).toBe('Metro Manila');
+      expect(item?.region).toBe('NCR');
+      expect(item?.zipCode).toBe('1210');
+    });
   });
 });

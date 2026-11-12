@@ -251,14 +251,23 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 if (a?.ApplicantDetail != null)
                 {
                     var ad = a.ApplicantDetail;
+                    var orderedTrails = (app.CorrectionAuditTrails ?? Enumerable.Empty<Domain.Entities.CorrectionAuditTrail>())
+                        .OrderByDescending(c => c.CorrectedAt)
+                        .ToList();
+                    var correctedBarangay = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "Barangay", StringComparison.OrdinalIgnoreCase))?.NewValue;
+                    var correctedCity = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "City", StringComparison.OrdinalIgnoreCase))?.NewValue;
+                    var correctedProvince = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "Province", StringComparison.OrdinalIgnoreCase))?.NewValue;
+                    var correctedRegion = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "Region", StringComparison.OrdinalIgnoreCase))?.NewValue;
+                    var correctedCivilStatus = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "CivilStatus", StringComparison.OrdinalIgnoreCase))?.NewValue;
+
                     applicantDto.Details = new ApplicantDetailDto
                     {
                         Id = ad.Id,
                         BarangayId = ad.BarangayId ?? Guid.Empty,
-                        BarangayName = ad.Barangay?.Name ?? string.Empty,
-                        CityMunicipalityName = ad.Barangay?.Municipality?.Name,
-                        ProvinceName = ad.Barangay?.Municipality?.Province?.Name,
-                        RegionName = ad.Barangay?.Municipality?.Province?.Region?.Name,
+                        BarangayName = !string.IsNullOrWhiteSpace(correctedBarangay) ? correctedBarangay : (ad.Barangay?.Name ?? string.Empty),
+                        CityMunicipalityName = !string.IsNullOrWhiteSpace(correctedCity) ? correctedCity : ad.Barangay?.Municipality?.Name,
+                        ProvinceName = !string.IsNullOrWhiteSpace(correctedProvince) ? correctedProvince : ad.Barangay?.Municipality?.Province?.Name,
+                        RegionName = !string.IsNullOrWhiteSpace(correctedRegion) ? correctedRegion : ad.Barangay?.Municipality?.Province?.Region?.Name,
                         Address = ad.Address,
                         FirstName = ad.FirstName,
                         MiddleName = ad.MiddleName,
@@ -266,6 +275,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         Suffix = ad.Suffix,
                         Nationality = ad.Nationality,
                         Sex = ad.Sex,
+                        CivilStatus = correctedCivilStatus,
                         Height = ad.Height,
                         Weight = ad.Weight,
                         BirthDate = ad.BirthDate,

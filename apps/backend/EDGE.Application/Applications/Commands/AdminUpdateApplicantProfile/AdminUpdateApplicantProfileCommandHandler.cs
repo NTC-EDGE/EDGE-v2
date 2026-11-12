@@ -54,6 +54,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
         {
             detail = new ApplicantDetail { Id = Guid.NewGuid() };
             applicant.ApplicantDetail = detail;
+            applicant.ApplicantDetailId = detail.Id;
         }
 
         var staffName = _currentUserService.UserId ?? "NTC Agency Staff";
@@ -173,6 +174,79 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                 detail.Address = request.Address;
             }
 
+            // Audit & update Barangay, City, Province, Region
+            if (request.Barangay != null)
+            {
+                var oldBrgy = detail.Barangay?.Name ?? string.Empty;
+                if (request.Barangay != oldBrgy)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Applicant Profile",
+                        FieldName = "Barangay",
+                        OldValue = oldBrgy,
+                        NewValue = request.Barangay,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                }
+            }
+
+            if (request.City != null)
+            {
+                var oldCity = detail.Barangay?.Municipality?.Name ?? string.Empty;
+                if (request.City != oldCity)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Applicant Profile",
+                        FieldName = "City",
+                        OldValue = oldCity,
+                        NewValue = request.City,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                }
+            }
+
+            if (request.Province != null)
+            {
+                var oldProv = detail.Barangay?.Municipality?.Province?.Name ?? string.Empty;
+                if (request.Province != oldProv)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Applicant Profile",
+                        FieldName = "Province",
+                        OldValue = oldProv,
+                        NewValue = request.Province,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                }
+            }
+
+            if (request.Region != null)
+            {
+                var oldReg = detail.Barangay?.Municipality?.Province?.Region?.Name ?? string.Empty;
+                if (request.Region != oldReg)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Applicant Profile",
+                        FieldName = "Region",
+                        OldValue = oldReg,
+                        NewValue = request.Region,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                }
+            }
+
             // Audit & update Zip Code
             if (request.ZipCode != null && request.ZipCode != detail.ZipCode)
             {
@@ -223,6 +297,21 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                     CorrectedAt = DateTime.UtcNow
                 }, cancellationToken);
                 detail.Sex = request.Sex;
+            }
+
+            // Audit & update Civil Status
+            if (request.CivilStatus != null)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Applicant Profile",
+                    FieldName = "CivilStatus",
+                    OldValue = string.Empty,
+                    NewValue = request.CivilStatus,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
             }
 
             // Audit & update Nationality
@@ -391,6 +480,67 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                         CorrectedAt = DateTime.UtcNow
                     }, cancellationToken);
                     comp.Email = request.CompanyEmail;
+                }
+            }
+
+            // Synchronize any matching FormFieldValues on the applicant's FormSubmissions
+            var submissions = (app.FormSubmissions ?? Enumerable.Empty<FormSubmission>())
+                .Where(fs => fs.ApplicantId == applicant.Id || (app.ApplicationApplicants.Count == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id)))
+                .ToList();
+            if (submissions.Count == 0 && app.ApplicationApplicants.Count == 1 && app.FormSubmissions != null)
+            {
+                submissions = app.FormSubmissions.ToList();
+            }
+            if (applicant.FormSubmission != null && !submissions.Contains(applicant.FormSubmission))
+            {
+                submissions.Add(applicant.FormSubmission);
+            }
+
+            var updatedFullName = string.Join(" ", new[] { detail.FirstName, detail.MiddleName, detail.LastName, detail.Suffix }
+                .Where(part => !string.IsNullOrWhiteSpace(part))).Trim();
+
+            foreach (var sub in submissions)
+            {
+                if (sub.FieldValues == null) continue;
+                foreach (var fv in sub.FieldValues)
+                {
+                    var label = (!string.IsNullOrWhiteSpace(fv.Field?.Label) ? fv.Field.Label : fv.CustomLabel ?? string.Empty).Trim().ToLowerInvariant();
+                    if (string.IsNullOrEmpty(label)) continue;
+
+                    if (request.FirstName != null && (label == "first name" || label == "given name"))
+                        fv.Value = request.FirstName;
+                    else if (request.MiddleName != null && (label == "middle name" || label == "middle initial"))
+                        fv.Value = request.MiddleName;
+                    else if (request.LastName != null && (label == "last name" || label == "surname" || label == "family name"))
+                        fv.Value = request.LastName;
+                    else if (request.Suffix != null && (label.Contains("suffix") || label.Contains("extension")))
+                        fv.Value = request.Suffix;
+                    else if (!string.IsNullOrEmpty(updatedFullName) && (label.Contains("full name") || label.Contains("applicant name") || label.Contains("name of applicant")))
+                        fv.Value = updatedFullName;
+                    else if (request.Email != null && (label.Contains("email") || label.Contains("e-mail")) && !label.Contains("company"))
+                        fv.Value = request.Email;
+                    else if (request.ContactNumber != null && (label.Contains("contact") || label.Contains("mobile") || label.Contains("phone") || label.Contains("telephone")) && !label.Contains("company"))
+                        fv.Value = request.ContactNumber;
+                    else if (request.Address != null && (label == "address" || label.Contains("street") || label.Contains("house") || label.Contains("unit no")))
+                        fv.Value = request.Address;
+                    else if (request.Barangay != null && label.Contains("barangay"))
+                        fv.Value = request.Barangay;
+                    else if (request.City != null && (label.Contains("city") || label.Contains("municipality")))
+                        fv.Value = request.City;
+                    else if (request.Province != null && label.Contains("province"))
+                        fv.Value = request.Province;
+                    else if (request.Region != null && label.Contains("region"))
+                        fv.Value = request.Region;
+                    else if (request.ZipCode != null && (label.Contains("zip") || label.Contains("postal")))
+                        fv.Value = request.ZipCode;
+                    else if (request.Dob != null && (label.Contains("birth") || label == "dob"))
+                        fv.Value = request.Dob;
+                    else if (request.Sex != null && (label.Contains("sex") || label.Contains("gender")))
+                        fv.Value = request.Sex;
+                    else if (request.CivilStatus != null && (label.Contains("civil") || label.Contains("marital")))
+                        fv.Value = request.CivilStatus;
+                    else if (request.Nationality != null && (label.Contains("nationality") || label.Contains("citizenship")))
+                        fv.Value = request.Nationality;
                 }
             }
 

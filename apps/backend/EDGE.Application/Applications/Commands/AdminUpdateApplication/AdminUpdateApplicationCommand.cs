@@ -22,7 +22,7 @@ public record AdminUpdateApplicationCommand : IRequest<ApiResponse<Guid>>
 }
 
 public record AdminUpdateContactDetailsDto(string? Email, string? ContactNumber);
-public record AdminUpdateAddressDto(string? Barangay, string? Province, string? City, string? ZipCode);
+public record AdminUpdateAddressDto(string? Barangay, string? Province, string? City, string? ZipCode, string? Address = null, string? StreetAddress = null, string? Region = null);
 public record AdminUpdateCompanyDetailsDto(string? Name, string? RegistrationNumber, string? Address, string? ContactNumber, string? Email);
 public record AdminUpdateBasicInfoDto(string? LastName, string? FirstName, string? MiddleName, string? ExtensionName, string? PlaceOfBirth, string? Dob, string? Sex, double? Weight, double? Height, string? Nationality, string? EmploymentStatus);
 public record AdminUpdateRosterItemDto(string? Id, string? Name, string? ApplicantType, string? Status, string? EvaluationRemarks, string? Email);

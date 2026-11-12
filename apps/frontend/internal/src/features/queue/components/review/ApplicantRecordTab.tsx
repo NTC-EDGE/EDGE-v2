@@ -34,6 +34,7 @@ import { ApplicantRequirementsSection } from "./ApplicantRequirementsSection";
 import { ApplicationHistoryTimeline } from "./ApplicationHistoryTimeline";
 import { isAllowedRequirementFileType } from "../../../../utils/fileValidation";
 import { resolveApplicantAuditHistory } from "../../utils/officerEvaluationHelper";
+import { splitFullName } from "../../data/applicationMapper";
 import { EditApplicantProfileModal } from "../modals/EditApplicantProfileModal";
 import { EditFormValuesModal } from "../modals/EditFormValuesModal";
 
@@ -49,11 +50,13 @@ export function ApplicantRecordTab({
 
   const effectiveApplicants = useMemo<ApplicantItem[]>(() => {
     if (app.applicantsList && app.applicantsList.length > 0) return app.applicantsList;
+    const fallbackType: 'Individual' | 'Company' = app.applicantType === 'Company' ? 'Company' : 'Individual';
+    const fallbackStatus: 'Complete' | 'Incomplete' | 'ForEndorsement' = 'Complete';
     return [{
       id: app.id,
       name: app.applicant || `${app.basicInfo?.firstName ?? ''} ${app.basicInfo?.lastName ?? ''}`.trim() || app.companyDetails?.name || app.filingUser?.name || "Applicant",
-      applicantType: (app.applicantType === 'Company' ? 'Company' : 'Individual') as 'Individual' | 'Company',
-      status: 'Complete' as const,
+      applicantType: fallbackType,
+      status: fallbackStatus,
       evaluationRemarks: '',
       contactNumber: app.contactDetails?.contactNumber || '',
       email: app.contactDetails?.email || '',
@@ -126,6 +129,170 @@ export function ApplicantRecordTab({
       return trimmed.length > 0 && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== '[]' && trimmed !== '{}';
     });
   }, [flatFormValues]);
+
+  const resolvedActiveApplicant = useMemo<ApplicantItem | null>(() => {
+    if (!activeApplicant) return null;
+    const isPrimary = activeIdx === 0 || localApplicants.length === 1;
+    const findFv = (predicate: (lbl: string) => boolean): string => {
+      const match = flatFormValues.find((f) => predicate((f.fieldLabel || '').toLowerCase().trim()));
+      return match && typeof match.value === 'string' ? match.value.trim() : '';
+    };
+
+    const resolvedName =
+      activeApplicant.name ||
+      (isPrimary ? (app.applicant || app.filingUser?.name) : '') ||
+      'Applicant';
+
+    const rawFirst = activeApplicant.basicInfo?.firstName || (isPrimary ? app.basicInfo?.firstName : '') || '';
+    const rawMiddle = activeApplicant.basicInfo?.middleName || (isPrimary ? app.basicInfo?.middleName : '') || '';
+    const rawLast = activeApplicant.basicInfo?.lastName || (isPrimary ? app.basicInfo?.lastName : '') || '';
+    const rawSuffix = activeApplicant.basicInfo?.extensionName || (isPrimary ? app.basicInfo?.extensionName : '') || '';
+
+    const parsedName = splitFullName(
+      (!rawLast && rawFirst.includes(' ')) ? rawFirst : resolvedName
+    );
+
+    const firstName =
+      (rawLast ? rawFirst : (rawFirst && !rawFirst.includes(' ') ? rawFirst : '')) ||
+      findFv((l) => l === 'first name' || l === 'given name' || l.includes('first name')) ||
+      parsedName.firstName ||
+      rawFirst;
+    const middleName =
+      rawMiddle ||
+      findFv((l) => l === 'middle name' || l === 'middle initial' || l.includes('middle name')) ||
+      parsedName.middleName ||
+      '';
+    const lastName =
+      rawLast ||
+      findFv((l) => l === 'last name' || l === 'surname' || l === 'family name' || l.includes('last name')) ||
+      parsedName.lastName ||
+      '';
+    const extensionName =
+      rawSuffix ||
+      findFv((l) => l === 'suffix' || l.includes('suffix') || l.includes('extension')) ||
+      parsedName.suffix ||
+      '';
+
+    const email =
+      activeApplicant.email ||
+      (isPrimary ? (app.contactDetails?.email || app.filingUser?.email) : '') ||
+      findFv((l) => (l.includes('email') || l.includes('e-mail')) && !l.includes('company')) ||
+      '';
+    const contactNumber =
+      activeApplicant.contactNumber ||
+      (isPrimary ? app.contactDetails?.contactNumber : '') ||
+      findFv((l) => (l.includes('contact') || l.includes('mobile') || l.includes('phone') || l.includes('telephone')) && !l.includes('company')) ||
+      '';
+    const streetAddress =
+      activeApplicant.streetAddress ||
+      activeApplicant.address ||
+      (isPrimary ? (app.address?.streetAddress || app.address?.address) : '') ||
+      findFv((l) => l === 'address' || l.includes('street') || l.includes('house') || l.includes('unit no')) ||
+      '';
+    const barangay =
+      activeApplicant.barangay ||
+      (isPrimary ? app.address?.barangay : '') ||
+      findFv((l) => l.includes('barangay')) ||
+      '';
+    const city =
+      activeApplicant.city ||
+      (isPrimary ? app.address?.city : '') ||
+      findFv((l) => l.includes('city') || l.includes('municipality')) ||
+      '';
+    const province =
+      activeApplicant.province ||
+      (isPrimary ? app.address?.province : '') ||
+      findFv((l) => l.includes('province')) ||
+      '';
+    const region =
+      activeApplicant.region ||
+      (isPrimary ? app.address?.region : '') ||
+      findFv((l) => l.includes('region')) ||
+      '';
+    const zipCode =
+      activeApplicant.zipCode ||
+      (isPrimary ? app.address?.zipCode : '') ||
+      findFv((l) => l.includes('zip') || l.includes('postal')) ||
+      '';
+    const rawDob =
+      activeApplicant.basicInfo?.dob ||
+      activeApplicant.dob ||
+      (isPrimary ? app.basicInfo?.dob : '') ||
+      findFv((l) => l.includes('birth') || l === 'dob') ||
+      '';
+    const dob = rawDob.startsWith('0001-01-01') || rawDob.startsWith('1900-01-01')
+      ? ''
+      : (rawDob.includes('T') ? (rawDob.split('T')[0] ?? '') : rawDob);
+    const sex =
+      activeApplicant.basicInfo?.sex ||
+      activeApplicant.sex ||
+      (isPrimary ? app.basicInfo?.sex : '') ||
+      findFv((l) => l.includes('sex') || l.includes('gender')) ||
+      '';
+    const civilStatus =
+      activeApplicant.basicInfo?.civilStatus ||
+      activeApplicant.civilStatus ||
+      (isPrimary ? app.basicInfo?.civilStatus : '') ||
+      findFv((l) => l.includes('civil') || l.includes('marital')) ||
+      '';
+    const nationality =
+      activeApplicant.basicInfo?.nationality ||
+      activeApplicant.nationality ||
+      (isPrimary ? app.basicInfo?.nationality : '') ||
+      findFv((l) => l.includes('nationality') || l.includes('citizenship')) ||
+      'Filipino';
+
+    const compSource =
+      activeApplicant.companyDetails ??
+      activeApplicant.company ??
+      (isPrimary ? (app.companyDetails ?? app.filingUser?.company) : undefined);
+
+    const companyDetails = compSource
+      ? {
+          name: compSource.name || '',
+          registrationNumber: compSource.registrationNumber || '',
+          address: compSource.address || '',
+          email: compSource.email || '',
+          contactNumber: compSource.contactNumber || '',
+        }
+      : undefined;
+
+    return {
+      ...activeApplicant,
+      name: resolvedName,
+      email,
+      contactNumber,
+      address: streetAddress,
+      streetAddress,
+      barangay,
+      city,
+      province,
+      region,
+      zipCode,
+      dob,
+      sex,
+      civilStatus,
+      nationality,
+      basicInfo: {
+        firstName,
+        middleName,
+        lastName,
+        extensionName,
+        dob,
+        placeOfBirth: activeApplicant.basicInfo?.placeOfBirth || (isPrimary ? app.basicInfo?.placeOfBirth : '') || '',
+        sex,
+        weight: activeApplicant.basicInfo?.weight ?? (isPrimary ? app.basicInfo?.weight : 0) ?? 0,
+        height: activeApplicant.basicInfo?.height ?? (isPrimary ? app.basicInfo?.height : 0) ?? 0,
+        nationality,
+        civilStatus,
+        employmentStatus: activeApplicant.basicInfo?.employmentStatus || '',
+        occupation: activeApplicant.basicInfo?.occupation || '',
+      },
+      company: companyDetails,
+      companyDetails,
+      formFieldValues: flatFormValues,
+    };
+  }, [activeApplicant, activeIdx, localApplicants.length, app, flatFormValues]);
 
   const applicantHistory = useMemo<AuditTrailEntry[]>(
     () => resolveApplicantAuditHistory(app, activeApplicant),
@@ -221,33 +388,33 @@ export function ApplicantRecordTab({
           ) : null}
         />
         <View style={{ paddingHorizontal: SPACING[16] }}>
-          {activeApplicant && (() => {
-            const isCompanyRecord = activeApplicant.applicantType === 'Company' || (activeApplicant.applicantType !== 'Individual' && app.applicantType === 'Company');
+          {resolvedActiveApplicant && (() => {
+            const isCompanyRecord = resolvedActiveApplicant.applicantType === 'Company' || (resolvedActiveApplicant.applicantType !== 'Individual' && app.applicantType === 'Company');
             return (
               <ApplicantParticularsCard
                 applicant={{
-                  applicantName: activeApplicant.name,
-                  name: activeApplicant.name,
+                  applicantName: resolvedActiveApplicant.name,
+                  name: resolvedActiveApplicant.name,
                   applicantType: isCompanyRecord ? 'company' : 'individual',
-                  email: activeApplicant.email || app.contactDetails?.email || app.filingUser?.email,
-                  mobileNumber: activeApplicant.contactNumber || app.contactDetails?.contactNumber,
-                  streetAddress: activeApplicant.streetAddress || activeApplicant.address || app.address?.streetAddress,
-                  barangay: activeApplicant.barangay || app.address?.barangay,
-                  cityMunicipality: activeApplicant.city || app.address?.city,
-                  province: activeApplicant.province || app.address?.province,
-                  region: activeApplicant.region || app.address?.region,
-                  zipCode: activeApplicant.zipCode || app.address?.zipCode,
-                  birthDate: activeApplicant.basicInfo?.dob || app.basicInfo?.dob,
-                  sex: activeApplicant.basicInfo?.sex || app.basicInfo?.sex,
-                  civilStatus: activeApplicant.basicInfo?.civilStatus || app.basicInfo?.civilStatus,
-                  nationality: activeApplicant.basicInfo?.nationality || app.basicInfo?.nationality,
-                  companyName: isCompanyRecord ? (activeApplicant.companyDetails?.name || app.companyDetails?.name || app.filingUser?.company?.name) : undefined,
-                  registrationNumber: isCompanyRecord ? (activeApplicant.companyDetails?.registrationNumber || app.companyDetails?.registrationNumber) : undefined,
-                  companyAddress: isCompanyRecord ? (activeApplicant.companyDetails?.address || app.companyDetails?.address) : undefined,
-                  companyEmail: isCompanyRecord ? (activeApplicant.companyDetails?.email || app.companyDetails?.email) : undefined,
-                  companyContactNumber: isCompanyRecord ? (activeApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber) : undefined,
+                  email: resolvedActiveApplicant.email,
+                  mobileNumber: resolvedActiveApplicant.contactNumber,
+                  streetAddress: resolvedActiveApplicant.streetAddress || resolvedActiveApplicant.address,
+                  barangay: resolvedActiveApplicant.barangay,
+                  cityMunicipality: resolvedActiveApplicant.city,
+                  province: resolvedActiveApplicant.province,
+                  region: resolvedActiveApplicant.region,
+                  zipCode: resolvedActiveApplicant.zipCode,
+                  birthDate: resolvedActiveApplicant.basicInfo?.dob || resolvedActiveApplicant.dob,
+                  sex: resolvedActiveApplicant.basicInfo?.sex || resolvedActiveApplicant.sex,
+                  civilStatus: resolvedActiveApplicant.basicInfo?.civilStatus || resolvedActiveApplicant.civilStatus,
+                  nationality: resolvedActiveApplicant.basicInfo?.nationality || resolvedActiveApplicant.nationality,
+                  companyName: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.name : undefined,
+                  registrationNumber: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.registrationNumber : undefined,
+                  companyAddress: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.address : undefined,
+                  companyEmail: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.email : undefined,
+                  companyContactNumber: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.contactNumber : undefined,
                   representativeName: isCompanyRecord ? app.filingUser?.name : undefined,
-                  notes: activeApplicant.evaluationRemarks,
+                  notes: resolvedActiveApplicant.evaluationRemarks,
                 }}
               />
             );
@@ -362,9 +529,15 @@ export function ApplicantRecordTab({
         visible={isEditProfileModalOpen}
         onClose={() => setIsEditProfileModalOpen(false)}
         applicationId={app.id}
-        applicant={activeApplicant}
-        onSuccess={async () => {
+        applicant={resolvedActiveApplicant}
+        onSuccess={async (updatedApplicant) => {
+          if (updatedApplicant) {
+            setLocalApplicants((prev) =>
+              prev.map((item, idx) => (idx === activeIdx ? { ...item, ...updatedApplicant } : item))
+            );
+          }
           await mutateApplications(app.id);
+          updateApplication(app.id, {});
         }}
       />
 
@@ -379,6 +552,7 @@ export function ApplicantRecordTab({
         flatFormValues={flatFormValues}
         onSuccess={async () => {
           await mutateApplications(app.id);
+          updateApplication(app.id, {});
         }}
       />
     </View>

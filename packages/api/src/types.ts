@@ -1067,6 +1067,7 @@ export interface ApplicantDetailDto {
   suffix?: string;
   nationality: string;
   sex: string;
+  civilStatus?: string;
   height?: number;
   weight?: number;
   birthDate?: string;

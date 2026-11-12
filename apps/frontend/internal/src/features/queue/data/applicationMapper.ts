@@ -90,6 +90,66 @@ function formatProperName(name?: string | null): string {
     .join(' ');
 }
 
+function normalizeBirthDate(val?: string | null): string {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed || trimmed.startsWith('0001-01-01') || trimmed.startsWith('1900-01-01')) return '';
+  if (trimmed.includes('T')) {
+    return trimmed.split('T')[0] ?? '';
+  }
+  return trimmed;
+}
+
+const SUFFIX_SET = new Set(['jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'v']);
+const SURNAME_PREFIX_SET = new Set(['de', 'del', 'dela', 'delos', 'la', 'los', 'las', 'san', 'sta', 'sta.', 'st', 'st.', 'van', 'von']);
+
+export function splitFullName(fullName?: string | null): {
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  suffix: string;
+} {
+  if (!fullName || typeof fullName !== 'string' || !isValidName(fullName)) {
+    return { firstName: '', middleName: '', lastName: '', suffix: '' };
+  }
+  const tokens = fullName.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) {
+    return { firstName: '', middleName: '', lastName: '', suffix: '' };
+  }
+
+  let suffix = '';
+  const lastToken = tokens[tokens.length - 1];
+  if (tokens.length > 1 && lastToken && SUFFIX_SET.has(lastToken.toLowerCase())) {
+    suffix = tokens.pop() ?? '';
+  }
+
+  if (tokens.length === 1) {
+    return { firstName: tokens[0] ?? '', middleName: '', lastName: '', suffix };
+  }
+  if (tokens.length === 2) {
+    return { firstName: tokens[0] ?? '', middleName: '', lastName: tokens[1] ?? '', suffix };
+  }
+
+  // Check for compound surname like "Dela Cruz" or "De Los Santos"
+  let surnameStartIdx = tokens.length - 1;
+  while (
+    surnameStartIdx > 1 &&
+    tokens[surnameStartIdx - 1] &&
+    SURNAME_PREFIX_SET.has((tokens[surnameStartIdx - 1] ?? '').toLowerCase())
+  ) {
+    surnameStartIdx--;
+  }
+
+  const lastName = tokens.slice(surnameStartIdx).join(' ');
+  const remaining = tokens.slice(0, surnameStartIdx);
+  if (remaining.length === 1) {
+    return { firstName: remaining[0] ?? '', middleName: '', lastName, suffix };
+  }
+  const middleName = remaining[remaining.length - 1] ?? '';
+  const firstName = remaining.slice(0, -1).join(' ');
+  return { firstName, middleName, lastName, suffix };
+}
+
 function parseAddressSegments(rawAddress?: string | null): {
   street?: string;
   barangay?: string;
@@ -100,14 +160,25 @@ function parseAddressSegments(rawAddress?: string | null): {
 } {
   if (!rawAddress || typeof rawAddress !== 'string') return {};
   const parts = rawAddress.split(',').map((p) => p.trim()).filter((p) => p.length > 0);
-  if (parts.length >= 5) {
+  if (parts.length >= 6) {
     return {
       street: parts[0],
       barangay: parts[1],
       city: parts[2],
       province: parts[3],
-      region: parts.length >= 6 ? parts[4] : undefined,
+      region: parts[4],
       zipCode: parts[parts.length - 1],
+    };
+  } else if (parts.length === 5) {
+    const lastPart = parts[4] ?? '';
+    const isZip = /^\d{4,6}$/.test(lastPart);
+    return {
+      street: parts[0],
+      barangay: parts[1],
+      city: parts[2],
+      province: parts[3],
+      region: isZip ? undefined : lastPart,
+      zipCode: isZip ? lastPart : undefined,
     };
   } else if (parts.length === 4) {
     return {
@@ -203,25 +274,39 @@ export function mapApplicationDtoToUI(
   const rawPrimaryAddress = primaryDetail?.address ?? rawFilingUser?.company?.address ?? '';
   const parsedPrimaryAddr = parseAddressSegments(rawPrimaryAddress);
 
+  const orderedTrails = 'correctionAuditTrails' in dto && Array.isArray(dto.correctionAuditTrails)
+    ? [...dto.correctionAuditTrails].sort((a, b) => new Date(b.correctedAt || 0).getTime() - new Date(a.correctedAt || 0).getTime())
+    : [];
+  const findLatestTrail = (fieldName: string): string | undefined => {
+    const match = orderedTrails.find((t) => (t.fieldName || '').toLowerCase() === fieldName.toLowerCase());
+    return match && typeof match.newValue === 'string' && match.newValue.trim().length > 0
+      ? match.newValue.trim()
+      : undefined;
+  };
+
   const brgyPrimary =
+    findLatestTrail('Barangay') ||
     primaryDetail?.barangayName ||
     primaryDetail?.barangay ||
     findPrimaryFv((lbl) => lbl.includes('barangay')) ||
     parsedPrimaryAddr.barangay ||
     '';
   const cityPrimary =
+    findLatestTrail('City') ||
     primaryDetail?.cityMunicipalityName ||
     primaryDetail?.city ||
     findPrimaryFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) ||
     parsedPrimaryAddr.city ||
     '';
   const provPrimary =
+    findLatestTrail('Province') ||
     primaryDetail?.provinceName ||
     primaryDetail?.province ||
     findPrimaryFv((lbl) => lbl.includes('province')) ||
     parsedPrimaryAddr.province ||
     '';
   const regPrimary =
+    findLatestTrail('Region') ||
     primaryDetail?.regionName ||
     primaryDetail?.region ||
     findPrimaryFv((lbl) => lbl.includes('region')) ||
@@ -232,17 +317,30 @@ export function mapApplicationDtoToUI(
     findPrimaryFv((lbl) => lbl.includes('zip') || lbl.includes('postal')) ||
     parsedPrimaryAddr.zipCode ||
     '';
-  const dobPrimary = primaryDetail?.birthDate ?? findPrimaryFv((lbl) => lbl.includes('birth')) ?? '';
-  const sexPrimary = primaryDetail?.sex ?? findPrimaryFv((lbl) => lbl.includes('sex') || lbl.includes('gender')) ?? '';
-  const natPrimary = primaryDetail?.nationality ?? findPrimaryFv((lbl) => lbl.includes('nationality') || lbl.includes('citizenship')) ?? 'Filipino';
-  const civilPrimary = findPrimaryFv((lbl) => lbl.includes('civil') || lbl.includes('marital')) ?? '';
+  const dobPrimary = normalizeBirthDate(primaryDetail?.birthDate) || normalizeBirthDate(findPrimaryFv((lbl) => lbl.includes('birth'))) || '';
+  const sexPrimary = (primaryDetail?.sex && primaryDetail.sex.trim().length > 0 ? primaryDetail.sex.trim() : '') || findPrimaryFv((lbl) => lbl.includes('sex') || lbl.includes('gender')) || '';
+  const natPrimary = (primaryDetail?.nationality && primaryDetail.nationality.trim().length > 0 ? primaryDetail.nationality.trim() : '') || findPrimaryFv((lbl) => lbl.includes('nationality') || lbl.includes('citizenship')) || 'Filipino';
+  const civilPrimary =
+    findLatestTrail('CivilStatus') ||
+    (primaryDetail?.civilStatus && primaryDetail.civilStatus.trim().length > 0 ? primaryDetail.civilStatus.trim() : '') ||
+    findPrimaryFv((lbl) => lbl.includes('civil') || lbl.includes('marital')) ||
+    '';
 
   const primaryStreet =
     (parsedPrimaryAddr.street && parsedPrimaryAddr.street !== rawPrimaryAddress)
       ? parsedPrimaryAddr.street
       : rawPrimaryAddress;
-  const contactEmail = primaryDetail?.emailAddress ?? primaryDetail?.email ?? rawFilingUser?.email ?? '';
-  const contactPhone = primaryDetail?.contactNumber ?? rawFilingUser?.company?.contactNumber ?? '';
+  const contactEmail =
+    primaryDetail?.emailAddress ||
+    primaryDetail?.email ||
+    findPrimaryFv((lbl) => (lbl.includes('email') || lbl.includes('e-mail')) && !lbl.includes('company')) ||
+    rawFilingUser?.email ||
+    '';
+  const contactPhone =
+    primaryDetail?.contactNumber ||
+    findPrimaryFv((lbl) => (lbl.includes('contact') || lbl.includes('mobile') || lbl.includes('phone') || lbl.includes('telephone')) && !lbl.includes('company')) ||
+    rawFilingUser?.company?.contactNumber ||
+    '';
 
   const applicantsList = (dto.applicants ?? []).map((appItem, idx) => {
     const ad = appItem.details;
@@ -257,7 +355,7 @@ export function mapApplicationDtoToUI(
       ? [ad.firstName, ad.middleName, ad.lastName, ad.suffix].filter(Boolean).join(' ').trim()
       : rawAppItemName;
 
-    const itemComp = appItem.company ?? ad?.company;
+    const itemComp = appItem.company ?? ad?.company ?? (idx === 0 ? rawFilingUser?.company : undefined);
     const itemCompanyDetails = itemComp
       ? {
         name: formatProperName(itemComp.name ?? ''),
@@ -291,26 +389,71 @@ export function mapApplicationDtoToUI(
               ? formatProperName(rawFilingUser.name)
               : formatProperName(itemComp?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
 
+    const firstNameFromFv = findFv((lbl) => lbl === 'first name' || lbl === 'given name' || lbl.includes('first name'));
+    const middleNameFromFv = findFv((lbl) => lbl === 'middle name' || lbl === 'middle initial' || lbl.includes('middle name'));
+    const lastNameFromFv = findFv((lbl) => lbl === 'last name' || lbl === 'surname' || lbl === 'family name' || lbl.includes('last name'));
+    const suffixFromFv = findFv((lbl) => lbl === 'suffix' || lbl.includes('suffix') || lbl.includes('extension'));
+
+    const rawAdFirst = isValidName(ad?.firstName) ? ad.firstName.trim() : '';
+    const rawAdMiddle = ad?.middleName ? ad.middleName.trim() : '';
+    const rawAdLast = isValidName(ad?.lastName) ? ad.lastName.trim() : '';
+    const rawAdSuffix = ad?.suffix ? ad.suffix.trim() : '';
+
+    const parsedFallbackName = splitFullName(
+      (!rawAdLast && rawAdFirst.includes(' ')) ? rawAdFirst : resolvedName
+    );
+
+    const itemFirstName =
+      (rawAdLast ? rawAdFirst : (rawAdFirst && !rawAdFirst.includes(' ') ? rawAdFirst : '')) ||
+      (firstNameFromFv ? firstNameFromFv.trim() : '') ||
+      parsedFallbackName.firstName ||
+      rawAdFirst;
+    const itemMiddleName =
+      rawAdMiddle ||
+      (middleNameFromFv ? middleNameFromFv.trim() : '') ||
+      parsedFallbackName.middleName ||
+      '';
+    const itemLastName =
+      rawAdLast ||
+      (lastNameFromFv ? lastNameFromFv.trim() : '') ||
+      parsedFallbackName.lastName ||
+      '';
+    const itemSuffix =
+      rawAdSuffix ||
+      (suffixFromFv ? suffixFromFv.trim() : '') ||
+      parsedFallbackName.suffix ||
+      '';
+
+    const emailFromFv = findFv((lbl) => (lbl.includes('email') || lbl.includes('e-mail')) && !lbl.includes('company'));
+    const contactFromFv = findFv((lbl) => (lbl.includes('contact') || lbl.includes('mobile') || lbl.includes('phone') || lbl.includes('telephone')) && !lbl.includes('company'));
+    const addrFromFv = findFv((lbl) => lbl === 'address' || lbl.includes('street') || lbl.includes('house') || lbl.includes('unit no'));
     const brgyFromFv = findFv((lbl) => lbl.includes('barangay'));
     const cityFromFv = findFv((lbl) => lbl.includes('city') || lbl.includes('municipality'));
     const provFromFv = findFv((lbl) => lbl.includes('province'));
     const regFromFv = findFv((lbl) => lbl.includes('region'));
     const zipFromFv = findFv((lbl) => lbl.includes('zip') || lbl.includes('postal'));
-    const dobFromFv = findFv((lbl) => lbl.includes('birth'));
+    const dobFromFv = findFv((lbl) => lbl.includes('birth') || lbl === 'dob');
     const sexFromFv = findFv((lbl) => lbl.includes('sex') || lbl.includes('gender'));
     const natFromFv = findFv((lbl) => lbl.includes('nationality') || lbl.includes('citizenship'));
     const civilFromFv = findFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
+    const pobFromFv = findFv((lbl) => lbl.includes('place of birth') || lbl.includes('birthplace'));
 
-    const rawItemAddress = ad?.address ?? '';
+    const rawItemAddress = ad?.address || addrFromFv || (idx === 0 ? rawPrimaryAddress : '') || '';
     const parsedItemAddr = parseAddressSegments(rawItemAddress);
     const itemStreet = (parsedItemAddr.street && parsedItemAddr.street !== rawItemAddress)
       ? parsedItemAddr.street
       : rawItemAddress;
-    const itemBarangay = ad?.barangayName || ad?.barangay || brgyFromFv || parsedItemAddr.barangay || '';
-    const itemCity = ad?.cityMunicipalityName || ad?.city || cityFromFv || parsedItemAddr.city || '';
-    const itemProvince = ad?.provinceName || ad?.province || provFromFv || parsedItemAddr.province || '';
-    const itemRegion = ad?.regionName || ad?.region || regFromFv || parsedItemAddr.region || '';
-    const itemZip = ad?.zipCode || zipFromFv || parsedItemAddr.zipCode || '';
+    const itemBarangay = (idx === 0 ? findLatestTrail('Barangay') : undefined) || ad?.barangayName || ad?.barangay || brgyFromFv || parsedItemAddr.barangay || (idx === 0 ? brgyPrimary : '') || '';
+    const itemCity = (idx === 0 ? findLatestTrail('City') : undefined) || ad?.cityMunicipalityName || ad?.city || cityFromFv || parsedItemAddr.city || (idx === 0 ? cityPrimary : '') || '';
+    const itemProvince = (idx === 0 ? findLatestTrail('Province') : undefined) || ad?.provinceName || ad?.province || provFromFv || parsedItemAddr.province || (idx === 0 ? provPrimary : '') || '';
+    const itemRegion = (idx === 0 ? findLatestTrail('Region') : undefined) || ad?.regionName || ad?.region || regFromFv || parsedItemAddr.region || (idx === 0 ? regPrimary : '') || '';
+    const itemZip = ad?.zipCode || zipFromFv || parsedItemAddr.zipCode || (idx === 0 ? zipPrimary : '') || '';
+    const itemEmail = ad?.emailAddress || ad?.email || emailFromFv || (idx === 0 ? contactEmail : '') || '';
+    const itemContact = ad?.contactNumber || contactFromFv || (idx === 0 ? contactPhone : '') || '';
+    const itemDob = normalizeBirthDate(ad?.birthDate) || normalizeBirthDate(dobFromFv) || (idx === 0 ? dobPrimary : '') || '';
+    const itemSex = (ad?.sex && ad.sex.trim().length > 0 ? ad.sex.trim() : '') || (sexFromFv ? sexFromFv.trim() : '') || (idx === 0 ? sexPrimary : '') || '';
+    const itemNat = (ad?.nationality && ad.nationality.trim().length > 0 ? ad.nationality.trim() : '') || (natFromFv ? natFromFv.trim() : '') || (idx === 0 ? natPrimary : '') || 'Filipino';
+    const itemCivil = (idx === 0 ? findLatestTrail('CivilStatus') : undefined) || (ad?.civilStatus && ad.civilStatus.trim().length > 0 ? ad.civilStatus.trim() : '') || (civilFromFv ? civilFromFv.trim() : '') || (idx === 0 ? civilPrimary : '') || '';
 
     const itemApplicantType: 'Individual' | 'Company' =
       appItem.applicantType === 'Company' ? 'Company' : 'Individual';
@@ -381,11 +524,27 @@ export function mapApplicationDtoToUI(
       elements: resolvedElement,
       applicationType: resolvedItemAppType,
       submissionId: appItem.submissionId,
-      contactNumber: ad?.contactNumber ?? '',
-      email: ad?.emailAddress ?? ad?.email ?? '',
+      contactNumber: itemContact,
+      email: itemEmail,
       address: itemStreet || rawItemAddress,
       streetAddress: itemStreet || rawItemAddress,
       company: itemCompanyDetails,
+      companyDetails: itemCompanyDetails,
+      basicInfo: {
+        firstName: itemFirstName,
+        middleName: itemMiddleName,
+        lastName: itemLastName,
+        extensionName: itemSuffix,
+        dob: itemDob,
+        placeOfBirth: pobFromFv ?? '',
+        sex: itemSex,
+        weight: ad?.weight ?? 0,
+        height: ad?.height ?? 0,
+        nationality: itemNat,
+        civilStatus: itemCivil,
+        employmentStatus: '',
+        occupation: '',
+      },
       formFieldValues: formFields.map((f) => ({
         fieldId: f.fieldId || '',
         fieldLabel: f.fieldLabel || '',
@@ -396,10 +555,10 @@ export function mapApplicationDtoToUI(
       province: itemProvince,
       region: itemRegion,
       zipCode: itemZip,
-      dob: dobFromFv ?? ad?.birthDate ?? '',
-      sex: sexFromFv ?? ad?.sex ?? '',
-      nationality: natFromFv ?? ad?.nationality ?? 'Filipino',
-      civilStatus: civilFromFv ?? '',
+      dob: itemDob,
+      sex: itemSex,
+      nationality: itemNat,
+      civilStatus: itemCivil,
       documents: appItem.documents ?? [],
       schoolAttended: ad?.schoolAttended ?? findFv((lbl) => lbl.includes('school') || lbl.includes('university')),
       courseTaken: ad?.courseTaken ?? findFv((lbl) => lbl.includes('course') || lbl.includes('degree') || lbl.includes('program')),
@@ -685,21 +844,25 @@ export function mapApplicationDtoToUI(
       contactNumber: contactPhone,
       email: contactEmail,
     },
-    basicInfo: {
-      lastName: primaryDetail?.lastName ?? (rawFilingUser?.name?.split(' ').slice(1).join(' ') ?? ''),
-      firstName: primaryDetail?.firstName ?? (rawFilingUser?.name?.split(' ')[0] ?? ''),
-      middleName: primaryDetail?.middleName ?? '',
-      extensionName: primaryDetail?.suffix ?? '',
-      dob: dobPrimary,
-      placeOfBirth: '',
-      sex: sexPrimary,
-      weight: primaryDetail?.weight ?? 0,
-      height: primaryDetail?.height ?? 0,
-      nationality: natPrimary,
-      civilStatus: civilPrimary,
-      employmentStatus: '',
-      occupation: '',
-    },
+    basicInfo: (() => {
+      const primaryBasic = applicantsList[0]?.basicInfo;
+      const fallbackSplit = splitFullName(applicantName);
+      return {
+        lastName: primaryBasic?.lastName || primaryDetail?.lastName || fallbackSplit.lastName || (rawFilingUser?.name?.split(' ').slice(1).join(' ') ?? ''),
+        firstName: primaryBasic?.firstName || primaryDetail?.firstName || fallbackSplit.firstName || (rawFilingUser?.name?.split(' ')[0] ?? ''),
+        middleName: primaryBasic?.middleName || primaryDetail?.middleName || fallbackSplit.middleName || '',
+        extensionName: primaryBasic?.extensionName || primaryDetail?.suffix || fallbackSplit.suffix || '',
+        dob: primaryBasic?.dob || dobPrimary,
+        placeOfBirth: primaryBasic?.placeOfBirth || '',
+        sex: primaryBasic?.sex || sexPrimary,
+        weight: primaryDetail?.weight ?? 0,
+        height: primaryDetail?.height ?? 0,
+        nationality: primaryBasic?.nationality || natPrimary,
+        civilStatus: primaryBasic?.civilStatus || civilPrimary,
+        employmentStatus: '',
+        occupation: '',
+      };
+    })(),
     applicationDetails: {
       noOfYears: 0,
       permitCategory: '',
