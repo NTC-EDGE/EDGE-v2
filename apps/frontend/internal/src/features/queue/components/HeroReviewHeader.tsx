@@ -376,13 +376,14 @@ export function HeroReviewHeader({
                         },
                       ]}
                     >
+                      <Icon name="layers" size={10} color={isDark ? '#38BDF8' : '#0284C7'} />
                       <Text
                         style={[
                           styles.tagBadgeText,
                           { color: isDark ? '#38BDF8' : '#0284C7', fontWeight: '600' },
                         ]}
                       >
-                        {svc.variant}
+                        Variant: {svc.variant}
                       </Text>
                     </View>
                   )}
@@ -396,13 +397,14 @@ export function HeroReviewHeader({
                         },
                       ]}
                     >
+                      <Icon name="tag" size={10} color={isDark ? '#A78BFA' : '#7C3AED'} />
                       <Text
                         style={[
                           styles.tagBadgeText,
                           { color: isDark ? '#A78BFA' : '#7C3AED', fontWeight: '600' },
                         ]}
                       >
-                        {svc.applicationType}
+                        Type: {svc.applicationType}
                       </Text>
                     </View>
                   )}
@@ -416,6 +418,7 @@ export function HeroReviewHeader({
                         },
                       ]}
                     >
+                      <Icon name="cpu" size={10} color={isDark ? '#2DD4BF' : '#0D9488'} />
                       <Text
                         style={[
                           styles.tagBadgeText,

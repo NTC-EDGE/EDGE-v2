@@ -319,6 +319,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                 ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                 ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                ServiceVariantType = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null && aa.Applicant.ServiceVariant.Type != ServiceVariantType.NA ? (aa.Applicant.ServiceVariant.Type == ServiceVariantType.FirstTaker ? "First Taker" : aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
                 Element = app.FormSubmissions
                     .SelectMany(fs => fs.FieldValues)
                     .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
@@ -423,6 +424,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                     ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                    ApplicationType = aa.Applicant != null && aa.Applicant.ServiceVariant != null && aa.Applicant.ServiceVariant.Type != ServiceVariantType.NA ? (aa.Applicant.ServiceVariant.Type == ServiceVariantType.FirstTaker ? "First Taker" : aa.Applicant.ServiceVariant.Type.ToString()) : null,
                     Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
                         ? aa.Applicant.FormSubmission.FieldValues
                             .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
@@ -740,6 +742,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                     ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                     ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                    ServiceVariantType = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null && aa.Applicant.ServiceVariant.Type != ServiceVariantType.NA ? (aa.Applicant.ServiceVariant.Type == ServiceVariantType.FirstTaker ? "First Taker" : aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
                     Element = app.FormSubmissions
                         .SelectMany(fs => fs.FieldValues)
                         .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
@@ -864,6 +867,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                         ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                         ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                        ApplicationType = aa.Applicant != null && aa.Applicant.ServiceVariant != null && aa.Applicant.ServiceVariant.Type != ServiceVariantType.NA ? (aa.Applicant.ServiceVariant.Type == ServiceVariantType.FirstTaker ? "First Taker" : aa.Applicant.ServiceVariant.Type.ToString()) : null,
                         Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
                             ? aa.Applicant.FormSubmission.FieldValues
                                 .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))

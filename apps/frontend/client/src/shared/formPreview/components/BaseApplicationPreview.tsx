@@ -109,7 +109,7 @@ export function BaseApplicationPreview({
   selectedVariantDescription,
   applicationType,
   elements,
-  showEquivalentFormHeader = true,
+  showEquivalentFormHeader = false,
   isExamService,
   isAmateurCertService,
   onPreviewFile = () => {},

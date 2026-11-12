@@ -13,6 +13,7 @@ export * from './services/tokenManager';
 export * from './services/fieldOfficeService';
 export * from './services/userService';
 export * from './hooks/useRegions';
+export * from './hooks/useGeographicLocations';
 export * from './hooks/useMyTenantMemberships';
 export * from './hooks/useAdminFeedback';
 export * from './hooks/useAdminAnnouncements';

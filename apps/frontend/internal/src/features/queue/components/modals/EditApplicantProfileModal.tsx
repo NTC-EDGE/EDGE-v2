@@ -9,9 +9,11 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast } from "@edge/ui";
-import { applicationService } from "@edge/api";
+import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon, toast, DatePickerInput } from "@edge/ui";
+import { applicationService, useGeographicLocations } from "@edge/api";
 import { ApplicantItem } from "../../../../types/application";
+import { splitFullName } from "../../data/applicationMapper";
+import { LocationSuggestionInput } from "./LocationSuggestionInput";
 
 function extractError(err: unknown): string {
   if (typeof err === "object" && err !== null && Reflect.has(err, "message")) {
@@ -26,7 +28,7 @@ interface EditApplicantProfileModalProps {
   onClose: () => void;
   applicationId: string;
   applicant: ApplicantItem | null;
-  onSuccess: () => Promise<void> | void;
+  onSuccess: (updatedApplicant?: ApplicantItem) => Promise<void> | void;
 }
 
 export function EditApplicantProfileModal({
@@ -40,7 +42,7 @@ export function EditApplicantProfileModal({
 
   const isCompany =
     applicant?.applicantType === "Company" ||
-    Boolean(applicant?.companyDetails?.name);
+    Boolean(applicant?.companyDetails?.name || applicant?.company?.name);
 
   // Form states
   const [firstName, setFirstName] = useState("");
@@ -51,6 +53,7 @@ export function EditApplicantProfileModal({
   const [contactNumber, setContactNumber] = useState("");
   const [address, setAddress] = useState("");
   const [barangay, setBarangay] = useState("");
+  const [barangayId, setBarangayId] = useState<string | undefined>(undefined);
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
   const [region, setRegion] = useState("");
@@ -59,6 +62,49 @@ export function EditApplicantProfileModal({
   const [sex, setSex] = useState("");
   const [civilStatus, setCivilStatus] = useState("");
   const [nationality, setNationality] = useState("");
+
+  const {
+    provinces,
+    municipalities,
+    barangays,
+    resolvedMunicipalityId,
+    loadingProvinces,
+    loadingMunicipalities,
+    loadingBarangays,
+  } = useGeographicLocations({
+    regionName: region,
+    provinceName: province,
+    municipalityName: city,
+  });
+
+  const provinceOptions = React.useMemo(
+    () =>
+      provinces.map((p) => ({
+        id: p.id,
+        name: p.name,
+        subtitle: p.region?.code || p.region?.name,
+      })),
+    [provinces]
+  );
+
+  const municipalityOptions = React.useMemo(
+    () =>
+      municipalities.map((m) => ({
+        id: m.id,
+        name: m.name,
+        subtitle: m.province?.name,
+      })),
+    [municipalities]
+  );
+
+  const barangayOptions = React.useMemo(
+    () =>
+      barangays.map((b) => ({
+        id: b.id,
+        name: b.name,
+      })),
+    [barangays]
+  );
 
   // Company fields
   const [companyName, setCompanyName] = useState("");
@@ -73,33 +119,86 @@ export function EditApplicantProfileModal({
   useEffect(() => {
     if (applicant) {
       const basic = applicant.basicInfo;
-      setFirstName(basic?.firstName ?? "");
-      setMiddleName(basic?.middleName ?? "");
-      setLastName(basic?.lastName ?? "");
-      setSuffix(basic?.extensionName ?? "");
-      setEmail(applicant.email ?? "");
-      setContactNumber(applicant.contactNumber ?? "");
-      setAddress(applicant.streetAddress ?? applicant.address ?? "");
-      setBarangay(applicant.barangay ?? "");
-      setCity(applicant.city ?? "");
-      setProvince(applicant.province ?? "");
-      setRegion(applicant.region ?? "");
-      setZipCode(applicant.zipCode ?? "");
-      setDob(basic?.dob ?? "");
-      setSex(basic?.sex ?? "");
-      setCivilStatus(basic?.civilStatus ?? "");
-      setNationality(basic?.nationality ?? "Filipino");
+      const fvs = applicant.formFieldValues ?? [];
+      const findFv = (predicate: (lbl: string) => boolean): string => {
+        const match = fvs.find((f) => predicate((f.fieldLabel || "").toLowerCase().trim()));
+        return match && typeof match.value === "string" ? match.value.trim() : "";
+      };
 
-      const comp = applicant.companyDetails;
-      setCompanyName(comp?.name ?? "");
-      setCompanyRegNo(comp?.registrationNumber ?? "");
-      setCompanyAddress(comp?.address ?? "");
-      setCompanyEmail(comp?.email ?? "");
-      setCompanyContact(comp?.contactNumber ?? "");
+      const rawFirst = basic?.firstName?.trim() ?? "";
+      const rawMiddle = basic?.middleName?.trim() ?? "";
+      const rawLast = basic?.lastName?.trim() ?? "";
+      const rawSuffix = basic?.extensionName?.trim() ?? "";
+
+      const fvFirst = findFv((l) => l === "first name" || l === "given name" || l.includes("first name"));
+      const fvMiddle = findFv((l) => l === "middle name" || l === "middle initial" || l.includes("middle name"));
+      const fvLast = findFv((l) => l === "last name" || l === "surname" || l === "family name" || l.includes("last name"));
+      const fvSuffix = findFv((l) => l === "suffix" || l.includes("suffix") || l.includes("extension"));
+      const fvFullName = findFv((l) => l.includes("full name") || l.includes("applicant name") || l.includes("name of applicant"));
+
+      const parsedFallbackName = splitFullName(
+        (!rawLast && rawFirst.includes(" "))
+          ? rawFirst
+          : (applicant.name || fvFullName || "")
+      );
+
+      const resolvedFirst =
+        (rawLast ? rawFirst : (rawFirst && !rawFirst.includes(" ") ? rawFirst : "")) ||
+        fvFirst ||
+        parsedFallbackName.firstName ||
+        rawFirst;
+      const resolvedMiddle = rawMiddle || fvMiddle || parsedFallbackName.middleName || "";
+      const resolvedLast = rawLast || fvLast || parsedFallbackName.lastName || "";
+      const resolvedSuffix = rawSuffix || fvSuffix || parsedFallbackName.suffix || "";
+
+      setFirstName(resolvedFirst);
+      setMiddleName(resolvedMiddle);
+      setLastName(resolvedLast);
+      setSuffix(resolvedSuffix);
+
+      setEmail(
+        applicant.email ||
+        findFv((l) => (l.includes("email") || l.includes("e-mail")) && !l.includes("company")) ||
+        ""
+      );
+      setContactNumber(
+        applicant.contactNumber ||
+        findFv((l) => (l.includes("contact") || l.includes("mobile") || l.includes("phone") || l.includes("telephone")) && !l.includes("company")) ||
+        ""
+      );
+      setAddress(
+        applicant.streetAddress ||
+        applicant.address ||
+        findFv((l) => l === "address" || l.includes("street") || l.includes("house") || l.includes("unit no")) ||
+        ""
+      );
+      setBarangay(applicant.barangay || findFv((l) => l.includes("barangay")) || "");
+      setBarangayId(undefined);
+      setCity(applicant.city || findFv((l) => l.includes("city") || l.includes("municipality")) || "");
+      setProvince(applicant.province || findFv((l) => l.includes("province")) || "");
+      setRegion(applicant.region || findFv((l) => l.includes("region")) || "");
+      setZipCode(applicant.zipCode || findFv((l) => l.includes("zip") || l.includes("postal")) || "");
+
+      const rawDob = basic?.dob || applicant.dob || findFv((l) => l.includes("birth") || l === "dob") || "";
+      const cleanDob = rawDob.startsWith("0001-01-01") || rawDob.startsWith("1900-01-01")
+        ? ""
+        : (rawDob.includes("T") ? (rawDob.split("T")[0] ?? "") : rawDob);
+
+      setDob(cleanDob);
+      setSex(basic?.sex || applicant.sex || findFv((l) => l.includes("sex") || l.includes("gender")) || "");
+      setCivilStatus(basic?.civilStatus || applicant.civilStatus || findFv((l) => l.includes("civil") || l.includes("marital")) || "");
+      setNationality(basic?.nationality || applicant.nationality || findFv((l) => l.includes("nationality") || l.includes("citizenship")) || "Filipino");
+
+      const comp = applicant.companyDetails ?? applicant.company;
+      setCompanyName(comp?.name || findFv((l) => l.includes("company name") || l.includes("business name") || l.includes("corporate name")) || "");
+      setCompanyRegNo(comp?.registrationNumber || findFv((l) => l.includes("registration") || l.includes("sec") || l.includes("dti")) || "");
+      setCompanyAddress(comp?.address || findFv((l) => l.includes("company address") || l.includes("corporate address") || l.includes("business address")) || "");
+      setCompanyEmail(comp?.email || findFv((l) => l.includes("company email") || l.includes("corporate email")) || "");
+      setCompanyContact(comp?.contactNumber || findFv((l) => l.includes("company contact") || l.includes("company phone")) || "");
 
       setErrorMessage(null);
     }
-  }, [applicant]);
+  }, [applicant, visible]);
 
   const handleSave = async () => {
     if (!applicant) return;
@@ -107,27 +206,50 @@ export function EditApplicantProfileModal({
     setIsSaving(true);
     setErrorMessage(null);
 
+    const trimmedFirst = firstName.trim();
+    const trimmedMiddle = middleName.trim();
+    const trimmedLast = lastName.trim();
+    const trimmedSuffix = suffix.trim();
+    const trimmedEmail = email.trim();
+    const trimmedContact = contactNumber.trim();
+    const trimmedAddress = address.trim();
+    const trimmedBarangay = barangay.trim();
+    const trimmedCity = city.trim();
+    const trimmedProvince = province.trim();
+    const trimmedRegion = region.trim();
+    const trimmedZip = zipCode.trim();
+    const trimmedDob = dob.trim();
+    const trimmedSex = sex.trim();
+    const trimmedCivilStatus = civilStatus.trim();
+    const trimmedNationality = nationality.trim() || "Filipino";
+
     const payload: Record<string, unknown> = {
       applicantType: isCompany ? "Company" : "Individual",
-      firstName: firstName.trim(),
-      middleName: middleName.trim() || undefined,
-      lastName: lastName.trim(),
-      suffix: suffix.trim() || undefined,
-      email: email.trim(),
-      contactNumber: contactNumber.trim(),
-      address: address.trim(),
-      zipCode: zipCode.trim() || undefined,
-      dob: dob.trim() || undefined,
-      sex: sex.trim() || undefined,
-      nationality: nationality.trim() || undefined,
+      firstName: trimmedFirst,
+      middleName: trimmedMiddle,
+      lastName: trimmedLast,
+      suffix: trimmedSuffix,
+      email: trimmedEmail,
+      contactNumber: trimmedContact,
+      address: trimmedAddress,
+      barangay: trimmedBarangay,
+      barangayId: barangayId || undefined,
+      city: trimmedCity,
+      province: trimmedProvince,
+      region: trimmedRegion,
+      zipCode: trimmedZip,
+      dob: trimmedDob || undefined,
+      sex: trimmedSex,
+      civilStatus: trimmedCivilStatus,
+      nationality: trimmedNationality,
     };
 
     if (isCompany) {
-      payload.companyName = companyName.trim() || undefined;
-      payload.companyRegistrationNumber = companyRegNo.trim() || undefined;
-      payload.companyAddress = companyAddress.trim() || undefined;
+      payload.companyName = companyName.trim();
+      payload.companyRegistrationNumber = companyRegNo.trim();
+      payload.companyAddress = companyAddress.trim();
       payload.companyEmail = companyEmail.trim() || undefined;
-      payload.companyContactNumber = companyContact.trim() || undefined;
+      payload.companyContactNumber = companyContact.trim();
     }
 
     try {
@@ -142,8 +264,58 @@ export function EditApplicantProfileModal({
         return;
       }
 
+      const updatedFullName = [trimmedFirst, trimmedMiddle, trimmedLast, trimmedSuffix]
+        .filter((p) => p.length > 0)
+        .join(" ")
+        .trim();
+
+      const updatedCompanyDetails = isCompany
+        ? {
+            name: companyName.trim(),
+            registrationNumber: companyRegNo.trim(),
+            address: companyAddress.trim(),
+            email: companyEmail.trim(),
+            contactNumber: companyContact.trim(),
+          }
+        : applicant.companyDetails;
+
+      const updatedApplicant: ApplicantItem = {
+        ...applicant,
+        name: updatedFullName || applicant.name,
+        email: trimmedEmail,
+        contactNumber: trimmedContact,
+        address: trimmedAddress,
+        streetAddress: trimmedAddress,
+        barangay: trimmedBarangay,
+        city: trimmedCity,
+        province: trimmedProvince,
+        region: trimmedRegion,
+        zipCode: trimmedZip,
+        dob: trimmedDob,
+        sex: trimmedSex,
+        civilStatus: trimmedCivilStatus,
+        nationality: trimmedNationality,
+        basicInfo: {
+          firstName: trimmedFirst,
+          middleName: trimmedMiddle,
+          lastName: trimmedLast,
+          extensionName: trimmedSuffix,
+          dob: trimmedDob,
+          placeOfBirth: applicant.basicInfo?.placeOfBirth ?? "",
+          sex: trimmedSex,
+          weight: applicant.basicInfo?.weight ?? 0,
+          height: applicant.basicInfo?.height ?? 0,
+          nationality: trimmedNationality,
+          civilStatus: trimmedCivilStatus,
+          employmentStatus: applicant.basicInfo?.employmentStatus ?? "",
+          occupation: applicant.basicInfo?.occupation ?? "",
+        },
+        company: updatedCompanyDetails,
+        companyDetails: updatedCompanyDetails,
+      };
+
       toast.success("Applicant Profile Updated");
-      await onSuccess();
+      await onSuccess(updatedApplicant);
       onClose();
     } catch (e: unknown) {
       setErrorMessage(extractError(e));
@@ -213,7 +385,11 @@ export function EditApplicantProfileModal({
           )}
 
           {/* Form Fields Scroll */}
-          <ScrollView style={modalStyles.scrollBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={modalStyles.scrollBody}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* 1. Legal Name Section */}
             <Text
               style={[
@@ -337,43 +513,90 @@ export function EditApplicantProfileModal({
                 placeholderTextColor="#94A3B8"
               />
             </View>
-            <View style={modalStyles.fieldRow}>
-              <View style={modalStyles.fieldCol}>
-                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  Barangay
-                </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                  value={barangay}
-                  onChangeText={setBarangay}
-                  placeholder="Barangay"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-              <View style={modalStyles.fieldCol}>
-                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  City / Municipality
-                </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                  value={city}
-                  onChangeText={setCity}
-                  placeholder="City"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-            </View>
-            <View style={modalStyles.fieldRow}>
-              <View style={modalStyles.fieldCol}>
+            <View style={[modalStyles.fieldRow, { zIndex: 30 }]}>
+              <View style={[modalStyles.fieldCol, { zIndex: 32 }]}>
                 <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
                   Province
                 </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+                <LocationSuggestionInput
                   value={province}
-                  onChangeText={setProvince}
-                  placeholder="Province"
-                  placeholderTextColor="#94A3B8"
+                  onChangeText={(text) => {
+                    setProvince(text);
+                  }}
+                  onSelectOption={(opt) => {
+                    const prevProvince = province.trim().toLowerCase();
+                    setProvince(opt.name);
+                    const matchedProv = provinces.find((p) => p.id === opt.id);
+                    if (matchedProv?.region?.name) {
+                      setRegion(matchedProv.region.name);
+                    }
+                    if (prevProvince && prevProvince !== opt.name.trim().toLowerCase()) {
+                      setCity("");
+                      setBarangay("");
+                      setBarangayId(undefined);
+                    }
+                  }}
+                  options={provinceOptions}
+                  loading={loadingProvinces}
+                  placeholder="Select or type province"
+                  emptyHint="No matching province found"
+                />
+              </View>
+              <View style={[modalStyles.fieldCol, { zIndex: 31 }]}>
+                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                  City / Municipality
+                </Text>
+                <LocationSuggestionInput
+                  value={city}
+                  onChangeText={(text) => {
+                    setCity(text);
+                    setBarangayId(undefined);
+                  }}
+                  onSelectOption={(opt) => {
+                    const prevCity = city.trim().toLowerCase();
+                    setCity(opt.name);
+                    const matchedMuni = municipalities.find((m) => m.id === opt.id);
+                    if (matchedMuni?.province?.name) {
+                      setProvince(matchedMuni.province.name);
+                    }
+                    if (matchedMuni?.province?.region?.name) {
+                      setRegion(matchedMuni.province.region.name);
+                    }
+                    if (prevCity && prevCity !== opt.name.trim().toLowerCase()) {
+                      setBarangay("");
+                      setBarangayId(undefined);
+                    }
+                  }}
+                  options={municipalityOptions}
+                  loading={loadingMunicipalities}
+                  placeholder="Select or type city / municipality"
+                  emptyHint="No matching city / municipality found"
+                />
+              </View>
+            </View>
+            <View style={[modalStyles.fieldRow, { zIndex: 20 }]}>
+              <View style={[modalStyles.fieldCol, { zIndex: 22 }]}>
+                <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                  Barangay
+                </Text>
+                <LocationSuggestionInput
+                  value={barangay}
+                  onChangeText={(text) => {
+                    setBarangay(text);
+                    setBarangayId(undefined);
+                  }}
+                  onSelectOption={(opt) => {
+                    setBarangay(opt.name);
+                    setBarangayId(opt.id);
+                  }}
+                  options={barangayOptions}
+                  loading={loadingBarangays}
+                  placeholder="Select or type barangay"
+                  emptyHint={
+                    !resolvedMunicipalityId
+                      ? "Select a valid City / Municipality first to load barangays"
+                      : "No matching barangay found"
+                  }
                 />
               </View>
               <View style={modalStyles.fieldCol}>
@@ -403,14 +626,13 @@ export function EditApplicantProfileModal({
             <View style={modalStyles.fieldRow}>
               <View style={modalStyles.fieldCol}>
                 <Text style={[modalStyles.fieldLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  Date of Birth (YYYY-MM-DD)
+                  Date of Birth
                 </Text>
-                <TextInput
-                  style={[modalStyles.input, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], color: isDark ? colors.neutral[100] : colors.neutral[900], borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+                <DatePickerInput
                   value={dob}
                   onChangeText={setDob}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#94A3B8"
+                  maxDate={new Date().toISOString().split("T")[0]}
                 />
               </View>
               <View style={modalStyles.fieldCol}>

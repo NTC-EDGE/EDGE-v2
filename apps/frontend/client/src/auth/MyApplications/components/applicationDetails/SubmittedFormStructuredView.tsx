@@ -164,6 +164,7 @@ export function SubmittedFormStructuredView({
       companyName={singleApplicant?.companyName}
       representativeName={singleApplicant?.representativeName}
       notes={singleApplicant?.notes}
+      showEquivalentFormHeader={false}
       showApplicantCard={showApplicantCard}
       showSignatureCard={true}
       onPreviewFile={onPreviewFile}

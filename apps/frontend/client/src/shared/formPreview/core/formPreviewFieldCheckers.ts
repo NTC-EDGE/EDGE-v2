@@ -37,7 +37,17 @@ export const isUnrelatedSection = (titleOrKey: string): boolean => {
     lower.includes('applicant details') ||
     lower.includes('applicant information') ||
     lower.includes('personal information') ||
-    lower.includes('profile details')
+    lower.includes('profile details') ||
+    lower === 'form' ||
+    lower === 'forms' ||
+    lower === 'application form' ||
+    lower === 'form details' ||
+    lower === 'form information' ||
+    lower === 'typeofapplication' ||
+    lower === 'type of application' ||
+    lower === 'application type' ||
+    lower === 'permittype' ||
+    lower === 'permit type'
   );
 };
 
