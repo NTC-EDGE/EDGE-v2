@@ -329,6 +329,45 @@ export function mapApplicationDtoToUI(
       elementFromFv ??
       undefined;
 
+    const appTypeFromFv = findFv((lbl, id) =>
+      id === 'fd000000-0000-0000-0000-000000000007' ||
+      id === 'fd000000-0000-0000-0000-000000000008' ||
+      lbl === 'type of application' ||
+      lbl === 'application type' ||
+      lbl === 'examinee type' ||
+      lbl === 'type of examinee' ||
+      lbl.includes('type of application') ||
+      lbl.includes('application type') ||
+      lbl.includes('examinee type')
+    );
+
+    const variantFromFv = findFv((lbl, id) =>
+      id === 'fd000000-0000-0000-0000-000000000014' ||
+      id === 'fd000000-0000-0000-0000-000000000024' ||
+      lbl === 'service variant' ||
+      lbl === 'variant' ||
+      lbl.includes('variant name') ||
+      lbl.includes('permit / license type') ||
+      lbl.includes('type of certificate') ||
+      lbl.includes('application variant')
+    );
+
+    const matchedDtoService = dto.services?.find((s) => s.applicantId === appItem.id) ?? dto.services?.[idx] ?? dto.services?.[0];
+
+    const resolvedItemVariantName =
+      (typeof appItem.serviceVariantName === 'string' && appItem.serviceVariantName.trim().length > 0 ? appItem.serviceVariantName.trim() : undefined) ??
+      (typeof matchedDtoService?.serviceVariantName === 'string' && matchedDtoService.serviceVariantName.trim().length > 0 ? matchedDtoService.serviceVariantName.trim() : undefined) ??
+      (typeof dto.serviceVariantName === 'string' && dto.serviceVariantName.trim().length > 0 ? dto.serviceVariantName.trim() : undefined) ??
+      variantFromFv ??
+      undefined;
+
+    const resolvedItemAppType =
+      (typeof appItem.applicationType === 'string' && appItem.applicationType.trim().length > 0 ? appItem.applicationType.trim() : undefined) ??
+      (typeof matchedDtoService?.applicationType === 'string' && matchedDtoService.applicationType.trim().length > 0 ? matchedDtoService.applicationType.trim() : undefined) ??
+      (typeof dto.serviceVariantType === 'string' && dto.serviceVariantType.trim().length > 0 ? dto.serviceVariantType.trim() : undefined) ??
+      appTypeFromFv ??
+      undefined;
+
     return {
       id: appItem.id || `app-${idx}`,
       name: resolvedName,
@@ -337,10 +376,10 @@ export function mapApplicationDtoToUI(
       evaluationRemarks: appItem.evaluationRemarks ?? '',
       serviceId: appItem.serviceId,
       serviceVariantId: appItem.serviceVariantId,
-      serviceVariantName: appItem.serviceVariantName || dto.serviceVariantName || undefined,
+      serviceVariantName: resolvedItemVariantName,
       element: resolvedElement,
       elements: resolvedElement,
-      applicationType: appItem.applicationType || undefined,
+      applicationType: resolvedItemAppType,
       submissionId: appItem.submissionId,
       contactNumber: ad?.contactNumber ?? '',
       email: ad?.emailAddress ?? ad?.email ?? '',
@@ -553,7 +592,8 @@ export function mapApplicationDtoToUI(
     serviceId: dto.serviceId ?? dto.services?.[0]?.serviceId ?? '',
     serviceName: resolvedServiceName,
     serviceCategory: resolvedCategory,
-    serviceVariantName: dto.serviceVariantName ?? '',
+    serviceVariantName: dto.serviceVariantName ?? dto.services?.[0]?.serviceVariantName ?? applicantsList[0]?.serviceVariantName ?? '',
+    serviceVariantType: dto.serviceVariantType ?? dto.services?.[0]?.applicationType ?? applicantsList[0]?.applicationType ?? undefined,
     element: dto.element ?? dto.elements ?? applicantsList[0]?.element ?? applicantsList[0]?.elements ?? dto.services?.[0]?.element ?? undefined,
     elements: dto.elements ?? dto.element ?? applicantsList[0]?.elements ?? applicantsList[0]?.element ?? dto.services?.[0]?.elements ?? undefined,
     office: dto.office ?? '',
@@ -567,6 +607,7 @@ export function mapApplicationDtoToUI(
       ? dto.services.map((s) => {
           const matchedApp = applicantsList.find((a) => a.id === s.applicantId) || applicantsList[0];
           const svcElement = s.element ?? s.elements ?? matchedApp?.element ?? matchedApp?.elements ?? dto.element ?? dto.elements ?? undefined;
+          const svcAppType = s.applicationType ?? matchedApp?.applicationType ?? dto.serviceVariantType ?? undefined;
           return {
             id: s.id,
             applicantId: s.applicantId,
@@ -574,7 +615,8 @@ export function mapApplicationDtoToUI(
             serviceName: s.serviceName ?? resolvedServiceName,
             serviceCategory: s.serviceCategory ?? resolvedCategory,
             serviceVariantId: s.serviceVariantId,
-            serviceVariantName: s.serviceVariantName ?? dto.serviceVariantName,
+            serviceVariantName: s.serviceVariantName ?? matchedApp?.serviceVariantName ?? dto.serviceVariantName,
+            applicationType: svcAppType,
             element: svcElement,
             elements: svcElement,
             submissionId: s.submissionId,
@@ -587,7 +629,8 @@ export function mapApplicationDtoToUI(
           serviceName: resolvedServiceName,
           serviceCategory: resolvedCategory,
           serviceVariantId: a.serviceVariantId,
-          serviceVariantName: dto.serviceVariantName ?? '',
+          serviceVariantName: a.serviceVariantName ?? dto.serviceVariantName ?? '',
+          applicationType: a.applicationType ?? dto.serviceVariantType ?? undefined,
           element: a.element ?? a.elements ?? dto.element ?? dto.elements ?? undefined,
           elements: a.elements ?? a.element ?? dto.elements ?? dto.element ?? undefined,
           submissionId: a.submissionId,

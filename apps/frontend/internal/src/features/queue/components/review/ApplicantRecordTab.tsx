@@ -145,11 +145,14 @@ export function ApplicantRecordTab({
     null;
 
   const effectiveAppType = resolvePreviewApplicationType({
-    applicationType: activeApplicant?.applicationType,
+    applicationType:
+      activeApplicant?.applicationType ||
+      app.services?.find((s) => s.applicantId === activeApplicant?.id)?.applicationType ||
+      app.serviceVariantType,
     examineeType: undefined,
-    element: undefined,
+    element: activeApplicant?.element || app.element,
     formFieldValues: flatFormValues,
-  }) || (app.applicationType !== 'BULK' ? 'Regular' : undefined);
+  }) || (app.applicationType !== 'BULK' ? 'New' : undefined);
 
   const effectiveElements = resolvePreviewElements({
     element: activeApplicant?.element || activeApplicant?.elements || app.element || app.elements,

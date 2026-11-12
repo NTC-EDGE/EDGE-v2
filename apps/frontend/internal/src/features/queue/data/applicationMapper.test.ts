@@ -880,5 +880,63 @@ describe('applicationMapper', () => {
       expect(ui.office).toBe('Region VII');
       expect(ui.status).toBe('Submitted');
     });
+
+    it('maps serviceVariantName, serviceVariantType, applicationType, and element across application, services, and applicantsList', () => {
+      const dto: ApplicationDto = {
+        id: 'app-exam-full-1',
+        tenantId: 'tenant-1',
+        applicationNumber: 'APP-EXAM-001',
+        referenceNumber: 'REF-EXAM-001',
+        status: 'Submitted',
+        submissionMode: 'Single',
+        isGuest: false,
+        createdAt: '2026-11-10T10:00:00Z',
+        serviceId: 'svc-exam-1',
+        serviceName: 'Radio Operator Examination Admission',
+        serviceCategory: 'Exams',
+        serviceVariantName: 'Amateur',
+        serviceVariantType: 'First Taker',
+        element: 'Class C — Elements 2, 3 & 4',
+        services: [
+          {
+            id: 'svc-item-exam-1',
+            applicantId: 'applicant-exam-1',
+            serviceId: 'svc-exam-1',
+            serviceName: 'Radio Operator Examination Admission',
+            serviceCategory: 'Exams',
+            serviceVariantName: 'Amateur',
+            applicationType: 'First Taker',
+            element: 'Class C — Elements 2, 3 & 4',
+          },
+        ],
+        applicants: [
+          {
+            id: 'applicant-exam-1',
+            tenantId: 'tenant-1',
+            isGuest: false,
+            applicantType: 'Individual',
+            serviceVariantName: 'Amateur',
+            applicationType: 'First Taker',
+            element: 'Class C — Elements 2, 3 & 4',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        histories: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(dto);
+      expect(ui.serviceName).toBe('Radio Operator Examination Admission');
+      expect(ui.serviceVariantName).toBe('Amateur');
+      expect(ui.serviceVariantType).toBe('First Taker');
+      expect(ui.element).toBe('Class C — Elements 2, 3 & 4');
+      expect(ui.services?.[0]?.serviceVariantName).toBe('Amateur');
+      expect(ui.services?.[0]?.applicationType).toBe('First Taker');
+      expect(ui.services?.[0]?.element).toBe('Class C — Elements 2, 3 & 4');
+      expect(ui.applicantsList?.[0]?.serviceVariantName).toBe('Amateur');
+      expect(ui.applicantsList?.[0]?.applicationType).toBe('First Taker');
+      expect(ui.applicantsList?.[0]?.element).toBe('Class C — Elements 2, 3 & 4');
+    });
   });
 });

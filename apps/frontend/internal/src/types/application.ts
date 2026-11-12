@@ -213,6 +213,7 @@ export interface ApplicationData {
   serviceName?: string;
   serviceCategory?: string;
   serviceVariantName?: string;
+  serviceVariantType?: string;
   element?: string;
   elements?: string;
   office?: string;
