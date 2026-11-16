@@ -76,9 +76,60 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+  /* Section Header & Icon Badge (Consistent Visual Separation) */
+  sectionCard: {
+    borderWidth: 1.5,
+    borderLeftWidth: 4,
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 18,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  sectionIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  sectionHeaderSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  feeCountSummaryBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  feeCountSummaryText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
   /* Primary OR Header Card */
   mainCard: {
     borderWidth: 1.5,
+    borderLeftWidth: 4,
     borderRadius: 14,
     padding: 18,
     marginBottom: 18,
@@ -196,6 +247,7 @@ export const styles = StyleSheet.create({
   readOnlyPayorCard: {
     marginTop: 14,
     borderWidth: 1,
+    borderLeftWidth: 4,
     borderRadius: 10,
     padding: 14,
     flexDirection: 'row',
@@ -219,6 +271,10 @@ export const styles = StyleSheet.create({
 
   /* Breakdown & Particulars Section */
   breakdownSection: {
+    borderWidth: 1.5,
+    borderLeftWidth: 4,
+    borderRadius: 14,
+    padding: 18,
     marginBottom: 18,
   },
   breakdownHeader: {
@@ -309,6 +365,7 @@ export const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     borderWidth: 1.5,
+    borderLeftWidth: 4,
     marginBottom: 8,
   },
   readOnlyLineItemLeft: {
@@ -345,7 +402,8 @@ export const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1.5,
-    marginTop: 6,
+    borderLeftWidth: 5,
+    marginTop: 8,
   },
   totalBannerLabel: {
     fontSize: 13,
@@ -357,6 +415,10 @@ export const styles = StyleSheet.create({
     fontWeight: '900',
   },
   remarksBox: {
+    borderWidth: 1.5,
+    borderLeftWidth: 4,
+    borderRadius: 14,
+    padding: 18,
     marginBottom: 12,
   },
   input: {
@@ -408,6 +470,7 @@ export const styles = StyleSheet.create({
   /* Client Payment Banner (Senior Ergonomics) */
   preferredCard: {
     borderWidth: 1.5,
+    borderLeftWidth: 4,
     borderRadius: 14,
     padding: 18,
     marginBottom: 18,

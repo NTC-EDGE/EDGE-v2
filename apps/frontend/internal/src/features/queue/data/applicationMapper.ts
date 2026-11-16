@@ -726,7 +726,7 @@ export function mapApplicationDtoToUI(
   const soasList: SoaRecordSummary[] = Array.from(deduplicatedSoasMap.values()).map((s) => {
     const dedupedItems = deduplicateSoaLineItems(s.lineItems).map((item) => ({
       particular: item.particular,
-      validityYears: item.validityYears || 1,
+      validityYears: typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 0,
       percentage: 0,
       noOfUnits: item.noOfUnits || 1,
       fees: item.feeRate,
@@ -1037,7 +1037,7 @@ export function mapApplicationDtoToUI(
     forms: [],
     soaItems: deduplicateSoaLineItems(activeSoa?.lineItems).map((item) => ({
       particular: item.particular,
-      validityYears: item.validityYears || 1,
+      validityYears: typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 0,
       percentage: 0,
       noOfUnits: item.noOfUnits || 1,
       fees: item.feeRate,

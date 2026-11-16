@@ -142,6 +142,14 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             if (existingOp != null)
             {
                 op = existingOp;
+                if (string.IsNullOrWhiteSpace(op.OpNumber) ||
+                    op.OpNumber.StartsWith("PENDING", StringComparison.OrdinalIgnoreCase) ||
+                    op.OpNumber.StartsWith("OP-TEMP", StringComparison.OrdinalIgnoreCase))
+                {
+                    op.OpNumber = _numberingSeriesService != null
+                        ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId != Guid.Empty ? app.TenantId : (targetSoa.Application?.TenantId ?? Guid.Empty), cancellationToken)
+                        : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+                }
                 op.Status = OpStatus.Billed;
                 op.AmountDue = targetSoa.TotalAmount;
                 op.AmountReceived = 0;

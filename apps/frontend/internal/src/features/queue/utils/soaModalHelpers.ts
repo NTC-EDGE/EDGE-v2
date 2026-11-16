@@ -67,16 +67,109 @@ export const resolveInitialType = (app?: ApplicationData | null): IssuedToTypeDt
   return app.applicantType === 'Company' ? 'Company' : 'Individual';
 };
 
+const NON_YEAR_CANONICAL_CODES = new Set([
+  'DST',
+  'SUR',
+  'FF',
+  'AF',
+  'SEM',
+]);
+
+export const doesFeeCodeUseYears = (
+  itemCode?: string | null,
+  particular?: string | null,
+  formula?: string | null,
+  formExplicitlyAsksForYears: boolean = false
+): boolean => {
+  const canonical = normalizeCanonicalFeeCode(itemCode, particular);
+  if (NON_YEAR_CANONICAL_CODES.has(canonical)) {
+    return false;
+  }
+  if (formula && formula.trim().length > 0) {
+    const upperFormula = formula.toUpperCase();
+    if (!upperFormula.includes('YR') && !upperFormula.includes('YEARS') && !formExplicitlyAsksForYears) {
+      return false;
+    }
+  }
+  return true;
+};
+
+export const doesApplicationAskForYears = (
+  app?: ApplicationData | null,
+  calculatedFees?: FeeCalculationResultDto | null
+): boolean => {
+  if (!app) return false;
+
+  const isYearsFieldLabel = (label?: string | null, fieldId?: string | null): boolean => {
+    if (fieldId === 'fd000000-0000-0000-0000-000000000201') return true;
+    if (!label) return false;
+    const lower = label.trim().toLowerCase();
+    if (
+      lower.includes('graduat') ||
+      lower.includes('birth') ||
+      lower.includes('experience') ||
+      lower.includes('age') ||
+      lower.includes('school')
+    ) {
+      return false;
+    }
+    return (
+      lower === 'no. of years' ||
+      lower === 'no of years' ||
+      lower === 'no.of years' ||
+      lower === 'number of years' ||
+      lower === 'no. of yrs' ||
+      lower === 'no of yrs' ||
+      lower === 'no. of yr' ||
+      lower === 'no of yr' ||
+      lower === 'validity years' ||
+      lower === 'validity (years)' ||
+      lower === 'years of validity' ||
+      lower === 'years applied' ||
+      lower === 'applied years' ||
+      lower === 'years' ||
+      lower.includes('number of years') ||
+      lower.includes('no. of years') ||
+      lower.includes('no of years') ||
+      lower.includes('no.of years') ||
+      lower.includes('no. of yrs') ||
+      lower.includes('no of yrs') ||
+      lower.includes('validity years') ||
+      lower.includes('years applied')
+    );
+  };
+
+  const hasYearsInAppFields = Boolean(
+    app.formFieldValues?.some((fv) => isYearsFieldLabel(fv.fieldLabel, fv.fieldId)) ||
+    app.applicantsList?.some((a) =>
+      a.formFieldValues?.some((fv) => isYearsFieldLabel(fv.fieldLabel, fv.fieldId))
+    )
+  );
+
+  if (hasYearsInAppFields) {
+    return true;
+  }
+
+  if (calculatedFees?.lineItems && calculatedFees.lineItems.length > 0) {
+    return calculatedFees.lineItems.some((li) => (li.validityYears ?? 0) > 0);
+  }
+
+  return false;
+};
+
 export const calculateLineItemAmount = (
   validityYears?: number | string | null,
   noOfUnits?: number | string | null,
   feeRate?: number | string | null,
-  itemCode?: string | null
+  itemCode?: string | null,
+  particular?: string | null
 ): number => {
-  const y = typeof validityYears === 'number' && !isNaN(validityYears) ? validityYears : Number(validityYears) || 1;
+  const rawY = typeof validityYears === 'number' && !isNaN(validityYears) ? validityYears : Number(validityYears) || 0;
+  const usesYears = rawY > 0 && doesFeeCodeUseYears(itemCode, particular, null, true);
+  const y = usesYears ? rawY : 1;
   const u = typeof noOfUnits === 'number' && !isNaN(noOfUnits) ? noOfUnits : Number(noOfUnits) || 1;
   const r = typeof feeRate === 'number' && !isNaN(feeRate) ? feeRate : Number(feeRate) || 0;
-  const isDst = (itemCode || '').trim().toUpperCase() === 'DST';
+  const isDst = normalizeCanonicalFeeCode(itemCode, particular) === 'DST';
   return isDst ? r : y * u * r;
 };
 
@@ -237,9 +330,9 @@ export const mapCalculatedFeesToEditableItems = (
     }
     seenKeys.add(dedupKey);
 
-    const safeValidityYears = (typeof item?.validityYears === 'number' && !isNaN(item.validityYears) && item.validityYears > 0)
-      ? item.validityYears
-      : 1;
+    const hasBackendYears = typeof item?.validityYears === 'number' && !isNaN(item.validityYears) && item.validityYears > 0;
+    const usesYears = doesFeeCodeUseYears(safeItemCode, safeParticular, null, hasBackendYears);
+    const safeValidityYears = usesYears && hasBackendYears ? item.validityYears : 0;
 
     const safeNoOfUnits = (typeof item?.noOfUnits === 'number' && !isNaN(item.noOfUnits) && item.noOfUnits > 0)
       ? item.noOfUnits
@@ -251,7 +344,7 @@ export const mapCalculatedFeesToEditableItems = (
 
     const safeAmount = (typeof item?.amount === 'number' && !isNaN(item.amount) && item.amount >= 0)
       ? item.amount
-      : calculateLineItemAmount(safeValidityYears, safeNoOfUnits, safeFeeRate, safeItemCode);
+      : calculateLineItemAmount(safeValidityYears, safeNoOfUnits, safeFeeRate, safeItemCode, safeParticular);
 
     result.push({
       id: `${prefix}-${idx}-${Date.now()}`,
@@ -295,9 +388,9 @@ export const mapExistingSoaItemsToEditableItems = (
     }
     seenKeys.add(dedupKey);
 
-    const safeValidityYears = (typeof item?.validityYears === 'number' && !isNaN(item.validityYears) && item.validityYears > 0)
-      ? item.validityYears
-      : 1;
+    const hasBackendYears = typeof item?.validityYears === 'number' && !isNaN(item.validityYears) && item.validityYears > 0;
+    const usesYears = doesFeeCodeUseYears(safeItemCode, safeParticular, null, hasBackendYears);
+    const safeValidityYears = usesYears && hasBackendYears ? item.validityYears : 0;
 
     const safeNoOfUnits = (typeof item?.noOfUnits === 'number' && !isNaN(item.noOfUnits) && item.noOfUnits > 0)
       ? item.noOfUnits
@@ -309,7 +402,7 @@ export const mapExistingSoaItemsToEditableItems = (
 
     const safeAmount = (typeof item?.amount === 'number' && !isNaN(item.amount) && item.amount >= 0)
       ? item.amount
-      : calculateLineItemAmount(safeValidityYears, safeNoOfUnits, safeFeeRate, safeItemCode);
+      : calculateLineItemAmount(safeValidityYears, safeNoOfUnits, safeFeeRate, safeItemCode, safeParticular);
 
     const isTax = safeItemCode.toUpperCase() === 'DST';
     const isSurcharge = safeParticular.toLowerCase().includes('surcharge') || safeItemCode.toUpperCase() === 'SUR';

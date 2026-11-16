@@ -31,7 +31,16 @@ export function PreferredPaymentBanner({
     if (!hasCheckDetails && !hasOnlineDetails) return null;
 
     return (
-      <View style={[styles.preferredCard, { backgroundColor: '#F0F9FF', borderColor: '#7DD3FC' }]}>
+      <View
+        style={[
+          styles.preferredCard,
+          {
+            backgroundColor: '#F0F9FF',
+            borderColor: '#7DD3FC',
+            borderLeftColor: '#0284C7',
+          },
+        ]}
+      >
         <View style={styles.preferredCardHeader}>
           <View style={styles.preferredTitleRow}>
             <Lucide name={hasCheckDetails ? 'credit-card' : 'globe'} size={18} color="#0284C7" />
@@ -75,7 +84,16 @@ export function PreferredPaymentBanner({
     : (pendingPayment?.amountDue ?? 0);
 
   return (
-    <View style={[styles.preferredCard, { backgroundColor: '#F5F3FF', borderColor: '#C4B5FD' }]}>
+    <View
+      style={[
+        styles.preferredCard,
+        {
+          backgroundColor: '#F5F3FF',
+          borderColor: '#C4B5FD',
+          borderLeftColor: '#6D28D9',
+        },
+      ]}
+    >
       {/* Header with Title and Mode Badge */}
       <View style={styles.preferredCardHeader}>
         <View style={styles.preferredTitleRow}>

@@ -31,9 +31,19 @@ public class NumberingSeriesService : INumberingSeriesService
         var prefix = $"{rcCode}-{year}-{month}-";
 
         var existingNumbers = await _context.StatementsOfAccount
+            .IgnoreQueryFilters()
             .Where(s => s.SoaNumber.StartsWith(prefix))
             .Select(s => s.SoaNumber)
             .ToListAsync(cancellationToken);
+
+        var trackedNumbers = _context.ChangeTracker.Entries<EDGE.Domain.Entities.StatementOfAccount>()
+            .Where(e => e.State != EntityState.Deleted &&
+                        !string.IsNullOrWhiteSpace(e.Entity.SoaNumber) &&
+                        e.Entity.SoaNumber.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(e => e.Entity.SoaNumber)
+            .ToList();
+
+        existingNumbers.AddRange(trackedNumbers);
 
         var nextSeries = CalculateNextSeries(prefix, existingNumbers);
         return $"{prefix}{nextSeries:D4}";
@@ -48,9 +58,19 @@ public class NumberingSeriesService : INumberingSeriesService
         var prefix = $"{rcCode}-{year}-{month}-";
 
         var existingNumbers = await _context.OrdersOfPayment
+            .IgnoreQueryFilters()
             .Where(o => o.OpNumber.StartsWith(prefix))
             .Select(o => o.OpNumber)
             .ToListAsync(cancellationToken);
+
+        var trackedNumbers = _context.ChangeTracker.Entries<EDGE.Domain.Entities.OrderOfPayment>()
+            .Where(e => e.State != EntityState.Deleted &&
+                        !string.IsNullOrWhiteSpace(e.Entity.OpNumber) &&
+                        e.Entity.OpNumber.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(e => e.Entity.OpNumber)
+            .ToList();
+
+        existingNumbers.AddRange(trackedNumbers);
 
         var nextSeries = CalculateNextSeries(prefix, existingNumbers);
         return $"{prefix}{nextSeries:D4}";

@@ -278,6 +278,122 @@ public static class FeeConstants
         public static bool HasDst(string? formula) =>
             !string.IsNullOrWhiteSpace(formula) &&
             formula.Contains(VarDst, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Determines whether a specific fee code is multiplied by years (YR / YEARS) according to the formula.
+        /// One-time administrative/exam fees (EXAM, FF, AF, SEM, MOD, DUP, FC, SC, PUR, POS, STF, CPF, PTR, DEMO, DST, SUR)
+        /// never multiply by years unless explicitly attached to a (YR) factor in the formula.
+        /// </summary>
+        public static bool FeeUsesYears(
+            string? formula,
+            string? feeCode,
+            string? feeName = null,
+            bool formExplicitlyAsksForYears = false)
+        {
+            var canonical = Codes.NormalizeCanonicalCode(feeCode, feeName);
+
+            if (canonical == Codes.Dst || canonical == Codes.Surcharge)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(formula))
+            {
+                var rhs = formula.Contains('=') ? formula.Split('=', 2)[1] : formula;
+
+                if (HasYears(formula))
+                {
+                    if (rhs.Contains(PlaceholderYears, StringComparison.OrdinalIgnoreCase) ||
+                        rhs.Contains(PlaceholderYr, StringComparison.OrdinalIgnoreCase) ||
+                        rhs.Contains(VarRate, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+
+                    var candidateTokens = canonical switch
+                    {
+                        Codes.LicenseFee => new[] { "LF", "LIC" },
+                        Codes.PermitFee => new[] { "PF", "PERMIT" },
+                        Codes.Possess => new[] { "POS", "POSS_PERMIT" },
+                        Codes.Exam => new[] { "EXAM", "EXAMFEE" },
+                        _ => new[] { canonical }
+                    };
+
+                    var terms = rhs.Split('+', StringSplitOptions.RemoveEmptyEntries);
+                    var foundTokenInFormula = false;
+                    foreach (var term in terms)
+                    {
+                        foreach (var token in candidateTokens)
+                        {
+                            if (!string.IsNullOrWhiteSpace(token) && term.Contains(token, StringComparison.OrdinalIgnoreCase))
+                            {
+                                foundTokenInFormula = true;
+                                if (HasYears(term))
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (foundTokenInFormula)
+                    {
+                        return false;
+                    }
+                }
+                else if (formExplicitlyAsksForYears)
+                {
+                    // If the Form Builder explicitly asks for "No. of Years" on a service whose formula
+                    // did not originally include (YR), apply the years multiplier to primary fees
+                    // (excluding administrative filing/application/seminar fees).
+                    return canonical != Codes.FilingFee &&
+                           canonical != Codes.ApplicationFee &&
+                           canonical != Codes.Seminar;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            if (formExplicitlyAsksForYears &&
+                canonical != Codes.FilingFee &&
+                canonical != Codes.ApplicationFee &&
+                canonical != Codes.Seminar)
+            {
+                return true;
+            }
+
+            switch (canonical)
+            {
+                case Codes.Exam:
+                case Codes.FilingFee:
+                case Codes.ApplicationFee:
+                case Codes.Seminar:
+                case Codes.Modification:
+                case Codes.Duplicate:
+                case Codes.FirstCopy:
+                case Codes.SucceedingCopies:
+                case Codes.Purchase:
+                case Codes.Possess:
+                case Codes.SellTransfer:
+                case Codes.ConstructionPermit:
+                case Codes.PermitToTransport:
+                case Codes.Demo:
+                case Codes.Request:
+                    return false;
+            }
+
+            return canonical == Codes.Roc ||
+                   canonical == Codes.LicenseFee ||
+                   canonical == Codes.PermitFee ||
+                   canonical == Codes.InspectionFee ||
+                   canonical == Codes.SpectrumUsage ||
+                   canonical == Codes.Accreditation ||
+                   canonical == Codes.AnnualRegistration1 ||
+                   canonical == Codes.AnnualRegistration2 ||
+                   HasYears(formula);
+        }
     }
 
     public static class Amounts

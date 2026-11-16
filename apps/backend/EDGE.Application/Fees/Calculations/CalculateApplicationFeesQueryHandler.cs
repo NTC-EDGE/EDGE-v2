@@ -17,6 +17,7 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
     private readonly IServiceVariantFeeRepository? _variantFeeRepository;
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
     private readonly IServiceVariantFormulaRepository? _formulaRepository;
+    private readonly IFormRepository? _formRepository;
 
     public CalculateApplicationFeesQueryHandler(
         IApplicationFullRepository repository,
@@ -24,7 +25,8 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
         IServiceFeeRepository? serviceFeeRepository = null,
         IServiceVariantFeeRepository? variantFeeRepository = null,
         IServiceVariantElementFeeRepository? elementFeeRepository = null,
-        IServiceVariantFormulaRepository? formulaRepository = null)
+        IServiceVariantFormulaRepository? formulaRepository = null,
+        IFormRepository? formRepository = null)
     {
         _repository = repository;
         _calculationEngine = calculationEngine;
@@ -32,6 +34,7 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
         _variantFeeRepository = variantFeeRepository;
         _elementFeeRepository = elementFeeRepository;
         _formulaRepository = formulaRepository;
+        _formRepository = formRepository;
     }
 
     public async Task<ApiResponse<FeeCalculationResultDto>> Handle(CalculateApplicationFeesQuery request, CancellationToken cancellationToken)
@@ -64,7 +67,18 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
             ? completeApplicantsCount
             : (app.ApplicationApplicants.Count > 0 ? app.ApplicationApplicants.Count : 1);
         var units = request.NoOfUnits ?? (request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty ? 1 : applicantsCount);
-        var years = request.ValidityYears ?? 1;
+        var activeServiceForm = _formRepository != null && primaryService != null
+            ? ((primaryVariant != null
+                ? await _formRepository.GetFormByServiceIdAsync(primaryService.Id, primaryVariant.Id, null, cancellationToken)
+                : null) ?? await _formRepository.GetFormByServiceIdAsync(primaryService.Id, cancellationToken))
+            : null;
+
+        var (_, years) = FormBuilderYearsHelper.ResolveFormBuilderYears(
+            app: app,
+            targetApplicantId: targetApplicant?.Id ?? request.ApplicantId,
+            requestedValidityYears: request.ValidityYears,
+            category: primaryService?.ServiceCategory?.Type,
+            activeServiceForm: activeServiceForm);
 
         var serviceFees = _serviceFeeRepository != null && primaryService != null
             ? await _serviceFeeRepository.GetAllAsync(serviceId: primaryService.Id, activeOnly: true, cancellationToken: cancellationToken)
@@ -83,7 +97,13 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
         {
             if (primaryVariant != null)
             {
-                var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
+                var primaryElement = !string.IsNullOrWhiteSpace(element)
+                    ? (primaryVariant.ServiceVariantElements?.FirstOrDefault(sve =>
+                          string.Equals(sve.Code, element, StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(sve.Description, element, StringComparison.OrdinalIgnoreCase))
+                       ?? primaryVariant.ServiceVariantElements?.FirstOrDefault())
+                    : primaryVariant.ServiceVariantElements?.FirstOrDefault();
+
                 if (primaryElement != null)
                 {
                     var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);

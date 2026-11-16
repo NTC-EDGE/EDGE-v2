@@ -35,20 +35,47 @@ export function ReceiptLineItemsTable({
   const { colors } = useTheme();
 
   return (
-    <View style={styles.breakdownSection}>
+    <View
+      style={[
+        styles.breakdownSection,
+        {
+          backgroundColor: colors.cardBg,
+          borderColor: colors.border,
+          borderLeftColor: '#059669',
+        },
+      ]}
+    >
       <View style={styles.breakdownHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.sectionHeading, { color: colors.text }]}>
-            {isFromPendingPayment ? 'Prescribed Items to be Paid (Assessed Fees)' : 'Particulars & Fee Breakdown'}
-          </Text>
-          <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
-            {isFromPendingPayment
-              ? 'Fees and particulars reflect the assessed fees or selected payment mode allocation for this receipt.'
-              : 'Search fee code (e.g. REG-FEE, EXAM) or enter custom particulars'}
-          </Text>
+        <View style={styles.sectionHeaderLeft}>
+          <View style={[styles.sectionIconBadge, { backgroundColor: '#ECFDF5' }]}>
+            <Lucide name="credit-card" size={16} color="#059669" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.sectionHeaderTitle, { color: '#059669' }]}>
+              {isFromPendingPayment ? '3. PRESCRIBED ITEMS TO BE PAID (ASSESSED FEES)' : '3. PARTICULARS & FEE BREAKDOWN'}
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
+              {isFromPendingPayment
+                ? 'Fees and particulars reflect the assessed fees or selected payment mode allocation for this receipt.'
+                : 'Search fee code (e.g. REG-FEE, EXAM) or enter custom particulars'}
+            </Text>
+          </View>
         </View>
-        {!isFromPendingPayment && (
-          <View style={styles.breakdownActions}>
+        <View style={styles.breakdownActions}>
+          <View
+            style={[
+              styles.feeCountSummaryBadge,
+              {
+                backgroundColor: '#ECFDF5',
+                borderColor: '#6EE7B7',
+              },
+            ]}
+          >
+            <Text style={[styles.feeCountSummaryText, { color: '#065F46' }]}>
+              {lineItems.length} {lineItems.length === 1 ? 'Item' : 'Items'} • ₱{(totalAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+          </View>
+          {!isFromPendingPayment && (
             <TouchableOpacity
               onPress={handleAddLineItem}
               style={[styles.addItemBtn, { backgroundColor: colors.brand.primary }]}
@@ -56,34 +83,79 @@ export function ReceiptLineItemsTable({
               <Lucide name="plus" size={13} color="#fff" />
               <Text style={[styles.addItemBtnText, { color: '#fff' }]}>Add Item</Text>
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </View>
 
       {/* Line Items List */}
       {isFromPendingPayment ? (
         <View style={{ marginBottom: 4 }}>
-          {lineItems.map((item, idx) => (
-            <View key={idx} style={[styles.readOnlyLineItemCard, { borderColor: colors.border, backgroundColor: colors.cardBg }]}>
-              <View style={styles.readOnlyLineItemLeft}>
-                <View style={[styles.readOnlyFeeCodeBadge, { backgroundColor: colors.neutral[100] }]}>
-                  <Text style={[styles.readOnlyFeeCodeText, { color: colors.neutral[700] }]}>
-                    {item.feeCode || 'FEE'}
+          {lineItems.map((item, idx) => {
+            const upperCode = (item.feeCode || '').toUpperCase();
+            const isDstItem = upperCode === 'DST' || item.description.toUpperCase().includes('DOCUMENTARY STAMP');
+            const isSurchargeItem = upperCode === 'SUR' || upperCode.includes('SUR') || item.description.toUpperCase().includes('SURCHARGE');
+            const itemAccentColor = isSurchargeItem
+              ? '#DC2626'
+              : isDstItem
+                ? '#059669'
+                : colors.brand.primary;
+            const badgeBgColor = isSurchargeItem
+              ? '#FEE2E2'
+              : isDstItem
+                ? '#ECFDF5'
+                : '#EFF6FF';
+            const badgeTextColor = isSurchargeItem
+              ? '#991B1B'
+              : isDstItem
+                ? '#065F46'
+                : colors.brand.primary;
+
+            return (
+              <View
+                key={idx}
+                style={[
+                  styles.readOnlyLineItemCard,
+                  {
+                    borderColor: colors.border,
+                    borderLeftColor: itemAccentColor,
+                    backgroundColor: '#F8FAFC',
+                  },
+                ]}
+              >
+                <View style={styles.readOnlyLineItemLeft}>
+                  <View style={[styles.readOnlyFeeCodeBadge, { backgroundColor: badgeBgColor }]}>
+                    <Text style={[styles.readOnlyFeeCodeText, { color: badgeTextColor }]}>
+                      {item.feeCode || 'FEE'}
+                    </Text>
+                  </View>
+                  <Text style={[styles.readOnlyDescText, { color: colors.text }]} numberOfLines={2}>
+                    {item.description}
                   </Text>
                 </View>
-                <Text style={[styles.readOnlyDescText, { color: colors.text }]} numberOfLines={2}>
-                  {item.description}
+                <Text style={[styles.readOnlyAmountText, { color: colors.semantic.successText }]}>
+                  ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
-              <Text style={[styles.readOnlyAmountText, { color: colors.semantic.successText }]}>
-                ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       ) : (
         lineItems.map((item, idx) => (
-          <View key={idx} style={styles.lineItemWrapper}>
+          <View
+            key={idx}
+            style={[
+              styles.lineItemWrapper,
+              {
+                borderWidth: 1,
+                borderLeftWidth: 4,
+                borderColor: colors.border,
+                borderLeftColor: colors.brand.primary,
+                borderRadius: 10,
+                padding: 10,
+                backgroundColor: '#F8FAFC',
+              },
+            ]}
+          >
             <View style={styles.lineItemRow}>
               {/* Description / Particulars Search Input */}
               <View style={{ flex: 3, marginRight: 8, position: 'relative' }}>
@@ -145,9 +217,21 @@ export function ReceiptLineItemsTable({
       )}
 
       {/* Total Amount Summary Banner */}
-      <View style={[styles.totalBanner, { backgroundColor: colors.neutral[100], borderColor: colors.border }]}>
-        <Text style={[styles.totalBannerLabel, { color: colors.neutral[700] }]}>TOTAL AMOUNT RECEIVED:</Text>
-        <Text style={[styles.totalBannerValue, { color: colors.semantic.successText }]}>
+      <View
+        style={[
+          styles.totalBanner,
+          {
+            backgroundColor: '#ECFDF5',
+            borderColor: '#6EE7B7',
+            borderLeftColor: '#059669',
+          },
+        ]}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Lucide name="check-circle" size={18} color="#059669" />
+          <Text style={[styles.totalBannerLabel, { color: '#065F46' }]}>TOTAL AMOUNT RECEIVED:</Text>
+        </View>
+        <Text style={[styles.totalBannerValue, { color: '#065F46' }]}>
           ₱{(totalAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Text>
       </View>

@@ -24,6 +24,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly IServiceVariantFormulaRepository? _formulaRepository;
     private readonly INumberingSeriesService? _numberingSeriesService;
     private readonly ISoaNoteRepository? _soaNoteRepository;
+    private readonly IFormRepository? _formRepository;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
@@ -36,7 +37,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         IServiceVariantElementFeeRepository? elementFeeRepository = null,
         IServiceVariantFormulaRepository? formulaRepository = null,
         INumberingSeriesService? numberingSeriesService = null,
-        ISoaNoteRepository? soaNoteRepository = null)
+        ISoaNoteRepository? soaNoteRepository = null,
+        IFormRepository? formRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -49,6 +51,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         _formulaRepository = formulaRepository;
         _numberingSeriesService = numberingSeriesService;
         _soaNoteRepository = soaNoteRepository;
+        _formRepository = formRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
@@ -216,6 +219,24 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 
         soa.LineItems.Clear();
 
+        var primaryService = targetApplicant?.Service
+            ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
+        var primaryVariant = targetApplicant?.ServiceVariant
+            ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
+
+        var activeServiceForm = _formRepository != null && primaryService != null
+            ? ((primaryVariant != null
+                ? await _formRepository.GetFormByServiceIdAsync(primaryService.Id, primaryVariant.Id, null, cancellationToken)
+                : null) ?? await _formRepository.GetFormByServiceIdAsync(primaryService.Id, cancellationToken))
+            : null;
+
+        var (asksForYears, resolvedFormYears) = FormBuilderYearsHelper.ResolveFormBuilderYears(
+            app: app,
+            targetApplicantId: targetApplicant?.Id ?? request.ApplicantId,
+            requestedValidityYears: request.ValidityYears,
+            category: primaryService?.ServiceCategory?.Type,
+            activeServiceForm: activeServiceForm);
+
         if (request.LineItems != null && request.LineItems.Count > 0)
         {
             var seenParticularKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -234,9 +255,16 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                     continue;
                 }
 
+                var isDst = canonicalCode.Equals(EDGE.Domain.Constants.FeeConstants.Codes.Dst, StringComparison.OrdinalIgnoreCase);
+                var itemUsesYears = asksForYears &&
+                                    !isDst &&
+                                    item.ValidityYears > 0 &&
+                                    EDGE.Domain.Constants.FeeConstants.FormulaTokens.FeeUsesYears(null, canonicalCode, resolvedParticular, formExplicitlyAsksForYears: true);
+                var valYears = itemUsesYears ? item.ValidityYears : 0;
+                var yearMultiplier = valYears > 0 ? valYears : 1;
                 var units = item.NoOfUnits > 0 ? item.NoOfUnits : 1;
                 var rate = item.FeeRate >= 0 ? item.FeeRate : 0m;
-                var calculatedAmount = units * rate;
+                var calculatedAmount = isDst ? rate : (yearMultiplier * units * rate);
 
                 soa.LineItems.Add(new SoaLineItem
                 {
@@ -247,7 +275,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                     Description = item.Description,
                     PeriodOfCoverageStart = EnsureUtc(item.PeriodOfCoverageStart),
                     PeriodOfCoverageEnd = EnsureUtc(item.PeriodOfCoverageEnd),
-                    ValidityYears = item.ValidityYears > 0 ? item.ValidityYears : 1,
+                    ValidityYears = valYears,
                     NoOfUnits = units,
                     FeeRate = rate,
                     Amount = calculatedAmount
@@ -256,11 +284,6 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         }
         else
         {
-            var primaryService = targetApplicant?.Service
-                ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
-            var primaryVariant = targetApplicant?.ServiceVariant
-                ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
-
             var activity = primaryService?.ServiceCategory?.Name ?? primaryService?.Name ?? "Radio Operator Certificates";
             var appType = primaryVariant?.Description ?? primaryVariant?.Type.ToString() ?? "New";
             var element = primaryVariant?.ServiceVariantElements?.FirstOrDefault()?.Code
@@ -274,7 +297,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 ? completeApplicantsCount
                 : (app.ApplicationApplicants.Count > 0 ? app.ApplicationApplicants.Count : 1);
             var units = request.NoOfUnits ?? (isPerApplicantMode ? 1 : applicantsCount);
-            var years = request.ValidityYears ?? 1;
+            var years = asksForYears ? resolvedFormYears : 0;
             var nowUtc = DateTime.UtcNow;
 
             var serviceFees = _serviceFeeRepository != null && primaryService != null
@@ -294,7 +317,13 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             {
                 if (primaryVariant != null)
                 {
-                    var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
+                    var primaryElement = !string.IsNullOrWhiteSpace(element)
+                        ? (primaryVariant.ServiceVariantElements?.FirstOrDefault(sve =>
+                              string.Equals(sve.Code, element, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(sve.Description, element, StringComparison.OrdinalIgnoreCase))
+                           ?? primaryVariant.ServiceVariantElements?.FirstOrDefault())
+                        : primaryVariant.ServiceVariantElements?.FirstOrDefault();
+
                     if (primaryElement != null)
                     {
                         var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
@@ -336,7 +365,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 
             foreach (var calculatedItem in calculationResult.LineItems)
             {
-                var valYears = calculatedItem.ValidityYears > 0 ? calculatedItem.ValidityYears : 1;
+                var valYears = calculatedItem.ValidityYears > 0 ? calculatedItem.ValidityYears : 0;
                 soa.LineItems.Add(new SoaLineItem
                 {
                     Id = Guid.NewGuid(),
@@ -344,8 +373,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                     Particular = !string.IsNullOrWhiteSpace(calculatedItem.Particular) ? calculatedItem.Particular : "Statutory Fee",
                     ItemCode = !string.IsNullOrWhiteSpace(calculatedItem.ItemCode) ? calculatedItem.ItemCode : "FEE",
                     Description = calculatedItem.Description,
-                    PeriodOfCoverageStart = nowUtc,
-                    PeriodOfCoverageEnd = nowUtc.AddYears(valYears),
+                    PeriodOfCoverageStart = valYears > 0 ? nowUtc : null,
+                    PeriodOfCoverageEnd = valYears > 0 ? nowUtc.AddYears(valYears) : null,
                     ValidityYears = valYears,
                     NoOfUnits = calculatedItem.NoOfUnits > 0 ? calculatedItem.NoOfUnits : 1,
                     FeeRate = calculatedItem.FeeRate,

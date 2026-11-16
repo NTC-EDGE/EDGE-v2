@@ -665,10 +665,10 @@ public static class FastTrackFeeSeeder
                 }
             }
 
-            // Self-heal: Remove any duplicate fee line items (same canonical code) on existing StatementsOfAccount
+            // Self-heal: Remove any duplicate fee line items (same canonical code) and normalize non-year fee ValidityYears = 0 on existing StatementsOfAccount
             var allActiveSoas = await context.StatementsOfAccount.IgnoreQueryFilters()
                 .Include(s => s.LineItems)
-                .Where(s => !s.IsDeleted && s.LineItems.Count > 1)
+                .Where(s => !s.IsDeleted && s.LineItems.Count > 0)
                 .ToListAsync();
             foreach (var targetSoa in allActiveSoas)
             {
@@ -685,6 +685,14 @@ public static class FastTrackFeeSeeder
                         context.Remove(li);
                         targetSoa.LineItems.Remove(li);
                         itemsRemoved = true;
+                        continue;
+                    }
+
+                    if (!FeeConstants.FormulaTokens.FeeUsesYears(null, canonical, part) && li.ValidityYears > 0)
+                    {
+                        li.ValidityYears = 0;
+                        li.PeriodOfCoverageStart = null;
+                        li.PeriodOfCoverageEnd = null;
                     }
                 }
                 if (itemsRemoved)
@@ -1141,6 +1149,31 @@ public static class FastTrackFeeSeeder
                     existingEf.Description = formula;
                     existingEf.ApplyLateRenewalSurcharge = applySur;
                     existingEf.IsActive = true;
+                }
+            }
+
+            // 6. Seed ServiceFormula for Exam Service (NTC 1-01) so service-level formula lookup always resolves FEEEXAM = EXAMFEE
+            var examServiceExists = await context.Services.IgnoreQueryFilters().AnyAsync(s => s.Id == ExamsCategorySeederData.Svc101Id);
+            if (examServiceExists)
+            {
+                var existingExamSvcFormula = await context.ServiceFormulas.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(sf => sf.ServiceId == ExamsCategorySeederData.Svc101Id);
+                if (existingExamSvcFormula == null)
+                {
+                    context.ServiceFormulas.Add(new ServiceFormula
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceId = ExamsCategorySeederData.Svc101Id,
+                        FormulaExpression = FeeConstants.Formulas.ExamStandard,
+                        Description = FeeConstants.Formulas.ExamStandard,
+                        IsActive = true
+                    });
+                }
+                else
+                {
+                    existingExamSvcFormula.FormulaExpression = FeeConstants.Formulas.ExamStandard;
+                    existingExamSvcFormula.Description = FeeConstants.Formulas.ExamStandard;
+                    existingExamSvcFormula.IsActive = true;
                 }
             }
 

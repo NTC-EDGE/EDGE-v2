@@ -121,9 +121,14 @@ public static class StatementOfAccountPrintMapper
         {
             model.Particular1PeriodCovered = $"{firstItemWithPeriod.PeriodOfCoverageStart.Value:MM/dd/yyyy} to {firstItemWithPeriod.PeriodOfCoverageEnd.Value:MM/dd/yyyy}";
         }
+        else if (soa?.LineItems.Any(li => li.ValidityYears > 0) == true)
+        {
+            var maxYears = soa.LineItems.Max(li => li.ValidityYears);
+            model.Particular1PeriodCovered = $"{creationDate:MM/dd/yyyy} to {creationDate.AddYears(maxYears):MM/dd/yyyy}";
+        }
         else
         {
-            model.Particular1PeriodCovered = $"{creationDate:MM/dd/yyyy} to {creationDate.AddYears(1):MM/dd/yyyy}";
+            model.Particular1PeriodCovered = string.Empty;
         }
 
         // 6. Line Items mapping to grid items

@@ -24,7 +24,33 @@ export function ReceiptPayorSection({
   const { colors } = useTheme();
 
   return (
-    <View style={{ marginBottom: 18 }}>
+    <View
+      style={[
+        styles.sectionCard,
+        {
+          backgroundColor: colors.cardBg,
+          borderColor: colors.border,
+          borderLeftColor: '#0284C7',
+        },
+      ]}
+    >
+      {/* Section Header */}
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.sectionHeaderLeft}>
+          <View style={[styles.sectionIconBadge, { backgroundColor: '#E0F2FE' }]}>
+            <Lucide name="user" size={16} color="#0284C7" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.sectionHeaderTitle, { color: '#0284C7' }]}>
+              2. PAYEE / PAYOR & ORDER OF PAYMENT REFERENCE
+            </Text>
+            <Text style={[styles.sectionHeaderSub, { color: colors.textMuted }]}>
+              Confirm the payee name and address to be printed on the Official Receipt
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* Editable Payee Details for Cashier */}
       <View style={styles.payorFieldsRow}>
         <View style={{ flex: 1.5, minWidth: 240 }}>
@@ -64,7 +90,16 @@ export function ReceiptPayorSection({
 
       {/* Captured OP & Application reference card */}
       {isFromPendingPayment && pendingPayment !== null && pendingPayment !== undefined && (
-        <View style={[styles.readOnlyPayorCard, { backgroundColor: '#F8FAFC', borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.readOnlyPayorCard,
+            {
+              backgroundColor: '#F8FAFC',
+              borderColor: colors.border,
+              borderLeftColor: '#4F46E5',
+            },
+          ]}
+        >
           <View style={styles.readOnlyField}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Lucide name="user" size={13} color={colors.neutral[500]} />

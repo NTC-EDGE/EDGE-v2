@@ -63,7 +63,33 @@ export function ReceiptHeaderCard({
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.mainCard, { borderColor: colors.border, backgroundColor: '#FAFAFA' }]}>
+    <View
+      style={[
+        styles.mainCard,
+        {
+          borderColor: colors.border,
+          borderLeftColor: colors.brand.primary,
+          backgroundColor: '#FAFAFA',
+        },
+      ]}
+    >
+      {/* Section Header */}
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.sectionHeaderLeft}>
+          <View style={[styles.sectionIconBadge, { backgroundColor: '#EFF6FF' }]}>
+            <Lucide name="hash" size={16} color={colors.brand.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.sectionHeaderTitle, { color: colors.brand.primary }]}>
+              1. OFFICIAL RECEIPT SERIAL & PAYMENT METHOD
+            </Text>
+            <Text style={[styles.sectionHeaderSub, { color: colors.textMuted }]}>
+              Verify active booklet serial number, payment mode, and receipt date
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* Card Header: OR Serial Badge & Payment Method */}
       <View style={styles.summaryTopRow}>
         <View style={styles.orBadgeContainer}>

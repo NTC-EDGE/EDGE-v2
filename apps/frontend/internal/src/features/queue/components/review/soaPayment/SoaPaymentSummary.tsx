@@ -228,7 +228,7 @@ export function SoaPaymentSummary({
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontSize: 12, color: isDark ? '#a5b4fc' : '#4338ca', marginTop: 2 }}>
                   {isIndividualMode && opsCount > 1
                     ? `${opsCount} Individual OPs`
-                    : (app.payment.opNumber || (app.referenceNumber ? `OP-${app.referenceNumber}` : 'OP Ready'))}{' '}
+                    : (app.payment.opNumber || 'OP Series # generated upon Accountant approval')}{' '}
                   • ₱{(app.totalAmountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>

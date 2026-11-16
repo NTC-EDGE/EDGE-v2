@@ -201,10 +201,31 @@ export function IssueReceiptModal({
               handleSelectFee={handleSelectFee}
             />
 
-            <View style={styles.remarksBox}>
-              <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800] }]}>
-                Remarks / Reference Notes (Optional)
-              </Text>
+            <View
+              style={[
+                styles.remarksBox,
+                {
+                  backgroundColor: colors.cardBg,
+                  borderColor: colors.border,
+                  borderLeftColor: '#D97706',
+                },
+              ]}
+            >
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionHeaderLeft}>
+                  <View style={[styles.sectionIconBadge, { backgroundColor: '#FEF3C7' }]}>
+                    <Lucide name="file-text" size={16} color="#D97706" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.sectionHeaderTitle, { color: '#B45309' }]}>
+                      4. REMARKS & REFERENCE NOTES (OPTIONAL)
+                    </Text>
+                    <Text style={[styles.sectionHeaderSub, { color: colors.textMuted }]}>
+                      Add transaction notes, endorsement details, or collection remarks
+                    </Text>
+                  </View>
+                </View>
+              </View>
               <TextInput
                 style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
                 placeholder="Optional notes, transaction numbers or references"

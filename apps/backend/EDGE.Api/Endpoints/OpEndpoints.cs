@@ -132,7 +132,7 @@ public static class OpEndpoints
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
                     StatementOfAccountId = soa?.Id ?? Guid.Empty,
-                    OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{app.ReferenceNumber ?? Guid.NewGuid().ToString()[..6].ToUpper()}",
+                    OpNumber = "PENDING APPROVAL",
                     AmountDue = soa?.TotalAmount ?? 0,
                     Status = OpStatus.Billed,
                     CreatedAt = DateTime.UtcNow

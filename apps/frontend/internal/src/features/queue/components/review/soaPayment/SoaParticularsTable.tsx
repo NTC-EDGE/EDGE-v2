@@ -353,13 +353,15 @@ export function SoaParticularsTable({
           <View key={idx} style={[styles.feeTableRow, { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
             <View style={{ flex: 2 }}>
               <Text style={[styles.feeParticularName, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{item.particular}</Text>
-              <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                Validity • {item.validityYears} Year(s)
-              </Text>
+              {item.validityYears > 0 && (
+                <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
+                  Validity • {item.validityYears} Year(s)
+                </Text>
+              )}
               <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>Code: {item.code}</Text>
             </View>
             <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-              {item.validityYears}
+              {item.validityYears > 0 ? item.validityYears : '—'}
             </Text>
             <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
               {item.percentage}

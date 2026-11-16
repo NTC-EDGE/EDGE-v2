@@ -174,4 +174,46 @@ public class CalculateApplicationFeesQueryHandlerTests
         result.Data.SurchargeAmount.Should().Be(90.00m);
         result.Data.TotalAmount.Should().Be(300.00m);
     }
+
+    [Fact]
+    public async Task Handle_WhenFormBuilderDoesNotAskForYears_ShouldSetValidityYearsZeroAndNotMultiplyByYear()
+    {
+        var serviceCategory = new ServiceCategory { Name = "Exams", Code = "EXAM", Type = ServiceCategoryType.Exam };
+        var service = new Service { Name = "Admission Slip for Radio Operator Examination", ServiceCategory = serviceCategory };
+        var serviceVariant = new ServiceVariant { Description = "Radiotelephony", Type = ServiceVariantType.FirstTaker };
+
+        var applicant = new Applicant { Id = Guid.NewGuid(), Service = service, ServiceVariant = serviceVariant };
+        var app = new Domain.Entities.Application { Id = Guid.NewGuid() };
+        app.ApplicationApplicants.Add(new ApplicationApplicant { ApplicantId = applicant.Id, Applicant = applicant });
+
+        // FormSubmission without any "Number of Years" field
+        app.FormSubmissions.Add(new FormSubmission
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            ApplicantId = applicant.Id,
+            FieldValues = new List<FormFieldValue>
+            {
+                new FormFieldValue
+                {
+                    FieldId = Guid.NewGuid(),
+                    Field = new Field { Label = "Year Graduated" },
+                    Value = "2024"
+                }
+            }
+        });
+
+        _repositoryMock
+            .Setup(r => r.GetByIdWithDetailsAsync(app.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+
+        var result = await _handler.Handle(new CalculateApplicationFeesQuery(app.Id, ValidityYears: 5), CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.FormulaApplied.Should().Be("FEEEXAM = EXAMFEE");
+        result.Data.TotalAmount.Should().Be(50.00m);
+        result.Data.LineItems.Should().ContainSingle();
+        result.Data.LineItems.First().ValidityYears.Should().Be(0);
+    }
 }
