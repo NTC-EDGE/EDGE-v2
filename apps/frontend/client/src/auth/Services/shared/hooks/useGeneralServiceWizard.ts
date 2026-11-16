@@ -772,16 +772,16 @@ export function useGeneralServiceWizard(
         throw new Error("Application creation returned no identifier.");
       }
 
-      const allApplicantsForUpload = appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
-      await uploadRequirementsAfterSubmit({
-        api,
-        applicationId,
-        tenantId: selectedRegionId,
-        applicants: allApplicantsForUpload,
-        getToken,
-      });
-
       if (!isDraft) {
+        const allApplicantsForUpload = appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId,
+          tenantId: selectedRegionId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        });
+
         const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
         const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
         if (finObj.succeeded === false) {

@@ -423,17 +423,17 @@ export function useCPEAccreditationWizard({
           throw new Error("Application creation returned no identifier.");
         }
 
-        // Upload and link requirement attachments
-        const allApplicantsForUpload = isBulkSubmission ? applicants : [activeApplicant];
-        await uploadRequirementsAfterSubmit({
-          api,
-          applicationId,
-          tenantId: selectedRegionId,
-          applicants: allApplicantsForUpload,
-          getToken,
-        });
-
         if (!isDraft) {
+          // Upload and link requirement attachments only upon final submission
+          const allApplicantsForUpload = isBulkSubmission ? applicants : [activeApplicant];
+          await uploadRequirementsAfterSubmit({
+            api,
+            applicationId,
+            tenantId: selectedRegionId,
+            applicants: allApplicantsForUpload,
+            getToken,
+          });
+
           const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
           const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
           if (finObj.succeeded === false) {

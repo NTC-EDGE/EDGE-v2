@@ -230,16 +230,16 @@ export function useExamFilingWizard({
         throw new Error("Application creation returned no identifier.");
       }
 
-      const allApplicantsForUpload = (mapped.length > 1 || appMode === "BULK") ? applicants : [activeApplicant];
-      await uploadRequirementsAfterSubmit({
-        api,
-        applicationId,
-        tenantId: selectedRegionId,
-        applicants: allApplicantsForUpload,
-        getToken,
-      });
-
       if (!isDraft) {
+        const allApplicantsForUpload = (mapped.length > 1 || appMode === "BULK") ? applicants : [activeApplicant];
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId,
+          tenantId: selectedRegionId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        });
+
         const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
         const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
         if (finObj.succeeded === false) {

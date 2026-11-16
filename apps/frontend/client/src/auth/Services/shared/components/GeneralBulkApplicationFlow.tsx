@@ -546,7 +546,6 @@ export function GeneralBulkApplicationFlow({
     }
 
     setFormErrors({});
-    onSaveDraft?.();
     setSubView("DOCUMENT_UPLOAD");
   };
 
@@ -590,7 +589,6 @@ export function GeneralBulkApplicationFlow({
     }
 
     setFormErrors({});
-    onSaveDraft?.();
     if (currentApplicantIndex < applicants.length - 1) {
       setCurrentApplicantIndex(currentApplicantIndex + 1);
       setSubView("FILING_DETAILS");
