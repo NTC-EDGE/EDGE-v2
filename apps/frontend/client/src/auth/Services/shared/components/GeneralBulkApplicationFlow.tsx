@@ -102,6 +102,7 @@ export function GeneralBulkApplicationFlow({
   const [subView, setSubView] = useState<BulkSubView>("FILING_DETAILS");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const prevTrigger = React.useRef(triggerOpenApplicant);
+  const prevBulkPreviewTrigger = React.useRef(triggerBulkSubmit);
 
   const clearFieldError = React.useCallback((...fieldKeys: string[]) => {
     setFormErrors((prev) => {
@@ -125,6 +126,15 @@ export function GeneralBulkApplicationFlow({
       setSubView("FILING_DETAILS");
     }
   }, [triggerOpenApplicant]);
+
+  // React to left-panel "Show Preview Applications" button click
+  React.useEffect(() => {
+    if (triggerBulkSubmit && triggerBulkSubmit !== prevBulkPreviewTrigger.current) {
+      prevBulkPreviewTrigger.current = triggerBulkSubmit;
+      setFormErrors({});
+      setSubView("REVIEW");
+    }
+  }, [triggerBulkSubmit]);
 
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
   const isIndividualApp = isServiceVariantIndividual(

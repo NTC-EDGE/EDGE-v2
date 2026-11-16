@@ -14,9 +14,9 @@ export function validateContactNumber(value: string | undefined | null): string 
     return "Contact number is required.";
   }
   const clean = value.trim().replace(/[\s\-\(\)\.]/g, "");
-  const contactRegex = /^(09\d{9}|\+639\d{9}|639\d{9})$/;
+  const contactRegex = /^(09\d{9}|9\d{9}|\+639\d{9}|639\d{9})$/;
   if (!contactRegex.test(clean)) {
-    if (!clean.startsWith("09") && !clean.startsWith("+639") && !clean.startsWith("639")) {
+    if (!clean.startsWith("09") && !clean.startsWith("9") && !clean.startsWith("+639") && !clean.startsWith("639")) {
       return "Contact number must start with 09 (e.g. 09XXXXXXXXX) or +639 (e.g. +639XXXXXXXXX).";
     }
     if (clean.startsWith("09") && clean.length !== 11) {

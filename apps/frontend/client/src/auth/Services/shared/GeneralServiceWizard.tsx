@@ -171,9 +171,11 @@ export function GeneralServiceWizard({
   React.useEffect(() => {
     if (triggerBulkSubmit && triggerBulkSubmit !== prevBulkSubmitRef.current) {
       prevBulkSubmitRef.current = triggerBulkSubmit;
-      setIsConfirmModalOpen(true);
+      if (step < 3) {
+        setStep(3);
+      }
     }
-  }, [triggerBulkSubmit, setIsConfirmModalOpen]);
+  }, [triggerBulkSubmit, step, setStep]);
 
   const handleNext = () => {
     handleWizardNext({

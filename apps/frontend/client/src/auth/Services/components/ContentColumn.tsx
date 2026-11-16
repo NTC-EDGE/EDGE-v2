@@ -5,6 +5,7 @@ import { BulkApplicantsPanel } from "../accreditation/customer-premises";
 import { ExamBulkApplicantsPanel } from "../exams/radio-operator";
 import { GeneralBulkApplicantsPanel } from "../shared/GeneralBulkApplicantsPanel";
 import { isServiceVariantIndividual } from "../shared/helpers/applicantDisplayHelper";
+import { applyImportedApplicantsToCohort, BulkImportMode } from "../shared/spreadsheet";
 import { styles } from "../Services.styles";
 
 interface ContentColumnProps {
@@ -95,7 +96,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           bulkMethod={bulkMethod}
           onAddApplicant={handleAddExamApplicant}
           onSubmitAll={() => {
-            servicesState.setIsBulkSubmitOpen(true);
+            setExamWizardStep(6);
           }}
         />
       ) : activeWizardService === "general-service" &&
@@ -122,7 +123,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           onRemoveApplicant={handleRemoveGeneralApplicant}
           onRemoveApplicants={handleRemoveMultipleGeneralApplicants}
           onAddApplicant={handleAddGeneralApplicant}
-          onApplicantsImported={(imported) => {
+          onApplicantsImported={(imported, mode: BulkImportMode = "REPLACE") => {
             const baseApp = generalApplicants[0];
             const isIndiv = isServiceVariantIndividual(
               selectedService,
@@ -136,7 +137,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
               selectedVariantName: baseApp?.selectedVariantName || app.selectedVariantName,
               selectedElementId: baseApp?.selectedElementId || app.selectedElementId,
               selectedElementTitle: baseApp?.selectedElementTitle || app.selectedElementTitle,
-              applicantType: isIndiv ? "individual" : (app.applicantType || "company"),
+              applicantType: isIndiv ? ("individual" as const) : (app.applicantType || ("company" as const)),
               representativeName: baseApp?.representativeName || app.representativeName,
               representativePosition: baseApp?.representativePosition || app.representativePosition,
               representativeFirstName: baseApp?.representativeFirstName || app.representativeFirstName,
@@ -155,7 +156,13 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
               companyStreet: baseApp?.companyStreet || app.companyStreet,
               companyZipCode: baseApp?.companyZipCode || app.companyZipCode,
             }));
-            servicesState.setGeneralApplicants(enriched);
+            const nextCohort = applyImportedApplicantsToCohort(
+              generalApplicants,
+              enriched,
+              mode,
+              isIndiv
+            );
+            servicesState.setGeneralApplicants(nextCohort);
             setCurrentGeneralApplicantIndex(0);
           }}
           service={selectedService}

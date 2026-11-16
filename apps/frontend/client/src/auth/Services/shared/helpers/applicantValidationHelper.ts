@@ -44,14 +44,19 @@ function isValidUploadEntry(val: unknown): boolean {
   if (val === null || val === undefined) return false;
   if (typeof val === "string") {
     const s = val.trim();
-    return s.startsWith("data:") || s.startsWith("blob:") || s.startsWith("http:") || s.startsWith("https:") || s.startsWith("file:");
+    const lower = s.toLowerCase();
+    return s.length > 0 && lower !== "none" && lower !== "null" && lower !== "undefined";
   }
   if (typeof val === "object" && "file" in val && Boolean(val.file)) {
     return true;
   }
   if (typeof val === "object" && "uri" in val && typeof val.uri === "string" && val.uri.trim().length > 0) {
-    const u = val.uri.trim();
-    return u.startsWith("data:") || u.startsWith("blob:") || u.startsWith("http:") || u.startsWith("https:") || u.startsWith("file:");
+    const u = val.uri.trim().toLowerCase();
+    if (u !== "none" && u !== "null" && u !== "undefined") return true;
+  }
+  if (typeof val === "object" && "name" in val && typeof val.name === "string" && val.name.trim().length > 0) {
+    const n = val.name.trim().toLowerCase();
+    if (n !== "none" && n !== "null" && n !== "undefined") return true;
   }
   return false;
 }
@@ -201,12 +206,23 @@ export const isGeneralApplicantComplete = (
       .map((req, idx) => ({ req, idx }))
       .filter(({ req }) => isRequirementMandatory(req));
 
-    const allMandatoryUploaded = mandatoryList.every(({ req, idx }) =>
-      isRequirementUploaded(req, idx, app.uploads)
-    );
+    if (mandatoryList.length > 0) {
+      const allMandatoryUploaded = mandatoryList.every(({ req, idx }) =>
+        isRequirementUploaded(req, idx, app.uploads)
+      );
 
-    if (!allMandatoryUploaded) {
-      return false;
+      if (!allMandatoryUploaded) {
+        // Fallback if reqList only has plain strings (without requirement IDs) while app.uploads stores keys by requirement UUID (`req-<uuid>`)
+        const allItemsLackIds = mandatoryList.every(
+          ({ req }) => typeof req === "string" || !req.id
+        );
+        const validUploadedCount = app.uploads
+          ? Object.values(app.uploads).filter((v) => isValidUploadEntry(v)).length
+          : 0;
+        if (!(allItemsLackIds && validUploadedCount >= mandatoryList.length)) {
+          return false;
+        }
+      }
     }
   }
 

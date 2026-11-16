@@ -17,6 +17,7 @@ import {
   GeneralApplicantData,
   initialGeneralApplicant,
 } from "../shared/GeneralServiceWizard";
+import { ServiceRequirementItem } from "../shared/hooks/useGeneralServiceWizard";
 import { isServiceVariantIndividual } from "../shared/helpers/applicantDisplayHelper";
 import { uploadRequirementsAfterSubmit } from "../shared/helpers/requirementUploadHelper";
 import { resolveEffectiveTenantId } from "../../../shared/helpers/tenantHelper";
@@ -138,7 +139,7 @@ export function useServices() {
   const [currentGeneralApplicantIndex, setCurrentGeneralApplicantIndex] = useState(0);
   const [triggerOpenApplicant, setTriggerOpenApplicant] = useState(0);
   const [triggerBulkSubmit, setTriggerBulkSubmit] = useState(0);
-  const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
+  const [variantRequirements, setVariantRequirements] = useState<Array<ServiceRequirementItem | string>>([]);
 
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [viewingDraftsCategory, setViewingDraftsCategory] = useState<string | null>(null);
@@ -325,7 +326,10 @@ export function useServices() {
         }
         return;
       }
-      const effectiveVariantId = generalApplicants[0]?.selectedVariantId || "";
+      const effectiveVariantId =
+        generalApplicants[currentGeneralApplicantIndex]?.selectedVariantId ||
+        generalApplicants[0]?.selectedVariantId ||
+        "";
       if (!effectiveVariantId) {
         if (active) {
           setVariantRequirements(selectedService.requirements || []);
@@ -340,13 +344,32 @@ export function useServices() {
           });
 
         if (active) {
-          let list: string[] = [];
-          if (reqRes && reqRes.succeeded && Array.isArray(reqRes.data)) {
-            list = reqRes.data.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
-          } else if (Array.isArray(reqRes)) {
-            list = reqRes.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
-          } else if (reqRes && Array.isArray(reqRes.items)) {
-            list = reqRes.items.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          let list: Array<ServiceRequirementItem | string> = [];
+          const rawItems =
+            reqRes && reqRes.succeeded && Array.isArray(reqRes.data)
+              ? reqRes.data
+              : Array.isArray(reqRes)
+              ? reqRes
+              : reqRes && Array.isArray(reqRes.items)
+              ? reqRes.items
+              : [];
+
+          if (rawItems.length > 0) {
+            list = rawItems.map((r: any) => {
+              if (typeof r === "string") return r;
+              const rObj = typeof r === "object" && r !== null ? r : {};
+              const idStr = typeof rObj.id === "string" ? rObj.id : typeof rObj.requirementId === "string" ? rObj.requirementId : undefined;
+              const nameStr = typeof rObj.name === "string" ? rObj.name : typeof rObj.title === "string" ? rObj.title : typeof rObj.description === "string" ? rObj.description : "Requirement";
+              const descStr = typeof rObj.description === "string" ? rObj.description : undefined;
+              const isReqBool = typeof rObj.isRequired === "boolean" ? rObj.isRequired : true;
+
+              return {
+                id: idStr,
+                name: nameStr,
+                description: descStr,
+                isRequired: isReqBool,
+              };
+            });
           }
 
           if (list.length === 0 && selectedService.requirements && Array.isArray(selectedService.requirements) && selectedService.requirements.length > 0) {
@@ -360,7 +383,7 @@ export function useServices() {
     };
     fetchRequirements();
     return () => { active = false; };
-  }, [selectedService?.id, generalApplicants[0]?.selectedVariantId]);
+  }, [selectedService?.id, generalApplicants[currentGeneralApplicantIndex]?.selectedVariantId, generalApplicants[0]?.selectedVariantId]);
 
   // Handle Hardware Back (Android) and Browser Back (PopState) for wizard steps
   useEffect(() => {

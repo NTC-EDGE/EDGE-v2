@@ -16,6 +16,7 @@ import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
 import { GeneralDocumentUploadStep } from "./GeneralDocumentUploadStep";
 import { GeneralReviewSubmitStep } from "./GeneralReviewSubmitStep";
 import { isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
+import { applyImportedApplicantsToCohort, BulkImportMode } from "../spreadsheet";
 
 interface GeneralWizardStepsProps {
   step: number;
@@ -270,7 +271,8 @@ export function GeneralWizardSteps({
           setIsFileUploaded={setIsFileUploaded}
           uploadedFileName={uploadedFileName}
           setUploadedFileName={setUploadedFileName}
-          onApplicantsImported={(newApps) => {
+          applicants={applicants}
+          onApplicantsImported={(newApps, mode: BulkImportMode = "REPLACE") => {
             const isIndiv = isServiceVariantIndividual(
               service,
               variants,
@@ -283,7 +285,7 @@ export function GeneralWizardSteps({
               selectedVariantName: activeApplicant.selectedVariantName || app.selectedVariantName,
               selectedElementId: activeApplicant.selectedElementId || app.selectedElementId,
               selectedElementTitle: activeApplicant.selectedElementTitle || app.selectedElementTitle,
-              applicantType: isIndiv ? "individual" : (app.applicantType || "company"),
+              applicantType: isIndiv ? ("individual" as const) : (app.applicantType || ("company" as const)),
               representativeName: activeApplicant.representativeName || app.representativeName,
               representativePosition: activeApplicant.representativePosition || app.representativePosition,
               representativeFirstName: activeApplicant.representativeFirstName || app.representativeFirstName,
@@ -302,7 +304,9 @@ export function GeneralWizardSteps({
               companyStreet: activeApplicant.companyStreet || app.companyStreet,
               companyZipCode: activeApplicant.companyZipCode || app.companyZipCode,
             }));
-            setApplicants(enriched);
+            setApplicants((prev) =>
+              applyImportedApplicantsToCohort(prev, enriched, mode, isIndiv)
+            );
             setCurrentApplicantIndex(0);
           }}
           errors={errors}
