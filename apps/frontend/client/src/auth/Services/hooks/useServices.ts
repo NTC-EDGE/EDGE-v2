@@ -820,8 +820,17 @@ export function useServices() {
       representativeMiddleName: baseApp?.representativeMiddleName,
       representativeLastName: baseApp?.representativeLastName,
       representativeSuffix: baseApp?.representativeSuffix,
+      representativeEmail: baseApp?.representativeEmail,
+      representativeContactNumber: baseApp?.representativeContactNumber,
       companyName: isIndiv ? (baseApp?.companyName || "") : "",
       dtiSecRegistration: isIndiv ? (baseApp?.dtiSecRegistration || "") : "",
+      companyAddress: isIndiv ? (baseApp?.companyAddress || "") : "",
+      companyRegion: isIndiv ? (baseApp?.companyRegion || "") : "",
+      companyProvince: isIndiv ? (baseApp?.companyProvince || "") : "",
+      companyCity: isIndiv ? (baseApp?.companyCity || "") : "",
+      companyBarangay: isIndiv ? (baseApp?.companyBarangay || "") : "",
+      companyStreet: isIndiv ? (baseApp?.companyStreet || "") : "",
+      companyZipCode: isIndiv ? (baseApp?.companyZipCode || "") : "",
     };
     setGeneralApplicants((prev) => [...prev, newApp]);
     setCurrentGeneralApplicantIndex(generalApplicants.length);

@@ -247,8 +247,17 @@ export function GeneralWizardSteps({
                     representativeSuffix: base.representativeSuffix,
                     representativeName: base.representativeName,
                     representativePosition: base.representativePosition,
+                    representativeEmail: base.representativeEmail,
+                    representativeContactNumber: base.representativeContactNumber,
                     companyName: isIndiv ? (base.companyName || "") : "",
                     dtiSecRegistration: isIndiv ? (base.dtiSecRegistration || "") : "",
+                    companyAddress: isIndiv ? (base.companyAddress || "") : "",
+                    companyRegion: isIndiv ? (base.companyRegion || "") : "",
+                    companyProvince: isIndiv ? (base.companyProvince || "") : "",
+                    companyCity: isIndiv ? (base.companyCity || "") : "",
+                    companyBarangay: isIndiv ? (base.companyBarangay || "") : "",
+                    companyStreet: isIndiv ? (base.companyStreet || "") : "",
+                    companyZipCode: isIndiv ? (base.companyZipCode || "") : "",
                   },
                 ];
               });
@@ -275,18 +284,23 @@ export function GeneralWizardSteps({
               selectedElementId: activeApplicant.selectedElementId || app.selectedElementId,
               selectedElementTitle: activeApplicant.selectedElementTitle || app.selectedElementTitle,
               applicantType: isIndiv ? "individual" : (app.applicantType || "company"),
-              ...(!isIndiv
-                ? {
-                    companyName: app.companyName || activeApplicant.companyName,
-                    representativeName: activeApplicant.representativeName || app.representativeName,
-                    representativePosition: activeApplicant.representativePosition || app.representativePosition,
-                    representativeFirstName: activeApplicant.representativeFirstName || app.representativeFirstName,
-                    representativeMiddleName: activeApplicant.representativeMiddleName || app.representativeMiddleName,
-                    representativeLastName: activeApplicant.representativeLastName || app.representativeLastName,
-                    representativeSuffix: activeApplicant.representativeSuffix || app.representativeSuffix,
-                    dtiSecRegistration: app.dtiSecRegistration || activeApplicant.dtiSecRegistration,
-                  }
-                : {}),
+              representativeName: activeApplicant.representativeName || app.representativeName,
+              representativePosition: activeApplicant.representativePosition || app.representativePosition,
+              representativeFirstName: activeApplicant.representativeFirstName || app.representativeFirstName,
+              representativeMiddleName: activeApplicant.representativeMiddleName || app.representativeMiddleName,
+              representativeLastName: activeApplicant.representativeLastName || app.representativeLastName,
+              representativeSuffix: activeApplicant.representativeSuffix || app.representativeSuffix,
+              representativeEmail: activeApplicant.representativeEmail || app.representativeEmail,
+              representativeContactNumber: activeApplicant.representativeContactNumber || app.representativeContactNumber,
+              companyName: isIndiv ? (activeApplicant.companyName || "") : (app.companyName || activeApplicant.companyName),
+              dtiSecRegistration: isIndiv ? (activeApplicant.dtiSecRegistration || "") : (app.dtiSecRegistration || activeApplicant.dtiSecRegistration),
+              companyAddress: activeApplicant.companyAddress || app.companyAddress,
+              companyRegion: activeApplicant.companyRegion || app.companyRegion,
+              companyProvince: activeApplicant.companyProvince || app.companyProvince,
+              companyCity: activeApplicant.companyCity || app.companyCity,
+              companyBarangay: activeApplicant.companyBarangay || app.companyBarangay,
+              companyStreet: activeApplicant.companyStreet || app.companyStreet,
+              companyZipCode: activeApplicant.companyZipCode || app.companyZipCode,
             }));
             setApplicants(enriched);
             setCurrentApplicantIndex(0);
@@ -337,6 +351,7 @@ export function GeneralWizardSteps({
           activeApplicant={activeApplicant}
           applicants={applicants}
           currentApplicantIndex={currentApplicantIndex}
+          onSelectApplicant={setCurrentApplicantIndex}
           appMode={appMode}
           variants={variants}
           variantRequirements={variantRequirements}

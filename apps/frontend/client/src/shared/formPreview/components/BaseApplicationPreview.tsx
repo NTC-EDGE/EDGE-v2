@@ -10,6 +10,7 @@ import { buildDynamicSections } from '../core/buildDynamicSections';
 import {
   isExamEducationField,
   isExamAssistanceField,
+  isSuppressedValue,
 } from '../core/formPreviewFieldCheckers';
 import {
   resolvePreviewVariant,
@@ -269,8 +270,53 @@ export function BaseApplicationPreview({
 
   const examEducationFields = useMemo(() => {
     if (!isExam) return [];
-    return remainingFields.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
-  }, [isExam, remainingFields]);
+    const fromRemaining = remainingFields.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
+    if (fromRemaining.length > 0) return fromRemaining;
+
+    const alreadyInDynamic = dynamicSectionsToRender.some((sec) =>
+      sec.fields.some((f) => isExamEducationField(f.label, f.fieldId))
+    );
+    if (alreadyInDynamic) return [];
+
+    const fallbackEdu: FormFieldValue[] = [];
+    if (schoolAttendedVal && !isSuppressedValue(schoolAttendedVal)) {
+      fallbackEdu.push({
+        fieldId: 'fd000000-0000-0000-0000-000000000061',
+        fieldLabel: 'School / University Attended',
+        value: schoolAttendedVal,
+      });
+    }
+    if (courseTakenVal && !isSuppressedValue(courseTakenVal)) {
+      fallbackEdu.push({
+        fieldId: 'fd000000-0000-0000-0000-000000000062',
+        fieldLabel: 'Course / Degree Program',
+        value: courseTakenVal,
+      });
+    }
+    if (yearGraduatedVal && !isSuppressedValue(yearGraduatedVal)) {
+      fallbackEdu.push({
+        fieldId: 'fd000000-0000-0000-0000-000000000063',
+        fieldLabel: 'Year Graduated',
+        value: yearGraduatedVal,
+      });
+    }
+    if (specialOrderNoVal && !isSuppressedValue(specialOrderNoVal)) {
+      fallbackEdu.push({
+        fieldId: 'specialOrderNo',
+        fieldLabel: 'Special Order No.',
+        value: specialOrderNoVal,
+      });
+    }
+    return fallbackEdu;
+  }, [
+    isExam,
+    remainingFields,
+    dynamicSectionsToRender,
+    schoolAttendedVal,
+    courseTakenVal,
+    yearGraduatedVal,
+    specialOrderNoVal,
+  ]);
 
   const examAssistanceFields = useMemo(() => {
     if (!isExam) return [];

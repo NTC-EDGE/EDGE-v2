@@ -214,13 +214,29 @@ export function mapApplicationDtoToUI(
 
   const companyObj = rawFilingUser?.company ?? primaryDetail?.company ?? primaryApplicant?.company;
 
-  const companyDetails = companyObj
+  const findPrimaryFv = (predicate: (lbl: string, id: string) => boolean) =>
+    primaryFormFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
+
+  const fallbackCompanyName =
+    companyObj?.name ||
+    (primaryDetail && 'companyName' in primaryDetail && typeof primaryDetail.companyName === 'string' ? primaryDetail.companyName : '') ||
+    (primaryApplicant && 'companyName' in primaryApplicant && typeof primaryApplicant.companyName === 'string' ? primaryApplicant.companyName : '') ||
+    findPrimaryFv((lbl, id) => id === 'fd000000-0000-0000-0000-000000000081' || lbl.includes('company name') || lbl.includes('business name') || lbl.includes('corporate name')) ||
+    '';
+
+  const fallbackCompanyRegNo =
+    companyObj?.registrationNumber ||
+    (primaryDetail && 'dtiSecRegistration' in primaryDetail && typeof primaryDetail.dtiSecRegistration === 'string' ? primaryDetail.dtiSecRegistration : '') ||
+    findPrimaryFv((lbl, id) => id === 'fd000000-0000-0000-0000-000000000086' || lbl.includes('sec / dti') || lbl.includes('dti / sec') || lbl.includes('registration number')) ||
+    '';
+
+  const companyDetails = (companyObj || fallbackCompanyName || fallbackCompanyRegNo)
     ? {
-      name: formatProperName(companyObj.name ?? ''),
-      registrationNumber: companyObj.registrationNumber ?? '',
-      address: companyObj.address ?? '',
-      contactNumber: companyObj.contactNumber ?? '',
-      email: companyObj.email ?? '',
+      name: formatProperName(fallbackCompanyName),
+      registrationNumber: fallbackCompanyRegNo,
+      address: companyObj?.address ?? '',
+      contactNumber: companyObj?.contactNumber ?? '',
+      email: companyObj?.email ?? '',
     }
     : undefined;
 
@@ -267,9 +283,6 @@ export function mapApplicationDtoToUI(
           : isValidName(companyObj?.name)
             ? formatProperName(companyObj.name)
             : formatProperName(companyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
-
-  const findPrimaryFv = (predicate: (lbl: string, id: string) => boolean) =>
-    primaryFormFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
 
   const rawPrimaryAddress = primaryDetail?.address ?? rawFilingUser?.company?.address ?? '';
   const parsedPrimaryAddr = parseAddressSegments(rawPrimaryAddress);
@@ -342,37 +355,69 @@ export function mapApplicationDtoToUI(
     rawFilingUser?.company?.contactNumber ||
     '';
 
+  const isBulkDto =
+    dto.submissionMode === 'Bulk' ||
+    (dto.applicationNumber?.startsWith('BULK-') ?? false) ||
+    (dto.applicants?.length ?? 0) > 1;
+
   const applicantsList = (dto.applicants ?? []).map((appItem, idx) => {
     const ad = appItem.details;
     const formFields = appItem.formFieldValues ?? [];
 
+    const itemApplicantType: 'Individual' | 'Company' =
+      appItem.applicantType === 'Company' ? 'Company' : 'Individual';
+    const isIndividualItem = itemApplicantType === 'Individual';
+
     const rawAppItemName =
       'name' in appItem && typeof appItem.name === 'string'
         ? appItem.name
-        : (appItem.company?.name || '');
+        : (!isIndividualItem ? (appItem.company?.name || '') : '');
 
     const nameCandidate = ad
-      ? [ad.firstName, ad.middleName, ad.lastName, ad.suffix].filter(Boolean).join(' ').trim()
+      ? [ad.firstName, ad.middleName, ad.lastName, ad.suffix].filter(Boolean).join(' ').trim() || rawAppItemName
       : rawAppItemName;
-
-    const itemComp = appItem.company ?? ad?.company ?? (idx === 0 ? rawFilingUser?.company : undefined);
-    const itemCompanyDetails = itemComp
-      ? {
-        name: formatProperName(itemComp.name ?? ''),
-        registrationNumber: itemComp.registrationNumber ?? '',
-        address: itemComp.address ?? '',
-        contactNumber: itemComp.contactNumber ?? '',
-        email: itemComp.email ?? '',
-      }
-      : undefined;
 
     const findFv = (predicate: (lbl: string, id: string) => boolean) =>
       formFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
 
-    const fvNameCandidate = findFv((lbl) =>
+    const itemComp = appItem.company ?? ad?.company ?? (idx === 0 ? rawFilingUser?.company : undefined);
+    const itemCompName =
+      itemComp?.name ||
+      (ad && 'companyName' in ad && typeof ad.companyName === 'string' ? ad.companyName : '') ||
+      ('companyName' in appItem && typeof appItem.companyName === 'string' ? appItem.companyName : '') ||
+      findFv((lbl, id) => id === 'fd000000-0000-0000-0000-000000000081' || lbl.includes('company name') || lbl.includes('business name') || lbl.includes('corporate name')) ||
+      (idx === 0 ? companyDetails?.name : '') ||
+      '';
+    const itemCompRegNo =
+      itemComp?.registrationNumber ||
+      findFv((lbl, id) => id === 'fd000000-0000-0000-0000-000000000086' || lbl.includes('sec / dti') || lbl.includes('dti / sec') || lbl.includes('registration number')) ||
+      (idx === 0 ? companyDetails?.registrationNumber : '') ||
+      '';
+
+    const itemCompanyDetails = (itemComp || itemCompName || itemCompRegNo)
+      ? {
+        name: formatProperName(itemCompName),
+        registrationNumber: itemCompRegNo,
+        address: itemComp?.address ?? (idx === 0 ? (companyDetails?.address ?? '') : ''),
+        contactNumber: itemComp?.contactNumber ?? (idx === 0 ? (companyDetails?.contactNumber ?? '') : ''),
+        email: itemComp?.email ?? (idx === 0 ? (companyDetails?.email ?? '') : ''),
+      }
+      : undefined;
+
+    const firstNameFromFv = findFv((lbl) => lbl === 'first name' || lbl === 'given name' || lbl.includes('first name'));
+    const middleNameFromFv = findFv((lbl) => lbl === 'middle name' || lbl === 'middle initial' || lbl.includes('middle name'));
+    const lastNameFromFv = findFv((lbl) => lbl === 'last name' || lbl === 'surname' || lbl === 'family name' || lbl.includes('last name'));
+    const suffixFromFv = findFv((lbl) => lbl === 'suffix' || lbl.includes('suffix') || lbl.includes('extension'));
+    const combinedFromFv = [firstNameFromFv, middleNameFromFv, lastNameFromFv, suffixFromFv].filter(Boolean).join(' ').trim();
+
+    const fvIndivNameCandidate = findFv((lbl) =>
+      lbl.includes('full legal name') ||
       lbl.includes('full name') ||
       lbl.includes('applicant name') ||
-      lbl.includes('name of applicant') ||
+      lbl.includes('name of applicant')
+    );
+
+    const fvCorpNameCandidate = findFv((lbl) =>
       lbl.includes('business name') ||
       lbl.includes('company name') ||
       lbl.includes('corporate name')
@@ -381,18 +426,19 @@ export function mapApplicationDtoToUI(
     const resolvedName =
       isValidName(nameCandidate)
         ? formatProperName(nameCandidate)
-        : isValidName(fvNameCandidate)
-          ? formatProperName(fvNameCandidate)
-          : isValidName(itemComp?.name)
-            ? formatProperName(itemComp.name)
-            : isValidName(rawFilingUser?.name)
-              ? formatProperName(rawFilingUser.name)
-              : formatProperName(itemComp?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
-
-    const firstNameFromFv = findFv((lbl) => lbl === 'first name' || lbl === 'given name' || lbl.includes('first name'));
-    const middleNameFromFv = findFv((lbl) => lbl === 'middle name' || lbl === 'middle initial' || lbl.includes('middle name'));
-    const lastNameFromFv = findFv((lbl) => lbl === 'last name' || lbl === 'surname' || lbl === 'family name' || lbl.includes('last name'));
-    const suffixFromFv = findFv((lbl) => lbl === 'suffix' || lbl.includes('suffix') || lbl.includes('extension'));
+        : isValidName(combinedFromFv)
+          ? formatProperName(combinedFromFv)
+          : isValidName(fvIndivNameCandidate)
+            ? formatProperName(fvIndivNameCandidate)
+            : !isIndividualItem && isValidName(fvCorpNameCandidate)
+              ? formatProperName(fvCorpNameCandidate)
+              : !isIndividualItem && isValidName(itemCompanyDetails?.name)
+                ? formatProperName(itemCompanyDetails.name)
+                : !isBulkDto && isValidName(rawFilingUser?.name)
+                  ? formatProperName(rawFilingUser.name)
+                  : isBulkDto
+                    ? `Applicant #${idx + 1}`
+                    : formatProperName(itemCompanyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
 
     const rawAdFirst = isValidName(ad?.firstName) ? ad.firstName.trim() : '';
     const rawAdMiddle = ad?.middleName ? ad.middleName.trim() : '';
@@ -438,25 +484,23 @@ export function mapApplicationDtoToUI(
     const civilFromFv = findFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
     const pobFromFv = findFv((lbl) => lbl.includes('place of birth') || lbl.includes('birthplace'));
 
-    const rawItemAddress = ad?.address || addrFromFv || (idx === 0 ? rawPrimaryAddress : '') || '';
+    const allowPrimaryFallback = idx === 0 && (!isBulkDto || !isIndividualItem);
+    const rawItemAddress = ad?.address || addrFromFv || (allowPrimaryFallback ? rawPrimaryAddress : '') || '';
     const parsedItemAddr = parseAddressSegments(rawItemAddress);
     const itemStreet = (parsedItemAddr.street && parsedItemAddr.street !== rawItemAddress)
       ? parsedItemAddr.street
       : rawItemAddress;
-    const itemBarangay = (idx === 0 ? findLatestTrail('Barangay') : undefined) || ad?.barangayName || ad?.barangay || brgyFromFv || parsedItemAddr.barangay || (idx === 0 ? brgyPrimary : '') || '';
-    const itemCity = (idx === 0 ? findLatestTrail('City') : undefined) || ad?.cityMunicipalityName || ad?.city || cityFromFv || parsedItemAddr.city || (idx === 0 ? cityPrimary : '') || '';
-    const itemProvince = (idx === 0 ? findLatestTrail('Province') : undefined) || ad?.provinceName || ad?.province || provFromFv || parsedItemAddr.province || (idx === 0 ? provPrimary : '') || '';
-    const itemRegion = (idx === 0 ? findLatestTrail('Region') : undefined) || ad?.regionName || ad?.region || regFromFv || parsedItemAddr.region || (idx === 0 ? regPrimary : '') || '';
-    const itemZip = ad?.zipCode || zipFromFv || parsedItemAddr.zipCode || (idx === 0 ? zipPrimary : '') || '';
-    const itemEmail = ad?.emailAddress || ad?.email || emailFromFv || (idx === 0 ? contactEmail : '') || '';
-    const itemContact = ad?.contactNumber || contactFromFv || (idx === 0 ? contactPhone : '') || '';
+    const itemBarangay = (idx === 0 ? findLatestTrail('Barangay') : undefined) || ad?.barangayName || ad?.barangay || brgyFromFv || parsedItemAddr.barangay || (allowPrimaryFallback ? brgyPrimary : '') || '';
+    const itemCity = (idx === 0 ? findLatestTrail('City') : undefined) || ad?.cityMunicipalityName || ad?.city || cityFromFv || parsedItemAddr.city || (allowPrimaryFallback ? cityPrimary : '') || '';
+    const itemProvince = (idx === 0 ? findLatestTrail('Province') : undefined) || ad?.provinceName || ad?.province || provFromFv || parsedItemAddr.province || (allowPrimaryFallback ? provPrimary : '') || '';
+    const itemRegion = (idx === 0 ? findLatestTrail('Region') : undefined) || ad?.regionName || ad?.region || regFromFv || parsedItemAddr.region || (allowPrimaryFallback ? regPrimary : '') || '';
+    const itemZip = ad?.zipCode || zipFromFv || parsedItemAddr.zipCode || (allowPrimaryFallback ? zipPrimary : '') || '';
+    const itemEmail = ad?.emailAddress || ad?.email || emailFromFv || (allowPrimaryFallback ? contactEmail : '') || '';
+    const itemContact = ad?.contactNumber || contactFromFv || (allowPrimaryFallback ? contactPhone : '') || '';
     const itemDob = normalizeBirthDate(ad?.birthDate) || normalizeBirthDate(dobFromFv) || (idx === 0 ? dobPrimary : '') || '';
     const itemSex = (ad?.sex && ad.sex.trim().length > 0 ? ad.sex.trim() : '') || (sexFromFv ? sexFromFv.trim() : '') || (idx === 0 ? sexPrimary : '') || '';
     const itemNat = (ad?.nationality && ad.nationality.trim().length > 0 ? ad.nationality.trim() : '') || (natFromFv ? natFromFv.trim() : '') || (idx === 0 ? natPrimary : '') || 'Filipino';
     const itemCivil = (idx === 0 ? findLatestTrail('CivilStatus') : undefined) || (ad?.civilStatus && ad.civilStatus.trim().length > 0 ? ad.civilStatus.trim() : '') || (civilFromFv ? civilFromFv.trim() : '') || (idx === 0 ? civilPrimary : '') || '';
-
-    const itemApplicantType: 'Individual' | 'Company' =
-      appItem.applicantType === 'Company' ? 'Company' : 'Individual';
 
     let itemStatus: 'Complete' | 'Incomplete' | 'ForEndorsement' = 'Complete';
     if (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement') {
@@ -563,7 +607,7 @@ export function mapApplicationDtoToUI(
       schoolAttended: ad?.schoolAttended ?? findFv((lbl) => lbl.includes('school') || lbl.includes('university')),
       courseTaken: ad?.courseTaken ?? findFv((lbl) => lbl.includes('course') || lbl.includes('degree') || lbl.includes('program')),
       yearGraduated: ad?.yearGraduated ?? findFv((lbl) => lbl.includes('graduat')),
-      eSignature: ad?.eSignature,
+      eSignature: ad?.eSignature ?? ('eSignature' in appItem && typeof appItem.eSignature === 'string' ? appItem.eSignature : undefined) ?? findFv((lbl) => lbl.includes('signature')),
     };
   });
 

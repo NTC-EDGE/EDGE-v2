@@ -390,6 +390,8 @@ export function ApplicantRecordTab({
         <View style={{ paddingHorizontal: SPACING[16] }}>
           {resolvedActiveApplicant && (() => {
             const isCompanyRecord = resolvedActiveApplicant.applicantType === 'Company' || (resolvedActiveApplicant.applicantType !== 'Individual' && app.applicantType === 'Company');
+            const effectiveCompanyName = resolvedActiveApplicant.companyDetails?.name || app.companyDetails?.name || app.filingUser?.company?.name;
+            const hasSponsoringCompany = isCompanyRecord || Boolean(effectiveCompanyName && effectiveCompanyName.trim().length > 0);
             return (
               <ApplicantParticularsCard
                 applicant={{
@@ -408,13 +410,17 @@ export function ApplicantRecordTab({
                   sex: resolvedActiveApplicant.basicInfo?.sex || resolvedActiveApplicant.sex,
                   civilStatus: resolvedActiveApplicant.basicInfo?.civilStatus || resolvedActiveApplicant.civilStatus,
                   nationality: resolvedActiveApplicant.basicInfo?.nationality || resolvedActiveApplicant.nationality,
-                  companyName: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.name : undefined,
-                  registrationNumber: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.registrationNumber : undefined,
-                  companyAddress: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.address : undefined,
-                  companyEmail: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.email : undefined,
-                  companyContactNumber: isCompanyRecord ? resolvedActiveApplicant.companyDetails?.contactNumber : undefined,
-                  representativeName: isCompanyRecord ? app.filingUser?.name : undefined,
+                  companyName: hasSponsoringCompany ? effectiveCompanyName : undefined,
+                  registrationNumber: hasSponsoringCompany ? (resolvedActiveApplicant.companyDetails?.registrationNumber || app.companyDetails?.registrationNumber) : undefined,
+                  companyAddress: hasSponsoringCompany ? (resolvedActiveApplicant.companyDetails?.address || app.companyDetails?.address) : undefined,
+                  companyEmail: hasSponsoringCompany ? (resolvedActiveApplicant.companyDetails?.email || app.companyDetails?.email) : undefined,
+                  companyContactNumber: hasSponsoringCompany ? (resolvedActiveApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber) : undefined,
+                  representativeName: hasSponsoringCompany ? app.filingUser?.name : undefined,
+                  representativeEmail: hasSponsoringCompany ? app.filingUser?.email : undefined,
                   notes: resolvedActiveApplicant.evaluationRemarks,
+                  schoolAttended: resolvedActiveApplicant.schoolAttended,
+                  courseTaken: resolvedActiveApplicant.courseTaken,
+                  yearGraduated: resolvedActiveApplicant.yearGraduated,
                 }}
               />
             );
@@ -422,7 +428,7 @@ export function ApplicantRecordTab({
         </View>
 
         {/* 2. Form submissions */}
-        {(hasFormValues || isLoadingForm) && (
+        {(hasFormValues || Boolean(activeApplicant?.eSignature) || isLoadingForm) && (
           <>
             <SectionHeader
               title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS"
@@ -455,7 +461,7 @@ export function ApplicantRecordTab({
                   <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
                   <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
                 </View>
-              ) : (formData && formData.sections.length > 0) || flatFormValues.length > 0 ? (
+              ) : (formData && formData.sections.length > 0) || flatFormValues.length > 0 || Boolean(activeApplicant?.eSignature) ? (
                 <BaseApplicationPreview
                   service={{ id: activeApplicant?.serviceId || app.serviceId || '', title: app.serviceName || app.permitTitle, category: app.serviceCategory || app.category }}
                   form={formData}
@@ -484,6 +490,7 @@ export function ApplicantRecordTab({
                     schoolAttended: activeApplicant.schoolAttended,
                     courseTaken: activeApplicant.courseTaken,
                     yearGraduated: activeApplicant.yearGraduated,
+                    signatureUrl: activeApplicant.eSignature,
                     selectedVariantName: effectiveVariantName || undefined,
                     selectedVariantId: effectiveVariantId || undefined,
                     element: effectiveElements || activeApplicant.element || undefined,

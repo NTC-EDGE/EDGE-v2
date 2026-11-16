@@ -137,18 +137,23 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
               selectedElementId: baseApp?.selectedElementId || app.selectedElementId,
               selectedElementTitle: baseApp?.selectedElementTitle || app.selectedElementTitle,
               applicantType: isIndiv ? "individual" : (app.applicantType || "company"),
-              ...(!isIndiv
-                ? {
-                    companyName: app.companyName || baseApp?.companyName,
-                    representativeName: baseApp?.representativeName || app.representativeName,
-                    representativePosition: baseApp?.representativePosition || app.representativePosition,
-                    representativeFirstName: baseApp?.representativeFirstName || app.representativeFirstName,
-                    representativeMiddleName: baseApp?.representativeMiddleName || app.representativeMiddleName,
-                    representativeLastName: baseApp?.representativeLastName || app.representativeLastName,
-                    representativeSuffix: baseApp?.representativeSuffix || app.representativeSuffix,
-                    dtiSecRegistration: app.dtiSecRegistration || baseApp?.dtiSecRegistration,
-                  }
-                : {}),
+              representativeName: baseApp?.representativeName || app.representativeName,
+              representativePosition: baseApp?.representativePosition || app.representativePosition,
+              representativeFirstName: baseApp?.representativeFirstName || app.representativeFirstName,
+              representativeMiddleName: baseApp?.representativeMiddleName || app.representativeMiddleName,
+              representativeLastName: baseApp?.representativeLastName || app.representativeLastName,
+              representativeSuffix: baseApp?.representativeSuffix || app.representativeSuffix,
+              representativeEmail: baseApp?.representativeEmail || app.representativeEmail,
+              representativeContactNumber: baseApp?.representativeContactNumber || app.representativeContactNumber,
+              companyName: isIndiv ? (baseApp?.companyName || "") : (app.companyName || baseApp?.companyName),
+              dtiSecRegistration: isIndiv ? (baseApp?.dtiSecRegistration || "") : (app.dtiSecRegistration || baseApp?.dtiSecRegistration),
+              companyAddress: baseApp?.companyAddress || app.companyAddress,
+              companyRegion: baseApp?.companyRegion || app.companyRegion,
+              companyProvince: baseApp?.companyProvince || app.companyProvince,
+              companyCity: baseApp?.companyCity || app.companyCity,
+              companyBarangay: baseApp?.companyBarangay || app.companyBarangay,
+              companyStreet: baseApp?.companyStreet || app.companyStreet,
+              companyZipCode: baseApp?.companyZipCode || app.companyZipCode,
             }));
             servicesState.setGeneralApplicants(enriched);
             setCurrentGeneralApplicantIndex(0);

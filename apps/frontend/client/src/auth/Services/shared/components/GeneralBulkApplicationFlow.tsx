@@ -677,7 +677,11 @@ export function GeneralBulkApplicationFlow({
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
             <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center" }}>
-              <Icon name={subView === "FILING_DETAILS" ? "users" : "paperclip"} size={16} color="#FFFFFF" />
+              <Icon
+                name={subView === "FILING_DETAILS" ? "users" : subView === "DOCUMENT_UPLOAD" ? "paperclip" : "check-circle"}
+                size={16}
+                color="#FFFFFF"
+              />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
@@ -690,7 +694,11 @@ export function GeneralBulkApplicationFlow({
           </View>
           <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1E40AF" }}>
-              {subView === "FILING_DETAILS" ? "Step 1/2 · Details" : "Step 2/2 · Documents"}
+              {subView === "FILING_DETAILS"
+                ? "Step 1/3 · Details"
+                : subView === "DOCUMENT_UPLOAD"
+                ? "Step 2/3 · Documents"
+                : "Step 3/3 · Review & Submit"}
             </Text>
           </View>
         </View>

@@ -139,8 +139,12 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('company name') ||
     lower.includes('business name') ||
     lower.includes('corporate name') ||
+    lower === 'applicant type' ||
+    lower === 'applicanttype' ||
     lower.includes('representative name') ||
     lower.includes('representative position') ||
+    lower === 'designation / position' ||
+    lower === 'position' ||
     lower.includes('representative email') ||
     lower.includes('representative contact') ||
     lower.includes('email') ||

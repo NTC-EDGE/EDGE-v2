@@ -108,20 +108,27 @@ export function extractApplicantFullName(
   details: RawApplicantDetails | null | undefined,
   first: RawApplicantHolder | null | undefined
 ): string {
-  if (isValidName(first?.name)) return formatProperName(first.name);
-  if (isValidName(first?.applicantName)) return formatProperName(first.applicantName);
-  if (isValidName(details?.fullName)) return formatProperName(details.fullName);
-  if (isValidName(details?.applicantName)) return formatProperName(details.applicantName);
+  const isSpecificApplicant = Boolean(details || first);
+  const rawAppType = (
+    first?.applicantType ||
+    details?.applicantType ||
+    first?.applicationType ||
+    (app as { applicantType?: string } | null)?.applicantType ||
+    ''
+  ).toLowerCase();
+  const isIndividual = rawAppType === 'individual';
 
   const firstName = details?.firstName || details?.first_name || '';
-  const middleName = details?.middleName || '';
+  const middleName = details?.middleName || details?.middle_name || '';
   const lastName = details?.lastName || details?.last_name || '';
-  const combined = [firstName, middleName, lastName].filter(Boolean).join(' ').trim();
+  const suffix = details?.suffix || '';
+  const combined = [firstName, middleName, lastName, suffix].filter(Boolean).join(' ').trim();
   if (isValidName(combined)) return formatProperName(combined);
 
-  if (isValidName(app?.applicantName)) {
-    return formatProperName(app.applicantName);
-  }
+  if (isValidName(details?.fullName)) return formatProperName(details.fullName);
+  if (isValidName(details?.applicantName)) return formatProperName(details.applicantName);
+  if (isValidName(first?.name)) return formatProperName(first.name);
+  if (isValidName(first?.applicantName)) return formatProperName(first.applicantName);
 
   const detailsFvList = Array.isArray(details?.formFieldValues) ? details.formFieldValues : [];
   const firstFvList = Array.isArray(first?.formFieldValues) ? first.formFieldValues : [];
@@ -133,37 +140,70 @@ export function extractApplicantFullName(
     const knownFv = fvList.find((fv) => fv.fieldId === FIELD_ID_FULL_NAME);
     if (isValidName(knownFv?.value)) return formatProperName(knownFv.value);
 
-    const matchedFv = fvList.find((fv) => {
+    const fnFv = fvList.find((fv) => {
+      const lbl = (fv.fieldLabel || fv.label || fv.key || '').toLowerCase();
+      return lbl === 'first name' || lbl === 'given name' || lbl.includes('first name');
+    })?.value;
+    const mnFv = fvList.find((fv) => {
+      const lbl = (fv.fieldLabel || fv.label || fv.key || '').toLowerCase();
+      return lbl === 'middle name' || lbl.includes('middle name');
+    })?.value;
+    const lnFv = fvList.find((fv) => {
+      const lbl = (fv.fieldLabel || fv.label || fv.key || '').toLowerCase();
+      return lbl === 'last name' || lbl === 'surname' || lbl.includes('last name');
+    })?.value;
+    const combinedFv = [fnFv, mnFv, lnFv].filter(Boolean).join(' ').trim();
+    if (isValidName(combinedFv)) return formatProperName(combinedFv);
+
+    const matchedIndivFv = fvList.find((fv) => {
       const lbl = (fv.fieldLabel || fv.label || fv.key || fv.fieldId || '').toLowerCase();
       return (
+        lbl.includes('full legal name') ||
         lbl.includes('full name') ||
         lbl.includes('applicant name') ||
-        lbl.includes('name of applicant') ||
-        lbl.includes('business name') ||
-        lbl.includes('company name') ||
-        lbl.includes('corporate name') ||
-        lbl.includes('registered name')
+        lbl.includes('name of applicant')
       );
     });
-    if (isValidName(matchedFv?.value)) return formatProperName(matchedFv.value);
+    if (isValidName(matchedIndivFv?.value)) return formatProperName(matchedIndivFv.value);
+
+    if (!isIndividual) {
+      const matchedCorpFv = fvList.find((fv) => {
+        const lbl = (fv.fieldLabel || fv.label || fv.key || fv.fieldId || '').toLowerCase();
+        return (
+          lbl.includes('business name') ||
+          lbl.includes('company name') ||
+          lbl.includes('corporate name') ||
+          lbl.includes('registered name')
+        );
+      });
+      if (isValidName(matchedCorpFv?.value)) return formatProperName(matchedCorpFv.value);
+    }
   }
 
-  if (isValidName(details?.companyName)) return formatProperName(details.companyName);
-  if (isValidName(first?.companyName)) return formatProperName(first.companyName);
-  if (isValidName(details?.representativeName)) return formatProperName(details.representativeName);
-  if (isValidName(first?.representativeName)) return formatProperName(first.representativeName);
+  if (!isSpecificApplicant && isValidName(app?.applicantName)) {
+    return formatProperName(app.applicantName);
+  }
 
-  const filingUserName = app?.filingUser?.name;
-  if (isValidName(filingUserName)) return formatProperName(filingUserName);
+  if (!isIndividual) {
+    if (isValidName(details?.companyName)) return formatProperName(details.companyName);
+    if (isValidName(first?.companyName)) return formatProperName(first.companyName);
+    if (isValidName(details?.representativeName)) return formatProperName(details.representativeName);
+    if (isValidName(first?.representativeName)) return formatProperName(first.representativeName);
+  }
 
-  const filingUserComp = app?.filingUser?.company?.name;
-  if (isValidName(filingUserComp)) return formatProperName(filingUserComp);
+  if (!isSpecificApplicant) {
+    const filingUserName = app?.filingUser?.name;
+    if (isValidName(filingUserName)) return formatProperName(filingUserName);
 
-  const appComp = app?.companyName;
-  if (isValidName(appComp)) return formatProperName(appComp);
+    const filingUserComp = app?.filingUser?.company?.name;
+    if (isValidName(filingUserComp)) return formatProperName(filingUserComp);
 
-  const appRep = app?.representativeName;
-  if (isValidName(appRep)) return formatProperName(appRep);
+    const appComp = app?.companyName;
+    if (isValidName(appComp)) return formatProperName(appComp);
+
+    const appRep = app?.representativeName;
+    if (isValidName(appRep)) return formatProperName(appRep);
+  }
 
   return 'Applicant';
 }
