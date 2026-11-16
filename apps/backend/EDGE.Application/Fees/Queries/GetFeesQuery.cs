@@ -27,7 +27,27 @@ public class GetFeesQueryHandler : IRequestHandler<GetFeesQuery, PaginatedApiRes
 
     public async Task<PaginatedApiResponse<FeeDto>> Handle(GetFeesQuery request, CancellationToken cancellationToken)
     {
-        var fees = await _feeRepository.GetAllAsync(request.ActiveOnly, cancellationToken);
+        var rawFees = await _feeRepository.GetAllAsync(request.ActiveOnly, cancellationToken);
+
+        // Deduplicate by canonical fee code and fee name so legacy or synonymous codes
+        // (e.g., FILING_FEE vs FF, INSP_FEE vs IF, LIC vs LF, PERMIT vs PF, POSS_PERMIT vs POS, EXAM_REG_FEE vs EXAM)
+        // never appear as duplicate fees in catalog selectors.
+        var seenCodes = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        var seenNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        var fees = new List<EDGE.Domain.Entities.Fee>();
+
+        foreach (var f in rawFees.OrderBy(x => x.Code.Length).ThenBy(x => x.Name))
+        {
+            var canonicalCode = EDGE.Domain.Constants.FeeConstants.Codes.NormalizeCanonicalCode(f.Code, f.Name);
+            var normName = (f.Name ?? string.Empty).Trim();
+            if (!seenCodes.Add(canonicalCode) || (!string.IsNullOrEmpty(normName) && !seenNames.Add(normName)))
+            {
+                continue;
+            }
+            fees.Add(f);
+        }
+
+        fees = fees.OrderBy(f => f.Name).ToList();
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {

@@ -855,10 +855,16 @@ export function ApplicationReviewScreenContent({
 
   // ── Contextual action bar state ─────────────────────────────────────────────
   const isBulkApp = (app.mode || '').toUpperCase() === 'BULK' || (app.applicantsList && app.applicantsList.length > 1);
-  const uncompletedApplicantsCount = app.applicantsList?.filter(a => !a.status || a.status === 'Incomplete').length ?? 0;
+  const uncompletedApplicantsCount = app.applicantsList?.filter(a => a.status === 'Incomplete').length ?? 0;
   const endorsementApplicantsCount = app.applicantsList?.filter(a => a.status === 'ForEndorsement').length ?? 0;
+  const eligibleApplicantsCount = app.applicantsList && app.applicantsList.length > 0
+    ? app.applicantsList.filter(a => a.status !== 'Incomplete' && a.status !== 'ForEndorsement').length
+    : 1;
   const hasIncompleteApplicants = isBulkApp
     ? uncompletedApplicantsCount > 0 || endorsementApplicantsCount > 0
+    : false;
+  const allApplicantsIncomplete = isBulkApp
+    ? eligibleApplicantsCount === 0
     : false;
 
   /** Start evaluation button for Submitted applications */
@@ -1268,7 +1274,7 @@ export function ApplicationReviewScreenContent({
         canEndorse={canEndorseAction}
         canRelease={canReleaseApplication}
         isApproveDisabled={
-          (showForwardBtn && hasIncompleteApplicants)
+          (showForwardBtn && (!hasSoa ? allApplicantsIncomplete : hasIncompleteApplicants))
         }
         isReturnDisabled={isReturnDisabled}
         approveLabel={approveButtonLabel}

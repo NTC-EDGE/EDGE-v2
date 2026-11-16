@@ -336,84 +336,136 @@ export const applicationService = {
     });
   },
 
-  getSoaPrintUrl(applicationId: string, orNumber?: string): string {
+  getSoaPrintUrl(
+    applicationId: string,
+    orNumber?: string,
+    options?: { soaId?: string; applicantId?: string }
+  ): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
-      ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
-      : '';
-    return `${base}/api/v2/applications/${applicationId}/soa/print${query}`;
+    const params = new URLSearchParams();
+    if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
+    if (options?.soaId) params.set('soaId', options.soaId);
+    if (options?.applicantId) params.set('applicantId', options.applicantId);
+    const qs = params.toString();
+    return `${base}/api/v2/applications/${applicationId}/soa/print${qs ? `?${qs}` : ''}`;
   },
 
-  getSoaDownloadUrl(applicationId: string, orNumber?: string): string {
+  getSoaDownloadUrl(
+    applicationId: string,
+    orNumber?: string,
+    options?: { soaId?: string; applicantId?: string }
+  ): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
-      ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
-      : '';
-    return `${base}/api/v2/applications/${applicationId}/soa/print?download=true${query}`;
+    const params = new URLSearchParams();
+    params.set('download', 'true');
+    if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
+    if (options?.soaId) params.set('soaId', options.soaId);
+    if (options?.applicantId) params.set('applicantId', options.applicantId);
+    return `${base}/api/v2/applications/${applicationId}/soa/print?${params.toString()}`;
   },
 
-  getOpPrintUrl(applicationId: string, orNumber?: string): string {
+  getOpPrintUrl(
+    applicationId: string,
+    orNumber?: string,
+    options?: { opId?: string; soaId?: string; applicantId?: string }
+  ): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
-      ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
-      : '';
-    return `${base}/api/v2/applications/${applicationId}/op/print${query}`;
+    const params = new URLSearchParams();
+    if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
+    if (options?.opId) params.set('opId', options.opId);
+    if (options?.soaId) params.set('soaId', options.soaId);
+    if (options?.applicantId) params.set('applicantId', options.applicantId);
+    const qs = params.toString();
+    return `${base}/api/v2/applications/${applicationId}/op/print${qs ? `?${qs}` : ''}`;
   },
 
-  getOpDownloadUrl(applicationId: string, orNumber?: string): string {
+  getOpDownloadUrl(
+    applicationId: string,
+    orNumber?: string,
+    options?: { opId?: string; soaId?: string; applicantId?: string }
+  ): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
-      ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
-      : '';
-    return `${base}/api/v2/applications/${applicationId}/op/print?download=true${query}`;
+    const params = new URLSearchParams();
+    params.set('download', 'true');
+    if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
+    if (options?.opId) params.set('opId', options.opId);
+    if (options?.soaId) params.set('soaId', options.soaId);
+    if (options?.applicantId) params.set('applicantId', options.applicantId);
+    return `${base}/api/v2/applications/${applicationId}/op/print?${params.toString()}`;
   },
 
-  async previewSoaPdf(applicationId: string, orNumber?: string) {
+  async previewSoaPdf(
+    applicationId: string,
+    orNumber?: string,
+    options?: { soaId?: string; applicantId?: string }
+  ) {
     return safeAsync(async () => {
-      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
-        ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
-        : '';
+      const params = new URLSearchParams();
+      if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
+      if (options?.soaId) params.set('soaId', options.soaId);
+      if (options?.applicantId) params.set('applicantId', options.applicantId);
+      const qs = params.toString();
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/soa/print${query}`,
+        `/api/v2/applications/${applicationId}/soa/print${qs ? `?${qs}` : ''}`,
         { responseType: 'blob' }
       );
       return response.data;
     });
   },
 
-  async downloadSoaPdf(applicationId: string, orNumber?: string) {
+  async downloadSoaPdf(
+    applicationId: string,
+    orNumber?: string,
+    options?: { soaId?: string; applicantId?: string }
+  ) {
     return safeAsync(async () => {
-      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
-        ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
-        : '';
+      const params = new URLSearchParams();
+      params.set('download', 'true');
+      if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
+      if (options?.soaId) params.set('soaId', options.soaId);
+      if (options?.applicantId) params.set('applicantId', options.applicantId);
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/soa/print?download=true${query}`,
+        `/api/v2/applications/${applicationId}/soa/print?${params.toString()}`,
         { responseType: 'blob' }
       );
       return response.data;
     });
   },
 
-  async previewOpPdf(applicationId: string, orNumber?: string) {
+  async previewOpPdf(
+    applicationId: string,
+    orNumber?: string,
+    options?: { opId?: string; soaId?: string; applicantId?: string }
+  ) {
     return safeAsync(async () => {
-      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
-        ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
-        : '';
+      const params = new URLSearchParams();
+      if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
+      if (options?.opId) params.set('opId', options.opId);
+      if (options?.soaId) params.set('soaId', options.soaId);
+      if (options?.applicantId) params.set('applicantId', options.applicantId);
+      const qs = params.toString();
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/op/print${query}`,
+        `/api/v2/applications/${applicationId}/op/print${qs ? `?${qs}` : ''}`,
         { responseType: 'blob' }
       );
       return response.data;
     });
   },
 
-  async downloadOpPdf(applicationId: string, orNumber?: string) {
+  async downloadOpPdf(
+    applicationId: string,
+    orNumber?: string,
+    options?: { opId?: string; soaId?: string; applicantId?: string }
+  ) {
     return safeAsync(async () => {
-      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
-        ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
-        : '';
+      const params = new URLSearchParams();
+      params.set('download', 'true');
+      if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
+      if (options?.opId) params.set('opId', options.opId);
+      if (options?.soaId) params.set('soaId', options.soaId);
+      if (options?.applicantId) params.set('applicantId', options.applicantId);
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/op/print?download=true${query}`,
+        `/api/v2/applications/${applicationId}/op/print?${params.toString()}`,
         { responseType: 'blob' }
       );
       return response.data;

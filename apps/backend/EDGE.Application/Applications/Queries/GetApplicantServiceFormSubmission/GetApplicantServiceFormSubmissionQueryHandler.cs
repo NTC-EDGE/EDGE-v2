@@ -98,7 +98,7 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
             ?? app.FormSubmissions.FirstOrDefault();
 
         // 3. Resolve Form layout schema (prefer variant-specific form when available)
-        var effectiveVariantId = request.VariantId ?? applicant.ServiceVariantId;
+        var effectiveVariantId = request.ServiceVariantId ?? applicant.ServiceVariantId;
         Form? form = null;
         if (submission != null && submission.FormId != Guid.Empty)
         {

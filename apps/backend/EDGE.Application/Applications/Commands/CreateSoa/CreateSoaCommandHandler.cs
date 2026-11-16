@@ -120,9 +120,53 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Evaluator", cancellationToken);
 
-        var existingSoa = app.StatementsOfAccount
-            .OrderByDescending(s => s.CreatedAt)
-            .FirstOrDefault(s => s.Status == SoaStatus.Pending || s.Status == SoaStatus.Returned);
+        var isPerApplicantMode = request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty;
+        var isBulkApplication = app.SubmissionMode == SubmissionMode.Bulk || app.ApplicationApplicants.Count > 1;
+
+        StatementOfAccount? existingSoa;
+        Guid? resolvedApplicantId;
+
+        if (isPerApplicantMode)
+        {
+            resolvedApplicantId = targetApplicant?.Id ?? request.ApplicantId!.Value;
+
+            // Remove any unapproved bulk/consolidated SOA if switching to per-applicant SOA generation
+            var staleBulkSoas = app.StatementsOfAccount
+                .Where(s => !s.IsDeleted && s.ApplicantId == null && (s.Status == SoaStatus.Pending || s.Status == SoaStatus.Returned))
+                .ToList();
+            foreach (var stale in staleBulkSoas)
+            {
+                stale.IsDeleted = true;
+            }
+
+            existingSoa = app.StatementsOfAccount
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefault(s => !s.IsDeleted && s.ApplicantId == resolvedApplicantId && (s.Status == SoaStatus.Pending || s.Status == SoaStatus.Returned));
+        }
+        else if (isBulkApplication)
+        {
+            resolvedApplicantId = null;
+
+            // Remove any unapproved per-applicant SOAs if switching to consolidated bulk SOA generation
+            var staleIndividualSoas = app.StatementsOfAccount
+                .Where(s => !s.IsDeleted && s.ApplicantId != null && (s.Status == SoaStatus.Pending || s.Status == SoaStatus.Returned))
+                .ToList();
+            foreach (var stale in staleIndividualSoas)
+            {
+                stale.IsDeleted = true;
+            }
+
+            existingSoa = app.StatementsOfAccount
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefault(s => !s.IsDeleted && s.ApplicantId == null && (s.Status == SoaStatus.Pending || s.Status == SoaStatus.Returned));
+        }
+        else
+        {
+            resolvedApplicantId = targetApplicant?.Id;
+            existingSoa = app.StatementsOfAccount
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefault(s => !s.IsDeleted && (s.Status == SoaStatus.Pending || s.Status == SoaStatus.Returned));
+        }
 
         var isExistingSoa = existingSoa != null;
 
@@ -130,7 +174,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         {
             Id = Guid.NewGuid(),
             ApplicationId = request.ApplicationId,
-            ApplicantId = targetApplicant?.Id ?? (request.ApplicantId.HasValue && app.ApplicationApplicants.Any(aa => aa.ApplicantId == request.ApplicantId.Value) ? request.ApplicantId : null),
+            ApplicantId = resolvedApplicantId,
             SoaNumber = _numberingSeriesService != null
                 ? await _numberingSeriesService.GenerateSoaNumberAsync(app.TenantId, cancellationToken)
                 : $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
@@ -138,6 +182,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             PreparedByUserId = userContext.UserId,
         };
 
+        soa.ApplicantId = resolvedApplicantId;
         soa.IssuedToType = issuedToType;
         soa.IssuedToName = resolvedIssuedToName;
         soa.IssuedToAddress = resolvedIssuedToAddress;
@@ -173,8 +218,22 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 
         if (request.LineItems != null && request.LineItems.Count > 0)
         {
+            var seenParticularKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in request.LineItems)
             {
+                var resolvedParticular = !string.IsNullOrWhiteSpace(item.Particular) ? item.Particular.Trim() : "Statutory Fee";
+                var rawCode = !string.IsNullOrWhiteSpace(item.ItemCode) ? item.ItemCode.Trim() : "FEE";
+                var canonicalCode = EDGE.Domain.Constants.FeeConstants.Codes.NormalizeCanonicalCode(rawCode, resolvedParticular);
+                var isOthers = resolvedParticular.StartsWith("Others", StringComparison.OrdinalIgnoreCase);
+                var dedupKey = !isOthers && canonicalCode != "FEE"
+                    ? canonicalCode
+                    : $"{canonicalCode}::{resolvedParticular}";
+
+                if (!seenParticularKeys.Add(dedupKey))
+                {
+                    continue;
+                }
+
                 var units = item.NoOfUnits > 0 ? item.NoOfUnits : 1;
                 var rate = item.FeeRate >= 0 ? item.FeeRate : 0m;
                 var calculatedAmount = units * rate;
@@ -183,8 +242,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 {
                     Id = Guid.NewGuid(),
                     StatementOfAccountId = soa.Id,
-                    Particular = !string.IsNullOrWhiteSpace(item.Particular) ? item.Particular.Trim() : "Statutory Fee",
-                    ItemCode = !string.IsNullOrWhiteSpace(item.ItemCode) ? item.ItemCode.Trim() : "FEE",
+                    Particular = resolvedParticular,
+                    ItemCode = canonicalCode != "FEE" && !rawCode.Contains('-') ? canonicalCode : rawCode,
                     Description = item.Description,
                     PeriodOfCoverageStart = EnsureUtc(item.PeriodOfCoverageStart),
                     PeriodOfCoverageEnd = EnsureUtc(item.PeriodOfCoverageEnd),
@@ -207,8 +266,14 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             var element = primaryVariant?.ServiceVariantElements?.FirstOrDefault()?.Code
                 ?? primaryVariant?.ServiceVariantElements?.FirstOrDefault()?.Description;
 
-            var applicantsCount = app.ApplicationApplicants.Count > 0 ? app.ApplicationApplicants.Count : 1;
-            var units = request.NoOfUnits ?? applicantsCount;
+            var completeApplicantsCount = app.ApplicationApplicants.Count(aa =>
+                aa.Applicant == null ||
+                aa.Applicant.Status != ApplicantStatus.Incomplete ||
+                string.IsNullOrWhiteSpace(aa.Applicant.EvaluationRemarks));
+            var applicantsCount = completeApplicantsCount > 0
+                ? completeApplicantsCount
+                : (app.ApplicationApplicants.Count > 0 ? app.ApplicationApplicants.Count : 1);
+            var units = request.NoOfUnits ?? (isPerApplicantMode ? 1 : applicantsCount);
             var years = request.ValidityYears ?? 1;
             var nowUtc = DateTime.UtcNow;
 

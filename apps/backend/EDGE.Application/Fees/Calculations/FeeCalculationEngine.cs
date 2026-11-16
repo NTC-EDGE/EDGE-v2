@@ -89,18 +89,55 @@ public class FeeCalculationEngine : IFeeCalculationEngine
         var hasMultiPages = FeeConstants.FormulaTokens.HasPages(formulaExpr);
 
         // Process combined component fees (Service, Variant, and Element levels)
-        var allFees = new List<(string FeeName, string FeeCode, string? Description, decimal Amount)>();
-        foreach (var sf in activeServiceFees)
+        // Deduplicate by canonical FeeCode and FeeName so the same fee under different codes
+        // (e.g., FILING_FEE vs FF, INSP_FEE vs IF, LIC vs LF, PERMIT vs PF, POSS_PERMIT vs POS, EXAM_REG_FEE vs EXAM)
+        // is never charged twice.
+        var rawFeeCandidates = new List<(string FeeName, string FeeCode, string? Description, decimal Amount, int Priority)>();
+        foreach (var ef in activeElementFees)
         {
-            allFees.Add((sf.Fee?.Name ?? sf.Fee?.Code ?? "Service Fee", sf.Fee?.Code ?? "FEE", sf.Fee?.Description, sf.Amount));
+            var name = ef.Fee?.Name ?? (ef.Element != null ? $"{ef.Element.Name} Fee" : "Element Fee");
+            var code = FeeConstants.Codes.NormalizeCanonicalCode(ef.Fee?.Code, name);
+            rawFeeCandidates.Add((name, code, ef.Element?.Description ?? ef.Fee?.Description, ef.Amount, 1));
         }
         foreach (var vf in activeVariantFees)
         {
-            allFees.Add((vf.Fee?.Name ?? vf.Fee?.Code ?? "Statutory Fee", vf.Fee?.Code ?? "FEE", vf.Fee?.Description, vf.Amount));
+            var name = vf.Fee?.Name ?? vf.Fee?.Code ?? "Statutory Fee";
+            var code = FeeConstants.Codes.NormalizeCanonicalCode(vf.Fee?.Code, name);
+            rawFeeCandidates.Add((name, code, vf.Fee?.Description, vf.Amount, 2));
         }
-        foreach (var ef in activeElementFees)
+        foreach (var sf in activeServiceFees)
         {
-            allFees.Add((ef.Fee?.Name ?? (ef.Element != null ? $"{ef.Element.Name} Fee" : "Element Fee"), ef.Fee?.Code ?? "FEE", ef.Element?.Description ?? ef.Fee?.Description, ef.Amount));
+            var name = sf.Fee?.Name ?? sf.Fee?.Code ?? "Service Fee";
+            var code = FeeConstants.Codes.NormalizeCanonicalCode(sf.Fee?.Code, name);
+            rawFeeCandidates.Add((name, code, sf.Fee?.Description, sf.Amount, 3));
+        }
+
+        var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var allFees = new List<(string FeeName, string FeeCode, string? Description, decimal Amount)>();
+
+        foreach (var candidate in rawFeeCandidates.OrderBy(c => c.Priority))
+        {
+            var normName = candidate.FeeName.Trim();
+            if (candidate.FeeCode != "FEE" && seenCodes.Contains(candidate.FeeCode))
+            {
+                continue;
+            }
+            if (!string.IsNullOrEmpty(normName) && seenNames.Contains(normName))
+            {
+                continue;
+            }
+
+            if (candidate.FeeCode != "FEE")
+            {
+                seenCodes.Add(candidate.FeeCode);
+            }
+            if (!string.IsNullOrEmpty(normName))
+            {
+                seenNames.Add(normName);
+            }
+
+            allFees.Add((candidate.FeeName, candidate.FeeCode, candidate.Description, candidate.Amount));
         }
 
         foreach (var (feeName, feeCode, description, baseRate) in allFees)

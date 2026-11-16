@@ -23,7 +23,9 @@ public class UpdateFeeCommandHandler : IRequestHandler<UpdateFeeCommand, FeeDto?
             return null;
         }
 
-        var normalizedCode = request.Code.Trim().ToUpperInvariant();
+        var canonicalCode = EDGE.Domain.Constants.FeeConstants.Codes.NormalizeCanonicalCode(request.Code, request.Name);
+        var normalizedCode = canonicalCode != "FEE" ? canonicalCode : request.Code.Trim().ToUpperInvariant();
+        var normalizedName = request.Name.Trim();
         if (!string.Equals(fee.Code, normalizedCode, StringComparison.OrdinalIgnoreCase))
         {
             var existing = await _feeRepository.GetByCodeAsync(normalizedCode, cancellationToken);
@@ -31,6 +33,14 @@ public class UpdateFeeCommandHandler : IRequestHandler<UpdateFeeCommand, FeeDto?
             {
                 throw new InvalidOperationException($"Fee with code '{normalizedCode}' already exists.");
             }
+        }
+
+        var allFees = await _feeRepository.GetAllAsync(null, cancellationToken);
+        if (allFees.Any(f => f.Id != fee.Id &&
+            (string.Equals(f.Name.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(EDGE.Domain.Constants.FeeConstants.Codes.NormalizeCanonicalCode(f.Code, f.Name), normalizedCode, StringComparison.OrdinalIgnoreCase))))
+        {
+            throw new InvalidOperationException($"Another fee representing '{normalizedName}' ({normalizedCode}) already exists.");
         }
 
         fee.Code = normalizedCode;

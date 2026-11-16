@@ -127,7 +127,18 @@ public static class StatementOfAccountPrintMapper
         }
 
         // 6. Line Items mapping to grid items
-        var lineItemsToMap = soa?.LineItems?.ToList();
+        var lineItemsToMap = soa?.LineItems?
+            .GroupBy(li =>
+            {
+                var part = li.Particular ?? string.Empty;
+                var canonical = EDGE.Domain.Constants.FeeConstants.Codes.NormalizeCanonicalCode(li.ItemCode, part);
+                var isOthers = part.StartsWith("Others", StringComparison.OrdinalIgnoreCase);
+                return !isOthers && canonical != "FEE"
+                    ? canonical
+                    : $"{canonical}::{part}";
+            }, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
         if ((lineItemsToMap == null || lineItemsToMap.Count == 0) && activeOp != null && activeOp.AmountDue > 0)
         {
             // Synthesize line item from Order of Payment reference

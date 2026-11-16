@@ -1552,7 +1552,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                             Value = fv.Value
                         }).ToList()
                 }).ToList(),
-                StatementsOfAccount = app.StatementsOfAccount.Select(s => new EDGE.Application.Applications.Dtos.StatementOfAccountDto
+                StatementsOfAccount = app.StatementsOfAccount.Where(s => !s.IsDeleted).Select(s => new EDGE.Application.Applications.Dtos.StatementOfAccountDto
                 {
                     Id = s.Id,
                     ApplicationId = s.ApplicationId,

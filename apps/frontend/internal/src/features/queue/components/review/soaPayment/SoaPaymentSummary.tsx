@@ -37,6 +37,8 @@ export function SoaPaymentSummary({
 
   const excess = app.payment.amountReceived - app.totalAmountDue;
   const preferredBreakdown = parsePaymentBreakdown(app.payment.remarks || app.note || app.payment.checkName || '');
+  const isIndividualMode = app.soaBillingMode === 'INDIVIDUAL';
+  const opsCount = app.opsList?.length ?? 0;
 
   return (
     <View
@@ -217,10 +219,17 @@ export function SoaPaymentSummary({
               </View>
               <View>
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: isDark ? '#e0e7ff' : '#3730a3' }}>
-                  Order of Payment (OP) — Ready for Review
+                  {isIndividualMode
+                    ? `Individual Order(s) of Payment (${Math.max(opsCount, app.soasList?.length ?? 1)} OP) — Ready for Review`
+                    : app.applicationType === 'BULK'
+                    ? 'Bulk Order of Payment (OP) — Ready for Review'
+                    : 'Order of Payment (OP) — Ready for Review'}
                 </Text>
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontSize: 12, color: isDark ? '#a5b4fc' : '#4338ca', marginTop: 2 }}>
-                  {app.payment.opNumber || (app.referenceNumber ? `OP-${app.referenceNumber}` : 'OP Ready')} • ₱{(app.totalAmountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {isIndividualMode && opsCount > 1
+                    ? `${opsCount} Individual OPs`
+                    : (app.payment.opNumber || (app.referenceNumber ? `OP-${app.referenceNumber}` : 'OP Ready'))}{' '}
+                  • ₱{(app.totalAmountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
             </View>
@@ -246,7 +255,9 @@ export function SoaPaymentSummary({
             )}
           </View>
           <Text style={{ fontSize: 12, color: isDark ? '#c7d2fe' : '#4338ca', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 16 }}>
-            Evaluator approved the assessment. Review the Order of Payment details and verify charges before approving and issuing the OP for payment.
+            {isIndividualMode
+              ? 'Individual SOA mode active: approving this assessment issues a dedicated Individual Order of Payment (OP) per applicant.'
+              : 'Evaluator approved the assessment. Review the Order of Payment details and verify charges before approving and issuing the OP for payment.'}
           </Text>
         </View>
       ) : (
@@ -299,6 +310,51 @@ export function SoaPaymentSummary({
                 ? 'Payment reference submitted. Ready for Cashier OR issuance.'
                 : 'Client has not paid. Cashier cannot issue OR until payment is made.'}
             </Text>
+          </View>
+        </View>
+      )}
+      {isIndividualMode && app.opsList && app.opsList.length > 0 && (
+        <View
+          style={{
+            marginTop: SPACING[12],
+            padding: SPACING[12],
+            borderRadius: RADIUS.card,
+            backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+            borderWidth: 1,
+            borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+            gap: 8,
+          }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[200] : colors.neutral[800] }}>
+            Individual Orders of Payment ({app.opsList.length})
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {app.opsList.map((opRec, idx) => {
+              const matchedApp = app.applicantsList?.find((a) => a.id === opRec.applicantId);
+              const matchedSoa = app.soasList?.find((s) => s.id === opRec.statementOfAccountId);
+              const displayName = matchedApp?.name || matchedSoa?.issuedToName || `Applicant #${idx + 1}`;
+              return (
+                <View
+                  key={opRec.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: RADIUS.sm,
+                    borderWidth: 1,
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                    backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                  }}
+                >
+                  <Lucide name="file-text" size={12} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? colors.neutral[200] : colors.neutral[800] }}>
+                    {displayName} • {opRec.opNumber} (₱{(opRec.amountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         </View>
       )}

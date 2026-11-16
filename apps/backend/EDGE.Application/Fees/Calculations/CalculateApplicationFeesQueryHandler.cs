@@ -56,8 +56,14 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
         var element = primaryVariant?.ServiceVariantElements?.FirstOrDefault()?.Code
             ?? primaryVariant?.ServiceVariantElements?.FirstOrDefault()?.Description;
 
-        var applicantsCount = app.ApplicationApplicants.Count > 0 ? app.ApplicationApplicants.Count : 1;
-        var units = request.NoOfUnits ?? applicantsCount;
+        var completeApplicantsCount = app.ApplicationApplicants.Count(aa =>
+            aa.Applicant == null ||
+            aa.Applicant.Status != EDGE.Domain.Enums.ApplicantStatus.Incomplete ||
+            string.IsNullOrWhiteSpace(aa.Applicant.EvaluationRemarks));
+        var applicantsCount = completeApplicantsCount > 0
+            ? completeApplicantsCount
+            : (app.ApplicationApplicants.Count > 0 ? app.ApplicationApplicants.Count : 1);
+        var units = request.NoOfUnits ?? (request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty ? 1 : applicantsCount);
         var years = request.ValidityYears ?? 1;
 
         var serviceFees = _serviceFeeRepository != null && primaryService != null

@@ -124,12 +124,64 @@ export function SoaReportPreviewModal({
     ? selectedOrNumber
     : (orList[0] || null);
 
+  const isIndividualBillingMode =
+    app.soaBillingMode === 'INDIVIDUAL' &&
+    app.soasList !== undefined &&
+    app.soasList.length > 0;
+
+  const [selectedSoaId, setSelectedSoaId] = useState<string | null>(
+    app.soasList && app.soasList.length > 0 ? (app.soasList[0]?.id ?? null) : null
+  );
+
+  const activePreviewSoa = useMemo(() => {
+    if (!isIndividualBillingMode || !app.soasList || app.soasList.length === 0) return undefined;
+    return app.soasList.find((s) => s.id === selectedSoaId) ?? app.soasList[0];
+  }, [isIndividualBillingMode, app.soasList, selectedSoaId]);
+
+  const activePreviewOp = useMemo(() => {
+    if (!isIndividualBillingMode || !app.opsList || app.opsList.length === 0) return undefined;
+    if (activePreviewSoa) {
+      const bySoa = app.opsList.find((op) => op.statementOfAccountId === activePreviewSoa.id);
+      if (bySoa) return bySoa;
+      if (activePreviewSoa.applicantId) {
+        const byApp = app.opsList.find((op) => op.applicantId === activePreviewSoa.applicantId);
+        if (byApp) return byApp;
+      }
+    }
+    return app.opsList[0];
+  }, [isIndividualBillingMode, app.opsList, activePreviewSoa]);
+
+  const soaPrintOptions = useMemo(
+    () =>
+      activePreviewSoa
+        ? { soaId: activePreviewSoa.id, applicantId: activePreviewSoa.applicantId }
+        : undefined,
+    [activePreviewSoa]
+  );
+
+  const opPrintOptions = useMemo(
+    () =>
+      activePreviewSoa || activePreviewOp
+        ? {
+            opId: activePreviewOp?.id,
+            soaId: activePreviewSoa?.id ?? activePreviewOp?.statementOfAccountId,
+            applicantId: activePreviewSoa?.applicantId ?? activePreviewOp?.applicantId,
+          }
+        : undefined,
+    [activePreviewSoa, activePreviewOp]
+  );
+
   useEffect(() => {
     if (visible) {
       setDocType(initialDocType);
       setViewFormat('pdf');
       setOrTemplate('landscape');
       setShowActionMenu(false);
+      if (app.soasList && app.soasList.length > 0) {
+        setSelectedSoaId(app.soasList[0]?.id ?? null);
+      } else {
+        setSelectedSoaId(null);
+      }
       if (orList.length > 0) {
         setSelectedOrNumber(orList[0]);
       } else {
@@ -168,9 +220,9 @@ export function SoaReportPreviewModal({
       const loadBlob = async () => {
         try {
           const [blob, err] = docType === 'soa'
-            ? await applicationService.previewSoaPdf(app.id)
+            ? await applicationService.previewSoaPdf(app.id, undefined, soaPrintOptions)
             : docType === 'op'
-              ? await applicationService.previewOpPdf(app.id)
+              ? await applicationService.previewOpPdf(app.id, undefined, opPrintOptions)
               : await applicationService.previewOrPdf(app.id, effectiveSelectedOr ?? undefined, orTemplate);
 
           if (!active) {
@@ -213,7 +265,7 @@ export function SoaReportPreviewModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [app.id, docType, viewFormat, reloadKey, effectiveSelectedOr, orTemplate]);
+  }, [app.id, docType, viewFormat, reloadKey, effectiveSelectedOr, orTemplate, soaPrintOptions, opPrintOptions]);
 
   const handleRetryPdf = () => {
     setReloadKey((prev) => prev + 1);
@@ -225,9 +277,9 @@ export function SoaReportPreviewModal({
     if (docType === 'soa' || docType === 'op' || docType === 'or') {
       try {
         const [pdfBlob, err] = docType === 'soa'
-          ? await applicationService.previewSoaPdf(app.id)
+          ? await applicationService.previewSoaPdf(app.id, undefined, soaPrintOptions)
           : docType === 'op'
-            ? await applicationService.previewOpPdf(app.id)
+            ? await applicationService.previewOpPdf(app.id, undefined, opPrintOptions)
             : await applicationService.previewOrPdf(app.id, effectiveSelectedOr ?? undefined, orTemplate);
 
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -243,9 +295,9 @@ export function SoaReportPreviewModal({
       }
 
       const url = docType === 'soa'
-        ? applicationService.getSoaPrintUrl(app.id)
+        ? applicationService.getSoaPrintUrl(app.id, undefined, soaPrintOptions)
         : docType === 'op'
-          ? applicationService.getOpPrintUrl(app.id)
+          ? applicationService.getOpPrintUrl(app.id, undefined, opPrintOptions)
           : applicationService.getOrPrintUrl(app.id, effectiveSelectedOr ?? undefined, orTemplate);
 
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -277,9 +329,9 @@ export function SoaReportPreviewModal({
 
     try {
       const [pdfBlob, err] = targetDoc === 'soa'
-        ? await applicationService.downloadSoaPdf(app.id)
+        ? await applicationService.downloadSoaPdf(app.id, undefined, soaPrintOptions)
         : targetDoc === 'op'
-          ? await applicationService.downloadOpPdf(app.id)
+          ? await applicationService.downloadOpPdf(app.id, undefined, opPrintOptions)
           : await applicationService.downloadOrPdf(app.id, resolvedOr, resolvedTemplate);
 
       if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -305,9 +357,9 @@ export function SoaReportPreviewModal({
     }
 
     const url = targetDoc === 'soa'
-      ? applicationService.getSoaDownloadUrl(app.id)
+      ? applicationService.getSoaDownloadUrl(app.id, undefined, soaPrintOptions)
       : targetDoc === 'op'
-        ? applicationService.getOpDownloadUrl(app.id)
+        ? applicationService.getOpDownloadUrl(app.id, undefined, opPrintOptions)
         : applicationService.getOrDownloadUrl(app.id, resolvedOr, resolvedTemplate);
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -1146,6 +1198,80 @@ export function SoaReportPreviewModal({
               </Text>
             </Pressable>
           </View>
+
+          {/* Individual SOA / Individual OP Applicant Selector Bar */}
+          {(docType === 'soa' || docType === 'op') && isIndividualBillingMode && app.soasList && app.soasList.length > 0 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+                paddingHorizontal: SPACING[16],
+                paddingVertical: 8,
+                backgroundColor: isDark ? colors.neutral[800] : colors.brand[50],
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? colors.neutral[700] : colors.brand[200],
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: isDark ? colors.brand[300] : colors.brand[800],
+                }}
+              >
+                {docType === 'soa'
+                  ? `INDIVIDUAL SOA BY APPLICANT (${app.soasList.length}):`
+                  : `INDIVIDUAL OP BY APPLICANT (${app.soasList.length}):`}
+              </Text>
+              {app.soasList.map((soaRec, idx) => {
+                const isSelected = activePreviewSoa?.id === soaRec.id;
+                const matchedApplicant = app.applicantsList?.find((a) => a.id === soaRec.applicantId);
+                const matchedOp = app.opsList?.find((op) => op.statementOfAccountId === soaRec.id);
+                const displayName = matchedApplicant?.name || soaRec.issuedToName || `Applicant #${idx + 1}`;
+                const docCode = docType === 'op'
+                  ? (matchedOp?.opNumber || soaRec.soaNumber.replace(/^SOA/i, 'OP'))
+                  : soaRec.soaNumber;
+                return (
+                  <Pressable
+                    key={soaRec.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      backgroundColor: isSelected
+                        ? (isDark ? colors.brand[600] : colors.brand[700])
+                        : (isDark ? colors.neutral[800] : '#FFFFFF'),
+                      borderWidth: 1,
+                      borderColor: isSelected
+                        ? (isDark ? colors.brand[400] : colors.brand[700])
+                        : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                    }}
+                    onPress={() => setSelectedSoaId(soaRec.id)}
+                  >
+                    <Lucide
+                      name="user"
+                      size={11}
+                      color={isSelected ? '#FFFFFF' : (isDark ? colors.neutral[400] : '#64748B')}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: isSelected ? '700' : '500',
+                        color: isSelected ? '#FFFFFF' : (isDark ? colors.neutral[200] : '#334155'),
+                      }}
+                    >
+                      {displayName} ({docCode})
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
 
           {/* Multi-OR Selector Bar for Cashier / Internal Users */}
           {docType === 'or' && orList.length > 1 && (

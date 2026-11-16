@@ -32,13 +32,45 @@ export function SoaParticularsTable({
   const [editingDueDate, setEditingDueDate] = useState(false);
   const [dueDraft, setDueDraft] = useState(app.dueDate);
 
+  const isIndividualSoaMode =
+    app.soaBillingMode === 'INDIVIDUAL' &&
+    app.soasList !== undefined &&
+    app.soasList.length > 0;
+
+  const [selectedSoaId, setSelectedSoaId] = useState<string | null>(
+    app.soasList && app.soasList.length > 0 ? (app.soasList[0]?.id ?? null) : null
+  );
+
+  useEffect(() => {
+    if (app.soasList && app.soasList.length > 0) {
+      const stillExists = app.soasList.some((s) => s.id === selectedSoaId);
+      if (!stillExists) {
+        setSelectedSoaId(app.soasList[0]?.id ?? null);
+      }
+    } else {
+      setSelectedSoaId(null);
+    }
+  }, [app.soasList, selectedSoaId]);
+
+  const activeSoaRecord = isIndividualSoaMode && app.soasList
+    ? (app.soasList.find((s) => s.id === selectedSoaId) ?? app.soasList[0])
+    : undefined;
+
+  const displayedSoaNumber = activeSoaRecord?.soaNumber ?? app.soaNumber;
+  const displayedSoaItems = activeSoaRecord?.items && activeSoaRecord.items.length > 0
+    ? activeSoaRecord.items
+    : app.soaItems;
+  const displayedSoaTotal = activeSoaRecord !== undefined
+    ? activeSoaRecord.totalAmount
+    : app.totalAmountDue;
+
   useEffect(() => {
     if (!editingDueDate) {
       setDueDraft(app.dueDate);
     }
   }, [app.dueDate, editingDueDate]);
 
-  const amountWords = amountToWords(app.totalAmountDue);
+  const amountWords = amountToWords(displayedSoaTotal);
 
   return (
     <View
@@ -54,11 +86,38 @@ export function SoaParticularsTable({
         <View style={{ flex: 1, minWidth: 220 }}>
           <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>OFFICIAL BILLING RECORD</Text>
           <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
-          {app.soaNumber !== null && app.soaNumber !== undefined && app.soaNumber.trim().length > 0 ? (
+          {displayedSoaNumber !== null && displayedSoaNumber !== undefined && displayedSoaNumber.trim().length > 0 ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], fontFamily: TYPOGRAPHY.fonts.mono }}>
-                {app.soaNumber}
+                {displayedSoaNumber}
               </Text>
+              {app.applicationType === 'BULK' && (
+                <View
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 12,
+                    backgroundColor: isIndividualSoaMode
+                      ? (isDark ? '#1e3a8a' : '#dbeafe')
+                      : (isDark ? '#312e81' : '#e0e7ff'),
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '700',
+                      fontFamily: TYPOGRAPHY.fonts.primary,
+                      color: isIndividualSoaMode
+                        ? (isDark ? '#93c5fd' : '#1d4ed8')
+                        : (isDark ? '#c7d2fe' : '#4338ca'),
+                    }}
+                  >
+                    {isIndividualSoaMode
+                      ? `Individual SOA (${app.soasList?.length ?? 1} of ${app.applicantsList?.length ?? 1} Applicant(s))`
+                      : 'Bulk Consolidated SOA'}
+                  </Text>
+                </View>
+              )}
               {Boolean(resolveParticularNumber(app)) && (
                 <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? colors.neutral[300] : colors.neutral[600] }}>
                   • Particular: <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontWeight: '700', color: isDark ? colors.brand[300] : colors.brand[700] }}>{resolveParticularNumber(app)}</Text>
@@ -202,6 +261,77 @@ export function SoaParticularsTable({
         </View>
       </View>
 
+      {isIndividualSoaMode && app.soasList && app.soasList.length > 0 && (
+        <View
+          style={{
+            marginBottom: 14,
+            padding: 12,
+            borderRadius: RADIUS.card,
+            backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+            borderWidth: 1,
+            borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+            gap: 8,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[200] : colors.neutral[800] }}>
+              Individual Statements of Account by Applicant ({app.soasList.length})
+            </Text>
+            {activeSoaRecord?.issuedToName ? (
+              <Text style={{ fontSize: 12, color: isDark ? colors.brand[300] : colors.brand[700], fontWeight: '600' }}>
+                Viewing: {activeSoaRecord.issuedToName}
+              </Text>
+            ) : null}
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {app.soasList.map((soaRec, idx) => {
+              const isSelected = activeSoaRecord?.id === soaRec.id;
+              const matchedApp = app.applicantsList?.find((a) => a.id === soaRec.applicantId);
+              const displayName = matchedApp?.name || soaRec.issuedToName || `Applicant #${idx + 1}`;
+              return (
+                <Pressable
+                  key={soaRec.id}
+                  onPress={() => setSelectedSoaId(soaRec.id)}
+                  style={[
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: RADIUS.sm,
+                      borderWidth: 1,
+                      borderColor: isSelected
+                        ? (isDark ? colors.brand[400] : colors.brand[600])
+                        : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                      backgroundColor: isSelected
+                        ? (isDark ? colors.brand[900] : colors.brand[50])
+                        : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                    },
+                    Platform.select({ web: { cursor: 'pointer' } as object }),
+                  ]}
+                >
+                  <Lucide
+                    name="file-text"
+                    size={12}
+                    color={isSelected ? (isDark ? colors.brand[300] : colors.brand[700]) : (isDark ? colors.neutral[400] : colors.neutral[500])}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: isSelected ? '700' : '500',
+                      color: isSelected ? (isDark ? colors.brand[200] : colors.brand[900]) : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                    }}
+                  >
+                    {displayName} • {soaRec.soaNumber} ({formatAmount(soaRec.totalAmount)})
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
       <View style={[styles.feeTable, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
         <View style={[styles.feeTableHeader, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
           {["Particular", "No. of Years", "%", "No. of Units", "Fees", "Amount"].map((col) => (
@@ -219,7 +349,7 @@ export function SoaParticularsTable({
         </View>
         <View style={[styles.feeTableDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
 
-        {app.soaItems.map((item: SoaItem, idx: number) => (
+        {displayedSoaItems.map((item: SoaItem, idx: number) => (
           <View key={idx} style={[styles.feeTableRow, { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
             <View style={{ flex: 2 }}>
               <Text style={[styles.feeParticularName, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{item.particular}</Text>
@@ -257,11 +387,18 @@ export function SoaParticularsTable({
         ]}
       >
         <View style={styles.totalRight}>
-          <Text style={[styles.totalLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>TOTAL AMOUNT DUE</Text>
+          <Text style={[styles.totalLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+            {isIndividualSoaMode ? 'SELECTED APPLICANT SOA AMOUNT DUE' : 'TOTAL AMOUNT DUE'}
+          </Text>
           <Text style={[styles.totalAmount, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-            {formatAmount(app.totalAmountDue)}
+            {formatAmount(displayedSoaTotal)}
           </Text>
           <Text style={[styles.totalWords, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{amountWords.toUpperCase()}</Text>
+          {isIndividualSoaMode && app.soasList && app.soasList.length > 1 && (
+            <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], marginTop: 4 }}>
+              Combined Cohort Total ({app.soasList.length} Individual SOAs): {formatAmount(app.totalAmountDue)}
+            </Text>
+          )}
 
           {/* Enhanced Due Date Banner Card */}
           <View
