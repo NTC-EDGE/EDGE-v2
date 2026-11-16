@@ -17,6 +17,7 @@ import {
   GeneralApplicantData,
   initialGeneralApplicant,
 } from "../shared/GeneralServiceWizard";
+import { isServiceVariantIndividual } from "../shared/helpers/applicantDisplayHelper";
 import { uploadRequirementsAfterSubmit } from "../shared/helpers/requirementUploadHelper";
 import { resolveEffectiveTenantId } from "../../../shared/helpers/tenantHelper";
 import { CurrentUserProfile } from "@edge/api";
@@ -800,34 +801,27 @@ export function useServices() {
   const handleAddGeneralApplicant = () => {
     const nextId = generalApplicants.length + 1;
     const baseApp = generalApplicants[0];
+    const isIndiv = isServiceVariantIndividual(
+      selectedService,
+      undefined,
+      baseApp?.selectedVariantId,
+      baseApp?.selectedVariantName
+    );
     const newApp: GeneralApplicantData = {
       ...initialGeneralApplicant(nextId),
       selectedVariantId: baseApp?.selectedVariantId,
       selectedVariantName: baseApp?.selectedVariantName,
       selectedElementId: baseApp?.selectedElementId,
       selectedElementTitle: baseApp?.selectedElementTitle,
-      applicantType: baseApp?.applicantType || "individual",
-      ...(baseApp?.applicantType === "company"
-        ? {
-            companyName: baseApp.companyName,
-            representativeName: baseApp.representativeName,
-            representativePosition: baseApp.representativePosition,
-            representativeFirstName: baseApp.representativeFirstName,
-            representativeMiddleName: baseApp.representativeMiddleName,
-            representativeLastName: baseApp.representativeLastName,
-            representativeSuffix: baseApp.representativeSuffix,
-            dtiSecRegistration: baseApp.dtiSecRegistration,
-            contactNo: baseApp.contactNo,
-            email: baseApp.email,
-            region: baseApp.region,
-            province: baseApp.province,
-            city: baseApp.city,
-            barangay: baseApp.barangay,
-            street: baseApp.street,
-            address: baseApp.address,
-            zipCode: baseApp.zipCode,
-          }
-        : {}),
+      applicantType: isIndiv ? "individual" : (baseApp?.applicantType || "company"),
+      representativeName: baseApp?.representativeName,
+      representativePosition: baseApp?.representativePosition,
+      representativeFirstName: baseApp?.representativeFirstName,
+      representativeMiddleName: baseApp?.representativeMiddleName,
+      representativeLastName: baseApp?.representativeLastName,
+      representativeSuffix: baseApp?.representativeSuffix,
+      companyName: isIndiv ? (baseApp?.companyName || "") : "",
+      dtiSecRegistration: isIndiv ? (baseApp?.dtiSecRegistration || "") : "",
     };
     setGeneralApplicants((prev) => [...prev, newApp]);
     setCurrentGeneralApplicantIndex(generalApplicants.length);

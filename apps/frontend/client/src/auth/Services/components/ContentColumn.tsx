@@ -4,6 +4,7 @@ import { CategoryGrid } from "./CategoryGrid";
 import { BulkApplicantsPanel } from "../accreditation/customer-premises";
 import { ExamBulkApplicantsPanel } from "../exams/radio-operator";
 import { GeneralBulkApplicantsPanel } from "../shared/GeneralBulkApplicantsPanel";
+import { isServiceVariantIndividual } from "../shared/helpers/applicantDisplayHelper";
 import { styles } from "../Services.styles";
 
 interface ContentColumnProps {
@@ -123,23 +124,29 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           onAddApplicant={handleAddGeneralApplicant}
           onApplicantsImported={(imported) => {
             const baseApp = generalApplicants[0];
+            const isIndiv = isServiceVariantIndividual(
+              selectedService,
+              undefined,
+              baseApp?.selectedVariantId,
+              baseApp?.selectedVariantName
+            );
             const enriched = imported.map((app) => ({
               ...app,
               selectedVariantId: baseApp?.selectedVariantId || app.selectedVariantId,
               selectedVariantName: baseApp?.selectedVariantName || app.selectedVariantName,
               selectedElementId: baseApp?.selectedElementId || app.selectedElementId,
               selectedElementTitle: baseApp?.selectedElementTitle || app.selectedElementTitle,
-              applicantType: baseApp?.applicantType || app.applicantType || "individual",
-              ...(baseApp?.applicantType === "company"
+              applicantType: isIndiv ? "individual" : (app.applicantType || "company"),
+              ...(!isIndiv
                 ? {
-                    companyName: baseApp.companyName || app.companyName,
-                    representativeName: baseApp.representativeName || app.representativeName,
-                    representativePosition: baseApp.representativePosition || app.representativePosition,
-                    representativeFirstName: baseApp.representativeFirstName || app.representativeFirstName,
-                    representativeMiddleName: baseApp.representativeMiddleName || app.representativeMiddleName,
-                    representativeLastName: baseApp.representativeLastName || app.representativeLastName,
-                    representativeSuffix: baseApp.representativeSuffix || app.representativeSuffix,
-                    dtiSecRegistration: baseApp.dtiSecRegistration || app.dtiSecRegistration,
+                    companyName: app.companyName || baseApp?.companyName,
+                    representativeName: baseApp?.representativeName || app.representativeName,
+                    representativePosition: baseApp?.representativePosition || app.representativePosition,
+                    representativeFirstName: baseApp?.representativeFirstName || app.representativeFirstName,
+                    representativeMiddleName: baseApp?.representativeMiddleName || app.representativeMiddleName,
+                    representativeLastName: baseApp?.representativeLastName || app.representativeLastName,
+                    representativeSuffix: baseApp?.representativeSuffix || app.representativeSuffix,
+                    dtiSecRegistration: app.dtiSecRegistration || baseApp?.dtiSecRegistration,
                   }
                 : {}),
             }));

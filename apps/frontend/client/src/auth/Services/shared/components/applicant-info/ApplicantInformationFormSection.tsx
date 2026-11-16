@@ -15,6 +15,8 @@ export interface ApplicantInformationFormSectionProps {
   allowIndividual?: boolean;
   isExamService?: boolean;
   includeSignature?: boolean;
+  isBulk?: boolean;
+  appMode?: "SINGLE" | "BULK" | "";
   errors?: Record<string, string>;
   title?: string;
   sexOptions?: Array<{ label: string; value: string }>;
@@ -59,6 +61,8 @@ export function ApplicantInformationFormSection({
   allowIndividual = true,
   isExamService = false,
   includeSignature = true,
+  isBulk = false,
+  appMode,
   errors = {},
   title = "Applicant Details",
   sexOptions,
@@ -503,9 +507,11 @@ export function ApplicantInformationFormSection({
             onChange={(sigUrl) => onChange({ signatureUrl: sigUrl })}
             applicantName={
               isCompany
-                ? applicant.representativeName || applicant.companyName || "Representative"
-                : `${applicant.firstName || ""} ${applicant.lastName || ""}`.trim() || "Applicant"
+                ? applicant.representativeName || applicant.companyName || ""
+                : `${applicant.firstName || ""} ${applicant.lastName || ""}`.trim()
             }
+            isBulk={isBulk}
+            appMode={appMode}
             error={errors["signatureUrl"] || errors["signature"]}
           />
         </View>

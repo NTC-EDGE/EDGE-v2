@@ -77,7 +77,7 @@ export function useCPEAccreditationWizard({
   React.useEffect(() => {
     let active = true;
     async function prefillCPEApplicant() {
-      if (!clerkUser || applicants.length !== 1 || hasPrefilledCPEProfileRef.current) return;
+      if (!clerkUser || applicants.length !== 1 || hasPrefilledCPEProfileRef.current || appMode === "BULK") return;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);

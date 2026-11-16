@@ -11,6 +11,7 @@ import {
   ServiceRequirementItem,
   isRequirementMandatory,
 } from "../hooks/useGeneralServiceWizard";
+import { isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
 import {
   getSpreadsheetTemplateForService,
   generateCsvContent,
@@ -165,16 +166,19 @@ export function GeneralFilingModeStep({
   const currentVariant = variants.find(
     (v) => String(v.id) === String(selectedVariantId || activeApplicant?.selectedVariantId)
   );
-  const isIndividualVariant = currentVariant?.isIndividual !== undefined ? currentVariant.isIndividual : !isCompanyCertService;
+  const isIndividualVariant = isServiceVariantIndividual(
+    service,
+    variants,
+    selectedVariantId || activeApplicant?.selectedVariantId,
+    currentVariant?.name || currentVariant?.description || activeApplicant?.selectedVariantName
+  );
   const isMandatoryCompanyService = false;
 
   React.useEffect(() => {
     if (!appMode) {
       onAppModeChange("SINGLE");
-    } else if (applicantType === "individual" && appMode === "BULK") {
-      onAppModeChange("SINGLE");
     }
-  }, [appMode, applicantType, onAppModeChange]);
+  }, [appMode, onAppModeChange]);
 
   const selectedClassId = selectedElementId || localSelectedClassId;
 

@@ -74,10 +74,8 @@ export function CPESteps1To3({
           onValueChange={(val) => {
             if (val === "SINGLE" || val === "BULK") {
               setAppMode(val);
-              if (val === "SINGLE") {
-                setApplicants([initialApplicant(1)]);
-                setCurrentApplicantIndex(0);
-              }
+              setApplicants([initialApplicant(1)]);
+              setCurrentApplicantIndex(0);
             }
           }}
           options={[

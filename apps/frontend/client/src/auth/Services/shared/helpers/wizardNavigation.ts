@@ -29,6 +29,7 @@ import {
   FIELD_ID_INVOICE_NUMBER,
 } from "../../../../shared/constants/fieldIds";
 import { isScheduleOpenForFiling, formatFriendlyDate } from "../components/ExamScheduleCard";
+import { isServiceVariantIndividual } from "./applicantDisplayHelper";
 
 interface NavigationContext {
   step: number;
@@ -170,9 +171,16 @@ export function handleWizardNext({
       ));
 
     const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const isIndividualVariant = isServiceVariantIndividual(
+      service,
+      variants,
+      activeApplicant.selectedVariantId,
+      activeApplicant.selectedVariantName
+    );
+    const isLiaisonFiling = activeApplicant.applicantType === "company" || appMode === "BULK";
 
-    if (activeApplicant.applicantType === "company") {
-      if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
+    if (isLiaisonFiling) {
+      if (isIndividualVariant && (!activeApplicant.companyName || activeApplicant.companyName.trim() === "")) {
         step2Errors.companyName = "Please enter the Company / Organization Name.";
       }
       if (
@@ -655,9 +663,10 @@ export function handleWizardNext({
           // Resolve fallback from activeApplicant properties
           if (
             (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name") || idLower.includes("applicant") || idLower.includes("company")) &&
-            (activeApplicant.companyName || activeApplicant.firstName || activeApplicant.lastName)
+            ((isCompany && activeApplicant.companyName) || activeApplicant.firstName || activeApplicant.lastName)
           ) {
-            val = activeApplicant.companyName || [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix].filter(Boolean).join(" ");
+            const indivName = [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix].filter(Boolean).join(" ");
+            val = isCompany ? (activeApplicant.companyName || indivName) : indivName;
           } else if (
             (idLower === FIELD_ID_CONTACT_NO.toLowerCase() || idLower === "contactno" || idLower.includes("contact") || idLower.includes("phone") || idLower.includes("mobile")) &&
             activeApplicant.contactNo

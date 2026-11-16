@@ -19,7 +19,7 @@ import {
   ServiceVariantElementInfo,
 } from "./hooks/useGeneralServiceWizard";
 export { isGeneralApplicantComplete };
-import { getApplicantDisplayName } from "./helpers/applicantDisplayHelper";
+import { getApplicantDisplayName, isServiceVariantIndividual } from "./helpers/applicantDisplayHelper";
 import { NTCService } from "../data/servicesData";
 import { styles } from "./GeneralBulkApplicantsPanel.styles";
 import { GeneralDeleteApplicantModal } from "./components/GeneralDeleteApplicantModal";
@@ -472,7 +472,15 @@ export function GeneralBulkApplicantsPanel({
             const isSelected = originalIdx === currentApplicantIndex;
             const isChecked = selectedIndices.has(originalIdx);
             const isComplete = isGeneralApplicantComplete(app, service, variantRequirements);
-            const fullName = getApplicantDisplayName(app, originalIdx + 1);
+            const isIndividualApp = isServiceVariantIndividual(
+              service,
+              variants,
+              app.selectedVariantId,
+              app.selectedVariantName
+            );
+            const fullName = getApplicantDisplayName(app, originalIdx + 1, {
+              isIndividualApplication: isIndividualApp,
+            });
 
             return (
               <TouchableOpacity

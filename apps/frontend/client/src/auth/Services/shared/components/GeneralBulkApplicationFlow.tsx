@@ -69,7 +69,7 @@ interface GeneralBulkApplicationFlowProps {
   triggerBulkSubmit?: number;
 }
 
-import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
+import { getApplicantDisplayName, isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export function GeneralBulkApplicationFlow({
@@ -127,6 +127,21 @@ export function GeneralBulkApplicationFlow({
   }, [triggerOpenApplicant]);
 
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
+  const isIndividualApp = isServiceVariantIndividual(
+    service,
+    variants,
+    activeApplicant?.selectedVariantId,
+    activeApplicant?.selectedVariantName
+  );
+
+  React.useEffect(() => {
+    const targetType = isIndividualApp ? "individual" : "company";
+    setApplicants((prev) => {
+      const needsUpdate = prev.some((app) => app.applicantType !== targetType);
+      if (!needsUpdate) return prev;
+      return prev.map((app) => (app.applicantType === targetType ? app : { ...app, applicantType: targetType }));
+    });
+  }, [isIndividualApp, setApplicants]);
 
   if (applicants.length === 0 || !activeApplicant) {
     return (
@@ -208,7 +223,7 @@ export function GeneralBulkApplicationFlow({
     const errors: Record<string, string> = {};
 
     // 1. Validate Standard Applicant Details (ApplicantInformationFormSection)
-    const isCompany = activeApplicant?.applicantType === "company";
+    const isCompany = !isIndividualApp && activeApplicant?.applicantType === "company";
 
     if (isCompany) {
       if (!activeApplicant?.companyName || activeApplicant.companyName.trim() === "") {
@@ -601,7 +616,9 @@ export function GeneralBulkApplicationFlow({
     onSubmitAll();
   };
 
-  const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
+  const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1, {
+    isIndividualApplication: isIndividualApp,
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -684,6 +701,10 @@ export function GeneralBulkApplicationFlow({
             service={service}
             activeApplicant={activeApplicant}
             updateActiveApplicant={updateActiveApplicant}
+            appMode="BULK"
+            applicants={applicants}
+            currentApplicantIndex={currentApplicantIndex}
+            setCurrentApplicantIndex={setCurrentApplicantIndex}
             onRequiredFieldsChange={setDynamicRequiredFieldIds}
             errors={formErrors}
             variants={variants}
