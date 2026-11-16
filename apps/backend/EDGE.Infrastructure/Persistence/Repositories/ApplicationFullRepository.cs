@@ -435,7 +435,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         ? (Guid?)aa.Applicant.FormSubmission.Id
                         : null,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
-                    Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
+                    Status = aa.Applicant != null
+                        ? (app.Status != ApplicationStatus.Draft && aa.Applicant.Status == ApplicantStatus.Incomplete && string.IsNullOrWhiteSpace(aa.Applicant.EvaluationRemarks)
+                            ? ApplicantStatus.Complete.ToString()
+                            : aa.Applicant.Status.ToString())
+                        : "Incomplete",
                     Name = aa.Applicant != null && aa.Applicant.ApplicantDetail != null
                         ? (aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).Trim()
                         : (aa.Applicant != null && aa.Applicant.CompanyDetail != null ? aa.Applicant.CompanyDetail.Name : "Applicant"),
@@ -878,7 +882,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                             ? (Guid?)aa.Applicant.FormSubmission.Id
                             : null,
                         ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
-                        Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
+                        Status = aa.Applicant != null
+                            ? (app.Status != ApplicationStatus.Draft && aa.Applicant.Status == ApplicantStatus.Incomplete && string.IsNullOrWhiteSpace(aa.Applicant.EvaluationRemarks)
+                                ? ApplicantStatus.Complete.ToString()
+                                : aa.Applicant.Status.ToString())
+                            : "Incomplete",
                         Name = aa.Applicant != null && aa.Applicant.ApplicantDetail != null
                             ? (aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).Trim()
                             : (aa.Applicant != null && aa.Applicant.CompanyDetail != null ? aa.Applicant.CompanyDetail.Name : "Applicant"),
@@ -1470,7 +1478,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     UserId = aa.Applicant != null ? aa.Applicant.UserId : null,
                     IsGuest = aa.Applicant != null ? aa.Applicant.IsGuest : true,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
-                    Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
+                    Status = aa.Applicant != null
+                        ? (app.Status != ApplicationStatus.Draft && aa.Applicant.Status == ApplicantStatus.Incomplete && string.IsNullOrWhiteSpace(aa.Applicant.EvaluationRemarks)
+                            ? ApplicantStatus.Complete.ToString()
+                            : aa.Applicant.Status.ToString())
+                        : "Incomplete",
                     EvaluationRemarks = aa.Applicant != null ? aa.Applicant.EvaluationRemarks : null,
                     ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,

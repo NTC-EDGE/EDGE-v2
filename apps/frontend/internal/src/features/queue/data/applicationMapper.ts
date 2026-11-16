@@ -502,9 +502,16 @@ export function mapApplicationDtoToUI(
     const itemNat = (ad?.nationality && ad.nationality.trim().length > 0 ? ad.nationality.trim() : '') || (natFromFv ? natFromFv.trim() : '') || (idx === 0 ? natPrimary : '') || 'Filipino';
     const itemCivil = (idx === 0 ? findLatestTrail('CivilStatus') : undefined) || (ad?.civilStatus && ad.civilStatus.trim().length > 0 ? ad.civilStatus.trim() : '') || (civilFromFv ? civilFromFv.trim() : '') || (idx === 0 ? civilPrimary : '') || '';
 
+    const hasEvalRemarks = Boolean(
+      typeof appItem.evaluationRemarks === 'string' && appItem.evaluationRemarks.trim().length > 0
+    );
+    const isInitialSubmitted = (dto.status || '').toLowerCase().trim() === 'submitted';
+
     let itemStatus: 'Complete' | 'Incomplete' | 'ForEndorsement' = 'Complete';
-    if (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement') {
-      itemStatus = appItem.status;
+    if (appItem.status === 'ForEndorsement') {
+      itemStatus = 'ForEndorsement';
+    } else if (appItem.status === 'Incomplete' && (!isInitialSubmitted || hasEvalRemarks)) {
+      itemStatus = 'Incomplete';
     }
 
     const elementFromFv = findFv((lbl) => lbl.includes('element') || lbl.includes('station class'));

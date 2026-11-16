@@ -262,18 +262,23 @@ export function resolveApplicantAuditHistory(
     }
   }
 
-  // 3. Current Applicant Evaluation Verdict / Status
-  if (activeApplicant.status !== null && activeApplicant.status !== undefined) {
-    if (activeApplicant.status === "Incomplete") {
+  // 3. Current Applicant Evaluation Verdict / Status (only after evaluation has started or when explicit evaluator remarks exist)
+  const appStatusLower = (app.status || "").toLowerCase().trim();
+  const hasExplicitRemarks = Boolean(
+    activeApplicant.evaluationRemarks && activeApplicant.evaluationRemarks.trim().length > 0
+  );
+  const hasBeenReviewedByEvaluator =
+    appStatusLower !== "submitted" && appStatusLower !== "draft" || hasExplicitRemarks;
+
+  if (hasBeenReviewedByEvaluator && activeApplicant.status !== null && activeApplicant.status !== undefined) {
+    if (activeApplicant.status === "Incomplete" && hasExplicitRemarks) {
       list.push({
         id: `applicant-eval-${activeApplicant.id}`,
         action: "Applicant Evaluation: Incomplete / Deficiencies Noted",
         staff: "Evaluating Officer",
         role: "Return Officer",
         status: "Incomplete",
-        remarks: activeApplicant.evaluationRemarks && activeApplicant.evaluationRemarks.trim().length > 0
-          ? activeApplicant.evaluationRemarks
-          : "Discrepancy remarks or missing requirements noted during evaluation.",
+        remarks: activeApplicant.evaluationRemarks,
         timestamp: "Current Evaluation State",
       });
     } else if (activeApplicant.status === "ForEndorsement") {
@@ -283,9 +288,7 @@ export function resolveApplicantAuditHistory(
         staff: "Evaluating Officer",
         role: "Evaluating Officer",
         status: "ForEndorsement",
-        remarks: activeApplicant.evaluationRemarks && activeApplicant.evaluationRemarks.trim().length > 0
-          ? activeApplicant.evaluationRemarks
-          : undefined,
+        remarks: hasExplicitRemarks ? activeApplicant.evaluationRemarks : undefined,
         timestamp: "Current Evaluation State",
       });
     } else if (activeApplicant.status === "Complete") {
@@ -295,9 +298,7 @@ export function resolveApplicantAuditHistory(
         staff: "Evaluating Officer",
         role: "Evaluating Officer",
         status: "Complete",
-        remarks: activeApplicant.evaluationRemarks && activeApplicant.evaluationRemarks.trim().length > 0
-          ? activeApplicant.evaluationRemarks
-          : undefined,
+        remarks: hasExplicitRemarks ? activeApplicant.evaluationRemarks : undefined,
         timestamp: "Current Evaluation State",
       });
     }

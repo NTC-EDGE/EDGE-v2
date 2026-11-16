@@ -156,6 +156,14 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         trackedApp.Status = ApplicationStatus.Submitted;
         trackedApp.ApplicationNumber = targetAppNumber;
 
+        foreach (var aa in app.ApplicationApplicants)
+        {
+            if (aa.Applicant != null && aa.Applicant.Status == ApplicantStatus.Incomplete)
+            {
+                aa.Applicant.Status = ApplicantStatus.Complete;
+            }
+        }
+
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {

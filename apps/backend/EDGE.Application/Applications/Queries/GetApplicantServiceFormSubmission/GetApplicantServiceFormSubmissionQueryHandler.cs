@@ -97,11 +97,17 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
             ?? app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId)
             ?? app.FormSubmissions.FirstOrDefault();
 
-        // 3. Resolve Form layout schema
+        // 3. Resolve Form layout schema (prefer variant-specific form when available)
+        var effectiveVariantId = request.VariantId ?? applicant.ServiceVariantId;
         Form? form = null;
         if (submission != null && submission.FormId != Guid.Empty)
         {
             form = await _formRepository.GetByIdAsync(submission.FormId, cancellationToken);
+        }
+
+        if (form == null && effectiveVariantId.HasValue && effectiveVariantId.Value != Guid.Empty)
+        {
+            form = await _formRepository.GetFormByServiceIdAsync(serviceId.Value, effectiveVariantId.Value, null, cancellationToken);
         }
 
         form ??= await _formRepository.GetFormByServiceIdAsync(serviceId.Value, cancellationToken);
@@ -131,6 +137,7 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
             ApplicantId = request.ApplicantId,
             Version = form.Version,
             Sections = form.Sections
+                .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)
                 .Select(fs => new ApplicationFormSectionDto
                 {
@@ -153,44 +160,6 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
                         }).ToList()
                 }).ToList()
         };
-
-        // 4. Preserve any submitted fields that are not part of the form's defined sections,
-        // excluding personal applicant profile fields that are already displayed in Applicant Details.
-        var sectionFieldIds = form.Sections
-            .SelectMany(s => s.SectionFields)
-            .Select(sf => sf.FieldId)
-            .ToHashSet();
-
-        var extraFields = (submission?.FieldValues ?? Enumerable.Empty<FormFieldValue>())
-            .Where(fv => fv != null
-                         && !sectionFieldIds.Contains(fv.FieldId)
-                         && !IsApplicantProfileField(fv.Field?.Label ?? fv.CustomLabel)
-                         && !string.IsNullOrWhiteSpace(fv.Value))
-            .GroupBy(fv => fv.FieldId)
-            .Select(g => g.First())
-            .Select((fv, idx) => new ApplicationFormFieldValueDto
-            {
-                FieldId = fv.FieldId,
-                Label = fv.Field?.Label ?? (!string.IsNullOrWhiteSpace(fv.CustomLabel) ? fv.CustomLabel : "Field"),
-                Type = fv.Field?.FieldType ?? "text",
-                IsRequired = false,
-                OrderIndex = 1000 + idx,
-                ValidationRules = fv.Field?.ValidationRules,
-                Value = fv.Value
-            })
-            .ToList();
-
-        if (extraFields.Count > 0)
-        {
-            dto.Sections.Add(new ApplicationFormSectionDto
-            {
-                Key = "additionalSpecifications",
-                Title = "Additional Technical Specifications",
-                Required = false,
-                OrderIndex = form.Sections.Count + 1,
-                Fields = extraFields
-            });
-        }
 
         return ApiResponse<ApplicationFormSubmissionDto>.Success(dto);
     }

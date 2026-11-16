@@ -97,8 +97,24 @@ export function ApplicantRecordTab({
     }
   }, [toastState]);
 
+  const cleanFormSections = useMemo(() => {
+    return (formData?.sections ?? []).filter(
+      (sec) =>
+        (sec.key || '').toLowerCase().trim() !== 'additionalspecifications' &&
+        (sec.title || '').toLowerCase().trim() !== 'additional technical specifications'
+    );
+  }, [formData]);
+
+  const cleanFormData = useMemo(() => {
+    if (!formData) return formData;
+    return {
+      ...formData,
+      sections: cleanFormSections,
+    };
+  }, [formData, cleanFormSections]);
+
   const flatFormValues = useMemo(() => {
-    const valuesFromForm = (formData?.sections ?? []).flatMap((sec) =>
+    const valuesFromForm = cleanFormSections.flatMap((sec) =>
       sec.fields.map((f) => ({ fieldId: f.fieldId, fieldLabel: f.label, value: f.value ?? '' }))
     );
     const applicantFvs = activeApplicant?.formFieldValues ?? [];
@@ -118,7 +134,7 @@ export function ApplicantRecordTab({
       }
     }
     return Array.from(new Set(map.values()));
-  }, [formData, activeApplicant]);
+  }, [cleanFormSections, activeApplicant]);
 
   const hasFormValues = useMemo(() => {
     if (flatFormValues.length === 0) return false;
@@ -461,10 +477,10 @@ export function ApplicantRecordTab({
                   <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
                   <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
                 </View>
-              ) : (formData && formData.sections.length > 0) || flatFormValues.length > 0 || Boolean(activeApplicant?.eSignature) ? (
+              ) : (cleanFormData && cleanFormData.sections.length > 0) || flatFormValues.length > 0 || Boolean(activeApplicant?.eSignature) ? (
                 <BaseApplicationPreview
                   service={{ id: activeApplicant?.serviceId || app.serviceId || '', title: app.serviceName || app.permitTitle, category: app.serviceCategory || app.category }}
-                  form={formData}
+                  form={cleanFormData}
                   formFieldValues={flatFormValues}
                   selectedVariantName={effectiveVariantName}
                   selectedVariantId={effectiveVariantId}
@@ -554,8 +570,8 @@ export function ApplicantRecordTab({
         applicationId={app.id}
         applicantId={activeApplicant?.id || app.id}
         applicantName={activeApplicant?.name}
-        submissionId={formData?.submissionId}
-        formSections={formData?.sections}
+        submissionId={cleanFormData?.submissionId}
+        formSections={cleanFormData?.sections}
         flatFormValues={flatFormValues}
         onSuccess={async () => {
           await mutateApplications(app.id);
