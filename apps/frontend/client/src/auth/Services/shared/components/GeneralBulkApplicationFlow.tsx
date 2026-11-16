@@ -69,7 +69,7 @@ interface GeneralBulkApplicationFlowProps {
   triggerBulkSubmit?: number;
 }
 
-import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
+import { getApplicantDisplayName, isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export function GeneralBulkApplicationFlow({
@@ -102,6 +102,7 @@ export function GeneralBulkApplicationFlow({
   const [subView, setSubView] = useState<BulkSubView>("FILING_DETAILS");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const prevTrigger = React.useRef(triggerOpenApplicant);
+  const prevBulkPreviewTrigger = React.useRef(triggerBulkSubmit);
 
   const clearFieldError = React.useCallback((...fieldKeys: string[]) => {
     setFormErrors((prev) => {
@@ -126,7 +127,31 @@ export function GeneralBulkApplicationFlow({
     }
   }, [triggerOpenApplicant]);
 
+  // React to left-panel "Show Preview Applications" button click
+  React.useEffect(() => {
+    if (triggerBulkSubmit && triggerBulkSubmit !== prevBulkPreviewTrigger.current) {
+      prevBulkPreviewTrigger.current = triggerBulkSubmit;
+      setFormErrors({});
+      setSubView("REVIEW");
+    }
+  }, [triggerBulkSubmit]);
+
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
+  const isIndividualApp = isServiceVariantIndividual(
+    service,
+    variants,
+    activeApplicant?.selectedVariantId,
+    activeApplicant?.selectedVariantName
+  );
+
+  React.useEffect(() => {
+    const targetType = isIndividualApp ? "individual" : "company";
+    setApplicants((prev) => {
+      const needsUpdate = prev.some((app) => app.applicantType !== targetType);
+      if (!needsUpdate) return prev;
+      return prev.map((app) => (app.applicantType === targetType ? app : { ...app, applicantType: targetType }));
+    });
+  }, [isIndividualApp, setApplicants]);
 
   if (applicants.length === 0 || !activeApplicant) {
     return (
@@ -208,7 +233,7 @@ export function GeneralBulkApplicationFlow({
     const errors: Record<string, string> = {};
 
     // 1. Validate Standard Applicant Details (ApplicantInformationFormSection)
-    const isCompany = activeApplicant?.applicantType === "company";
+    const isCompany = !isIndividualApp && activeApplicant?.applicantType === "company";
 
     if (isCompany) {
       if (!activeApplicant?.companyName || activeApplicant.companyName.trim() === "") {
@@ -521,7 +546,6 @@ export function GeneralBulkApplicationFlow({
     }
 
     setFormErrors({});
-    onSaveDraft?.();
     setSubView("DOCUMENT_UPLOAD");
   };
 
@@ -565,7 +589,6 @@ export function GeneralBulkApplicationFlow({
     }
 
     setFormErrors({});
-    onSaveDraft?.();
     if (currentApplicantIndex < applicants.length - 1) {
       setCurrentApplicantIndex(currentApplicantIndex + 1);
       setSubView("FILING_DETAILS");
@@ -601,7 +624,9 @@ export function GeneralBulkApplicationFlow({
     onSubmitAll();
   };
 
-  const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
+  const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1, {
+    isIndividualApplication: isIndividualApp,
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -660,7 +685,11 @@ export function GeneralBulkApplicationFlow({
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
             <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center" }}>
-              <Icon name={subView === "FILING_DETAILS" ? "users" : "paperclip"} size={16} color="#FFFFFF" />
+              <Icon
+                name={subView === "FILING_DETAILS" ? "users" : subView === "DOCUMENT_UPLOAD" ? "paperclip" : "check-circle"}
+                size={16}
+                color="#FFFFFF"
+              />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
@@ -673,7 +702,11 @@ export function GeneralBulkApplicationFlow({
           </View>
           <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1E40AF" }}>
-              {subView === "FILING_DETAILS" ? "Step 1/2 · Details" : "Step 2/2 · Documents"}
+              {subView === "FILING_DETAILS"
+                ? "Step 1/3 · Details"
+                : subView === "DOCUMENT_UPLOAD"
+                ? "Step 2/3 · Documents"
+                : "Step 3/3 · Review & Submit"}
             </Text>
           </View>
         </View>
@@ -684,6 +717,10 @@ export function GeneralBulkApplicationFlow({
             service={service}
             activeApplicant={activeApplicant}
             updateActiveApplicant={updateActiveApplicant}
+            appMode="BULK"
+            applicants={applicants}
+            currentApplicantIndex={currentApplicantIndex}
+            setCurrentApplicantIndex={setCurrentApplicantIndex}
             onRequiredFieldsChange={setDynamicRequiredFieldIds}
             errors={formErrors}
             variants={variants}

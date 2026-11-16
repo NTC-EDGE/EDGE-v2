@@ -1022,6 +1022,7 @@ export interface ApplicationServiceDto {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  applicationType?: string;
   element?: string;
   elements?: string;
   submissionId?: string;
@@ -1066,6 +1067,7 @@ export interface ApplicantDetailDto {
   suffix?: string;
   nationality: string;
   sex: string;
+  civilStatus?: string;
   height?: number;
   weight?: number;
   birthDate?: string;
@@ -1141,6 +1143,7 @@ export interface ApplicationDto {
   serviceCategoryCode?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  serviceVariantType?: string;
   element?: string;
   elements?: string;
   officialReceiptNumber?: string;
@@ -1266,6 +1269,7 @@ export interface ApplicationSummaryDto {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  serviceVariantType?: string;
   element?: string;
   elements?: string;
   officialReceiptNumber?: string;

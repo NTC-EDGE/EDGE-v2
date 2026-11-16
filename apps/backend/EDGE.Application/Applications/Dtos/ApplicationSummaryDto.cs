@@ -32,6 +32,7 @@ public class ApplicationSummaryDto
     public string? ServiceCategory { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? ServiceVariantType { get; set; }
     public string? Element { get; set; }
 
     public string? OfficialReceiptNumber { get; set; }
@@ -90,6 +91,7 @@ public class ServiceSummaryDto
     public string? ServiceName { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? ApplicationType { get; set; }
     public string? Element { get; set; }
     public Guid? SubmissionId { get; set; }
 }
@@ -101,6 +103,7 @@ public class ApplicantSummaryDto
     public string? ServiceName { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? ApplicationType { get; set; }
     public string? Element { get; set; }
     public Guid? SubmissionId { get; set; }
     public string ApplicantType { get; set; } = string.Empty;

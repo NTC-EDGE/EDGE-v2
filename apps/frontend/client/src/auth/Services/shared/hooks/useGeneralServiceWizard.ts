@@ -462,7 +462,7 @@ export function useGeneralServiceWizard(
   React.useEffect(() => {
     let active = true;
     async function loadUserProfileForPrefill() {
-      if (!clerkUser || hasPrefilledProfileRef.current) return;
+      if (!clerkUser || hasPrefilledProfileRef.current || appMode === "BULK") return;
       hasPrefilledProfileRef.current = true;
 
       // 1. Initial prefill from local storage / Clerk metadata
@@ -502,7 +502,7 @@ export function useGeneralServiceWizard(
             birthYear: isBlank ? initialProfile.birthYear : app.birthYear,
             birthMonth: isBlank ? initialProfile.birthMonth : app.birthMonth,
             birthDay: isBlank ? initialProfile.birthDay : app.birthDay,
-            companyName: app.companyName || initialProfile.companyName,
+            companyName: app.applicantType === "company" ? (app.companyName || initialProfile.companyName) : (app.companyName || ""),
             representativeFirstName: repFirst,
             representativeMiddleName: repMiddle,
             representativeLastName: repLast,
@@ -562,7 +562,7 @@ export function useGeneralServiceWizard(
               birthYear: isBlank ? enriched.birthYear : app.birthYear,
               birthMonth: isBlank ? enriched.birthMonth : app.birthMonth,
               birthDay: isBlank ? enriched.birthDay : app.birthDay,
-              companyName: app.companyName || enriched.companyName,
+              companyName: app.applicantType === "company" ? (app.companyName || enriched.companyName) : (app.companyName || ""),
               representativeFirstName: repFirst,
               representativeMiddleName: repMiddle,
               representativeLastName: repLast,
@@ -772,16 +772,16 @@ export function useGeneralServiceWizard(
         throw new Error("Application creation returned no identifier.");
       }
 
-      const allApplicantsForUpload = appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
-      await uploadRequirementsAfterSubmit({
-        api,
-        applicationId,
-        tenantId: selectedRegionId,
-        applicants: allApplicantsForUpload,
-        getToken,
-      });
-
       if (!isDraft) {
+        const allApplicantsForUpload = appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId,
+          tenantId: selectedRegionId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        });
+
         const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
         const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
         if (finObj.succeeded === false) {

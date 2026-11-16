@@ -80,9 +80,9 @@ describe('Exam Application Preview Fallbacks & Duplicate Suppression (Internal)'
     );
     expect(examHtml).not.toContain('Application Particulars &amp; Technical Details');
     expect(examHtml).not.toContain('Application Particulars & Technical Details');
-    expect(examHtml).toContain('Examination Details &amp; Particulars');
+    expect(examHtml).toBe('');
 
-    // For non-exam service: should show "Application Particulars & Technical Details"
+    // For non-exam service: also suppresses unmapped fallback section
     const nonExamHtml = renderToString(
       React.createElement(DynamicFormSectionsReview, {
         dynamicSectionsToRender: [],
@@ -91,7 +91,7 @@ describe('Exam Application Preview Fallbacks & Duplicate Suppression (Internal)'
         onPreviewFile: () => {},
       })
     );
-    expect(nonExamHtml).toContain('Application Particulars &amp; Technical Details');
+    expect(nonExamHtml).toBe('');
   });
 
   it('ExamEducationReviewSection suppresses duplicate section when education is already rendered', () => {

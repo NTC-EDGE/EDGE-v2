@@ -45,19 +45,39 @@ export function ApplicationDetailsTab({
 
   const effectiveVariant = useMemo(() => {
     return resolvePreviewVariant({
-      serviceVariantName: app.serviceVariantName,
+      variantName: app.serviceVariantName,
+      serviceVariantName:
+        app.services?.[0]?.serviceVariantName ||
+        app.applicantsList?.[0]?.serviceVariantName,
       variant: app.services?.[0]?.serviceVariantName,
       formFieldValues: app.formFieldValues,
     });
-  }, [app.serviceVariantName, app.services, app.formFieldValues]);
+  }, [app.serviceVariantName, app.services, app.applicantsList, app.formFieldValues]);
 
   const effectiveAppType = useMemo(() => {
-    return resolvePreviewApplicationType({
-      applicationType: app.applicantsList?.[0]?.applicationType,
-      element: undefined,
-      formFieldValues: app.formFieldValues,
-    });
-  }, [app.applicantsList, app.formFieldValues]);
+    return (
+      resolvePreviewApplicationType({
+        applicationType:
+          app.serviceVariantType ||
+          app.services?.[0]?.applicationType ||
+          app.applicantsList?.[0]?.applicationType,
+        element:
+          app.element ||
+          app.elements ||
+          app.applicantsList?.[0]?.element ||
+          app.serviceVariantName,
+        formFieldValues: app.formFieldValues,
+      }) || "New"
+    );
+  }, [
+    app.serviceVariantType,
+    app.services,
+    app.applicantsList,
+    app.element,
+    app.elements,
+    app.serviceVariantName,
+    app.formFieldValues,
+  ]);
 
   const effectiveElements = useMemo(() => {
     return resolvePreviewElements({
@@ -84,7 +104,7 @@ export function ApplicationDetailsTab({
       return [{
         name: defaultName,
         category: app.serviceCategory || app.category,
-        variant: effectiveVariant ?? undefined,
+        variant: effectiveVariant || app.serviceVariantName || undefined,
         applicationType: effectiveAppType ?? undefined,
         element: effectiveElements ?? undefined,
       }];
@@ -92,28 +112,66 @@ export function ApplicationDetailsTab({
     const map = new Map<string, { id?: string; name: string; category?: string; variant?: string; applicationType?: string; element?: string }>();
     for (const s of app.services) {
       const name = s.serviceName || defaultName;
-      const key = `${s.serviceId ?? ""}-${name}-${s.serviceVariantName ?? ""}`;
-      if (!map.has(key)) {
-        const itemElement =
-          resolvePreviewElements({
-            element: s.element || s.elements || effectiveElements,
-            elements: s.elements || s.element,
-            formFieldValues: app.formFieldValues,
-            variantName: s.serviceVariantName || effectiveVariant,
-          }) || effectiveElements || undefined;
+      const matchedApplicant = app.applicantsList?.find((a) => a.id === s.applicantId) || app.applicantsList?.[0];
+      const itemFormFields = matchedApplicant?.formFieldValues?.length ? matchedApplicant.formFieldValues : app.formFieldValues;
 
+      const itemVariant =
+        resolvePreviewVariant({
+          variantName: s.serviceVariantName,
+          serviceVariantName: matchedApplicant?.serviceVariantName || effectiveVariant,
+          variant: app.serviceVariantName,
+          formFieldValues: itemFormFields,
+        }) ||
+        s.serviceVariantName ||
+        effectiveVariant ||
+        undefined;
+
+      const itemAppType =
+        resolvePreviewApplicationType({
+          applicationType: s.applicationType || matchedApplicant?.applicationType || app.serviceVariantType,
+          element: s.element || s.elements || matchedApplicant?.element || s.serviceVariantName,
+          formFieldValues: itemFormFields,
+        }) ||
+        effectiveAppType ||
+        undefined;
+
+      const itemElement =
+        resolvePreviewElements({
+          element: s.element || s.elements || matchedApplicant?.element || effectiveElements,
+          elements: s.elements || s.element || matchedApplicant?.elements,
+          formFieldValues: itemFormFields,
+          variantName: itemVariant || s.serviceVariantName || effectiveVariant,
+        }) ||
+        effectiveElements ||
+        undefined;
+
+      const key = `${s.serviceId ?? ""}-${name}-${itemVariant ?? ""}-${itemAppType ?? ""}-${itemElement ?? ""}`;
+      if (!map.has(key)) {
         map.set(key, {
           id: s.id,
           name,
           category: s.serviceCategory || app.category,
-          variant: s.serviceVariantName || effectiveVariant || undefined,
-          applicationType: effectiveAppType ?? undefined,
+          variant: itemVariant,
+          applicationType: itemAppType,
           element: itemElement,
         });
       }
     }
     return Array.from(map.values());
-  }, [app.services, app.serviceName, app.permitTitle, app.serviceCategory, app.category, effectiveVariant, effectiveAppType, effectiveElements, app.formFieldValues]);
+  }, [
+    app.services,
+    app.applicantsList,
+    app.serviceName,
+    app.permitTitle,
+    app.serviceCategory,
+    app.category,
+    app.serviceVariantName,
+    app.serviceVariantType,
+    effectiveVariant,
+    effectiveAppType,
+    effectiveElements,
+    app.formFieldValues,
+  ]);
 
   const scheduleSummaryText = useMemo(() => {
     if (app.office && app.office.trim().length > 0) return `NTC Field Office • ${app.office}`;

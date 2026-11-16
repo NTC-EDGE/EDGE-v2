@@ -23,6 +23,21 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         _repository = repository;
     }
 
+    private static string? FormatServiceVariantType(ServiceVariantType? type)
+    {
+        if (type == null || type == ServiceVariantType.NA)
+        {
+            return null;
+        }
+
+        return type.Value switch
+        {
+            ServiceVariantType.FirstTaker => "First Taker",
+            ServiceVariantType.CivicActionGroup => "Civic Action Group",
+            _ => type.Value.ToString()
+        };
+    }
+
     public async Task<ApiResponse<ApplicationDto>> Handle(GetApplicationByIdQuery request, CancellationToken cancellationToken)
     {
         var app = await _repository.GetByIdWithDetailsAsync(request.Id, asNoTracking: true, cancellationToken);
@@ -152,7 +167,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             ServiceCategory = primaryService?.ServiceCategory?.Name,
             ServiceCategoryName = primaryService?.ServiceCategory?.Name,
             ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
-            ServiceVariantName = primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
+            ServiceVariantName = primaryVariant?.Description ?? FormatServiceVariantType(primaryVariant?.Type),
+            ServiceVariantType = FormatServiceVariantType(primaryVariant?.Type),
             OfficialReceiptNumber = resolvedOrNumber,
             OrNumbers = allOrNumbers,
             AmountPaid = resolvedAmountPaid,
@@ -167,7 +183,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     ServiceName = aa.Applicant?.Service?.Name,
                     ServiceCategory = aa.Applicant?.Service?.ServiceCategory?.Name,
                     ServiceVariantId = aa.Applicant?.ServiceVariantId,
-                    ServiceVariantName = aa.Applicant?.ServiceVariant?.Description ?? aa.Applicant?.ServiceVariant?.Type.ToString(),
+                    ServiceVariantName = aa.Applicant?.ServiceVariant?.Description ?? FormatServiceVariantType(aa.Applicant?.ServiceVariant?.Type),
+                    ApplicationType = FormatServiceVariantType(aa.Applicant?.ServiceVariant?.Type) ?? FormatServiceVariantType(primaryVariant?.Type),
                     SubmissionId = aa.Applicant?.FormSubmission?.Id ?? (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).FirstOrDefault(fs => fs.ApplicantId == aa.ApplicantId)?.Id
                 }).ToList(),
             FilingUser = app.User != null ? new FilingUserDto
@@ -226,21 +243,31 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     EvaluationRemarks = a?.EvaluationRemarks,
                     ServiceId = a?.ServiceId,
                     ServiceVariantId = a?.ServiceVariantId,
-                    ServiceVariantName = a?.ServiceVariant?.Description ?? a?.ServiceVariant?.Type.ToString() ?? primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
+                    ServiceVariantName = a?.ServiceVariant?.Description ?? FormatServiceVariantType(a?.ServiceVariant?.Type) ?? primaryVariant?.Description ?? FormatServiceVariantType(primaryVariant?.Type),
+                    ApplicationType = FormatServiceVariantType(a?.ServiceVariant?.Type) ?? FormatServiceVariantType(primaryVariant?.Type),
                     SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
                 };
 
                 if (a?.ApplicantDetail != null)
                 {
                     var ad = a.ApplicantDetail;
+                    var orderedTrails = (app.CorrectionAuditTrails ?? Enumerable.Empty<Domain.Entities.CorrectionAuditTrail>())
+                        .OrderByDescending(c => c.CorrectedAt)
+                        .ToList();
+                    var correctedBarangay = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "Barangay", StringComparison.OrdinalIgnoreCase))?.NewValue;
+                    var correctedCity = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "City", StringComparison.OrdinalIgnoreCase))?.NewValue;
+                    var correctedProvince = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "Province", StringComparison.OrdinalIgnoreCase))?.NewValue;
+                    var correctedRegion = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "Region", StringComparison.OrdinalIgnoreCase))?.NewValue;
+                    var correctedCivilStatus = orderedTrails.FirstOrDefault(c => string.Equals(c.FieldName, "CivilStatus", StringComparison.OrdinalIgnoreCase))?.NewValue;
+
                     applicantDto.Details = new ApplicantDetailDto
                     {
                         Id = ad.Id,
                         BarangayId = ad.BarangayId ?? Guid.Empty,
-                        BarangayName = ad.Barangay?.Name ?? string.Empty,
-                        CityMunicipalityName = ad.Barangay?.Municipality?.Name,
-                        ProvinceName = ad.Barangay?.Municipality?.Province?.Name,
-                        RegionName = ad.Barangay?.Municipality?.Province?.Region?.Name,
+                        BarangayName = !string.IsNullOrWhiteSpace(correctedBarangay) ? correctedBarangay : (ad.Barangay?.Name ?? string.Empty),
+                        CityMunicipalityName = !string.IsNullOrWhiteSpace(correctedCity) ? correctedCity : ad.Barangay?.Municipality?.Name,
+                        ProvinceName = !string.IsNullOrWhiteSpace(correctedProvince) ? correctedProvince : ad.Barangay?.Municipality?.Province?.Name,
+                        RegionName = !string.IsNullOrWhiteSpace(correctedRegion) ? correctedRegion : ad.Barangay?.Municipality?.Province?.Region?.Name,
                         Address = ad.Address,
                         FirstName = ad.FirstName,
                         MiddleName = ad.MiddleName,
@@ -248,6 +275,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         Suffix = ad.Suffix,
                         Nationality = ad.Nationality,
                         Sex = ad.Sex,
+                        CivilStatus = correctedCivilStatus,
                         Height = ad.Height,
                         Weight = ad.Weight,
                         BirthDate = ad.BirthDate,
@@ -335,6 +363,22 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     }
 
                     applicantDto.Element = applicantElement;
+
+                    if (string.IsNullOrWhiteSpace(applicantDto.ApplicationType))
+                    {
+                        var appTypeFv = applicantDto.FormFieldValues.FirstOrDefault(fv =>
+                            fv != null &&
+                            !string.IsNullOrWhiteSpace(fv.Value) &&
+                            (fv.FieldId == Guid.Parse("fd000000-0000-0000-0000-000000000007") ||
+                             fv.FieldId == Guid.Parse("fd000000-0000-0000-0000-000000000008") ||
+                             fv.FieldLabel.Contains("type of application", StringComparison.OrdinalIgnoreCase) ||
+                             fv.FieldLabel.Contains("application type", StringComparison.OrdinalIgnoreCase) ||
+                             fv.FieldLabel.Contains("examinee type", StringComparison.OrdinalIgnoreCase)))?.Value;
+                        if (!string.IsNullOrWhiteSpace(appTypeFv))
+                        {
+                            applicantDto.ApplicationType = appTypeFv.Trim();
+                        }
+                    }
                 }
 
                 return applicantDto;
@@ -511,11 +555,20 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
 
         foreach (var svc in dto.Services)
         {
+            var matchedApplicant = dto.Applicants.FirstOrDefault(a => a.Id == svc.ApplicantId);
             if (string.IsNullOrWhiteSpace(svc.Element))
             {
-                var matchedApplicant = dto.Applicants.FirstOrDefault(a => a.Id == svc.ApplicantId);
                 svc.Element = matchedApplicant?.Element ?? dto.Element;
             }
+            if (string.IsNullOrWhiteSpace(svc.ApplicationType))
+            {
+                svc.ApplicationType = matchedApplicant?.ApplicationType ?? dto.ServiceVariantType;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.ServiceVariantType))
+        {
+            dto.ServiceVariantType = dto.Applicants.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.ApplicationType))?.ApplicationType;
         }
 
         return ApiResponse<ApplicationDto>.Success(dto, "Application details retrieved successfully.");

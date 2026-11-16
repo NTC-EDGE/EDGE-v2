@@ -487,16 +487,45 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
                     {selectedApplicant.includedInSOA ? 'Included in Batch SOA' : 'Excluded from SOA'}
                   </Text>
                 </View>
+                {selectedApplicant.birthDate ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Date of Birth:</Text>
+                    <Text style={styles.detailVal}>{selectedApplicant.birthDate}</Text>
+                  </View>
+                ) : null}
                 {selectedApplicant.sex ? (
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Sex:</Text>
                     <Text style={styles.detailVal}>{selectedApplicant.sex}</Text>
                   </View>
                 ) : null}
+                {selectedApplicant.civilStatus ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Civil Status:</Text>
+                    <Text style={styles.detailVal}>{selectedApplicant.civilStatus}</Text>
+                  </View>
+                ) : null}
                 {selectedApplicant.nationality ? (
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Nationality:</Text>
                     <Text style={styles.detailVal}>{selectedApplicant.nationality}</Text>
+                  </View>
+                ) : null}
+                {selectedApplicant.streetAddress && selectedApplicant.streetAddress !== 'N/A' ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Address:</Text>
+                    <Text style={styles.detailVal}>
+                      {[
+                        selectedApplicant.streetAddress,
+                        selectedApplicant.barangay,
+                        selectedApplicant.cityMunicipality,
+                        selectedApplicant.province,
+                        selectedApplicant.region,
+                        selectedApplicant.zipCode,
+                      ]
+                        .filter((part) => Boolean(part && part !== 'N/A'))
+                        .join(', ')}
+                    </Text>
                   </View>
                 ) : null}
                 {selectedApplicant.mobileNumber ? (

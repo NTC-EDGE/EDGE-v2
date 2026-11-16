@@ -109,6 +109,10 @@ export interface ApplicantItem {
   province: string;
   region?: string;
   zipCode: string;
+  dob?: string;
+  sex?: string;
+  civilStatus?: string;
+  nationality?: string;
   schoolAttended?: string;
   courseTaken?: string;
   yearGraduated?: string;
@@ -127,6 +131,13 @@ export interface ApplicantItem {
     civilStatus?: string;
     employmentStatus: string;
     occupation: string;
+  };
+  company?: {
+    name: string;
+    registrationNumber?: string;
+    address?: string;
+    contactNumber?: string;
+    email?: string;
   };
   companyDetails?: {
     name: string;
@@ -213,6 +224,7 @@ export interface ApplicationData {
   serviceName?: string;
   serviceCategory?: string;
   serviceVariantName?: string;
+  serviceVariantType?: string;
   element?: string;
   elements?: string;
   office?: string;

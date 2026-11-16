@@ -80,7 +80,8 @@ public class SubmitApplicationCommandHandler
             }
             else
             {
-                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken);
+                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken)
+                             ?? await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
                 if (dbUser != null)
                 {
                     submitterUserId = dbUser.Id;
@@ -341,6 +342,11 @@ public class SubmitApplicationCommandHandler
                     existing.Status = status;
                     existing.Intent = intent;
                     existing.SubmissionMode = submissionMode;
+                    if (!existing.UserId.HasValue && submitterUserId.HasValue)
+                    {
+                        existing.UserId = submitterUserId;
+                        existing.IsGuest = false;
+                    }
                     if (request.RenewedFromApplicationId.HasValue && request.RenewedFromApplicationId.Value != Guid.Empty)
                     {
                         existing.RenewedFromApplicationId = request.RenewedFromApplicationId;

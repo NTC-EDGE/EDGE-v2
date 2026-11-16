@@ -654,6 +654,11 @@ export function synthesizeAllApplicantFieldValues(
   if (applicant.suffix) addField(undefined, 'Suffix', applicant.suffix);
 
   if (applicant.applicantType) addField(undefined, 'Applicant Type', applicant.applicantType);
+
+  const isCompanyOrSponsored =
+    (applicant.applicantType || '').toLowerCase() === 'company' ||
+    Boolean(applicant.companyName && applicant.companyName.trim().length > 0);
+
   if (applicant.companyName) addField(undefined, 'Company / Business Name', applicant.companyName);
 
   const repFullName = applicant.representativeName || [
@@ -662,9 +667,14 @@ export function synthesizeAllApplicantFieldValues(
     applicant.representativeLastName,
     applicant.representativeSuffix
   ].filter(Boolean).join(' ');
-  if (repFullName) addField(undefined, 'Authorized Representative Name', repFullName);
-  if (applicant.representativePosition) addField(undefined, 'Representative Position', applicant.representativePosition);
-  if (applicant.dtiSecRegistration) addField(undefined, 'SEC / DTI Registration Number', applicant.dtiSecRegistration);
+  if (isCompanyOrSponsored) {
+    if (repFullName) addField(undefined, 'Authorized Representative Name', repFullName);
+    if (applicant.representativePosition) addField(undefined, 'Representative Position', applicant.representativePosition);
+    if (applicant.dtiSecRegistration) addField(undefined, 'SEC / DTI Registration Number', applicant.dtiSecRegistration);
+  }
+  if (applicant.signatureUrl) {
+    addField('fd000000-0000-0000-0000-000000000012', 'Applicant Signature', applicant.signatureUrl);
+  }
 
   if (applicant.email) addField(undefined, 'Email Address', applicant.email);
   if (applicant.contactNo) addField(undefined, 'Contact / Mobile Number', applicant.contactNo);
@@ -791,7 +801,9 @@ export function synthesizeAllApplicantFieldValues(
     } else if (lowerLabel.includes('company')) {
       fallbackVal = applicant.companyName || null;
     } else if (lowerLabel.includes('representative')) {
-      fallbackVal = repFullName || null;
+      fallbackVal = isCompanyOrSponsored ? (repFullName || null) : null;
+    } else if (lowerLabel.includes('signature')) {
+      fallbackVal = applicant.signatureUrl || null;
     } else if (lowerLabel.includes('element') || lowerLabel.includes('station class')) {
       fallbackVal = elemVal || null;
     } else if (lowerLabel.includes('variant')) {

@@ -15,6 +15,8 @@ import { GeneralFilingModeStep } from "./GeneralFilingModeStep";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
 import { GeneralDocumentUploadStep } from "./GeneralDocumentUploadStep";
 import { GeneralReviewSubmitStep } from "./GeneralReviewSubmitStep";
+import { isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
+import { applyImportedApplicantsToCohort, BulkImportMode } from "../spreadsheet";
 
 interface GeneralWizardStepsProps {
   step: number;
@@ -144,7 +146,7 @@ export function GeneralWizardSteps({
               }))
             );
           }}
-          applicantType={activeApplicant.applicantType || "individual"}
+          applicantType={appMode === "BULK" ? "company" : (activeApplicant.applicantType || "individual")}
           onApplicantTypeChange={(type) => {
             setApplicants((prev) =>
               prev.map((app) => {
@@ -220,6 +222,47 @@ export function GeneralWizardSteps({
             if (val === "SINGLE") {
               setApplicants((prev) => [prev[0] || initialGeneralApplicant(1)]);
               setCurrentApplicantIndex(0);
+            } else if (val === "BULK") {
+              const isIndiv = isServiceVariantIndividual(
+                service,
+                variants,
+                activeApplicant.selectedVariantId,
+                activeApplicant.selectedVariantName
+              );
+              setApplicants((prev) => {
+                const base = prev[0] || initialGeneralApplicant(1);
+                return [
+                  {
+                    ...initialGeneralApplicant(1),
+                    selectedVariantId: base.selectedVariantId,
+                    selectedVariantName: base.selectedVariantName,
+                    selectedElementId: base.selectedElementId,
+                    selectedElementTitle: base.selectedElementTitle,
+                    element: base.element,
+                    elements: base.elements,
+                    selectedOption: base.selectedOption,
+                    applicantType: isIndiv ? "individual" : "company",
+                    representativeFirstName: base.representativeFirstName,
+                    representativeMiddleName: base.representativeMiddleName,
+                    representativeLastName: base.representativeLastName,
+                    representativeSuffix: base.representativeSuffix,
+                    representativeName: base.representativeName,
+                    representativePosition: base.representativePosition,
+                    representativeEmail: base.representativeEmail,
+                    representativeContactNumber: base.representativeContactNumber,
+                    companyName: isIndiv ? (base.companyName || "") : "",
+                    dtiSecRegistration: isIndiv ? (base.dtiSecRegistration || "") : "",
+                    companyAddress: isIndiv ? (base.companyAddress || "") : "",
+                    companyRegion: isIndiv ? (base.companyRegion || "") : "",
+                    companyProvince: isIndiv ? (base.companyProvince || "") : "",
+                    companyCity: isIndiv ? (base.companyCity || "") : "",
+                    companyBarangay: isIndiv ? (base.companyBarangay || "") : "",
+                    companyStreet: isIndiv ? (base.companyStreet || "") : "",
+                    companyZipCode: isIndiv ? (base.companyZipCode || "") : "",
+                  },
+                ];
+              });
+              setCurrentApplicantIndex(0);
             }
           }}
           bulkMethod={bulkMethod}
@@ -228,28 +271,42 @@ export function GeneralWizardSteps({
           setIsFileUploaded={setIsFileUploaded}
           uploadedFileName={uploadedFileName}
           setUploadedFileName={setUploadedFileName}
-          onApplicantsImported={(newApps) => {
+          applicants={applicants}
+          onApplicantsImported={(newApps, mode: BulkImportMode = "REPLACE") => {
+            const isIndiv = isServiceVariantIndividual(
+              service,
+              variants,
+              activeApplicant.selectedVariantId,
+              activeApplicant.selectedVariantName
+            );
             const enriched = newApps.map((app) => ({
               ...app,
               selectedVariantId: activeApplicant.selectedVariantId || app.selectedVariantId,
               selectedVariantName: activeApplicant.selectedVariantName || app.selectedVariantName,
               selectedElementId: activeApplicant.selectedElementId || app.selectedElementId,
               selectedElementTitle: activeApplicant.selectedElementTitle || app.selectedElementTitle,
-              applicantType: activeApplicant.applicantType || app.applicantType || "individual",
-              ...(activeApplicant.applicantType === "company"
-                ? {
-                    companyName: activeApplicant.companyName || app.companyName,
-                    representativeName: activeApplicant.representativeName || app.representativeName,
-                    representativePosition: activeApplicant.representativePosition || app.representativePosition,
-                    representativeFirstName: activeApplicant.representativeFirstName || app.representativeFirstName,
-                    representativeMiddleName: activeApplicant.representativeMiddleName || app.representativeMiddleName,
-                    representativeLastName: activeApplicant.representativeLastName || app.representativeLastName,
-                    representativeSuffix: activeApplicant.representativeSuffix || app.representativeSuffix,
-                    dtiSecRegistration: activeApplicant.dtiSecRegistration || app.dtiSecRegistration,
-                  }
-                : {}),
+              applicantType: isIndiv ? ("individual" as const) : (app.applicantType || ("company" as const)),
+              representativeName: activeApplicant.representativeName || app.representativeName,
+              representativePosition: activeApplicant.representativePosition || app.representativePosition,
+              representativeFirstName: activeApplicant.representativeFirstName || app.representativeFirstName,
+              representativeMiddleName: activeApplicant.representativeMiddleName || app.representativeMiddleName,
+              representativeLastName: activeApplicant.representativeLastName || app.representativeLastName,
+              representativeSuffix: activeApplicant.representativeSuffix || app.representativeSuffix,
+              representativeEmail: activeApplicant.representativeEmail || app.representativeEmail,
+              representativeContactNumber: activeApplicant.representativeContactNumber || app.representativeContactNumber,
+              companyName: isIndiv ? (activeApplicant.companyName || "") : (app.companyName || activeApplicant.companyName),
+              dtiSecRegistration: isIndiv ? (activeApplicant.dtiSecRegistration || "") : (app.dtiSecRegistration || activeApplicant.dtiSecRegistration),
+              companyAddress: activeApplicant.companyAddress || app.companyAddress,
+              companyRegion: activeApplicant.companyRegion || app.companyRegion,
+              companyProvince: activeApplicant.companyProvince || app.companyProvince,
+              companyCity: activeApplicant.companyCity || app.companyCity,
+              companyBarangay: activeApplicant.companyBarangay || app.companyBarangay,
+              companyStreet: activeApplicant.companyStreet || app.companyStreet,
+              companyZipCode: activeApplicant.companyZipCode || app.companyZipCode,
             }));
-            setApplicants(enriched);
+            setApplicants((prev) =>
+              applyImportedApplicantsToCohort(prev, enriched, mode, isIndiv)
+            );
             setCurrentApplicantIndex(0);
           }}
           errors={errors}
@@ -298,6 +355,7 @@ export function GeneralWizardSteps({
           activeApplicant={activeApplicant}
           applicants={applicants}
           currentApplicantIndex={currentApplicantIndex}
+          onSelectApplicant={setCurrentApplicantIndex}
           appMode={appMode}
           variants={variants}
           variantRequirements={variantRequirements}

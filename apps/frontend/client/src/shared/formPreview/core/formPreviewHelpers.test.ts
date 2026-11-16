@@ -3,6 +3,8 @@ import {
   sanitizeAddressSegment,
   extractSerialNumbers,
   normalizeRepeaterRowEntries,
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
   resolvePreviewElements,
 } from './formPreviewHelpers';
 
@@ -331,6 +333,45 @@ describe('resolvePreviewElements', () => {
         ],
       })
     ).toBe('Elements 1, 2, 3 & 4');
+  });
+});
+
+describe('resolvePreviewVariant and resolvePreviewApplicationType', () => {
+  it('resolves variant from candidate props or formFieldValues', () => {
+    expect(
+      resolvePreviewVariant({
+        serviceVariantName: 'Commercial Radio Operator Certificate',
+      })
+    ).toBe('Commercial Radio Operator Certificate');
+
+    expect(
+      resolvePreviewVariant({
+        formFieldValues: [
+          {
+            fieldId: 'fd000000-0000-0000-0000-000000000014',
+            fieldLabel: 'Type of Certificate',
+            value: 'Restricted Radiotelephone Operator Certificate',
+          },
+        ],
+      })
+    ).toBe('Restricted Radiotelephone Operator Certificate');
+  });
+
+  it('resolves and formats applicationType from props or formFieldValues', () => {
+    expect(resolvePreviewApplicationType({ applicationType: 'FirstTaker' })).toBe('First Taker');
+    expect(resolvePreviewApplicationType({ applicationType: 'Renewal' })).toBe('Renewal');
+    expect(resolvePreviewApplicationType({ applicationType: 'NA' })).toBeNull();
+    expect(
+      resolvePreviewApplicationType({
+        formFieldValues: [
+          {
+            fieldId: 'fd000000-0000-0000-0000-000000000008',
+            fieldLabel: 'Examinee Type',
+            value: 'Retaker',
+          },
+        ],
+      })
+    ).toBe('Retaker');
   });
 });
 

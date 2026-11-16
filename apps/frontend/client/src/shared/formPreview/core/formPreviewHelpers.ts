@@ -584,10 +584,20 @@ export function resolvePreviewVariant(params: ResolvePreviewVariantParams): stri
   // Also check formFieldValues
   if (params.formFieldValues && params.formFieldValues.length > 0) {
     const vField = params.formFieldValues.find((fv) => {
+      const id = (fv.fieldId || '').toLowerCase().trim();
       const lbl = (fv.fieldLabel || '').toLowerCase().trim();
       const val = (fv.value || '').trim();
       if (!val || val === 'null' || val === 'undefined') return false;
-      return lbl === 'service variant' || lbl === 'variant' || lbl.includes('variant name');
+      return (
+        id === 'fd000000-0000-0000-0000-000000000014' ||
+        id === 'fd000000-0000-0000-0000-000000000024' ||
+        lbl === 'service variant' ||
+        lbl === 'variant' ||
+        lbl.includes('variant name') ||
+        lbl.includes('permit / license type') ||
+        lbl.includes('type of certificate') ||
+        lbl.includes('application variant')
+      );
     });
     if (vField && vField.value && vField.value.trim().length > 0 && !isUuid(vField.value)) {
       return vField.value.trim();
@@ -611,24 +621,41 @@ export interface ResolvePreviewApplicationTypeParams {
 }
 
 export function resolvePreviewApplicationType(params: ResolvePreviewApplicationTypeParams): string | null {
-  const isFilingModeOnly = (v: string) => {
+  const isInvalidAppType = (v: string) => {
     const upper = v.toUpperCase().trim();
-    return upper === 'SINGLE' || upper === 'BULK' || upper === 'SINGLE APPLICATION' || upper === 'BULK APPLICATION';
+    return (
+      upper === 'SINGLE' ||
+      upper === 'BULK' ||
+      upper === 'SINGLE APPLICATION' ||
+      upper === 'BULK APPLICATION' ||
+      upper === 'NA' ||
+      upper === 'N/A' ||
+      upper === 'NONE' ||
+      upper === 'NULL' ||
+      upper === 'UNDEFINED'
+    );
+  };
+
+  const formatAppType = (v: string): string => {
+    const trimmed = v.trim();
+    if (trimmed.toLowerCase() === 'firsttaker') return 'First Taker';
+    if (trimmed.toLowerCase() === 'civicactiongroup') return 'Civic Action Group';
+    return trimmed;
   };
 
   if (params.applicationType && params.applicationType.trim().length > 0) {
     const trimmed = params.applicationType.trim();
-    if (!isFilingModeOnly(trimmed) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
-      return trimmed;
+    if (!isInvalidAppType(trimmed) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+      return formatAppType(trimmed);
     }
   }
   if (params.examineeType && params.examineeType.trim().length > 0) {
     const trimmed = params.examineeType.trim();
-    if (!isFilingModeOnly(trimmed)) return trimmed;
+    if (!isInvalidAppType(trimmed)) return formatAppType(trimmed);
   }
   if (params.examType && params.examType.trim().length > 0) {
     const trimmed = params.examType.trim();
-    if (!isFilingModeOnly(trimmed)) return trimmed;
+    if (!isInvalidAppType(trimmed)) return formatAppType(trimmed);
   }
   if (params.formFieldValues && params.formFieldValues.length > 0) {
     const typeField = params.formFieldValues.find((fv) => {
@@ -638,24 +665,28 @@ export function resolvePreviewApplicationType(params: ResolvePreviewApplicationT
       if (!val || val === 'null' || val === 'undefined') return false;
       return (
         id === 'fd000000-0000-0000-0000-000000000007' ||
+        id === 'fd000000-0000-0000-0000-000000000008' ||
         lbl === 'type of application' ||
         lbl === 'application type' ||
         lbl === 'examinee type' ||
         lbl === 'type of examinee' ||
-        lbl === 'examinee classification'
+        lbl === 'examinee classification' ||
+        lbl.includes('type of application') ||
+        lbl.includes('application type') ||
+        lbl.includes('examinee type')
       );
     });
     if (typeField && typeField.value && typeField.value.trim().length > 0) {
       const valTrimmed = typeField.value.trim();
-      if (!isFilingModeOnly(valTrimmed)) return valTrimmed;
+      if (!isInvalidAppType(valTrimmed)) return formatAppType(valTrimmed);
     }
   }
   if (params.element && params.element.trim().length > 0) {
     const trimmed = params.element.trim();
     const lower = trimmed.toLowerCase();
-    const isExamineeType = ['new', 'renewal', 'modification', 'upgrading', 'additional'].includes(lower);
+    const isExamineeType = ['new', 'renewal', 'modification', 'upgrading', 'upgrade', 'additional', 'first taker', 'firsttaker', 'retaker'].includes(lower);
     if (isExamineeType) {
-      return trimmed;
+      return formatAppType(trimmed);
     }
   }
   return null;

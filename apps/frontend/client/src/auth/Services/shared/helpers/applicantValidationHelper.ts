@@ -1,6 +1,7 @@
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../types/generalApplicantTypes";
 import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
+import { isServiceVariantIndividual } from "./applicantDisplayHelper";
 
 export interface ServiceRequirementItem {
   id?: string;
@@ -43,14 +44,19 @@ function isValidUploadEntry(val: unknown): boolean {
   if (val === null || val === undefined) return false;
   if (typeof val === "string") {
     const s = val.trim();
-    return s.startsWith("data:") || s.startsWith("blob:") || s.startsWith("http:") || s.startsWith("https:") || s.startsWith("file:");
+    const lower = s.toLowerCase();
+    return s.length > 0 && lower !== "none" && lower !== "null" && lower !== "undefined";
   }
   if (typeof val === "object" && "file" in val && Boolean(val.file)) {
     return true;
   }
   if (typeof val === "object" && "uri" in val && typeof val.uri === "string" && val.uri.trim().length > 0) {
-    const u = val.uri.trim();
-    return u.startsWith("data:") || u.startsWith("blob:") || u.startsWith("http:") || u.startsWith("https:") || u.startsWith("file:");
+    const u = val.uri.trim().toLowerCase();
+    if (u !== "none" && u !== "null" && u !== "undefined") return true;
+  }
+  if (typeof val === "object" && "name" in val && typeof val.name === "string" && val.name.trim().length > 0) {
+    const n = val.name.trim().toLowerCase();
+    if (n !== "none" && n !== "null" && n !== "undefined") return true;
   }
   return false;
 }
@@ -104,26 +110,58 @@ export const isGeneralApplicantComplete = (
   service?: NTCService,
   variantRequirements: Array<ServiceRequirementItem | string> = []
 ): boolean => {
-  const hasName =
-    (Boolean(app.firstName && app.firstName.trim().length > 0) && Boolean(app.lastName && app.lastName.trim().length > 0)) ||
-    Boolean(app.companyName && app.companyName.trim().length > 0) ||
-    Boolean(app.representativeName && app.representativeName.trim().length > 0) ||
-    Boolean(
-      app.formFieldValues?.some(
-        (fv) =>
-          ((fv.fieldId &&
-            (fv.fieldId.toLowerCase().includes("name") ||
-              fv.fieldId.toLowerCase().includes("fullname") ||
-              fv.fieldId.toLowerCase().includes("company") ||
-              fv.fieldId.toLowerCase().includes("applicant"))) ||
-            (fv.fieldLabel &&
-              (fv.fieldLabel.toLowerCase().includes("name") ||
-                fv.fieldLabel.toLowerCase().includes("applicant") ||
-                fv.fieldLabel.toLowerCase().includes("company")))) &&
-          fv.value &&
-          fv.value.trim().length > 0
+  const hasVariantContext = Boolean(service || app.serviceId || app.selectedVariantId || app.selectedVariantName);
+  const isIndividualApp =
+    app.applicantType !== "company" ||
+    (hasVariantContext &&
+      isServiceVariantIndividual(
+        service || (app.serviceId ? { id: app.serviceId, title: "" } : null),
+        undefined,
+        app.selectedVariantId,
+        app.selectedVariantName
+      ));
+
+  const hasName = isIndividualApp
+    ? (Boolean(app.firstName && app.firstName.trim().length > 0) && Boolean(app.lastName && app.lastName.trim().length > 0)) ||
+      Boolean(
+        app.formFieldValues?.some((fv) => {
+          const idLower = (fv.fieldId || "").toLowerCase();
+          const lblLower = (fv.fieldLabel || "").toLowerCase();
+          const isCompanyOrRepField =
+            idLower.includes("company") ||
+            idLower.includes("corporate") ||
+            idLower.includes("representative") ||
+            lblLower.includes("company") ||
+            lblLower.includes("corporate") ||
+            lblLower.includes("representative");
+          if (isCompanyOrRepField) return false;
+          const isNameField =
+            idLower.includes("fullname") ||
+            idLower.includes("name") ||
+            idLower.includes("applicant") ||
+            lblLower.includes("full name") ||
+            lblLower.includes("applicant name") ||
+            lblLower.includes("name");
+          return isNameField && Boolean(fv.value && fv.value.trim().length > 0);
+        })
       )
-    );
+    : Boolean(app.companyName && app.companyName.trim().length > 0) ||
+      Boolean(
+        app.formFieldValues?.some((fv) => {
+          const idLower = (fv.fieldId || "").toLowerCase();
+          const lblLower = (fv.fieldLabel || "").toLowerCase();
+          if (idLower.includes("representative") || lblLower.includes("representative")) return false;
+          const isCompNameField =
+            idLower.includes("name") ||
+            idLower.includes("fullname") ||
+            idLower.includes("company") ||
+            idLower.includes("applicant") ||
+            lblLower.includes("name") ||
+            lblLower.includes("applicant") ||
+            lblLower.includes("company");
+          return isCompNameField && Boolean(fv.value && fv.value.trim().length > 0);
+        })
+      );
 
   const hasEmail =
     Boolean(app.email && isValidEmailAddress(app.email)) ||
@@ -168,12 +206,23 @@ export const isGeneralApplicantComplete = (
       .map((req, idx) => ({ req, idx }))
       .filter(({ req }) => isRequirementMandatory(req));
 
-    const allMandatoryUploaded = mandatoryList.every(({ req, idx }) =>
-      isRequirementUploaded(req, idx, app.uploads)
-    );
+    if (mandatoryList.length > 0) {
+      const allMandatoryUploaded = mandatoryList.every(({ req, idx }) =>
+        isRequirementUploaded(req, idx, app.uploads)
+      );
 
-    if (!allMandatoryUploaded) {
-      return false;
+      if (!allMandatoryUploaded) {
+        // Fallback if reqList only has plain strings (without requirement IDs) while app.uploads stores keys by requirement UUID (`req-<uuid>`)
+        const allItemsLackIds = mandatoryList.every(
+          ({ req }) => typeof req === "string" || !req.id
+        );
+        const validUploadedCount = app.uploads
+          ? Object.values(app.uploads).filter((v) => isValidUploadEntry(v)).length
+          : 0;
+        if (!(allItemsLackIds && validUploadedCount >= mandatoryList.length)) {
+          return false;
+        }
+      }
     }
   }
 

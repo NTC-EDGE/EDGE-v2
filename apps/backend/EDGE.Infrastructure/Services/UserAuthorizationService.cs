@@ -59,6 +59,21 @@ public class UserAuthorizationService : IUserAuthorizationService
         }
     }
 
+    private static readonly HashSet<string> ApplicationFilingPermissions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        Permissions.SubmitApplication,
+        Permissions.UploadStorage,
+        Permissions.ReadStorage,
+        Permissions.DownloadStorage,
+        Permissions.ReadApplication,
+        Permissions.ViewOwnApplications,
+        Permissions.ReadRequirements,
+        Permissions.ReadServices,
+        Permissions.ReadServiceVariantElements,
+        Permissions.ReadSchedules,
+        Permissions.ReadTenants
+    };
+
     public async Task<bool> HasPermissionAsync(string permission, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(permission))
@@ -71,7 +86,7 @@ public class UserAuthorizationService : IUserAuthorizationService
             return true;
         }
 
-        if (permission == Permissions.SubmitApplication && await CanSubmitApplicationAsync(cancellationToken))
+        if (ApplicationFilingPermissions.Contains(permission) && await CanSubmitApplicationAsync(cancellationToken))
         {
             return true;
         }
@@ -92,7 +107,7 @@ public class UserAuthorizationService : IUserAuthorizationService
             return true;
         }
 
-        if (permissions.Contains(Permissions.SubmitApplication) && await CanSubmitApplicationAsync(cancellationToken))
+        if (permissions.Any(p => ApplicationFilingPermissions.Contains(p)) && await CanSubmitApplicationAsync(cancellationToken))
         {
             return true;
         }
@@ -394,6 +409,17 @@ public class UserAuthorizationService : IUserAuthorizationService
                 if (!dbPermissions.Contains(basePerm))
                 {
                     dbPermissions.Add(basePerm);
+                }
+            }
+
+            if (dbPermissions.Contains(Permissions.SubmitApplication) || await CanSubmitApplicationAsync(cancellationToken))
+            {
+                foreach (var filingPerm in ApplicationFilingPermissions)
+                {
+                    if (!dbPermissions.Contains(filingPerm))
+                    {
+                        dbPermissions.Add(filingPerm);
+                    }
                 }
             }
 

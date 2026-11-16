@@ -10,6 +10,7 @@ interface BulkCohortReviewCardProps {
   applicants?: GeneralApplicantData[];
   currentApplicantIndex?: number;
   onSelectApplicant?: (idx: number) => void;
+  isIndividualApplication?: boolean;
 }
 
 export function BulkCohortReviewCard({
@@ -17,20 +18,23 @@ export function BulkCohortReviewCard({
   applicants = [],
   currentApplicantIndex = 0,
   onSelectApplicant,
+  isIndividualApplication,
 }: BulkCohortReviewCardProps) {
   if (appMode !== 'BULK' || applicants.length === 0) {
     return null;
   }
 
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
-  const displayName = getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1);
+  const displayName = getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1, {
+    isIndividualApplication,
+  });
 
   return (
     <SectionCard icon="users" title="Group Application Cohort" accentColor="#0F2C59">
       <View style={{ gap: 12 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: '#64748B' }}>
-            Cohort Size: <Text style={{ fontWeight: '700', color: '#0F172A' }}>{applicants.length} applicants</Text>
+            Cohort Size: <Text style={{ fontWeight: '700', color: '#0F172A' }}>{applicants.length} {applicants.length === 1 ? 'applicant' : 'applicants'}</Text>
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="user-check" size={14} color="#16A34A" />
@@ -40,11 +44,13 @@ export function BulkCohortReviewCard({
           </View>
         </View>
 
-        {applicants.length > 1 && (
+        {applicants.length >= 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
             {applicants.map((app, idx) => {
               const isSelected = idx === currentApplicantIndex;
-              const name = getApplicantDisplayName(app, idx + 1);
+              const name = getApplicantDisplayName(app, idx + 1, {
+                isIndividualApplication,
+              });
               return (
                 <TouchableOpacity
                   key={`cohort-app-${app.id || idx}`}

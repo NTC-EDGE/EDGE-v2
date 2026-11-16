@@ -37,7 +37,17 @@ export const isUnrelatedSection = (titleOrKey: string): boolean => {
     lower.includes('applicant details') ||
     lower.includes('applicant information') ||
     lower.includes('personal information') ||
-    lower.includes('profile details')
+    lower.includes('profile details') ||
+    lower === 'form' ||
+    lower === 'forms' ||
+    lower === 'application form' ||
+    lower === 'form details' ||
+    lower === 'form information' ||
+    lower === 'typeofapplication' ||
+    lower === 'type of application' ||
+    lower === 'application type' ||
+    lower === 'permittype' ||
+    lower === 'permit type'
   );
 };
 
@@ -129,8 +139,12 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('company name') ||
     lower.includes('business name') ||
     lower.includes('corporate name') ||
+    lower === 'applicant type' ||
+    lower === 'applicanttype' ||
     lower.includes('representative name') ||
     lower.includes('representative position') ||
+    lower === 'designation / position' ||
+    lower === 'position' ||
     lower.includes('representative email') ||
     lower.includes('representative contact') ||
     lower.includes('email') ||

@@ -17,7 +17,8 @@ import {
   GeneralApplicantData,
   initialGeneralApplicant,
 } from "../shared/GeneralServiceWizard";
-import { uploadRequirementsAfterSubmit } from "../shared/helpers/requirementUploadHelper";
+import { ServiceRequirementItem } from "../shared/hooks/useGeneralServiceWizard";
+import { isServiceVariantIndividual } from "../shared/helpers/applicantDisplayHelper";
 import { resolveEffectiveTenantId } from "../../../shared/helpers/tenantHelper";
 import { CurrentUserProfile } from "@edge/api";
 
@@ -137,7 +138,7 @@ export function useServices() {
   const [currentGeneralApplicantIndex, setCurrentGeneralApplicantIndex] = useState(0);
   const [triggerOpenApplicant, setTriggerOpenApplicant] = useState(0);
   const [triggerBulkSubmit, setTriggerBulkSubmit] = useState(0);
-  const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
+  const [variantRequirements, setVariantRequirements] = useState<Array<ServiceRequirementItem | string>>([]);
 
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [viewingDraftsCategory, setViewingDraftsCategory] = useState<string | null>(null);
@@ -324,7 +325,10 @@ export function useServices() {
         }
         return;
       }
-      const effectiveVariantId = generalApplicants[0]?.selectedVariantId || "";
+      const effectiveVariantId =
+        generalApplicants[currentGeneralApplicantIndex]?.selectedVariantId ||
+        generalApplicants[0]?.selectedVariantId ||
+        "";
       if (!effectiveVariantId) {
         if (active) {
           setVariantRequirements(selectedService.requirements || []);
@@ -339,13 +343,32 @@ export function useServices() {
           });
 
         if (active) {
-          let list: string[] = [];
-          if (reqRes && reqRes.succeeded && Array.isArray(reqRes.data)) {
-            list = reqRes.data.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
-          } else if (Array.isArray(reqRes)) {
-            list = reqRes.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
-          } else if (reqRes && Array.isArray(reqRes.items)) {
-            list = reqRes.items.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          let list: Array<ServiceRequirementItem | string> = [];
+          const rawItems =
+            reqRes && reqRes.succeeded && Array.isArray(reqRes.data)
+              ? reqRes.data
+              : Array.isArray(reqRes)
+              ? reqRes
+              : reqRes && Array.isArray(reqRes.items)
+              ? reqRes.items
+              : [];
+
+          if (rawItems.length > 0) {
+            list = rawItems.map((r: any) => {
+              if (typeof r === "string") return r;
+              const rObj = typeof r === "object" && r !== null ? r : {};
+              const idStr = typeof rObj.id === "string" ? rObj.id : typeof rObj.requirementId === "string" ? rObj.requirementId : undefined;
+              const nameStr = typeof rObj.name === "string" ? rObj.name : typeof rObj.title === "string" ? rObj.title : typeof rObj.description === "string" ? rObj.description : "Requirement";
+              const descStr = typeof rObj.description === "string" ? rObj.description : undefined;
+              const isReqBool = typeof rObj.isRequired === "boolean" ? rObj.isRequired : true;
+
+              return {
+                id: idStr,
+                name: nameStr,
+                description: descStr,
+                isRequired: isReqBool,
+              };
+            });
           }
 
           if (list.length === 0 && selectedService.requirements && Array.isArray(selectedService.requirements) && selectedService.requirements.length > 0) {
@@ -359,7 +382,7 @@ export function useServices() {
     };
     fetchRequirements();
     return () => { active = false; };
-  }, [selectedService?.id, generalApplicants[0]?.selectedVariantId]);
+  }, [selectedService?.id, generalApplicants[currentGeneralApplicantIndex]?.selectedVariantId, generalApplicants[0]?.selectedVariantId]);
 
   // Handle Hardware Back (Android) and Browser Back (PopState) for wizard steps
   useEffect(() => {
@@ -600,22 +623,6 @@ export function useServices() {
       const res = await api.post<{ succeeded: boolean; data: string }>(`/api/v2/applications`, payload);
       if (res?.data) {
         setActiveDraftId(res.data);
-        const allApplicantsForUpload =
-          activeWizardService === "radio-operator-exam"
-            ? examApplicants
-            : activeWizardService === "cpe-accreditation"
-            ? applicants
-            : generalApplicants;
-
-        await uploadRequirementsAfterSubmit({
-          api,
-          applicationId: res.data,
-          tenantId: effectiveTenantId,
-          applicants: allApplicantsForUpload,
-          getToken,
-        }).catch((uploadErr) => {
-          console.warn("[saveActiveAsDraft] Draft attachment upload skipped/failed:", uploadErr);
-        });
       }
       toast.success("Draft Saved", "Your application draft has been saved to the server.");
       await refetchDrafts();
@@ -800,34 +807,36 @@ export function useServices() {
   const handleAddGeneralApplicant = () => {
     const nextId = generalApplicants.length + 1;
     const baseApp = generalApplicants[0];
+    const isIndiv = isServiceVariantIndividual(
+      selectedService,
+      undefined,
+      baseApp?.selectedVariantId,
+      baseApp?.selectedVariantName
+    );
     const newApp: GeneralApplicantData = {
       ...initialGeneralApplicant(nextId),
       selectedVariantId: baseApp?.selectedVariantId,
       selectedVariantName: baseApp?.selectedVariantName,
       selectedElementId: baseApp?.selectedElementId,
       selectedElementTitle: baseApp?.selectedElementTitle,
-      applicantType: baseApp?.applicantType || "individual",
-      ...(baseApp?.applicantType === "company"
-        ? {
-            companyName: baseApp.companyName,
-            representativeName: baseApp.representativeName,
-            representativePosition: baseApp.representativePosition,
-            representativeFirstName: baseApp.representativeFirstName,
-            representativeMiddleName: baseApp.representativeMiddleName,
-            representativeLastName: baseApp.representativeLastName,
-            representativeSuffix: baseApp.representativeSuffix,
-            dtiSecRegistration: baseApp.dtiSecRegistration,
-            contactNo: baseApp.contactNo,
-            email: baseApp.email,
-            region: baseApp.region,
-            province: baseApp.province,
-            city: baseApp.city,
-            barangay: baseApp.barangay,
-            street: baseApp.street,
-            address: baseApp.address,
-            zipCode: baseApp.zipCode,
-          }
-        : {}),
+      applicantType: isIndiv ? "individual" : (baseApp?.applicantType || "company"),
+      representativeName: baseApp?.representativeName,
+      representativePosition: baseApp?.representativePosition,
+      representativeFirstName: baseApp?.representativeFirstName,
+      representativeMiddleName: baseApp?.representativeMiddleName,
+      representativeLastName: baseApp?.representativeLastName,
+      representativeSuffix: baseApp?.representativeSuffix,
+      representativeEmail: baseApp?.representativeEmail,
+      representativeContactNumber: baseApp?.representativeContactNumber,
+      companyName: isIndiv ? (baseApp?.companyName || "") : "",
+      dtiSecRegistration: isIndiv ? (baseApp?.dtiSecRegistration || "") : "",
+      companyAddress: isIndiv ? (baseApp?.companyAddress || "") : "",
+      companyRegion: isIndiv ? (baseApp?.companyRegion || "") : "",
+      companyProvince: isIndiv ? (baseApp?.companyProvince || "") : "",
+      companyCity: isIndiv ? (baseApp?.companyCity || "") : "",
+      companyBarangay: isIndiv ? (baseApp?.companyBarangay || "") : "",
+      companyStreet: isIndiv ? (baseApp?.companyStreet || "") : "",
+      companyZipCode: isIndiv ? (baseApp?.companyZipCode || "") : "",
     };
     setGeneralApplicants((prev) => [...prev, newApp]);
     setCurrentGeneralApplicantIndex(generalApplicants.length);

@@ -22,6 +22,7 @@ import {
   RADIUS,
   TYPOGRAPHY,
   SHADOWS,
+  DatePickerInput,
 } from '@edge/ui';
 import {
   useReportsState,
@@ -448,37 +449,23 @@ export function ReportsScreen() {
                 <View style={styles.customDateInputsRow}>
                   <View style={styles.dateInputGroup}>
                     <Text style={[styles.dateInputLabel, { color: colors.textMuted }]}>Start:</Text>
-                    <TextInput
-                      style={[
-                        styles.dateTextInput,
-                        {
-                          backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                          borderColor: colors.border,
-                          color: colors.text,
-                        },
-                      ]}
-                      value={state.startDate}
-                      onChangeText={state.setStartDate}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor={colors.textMuted}
-                    />
+                    <View style={{ minWidth: 165 }}>
+                      <DatePickerInput
+                        value={state.startDate}
+                        onChangeText={state.setStartDate}
+                        placeholder="YYYY-MM-DD"
+                      />
+                    </View>
                   </View>
                   <View style={styles.dateInputGroup}>
                     <Text style={[styles.dateInputLabel, { color: colors.textMuted }]}>End:</Text>
-                    <TextInput
-                      style={[
-                        styles.dateTextInput,
-                        {
-                          backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                          borderColor: colors.border,
-                          color: colors.text,
-                        },
-                      ]}
-                      value={state.endDate}
-                      onChangeText={state.setEndDate}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor={colors.textMuted}
-                    />
+                    <View style={{ minWidth: 165 }}>
+                      <DatePickerInput
+                        value={state.endDate}
+                        onChangeText={state.setEndDate}
+                        placeholder="YYYY-MM-DD"
+                      />
+                    </View>
                   </View>
                 </View>
               )}

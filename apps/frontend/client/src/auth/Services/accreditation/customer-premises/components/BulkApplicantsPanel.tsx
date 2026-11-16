@@ -372,7 +372,7 @@ export function BulkApplicantsPanel({
           ]}
         >
           <Icon
-            name={isAllComplete ? "check-circle" : "lock"}
+            name={isAllComplete ? "eye" : "lock"}
             size={16}
             color={isAllComplete ? COLORS.neutral.white : COLORS.neutral[400]}
             style={{ marginRight: 8 }}
@@ -383,7 +383,7 @@ export function BulkApplicantsPanel({
               isAllComplete ? styles.submitBtnTextActive : styles.submitBtnTextDisabled,
             ]}
           >
-            SUBMIT ({applicants.length})
+            {isAllComplete ? "Show Preview Applications" : `Complete All Applications (${completeCount}/${applicants.length})`}
           </Text>
         </TouchableOpacity>
       </View>

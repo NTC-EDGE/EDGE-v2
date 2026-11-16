@@ -195,13 +195,15 @@ export function serializeCertificateApplicant(
 
   const addressVal = compositeAddress || app.address?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value?.trim() || "";
 
+  const hasSponsoringCompany = isComp || Boolean(app.companyName && app.companyName.trim().length > 0);
+
   return {
     serviceId: app.serviceId || _service.id || undefined,
     serviceVariantId: app.selectedVariantId || undefined,
     applicantType: app.applicantType || "individual",
-    companyName: app.companyName || undefined,
-    representativeName: app.representativeName || undefined,
-    dtiSecRegistration: app.dtiSecRegistration || undefined,
+    companyName: hasSponsoringCompany ? (app.companyName || undefined) : undefined,
+    representativeName: hasSponsoringCompany ? (app.representativeName || undefined) : undefined,
+    dtiSecRegistration: hasSponsoringCompany ? (app.dtiSecRegistration || undefined) : undefined,
     firstName: effectiveFirstName,
     middleName: effectiveMiddleName || undefined,
     lastName: effectiveLastName,

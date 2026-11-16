@@ -18,9 +18,11 @@ export interface RawFormFieldItem {
 export interface RawApplicantDetails {
   fullName?: string;
   applicantName?: string;
+  applicantType?: string;
   firstName?: string;
   middleName?: string;
   lastName?: string;
+  suffix?: string;
   first_name?: string;
   middle_name?: string;
   last_name?: string;
@@ -48,6 +50,14 @@ export interface RawApplicantDetails {
   email?: string;
   emailAddress?: string;
   examineeType?: string;
+  schoolAttended?: string;
+  schoolName?: string;
+  courseTaken?: string;
+  courseDegree?: string;
+  yearGraduated?: string;
+  specialOrderNo?: string;
+  eSignature?: string;
+  signatureUrl?: string;
   formFieldValues?: RawFormFieldItem[];
 }
 
@@ -59,6 +69,8 @@ export interface RawApplicantHolder {
   applicantType?: string;
   companyName?: string;
   representativeName?: string;
+  eSignature?: string;
+  signatureUrl?: string;
   details?: RawApplicantDetails;
   formFieldValues?: RawFormFieldItem[];
   requirements?: RawRequirement[];

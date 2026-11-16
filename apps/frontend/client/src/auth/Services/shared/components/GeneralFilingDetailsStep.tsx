@@ -7,7 +7,7 @@ import { DynamicFormRenderer, FormDto } from "../../../../shared/components/Dyna
 import { ApplicantInformationFormSection } from "./applicant-info/ApplicantInformationFormSection";
 import { FormSignatureInput } from "../../../../shared/components/FormSignatureInput";
 import { useServiceForm } from "../hooks/useServiceForm";
-import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
+import { getApplicantDisplayName, isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
 import {
   evaluateVisibilityCondition,
   isFieldContextVisible,
@@ -124,7 +124,8 @@ export function GeneralFilingDetailsStep({
     service.code,
   ]);
 
-  const isBulk = appMode === "BULK" && applicants.length > 1;
+  const isBulk = appMode === "BULK";
+  const showBulkCohortBanner = isBulk && applicants.length > 1;
 
   // Build key-value map for dynamic service fields from activeApplicant.formFieldValues
   const dynamicValuesRecord: Record<string, string> = {};
@@ -359,27 +360,32 @@ export function GeneralFilingDetailsStep({
     }
   }, [activeApplicant.selectedVariantId, activeApplicant.selectedVariantName, variants, form, dynamicValuesRecord, updateActiveApplicant]);
 
-  const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
-  const allowCompany = matchedVariant !== undefined ? matchedVariant.isIndividual === false : !isExamService;
-  const allowIndividual = matchedVariant !== undefined ? matchedVariant.isIndividual === true : true;
+  const isIndividualApp = isServiceVariantIndividual(
+    service,
+    variants,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedVariantName
+  );
+  const allowCompany = !isIndividualApp && !isExamService;
+  const allowIndividual = isIndividualApp || isExamService;
 
   // Enforce applicantType based on the service variant / application type:
   // If the variant is for an Individual (or Exam), applicantType MUST be "individual" so the form asks for First Name, Middle Name, Last Name, etc.
   // If the variant is for a Company, applicantType MUST be "company".
   useEffect(() => {
-    if (matchedVariant?.isIndividual === true || isExamService) {
+    if (allowIndividual && !allowCompany) {
       if (activeApplicant.applicantType !== "individual") {
         updateActiveApplicant({ applicantType: "individual" });
       }
-    } else if (matchedVariant?.isIndividual === false) {
+    } else if (allowCompany && !allowIndividual) {
       if (activeApplicant.applicantType !== "company") {
         updateActiveApplicant({ applicantType: "company" });
       }
     }
-  }, [matchedVariant?.isIndividual, isExamService, activeApplicant.applicantType, updateActiveApplicant]);
+  }, [allowIndividual, allowCompany, activeApplicant.applicantType, updateActiveApplicant]);
 
   const renderBulkCohortBanner = () => {
-    if (!isBulk) return null;
+    if (!showBulkCohortBanner) return null;
 
     return (
       <View style={styles.bulkBanner}>
@@ -391,7 +397,9 @@ export function GeneralFilingDetailsStep({
             </Text>
           </View>
           <Text style={styles.applicantBadge}>
-            {getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1)}
+            {getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1, {
+              isIndividualApplication: allowIndividual,
+            })}
           </Text>
         </View>
 
@@ -399,7 +407,9 @@ export function GeneralFilingDetailsStep({
           <View style={styles.carouselRow}>
             {applicants.map((app, idx) => {
               const isSelected = idx === currentApplicantIndex;
-              const displayName = getApplicantDisplayName(app, idx + 1);
+              const displayName = getApplicantDisplayName(app, idx + 1, {
+                isIndividualApplication: allowIndividual,
+              });
               return (
                 <TouchableOpacity
                   key={`applicant-tab-${app.id || idx}`}
@@ -431,6 +441,8 @@ export function GeneralFilingDetailsStep({
         allowIndividual={allowIndividual}
         isExamService={isExamService}
         includeSignature={false}
+        isBulk={isBulk}
+        appMode={appMode}
         errors={errors}
         title={isBulk ? `Applicant #${currentApplicantIndex + 1} Information` : "Applicant Details"}
         sexOptions={sexOptions}
@@ -450,8 +462,10 @@ export function GeneralFilingDetailsStep({
           form={effectiveForm}
           values={dynamicValuesRecord}
           onChange={handleDynamicFieldChange}
-          applicantName={getApplicantDisplayName(activeApplicant)}
-          applicantType={activeApplicant.applicantType}
+          applicantName={getApplicantDisplayName(activeApplicant, undefined, {
+            isIndividualApplication: allowIndividual,
+          })}
+          applicantType={allowIndividual ? "individual" : activeApplicant.applicantType}
           serviceCategory={service.category}
           serviceTitle={service.title}
           selectedVariantId={activeApplicant.selectedVariantId}
@@ -478,11 +492,14 @@ export function GeneralFilingDetailsStep({
           </View>
         </View>
         <FormSignatureInput
+          key={`signature-${activeApplicant.id || currentApplicantIndex}-${isBulk ? "bulk" : "single"}`}
           label="Applicant / Authorized Representative Signature"
           isRequired={true}
           value={activeApplicant.signatureUrl || ""}
           onChange={(sigUrl) => updateActiveApplicant({ signatureUrl: sigUrl })}
-          applicantName={getApplicantDisplayName(activeApplicant)}
+          applicantName={getApplicantDisplayName(activeApplicant, undefined, {
+            isIndividualApplication: allowIndividual,
+          })}
           isBulk={isBulk}
           appMode={appMode}
           error={errors["signatureUrl"] || errors["signature"]}
