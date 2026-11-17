@@ -21,6 +21,34 @@ export interface UploadedFile {
   uri?: string;
   type?: string;
   file?: File | Blob;
+  storedFileId?: string;
+}
+
+function findUploadEntryForReq(
+  uploads: Record<string, UploadedFile | string | undefined>,
+  req: DocumentRequirement | undefined,
+  index: number
+): { matchedKey: string; value: UploadedFile | string } | null {
+  if (!req) return null;
+  const rawId = req.key.startsWith("req-") ? req.key.slice(4) : req.key;
+  const cleanLabel = req.label.replace(/\*$/, "").trim();
+  const candidateKeys = [
+    req.key,
+    rawId,
+    `req-${index}`,
+    `req-gen-${index}`,
+    String(index),
+    req.label,
+    cleanLabel,
+  ].filter((k) => k.length > 0);
+
+  for (const k of candidateKeys) {
+    const val = uploads[k];
+    if (val !== undefined && val !== null) {
+      return { matchedKey: k, value: val };
+    }
+  }
+  return null;
 }
 
 interface SharedDocumentUploadProps {
@@ -58,59 +86,51 @@ export function SharedDocumentUpload({
   // Safely clamp selected index in case requirements list changes dynamically
   const activeIndex = Math.max(0, Math.min(selectedReqIndex, requirements.length - 1));
   const activeReq = requirements[activeIndex];
-  const isActiveReqUploaded = Boolean(activeReq && safeUploads[activeReq.key]);
+  const isActiveReqUploaded = Boolean(activeReq && findUploadEntryForReq(safeUploads, activeReq, activeIndex));
   const dropzoneRef = useRef<any>(null);
 
   const handleRemoveSlot = useCallback(
-    (key: string) => {
+    (key: string, matchedKey?: string) => {
       setIsPreviewOpen(false);
       setPreviewFile(null);
       setImageLoadErrors((prev) => {
         const next = { ...prev };
         delete next[key];
+        if (matchedKey) delete next[matchedKey];
         return next;
       });
       onRemove(key);
+      if (matchedKey && matchedKey !== key) {
+        onRemove(matchedKey);
+      }
     },
     [onRemove]
   );
 
   const handleImageLoadFailure = useCallback(
-    (slotKey: string, slotLabel?: string) => {
+    (slotKey: string, _slotLabel?: string) => {
+      // Only switch to the fallback document icon placeholder; never delete the user's attached file
       setImageLoadErrors((prev) => ({ ...prev, [slotKey]: true }));
-      onRemove(slotKey);
-      if (previewFile && typeof previewFile === "object" && activeSlotKey === slotKey) {
-        setIsPreviewOpen(false);
-        setPreviewFile(null);
-      }
-      Alert.alert(
-        "Attachment Image Lost",
-        `The image for "${slotLabel || "required document"}" could not be loaded or was lost. Please upload or take the photo again.`
-      );
     },
-    [onRemove, previewFile, activeSlotKey]
+    []
   );
 
-  // Proactively validate and clear any empty/ghost upload entries
+  // Proactively validate and clear only truly empty/ghost upload entries
   useEffect(() => {
     if (!uploads) return;
     Object.entries(uploads).forEach(([key, val]) => {
       if (!val) return;
       if (typeof val === "string") {
-        const trimmed = val.trim();
-        if (
-          !trimmed.startsWith("data:") &&
-          !trimmed.startsWith("blob:") &&
-          !trimmed.startsWith("http:") &&
-          !trimmed.startsWith("https:") &&
-          !trimmed.startsWith("file:")
-        ) {
+        const trimmedLower = val.trim().toLowerCase();
+        if (trimmedLower === "" || trimmedLower === "none" || trimmedLower === "null" || trimmedLower === "undefined") {
           onRemove(key);
         }
       } else if (typeof val === "object") {
         const uri = typeof val.uri === "string" ? val.uri.trim() : "";
+        const storedId = typeof val.storedFileId === "string" ? val.storedFileId.trim() : "";
+        const name = typeof val.name === "string" ? val.name.trim() : "";
         const hasFile = Boolean(val.file);
-        if (!uri && !hasFile) {
+        if (!uri && !hasFile && !storedId && !name) {
           onRemove(key);
         }
       }
@@ -389,8 +409,9 @@ export function SharedDocumentUpload({
           {/* Left panel: List of requirements */}
           <View style={styles.leftPanel}>
             {requirements.map((req, i) => {
-              const uploadData = safeUploads[req.key];
-              const isUploaded = !!uploadData;
+              const foundUpload = findUploadEntryForReq(safeUploads, req, i);
+              const uploadData = foundUpload?.value;
+              const isUploaded = Boolean(uploadData);
               const isSelected = i === activeIndex;
               const hasReqError = Boolean(
                 !isUploaded &&
@@ -434,7 +455,9 @@ export function SharedDocumentUpload({
           {/* Right panel: Large drag-drop style dropzone & previews */}
           <View style={styles.rightPanel}>
             {activeReq && (() => {
-              const uploadData = safeUploads[activeReq.key];
+              const foundUpload = findUploadEntryForReq(safeUploads, activeReq, activeIndex);
+              const uploadData = foundUpload?.value;
+              const matchedSlotKey = foundUpload?.matchedKey ?? activeReq.key;
               const fileName = typeof uploadData === "string" ? uploadData : uploadData?.name;
               const fileUri = typeof uploadData === "string" ? "" : uploadData?.uri;
               const fileType = typeof uploadData === "object" && uploadData !== null ? uploadData.type : undefined;
@@ -482,9 +505,9 @@ export function SharedDocumentUpload({
                         />
                       ) : (
                         <View style={styles.pdfPreviewPlaceholder}>
-                          <Icon name="file-text" size={48} color={COLORS.neutral[400]} />
+                          <Icon name={isImage ? "image" : "file-text"} size={48} color={COLORS.neutral[400]} />
                           <Text style={styles.pdfPlaceholderText}>
-                            Scanned PDF Document
+                            {isImage ? "Image Document Attached" : "Scanned PDF Document"}
                           </Text>
                         </View>
                       )}
@@ -538,7 +561,7 @@ export function SharedDocumentUpload({
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          onPress={() => handleRemoveSlot(activeReq.key)}
+                          onPress={() => handleRemoveSlot(activeReq.key, matchedSlotKey)}
                           style={styles.removeBtn}
                         >
                           <Icon name="trash-2" size={16} color={COLORS.semantic.error} style={{ marginRight: 6 }} />
@@ -627,7 +650,9 @@ export function SharedDocumentUpload({
         /* MOBILE View: Clean vertical list with mini previews */
         <View style={styles.mobileList}>
           {requirements.map((req, i) => {
-            const uploadData = safeUploads[req.key];
+            const foundUpload = findUploadEntryForReq(safeUploads, req, i);
+            const uploadData = foundUpload?.value;
+            const matchedSlotKey = foundUpload?.matchedKey ?? req.key;
             const fileName = typeof uploadData === "string" ? uploadData : uploadData?.name;
             const fileUri = typeof uploadData === "string" ? "" : uploadData?.uri;
             const fileType = typeof uploadData === "object" && uploadData !== null ? uploadData.type : undefined;
@@ -706,7 +731,7 @@ export function SharedDocumentUpload({
                         />
                       ) : (
                         <View style={styles.mobileIconPlaceholder}>
-                          <Icon name="file-text" size={20} color={COLORS.neutral[500]} />
+                          <Icon name={isImage ? "image" : "file-text"} size={20} color={COLORS.neutral[500]} />
                         </View>
                       )}
                       <View style={styles.mobileFileDetails}>
@@ -746,7 +771,7 @@ export function SharedDocumentUpload({
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        onPress={() => handleRemoveSlot(req.key)}
+                        onPress={() => handleRemoveSlot(req.key, matchedSlotKey)}
                         style={styles.mobileRemoveBtn}
                         activeOpacity={0.7}
                       >

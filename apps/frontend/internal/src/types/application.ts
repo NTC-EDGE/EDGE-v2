@@ -20,9 +20,18 @@ export type ApplicationCategory =
   | 'Complaints and Request';
 
 export interface RequirementDocument {
+  id?: string;
+  applicantId?: string;
+  requirementId?: string;
+  serviceVariantRequirementId?: string;
+  storedFileId?: string;
   label: string;
   note?: string;
   filename: string;
+  contentType?: string;
+  fileSizeBytes?: number;
+  isApproved?: boolean;
+  uploadedAt?: string;
   thumbnailUri?: string;
   url?: string;
 }

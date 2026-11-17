@@ -53,6 +53,7 @@ interface GeneralServiceWizardProps {
   triggerBulkSubmit?: number;
   onSaveDraft?: () => void;
   isSavingDraft?: boolean;
+  existingDraftId?: string | null;
 }
 
 export function GeneralServiceWizard({
@@ -86,6 +87,7 @@ export function GeneralServiceWizard({
   triggerBulkSubmit = 0,
   onSaveDraft,
   isSavingDraft = false,
+  existingDraftId = null,
 }: GeneralServiceWizardProps) {
   if (!service) return null;
 
@@ -165,6 +167,7 @@ export function GeneralServiceWizard({
     applicants,
     setApplicants,
     currentApplicantIndex,
+    existingDraftId,
   });
 
   const prevBulkSubmitRef = React.useRef(triggerBulkSubmit);

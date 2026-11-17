@@ -803,6 +803,21 @@ export interface ServiceVariantRequirement {
   isRequired: boolean;
 }
 
+export interface ApplicationRequirementDto {
+  id: string;
+  applicantId: string;
+  applicationServiceId?: string | null;
+  requirementId: string;
+  requirementName?: string | null;
+  serviceVariantRequirementId?: string | null;
+  storedFileId?: string | null;
+  fileName?: string | null;
+  contentType?: string | null;
+  fileSizeBytes?: number | null;
+  url: string;
+  isApproved: boolean;
+}
+
 export interface ApplicantRequirementItemDto {
   requirementId: string;
   serviceVariantRequirementId?: string | null;
@@ -1155,6 +1170,7 @@ export interface ApplicationDto {
   filingUser?: FilingUserDto;
   services?: ApplicationServiceDto[];
   applicants: ApplicantDto[];
+  requirements?: ApplicationRequirementDto[];
   formSubmissions?: FormSubmissionSummaryDto[];
   statementsOfAccount: StatementOfAccountDto[];
   ordersOfPayment: OrderOfPaymentDto[];

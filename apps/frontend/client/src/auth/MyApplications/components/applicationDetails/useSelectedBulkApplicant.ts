@@ -42,7 +42,9 @@ export function useSelectedBulkApplicant(app: Application, selectedApplicant: Bu
         ? matchedReqs
         : directReqs.length > 0
           ? directReqs
-          : rawReqs;
+          : rawApplicants.length <= 1
+            ? rawReqs
+            : [];
 
     return candidateReqs.map((req, idx) => {
       const urlStr = req.url || '';
@@ -52,7 +54,8 @@ export function useSelectedBulkApplicant(app: Application, selectedApplicant: Bu
       );
 
       const rawName =
-        req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${idx + 1}.pdf` : req.name || `Requirement_${idx + 1}`);
+        req.fileName || req.requirementName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${idx + 1}.pdf` : `Requirement_${idx + 1}`);
+      const reqDisplayName = req.requirementName || req.name || rawName;
       const ext = rawName.toLowerCase().split('.').pop() || '';
       let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
       if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) typ = 'IMAGE';
@@ -78,6 +81,10 @@ export function useSelectedBulkApplicant(app: Application, selectedApplicant: Bu
       return {
         id: req.id || req.storedFileId || `applicant-doc-${idx + 1}`,
         name: rawName,
+        requirementName: reqDisplayName,
+        applicantId: req.applicantId || selectedApplicant.id,
+        requirementId: req.requirementId,
+        serviceVariantRequirementId: req.serviceVariantRequirementId,
         type: typ,
         size: sizeFormatted || (hasFile ? '350 KB' : ''),
         category,

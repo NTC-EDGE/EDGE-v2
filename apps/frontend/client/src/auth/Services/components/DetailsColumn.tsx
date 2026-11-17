@@ -213,6 +213,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             triggerBulkSubmit={servicesState.triggerBulkSubmit}
             onSaveDraft={servicesState.saveActiveAsDraft}
             isSavingDraft={servicesState.isSavingDraft}
+            existingDraftId={servicesState.activeDraftId}
           />
         ) : selectedService !== null ? (
           <ServiceDetails

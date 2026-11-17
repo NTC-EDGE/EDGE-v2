@@ -23,6 +23,10 @@ export type ExamineeType = 'New' | 'Renewal' | 'Modification' | 'Upgrading' | 'A
 export interface ApplicationDocument {
   id: string;
   name: string;
+  requirementName?: string;
+  applicantId?: string;
+  requirementId?: string;
+  serviceVariantRequirementId?: string;
   type: 'PDF' | 'DOCX' | 'ZIP' | 'IMAGE';
   size: string;
   category: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP';
@@ -35,6 +39,7 @@ export interface RawRequirement {
   id?: string;
   applicantId?: string;
   requirementId?: string;
+  requirementName?: string;
   serviceVariantRequirementId?: string;
   storedFileId?: string;
   fileName?: string;
@@ -519,7 +524,8 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
         (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
       );
 
-      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${idx + 1}.pdf` : req.name || `Requirement_${idx + 1}`);
+      const rawName = req.fileName || req.requirementName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${idx + 1}.pdf` : `Requirement_${idx + 1}`);
+      const reqDisplayName = req.requirementName || req.name || rawName;
       const ext = rawName.toLowerCase().split('.').pop() || '';
       
       let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
@@ -556,6 +562,10 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
       return {
         id: req.id || req.storedFileId || `req-doc-${idx + 1}`,
         name: rawName,
+        requirementName: reqDisplayName,
+        applicantId: req.applicantId,
+        requirementId: req.requirementId,
+        serviceVariantRequirementId: req.serviceVariantRequirementId,
         type: typ,
         size: sizeFormatted || (hasFile ? '350 KB' : ''),
         category,
@@ -583,7 +593,8 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
         (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
       );
 
-      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `${ap.name || 'Applicant'}_Attachment_${rIdx + 1}.pdf` : req.name || `Requirement_${rIdx + 1}`);
+      const rawName = req.fileName || req.requirementName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `${ap.name || 'Applicant'}_Attachment_${rIdx + 1}.pdf` : `Requirement_${rIdx + 1}`);
+      const reqDisplayName = req.requirementName || req.name || rawName;
       const ext = rawName.toLowerCase().split('.').pop() || '';
       
       let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
@@ -607,6 +618,10 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
       docs.push({
         id: req.id || req.storedFileId || `ap-${aIdx}-req-${rIdx + 1}`,
         name: rawName,
+        requirementName: reqDisplayName,
+        applicantId: req.applicantId || ap.id,
+        requirementId: req.requirementId,
+        serviceVariantRequirementId: req.serviceVariantRequirementId,
         type: typ,
         size: sizeFormatted || (hasFile ? '350 KB' : ''),
         category: 'ATTACHMENT',
@@ -1306,6 +1321,18 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     dto.documents ||
     dto.Documents ||
     [];
+
+  mappedApplicants.forEach((candidate) => {
+    const matchedForCandidate = reqDocs.filter(
+      (r) =>
+        r.applicantId === candidate.id ||
+        (mappedApplicants.length === 1 && (!r.applicantId || r.applicantId === dto.id))
+    );
+    if (matchedForCandidate.length > 0 && (!candidate.requirements || candidate.requirements.length === 0)) {
+      candidate.requirements = matchedForCandidate;
+      candidate.documents = matchedForCandidate;
+    }
+  });
   const rawVariantName =
     dto.serviceVariantName ||
     (rawApplicants.length > 0 ? (rawApplicants[0] as { serviceVariantName?: string })?.serviceVariantName : undefined);

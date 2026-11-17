@@ -75,6 +75,7 @@ export function useApplicationDetailsData(initialApp: Application) {
                                   ? io.requirementId
                                   : undefined,
                             requirementId: typeof io.requirementId === 'string' ? io.requirementId : undefined,
+                            requirementName: typeof io.requirementName === 'string' && io.requirementName.trim() !== '' ? io.requirementName : undefined,
                             serviceVariantRequirementId: typeof io.serviceVariantRequirementId === 'string' ? io.serviceVariantRequirementId : undefined,
                             name: typeof io.requirementName === 'string' && io.requirementName.trim() !== ''
                               ? io.requirementName
@@ -129,19 +130,32 @@ export function useApplicationDetailsData(initialApp: Application) {
                   );
                   if (!hasExistingFile) continue;
 
-                  // Check if this existing doc already matches an item in fetchedReqs
-                  const matched = mergedReqs.find((r) =>
-                    (r.id && existingDoc.id && r.id === existingDoc.id) ||
-                    (r.storedFileId && existingDoc.storedFileId && r.storedFileId === existingDoc.storedFileId) ||
-                    (r.requirementId && existingDoc.requirementId && r.requirementId === existingDoc.requirementId) ||
-                    (r.serviceVariantRequirementId && existingDoc.serviceVariantRequirementId && r.serviceVariantRequirementId === existingDoc.serviceVariantRequirementId) ||
-                    (r.name && existingDoc.name && r.name.toLowerCase() === existingDoc.name.toLowerCase())
-                  );
+                  const existingLabelLower = (existingDoc.requirementName || existingDoc.name || '').trim().toLowerCase();
+
+                  // Check if this existing doc already matches an item in fetchedReqs for the same applicant
+                  const matched = mergedReqs.find((r) => {
+                    const sameApplicant =
+                      !r.applicantId ||
+                      !existingDoc.applicantId ||
+                      r.applicantId === existingDoc.applicantId ||
+                      (applicantIdSet.size <= 1 && existingDoc.applicantId === initialApp.id);
+                    if (!sameApplicant) return false;
+
+                    const rLabelLower = (r.requirementName || r.name || '').trim().toLowerCase();
+                    return (
+                      (r.id && existingDoc.id && r.id === existingDoc.id) ||
+                      (r.storedFileId && existingDoc.storedFileId && r.storedFileId === existingDoc.storedFileId) ||
+                      (r.requirementId && existingDoc.requirementId && r.requirementId === existingDoc.requirementId) ||
+                      (r.serviceVariantRequirementId && existingDoc.serviceVariantRequirementId && r.serviceVariantRequirementId === existingDoc.serviceVariantRequirementId) ||
+                      (rLabelLower !== '' && existingLabelLower !== '' && rLabelLower === existingLabelLower)
+                    );
+                  });
 
                   if (matched) {
                     if (!matched.storedFileId && existingDoc.storedFileId) matched.storedFileId = existingDoc.storedFileId;
                     if (!matched.url && existingDoc.url) matched.url = existingDoc.url;
                     if (!matched.fileName && existingDoc.fileName) matched.fileName = existingDoc.fileName;
+                    if (!matched.requirementName && existingDoc.requirementName) matched.requirementName = existingDoc.requirementName;
                     if (!matched.fileSizeBytes && existingDoc.fileSizeBytes) matched.fileSizeBytes = existingDoc.fileSizeBytes;
                     if (!matched.contentType && existingDoc.contentType) matched.contentType = existingDoc.contentType;
                   } else {
@@ -553,7 +567,8 @@ export function useApplicationDetailsData(initialApp: Application) {
           (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
         );
 
-        const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${index + 1}.pdf` : req.name || `Requirement_${index + 1}`);
+        const rawName = req.fileName || req.requirementName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${index + 1}.pdf` : `Requirement_${index + 1}`);
+        const reqDisplayName = req.requirementName || req.name || rawName;
         let cat: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP' = 'ATTACHMENT';
         if (['ATTACHMENT','ISSUED_PERMIT','RECEIPT','SOA','ADMISSION_SLIP'].includes(req.category || '')) cat = req.category as typeof cat;
         const ext = rawName.toLowerCase().split('.').pop() || '';
@@ -572,6 +587,10 @@ export function useApplicationDetailsData(initialApp: Application) {
         return {
           id: req.id || req.storedFileId || `doc-${index}`,
           name: rawName,
+          requirementName: reqDisplayName,
+          applicantId: req.applicantId,
+          requirementId: req.requirementId,
+          serviceVariantRequirementId: req.serviceVariantRequirementId,
           type: typ,
           size: formattedSize || (hasFile ? '1.2 MB' : ''),
           category: cat,

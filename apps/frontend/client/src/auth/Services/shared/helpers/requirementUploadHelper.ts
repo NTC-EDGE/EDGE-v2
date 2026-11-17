@@ -7,6 +7,7 @@ export interface UploadFileDescriptor {
   uri?: string;
   type?: string;
   file?: File | Blob;
+  storedFileId?: string;
 }
 
 export interface ApplicantUploadHolder {
@@ -36,6 +37,20 @@ interface BackendRequirementItem {
 
 const isGuidString = (val: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
+const extractExistingStoredFileId = (uploadEntry: UploadFileDescriptor | string): string | null => {
+  if (typeof uploadEntry === "object" && uploadEntry !== null && typeof uploadEntry.storedFileId === "string" && isGuidString(uploadEntry.storedFileId)) {
+    return uploadEntry.storedFileId.trim();
+  }
+  const uriCandidate = typeof uploadEntry === "string" ? uploadEntry : (uploadEntry.uri ?? "");
+  if (typeof uriCandidate === "string" && uriCandidate.trim() !== "") {
+    const match = /\/storage\/files\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(uriCandidate);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+};
 
 const inferMimeFromName = (name: string): string => {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
@@ -311,6 +326,7 @@ export async function uploadRequirementsAfterSubmit({
     }
 
     // 4. Upload and link each picture / file
+    const linkedReqKeys = new Set<string>();
     for (let keyIdx = 0; keyIdx < uploadKeys.length; keyIdx++) {
       const fileKey = uploadKeys[keyIdx];
       const uploadEntry = uploadsMap[fileKey];
@@ -322,6 +338,14 @@ export async function uploadRequirementsAfterSubmit({
         continue;
       }
 
+      if (matchedReq) {
+        const reqUniqueKey = getReqUniqueKey(matchedReq);
+        if (linkedReqKeys.has(reqUniqueKey)) {
+          continue;
+        }
+        linkedReqKeys.add(reqUniqueKey);
+      }
+
       const fileName =
         typeof uploadEntry === "string"
           ? uploadEntry
@@ -329,42 +353,44 @@ export async function uploadRequirementsAfterSubmit({
           ? uploadEntry.name
           : `requirement_attachment_${keyIdx + 1}.jpg`;
 
-      const resolvedFile = await resolveFileFromUpload(uploadEntry);
-      if (!resolvedFile) {
-        throw new Error(`Could not read file data for requirement "${fileName}".`);
-      }
-
-      // Step A: Upload to tenant storage
-      let storedFileId: string | null = null;
-      try {
-        const formData = new FormData();
-        formData.append("file", resolvedFile, fileName);
-        formData.append("category", "requirements");
-
-        const uploadRes = await apiClient.post<unknown>(
-          `/api/v2/tenants/${tenantId}/storage/upload`,
-          formData,
-          {
-            headers: {
-              ...authHeaders,
-              "Content-Type": "multipart/form-data",
-            },
-            timeout: 60000,
-          }
-        );
-
-        const uploadResObj = isRecord(uploadRes.data) ? uploadRes.data : {};
-        const uploadData =
-          uploadResObj.succeeded === true && isRecord(uploadResObj.data)
-            ? uploadResObj.data
-            : uploadResObj;
-
-        if (typeof uploadData.id === "string" && uploadData.id.trim() !== "") {
-          storedFileId = uploadData.id;
+      // Step A: Reuse existing StoredFileId if already uploaded; otherwise upload to tenant storage
+      let storedFileId: string | null = extractExistingStoredFileId(uploadEntry);
+      if (!storedFileId) {
+        const resolvedFile = await resolveFileFromUpload(uploadEntry);
+        if (!resolvedFile) {
+          throw new Error(`Could not read file data for requirement "${fileName}".`);
         }
-      } catch (uploadErr) {
-        console.error(`[requirementUploadHelper] Storage upload failed for file "${fileName}":`, uploadErr);
-        throw new Error(`Failed to upload supporting document "${fileName}". Please check your connection and try again.`);
+
+        try {
+          const formData = new FormData();
+          formData.append("file", resolvedFile, fileName);
+          formData.append("category", "requirements");
+
+          const uploadRes = await apiClient.post<unknown>(
+            `/api/v2/tenants/${tenantId}/storage/upload`,
+            formData,
+            {
+              headers: {
+                ...authHeaders,
+                "Content-Type": "multipart/form-data",
+              },
+              timeout: 60000,
+            }
+          );
+
+          const uploadResObj = isRecord(uploadRes.data) ? uploadRes.data : {};
+          const uploadData =
+            uploadResObj.succeeded === true && isRecord(uploadResObj.data)
+              ? uploadResObj.data
+              : uploadResObj;
+
+          if (typeof uploadData.id === "string" && uploadData.id.trim() !== "") {
+            storedFileId = uploadData.id;
+          }
+        } catch (uploadErr) {
+          console.error(`[requirementUploadHelper] Storage upload failed for file "${fileName}":`, uploadErr);
+          throw new Error(`Failed to upload supporting document "${fileName}". Please check your connection and try again.`);
+        }
       }
 
       if (!storedFileId) {

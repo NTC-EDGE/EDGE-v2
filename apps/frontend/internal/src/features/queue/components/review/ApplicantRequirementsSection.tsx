@@ -39,39 +39,62 @@ export function ApplicantRequirementsSection({
     setIsLoading(true);
     const [res] = await applicationService.getApplicantRequirements(app.id, activeApplicant.id);
     setIsLoading(false);
+
+    const isMultiApplicant = Array.isArray(app.applicantsList) && app.applicantsList.length > 1;
+    const preloadedPool =
+      Array.isArray(activeApplicant.requirements) && activeApplicant.requirements.length > 0
+        ? activeApplicant.requirements
+        : Array.isArray(app.requirements)
+          ? (isMultiApplicant
+              ? app.requirements.filter((ar) => !ar.applicantId || ar.applicantId === activeApplicant.id)
+              : app.requirements)
+          : [];
+
     if (res?.data && res.data.length > 0) {
       const merged = res.data.map((r) => {
-        if ((!r.storedFileId || r.storedFileId === '') && (!r.url || r.url === '') && Array.isArray(app.requirements)) {
-          const matchInApp = app.requirements.find(
+        if ((!r.storedFileId || r.storedFileId === '') && (!r.url || r.url === '') && preloadedPool.length > 0) {
+          const matchInApp = preloadedPool.find(
             (ar) =>
+              (typeof ar.requirementId === 'string' && ar.requirementId === r.requirementId) ||
+              (typeof ar.serviceVariantRequirementId === 'string' && ar.serviceVariantRequirementId === r.serviceVariantRequirementId) ||
               (typeof ar.label === 'string' && typeof r.requirementName === 'string' && ar.label.toLowerCase() === r.requirementName.toLowerCase()) ||
               (typeof ar.filename === 'string' && typeof r.fileName === 'string' && ar.filename.toLowerCase() === r.fileName.toLowerCase()) ||
               (typeof ar.url === 'string' && typeof r.url === 'string' && ar.url === r.url)
           );
-          if (matchInApp && typeof matchInApp.url === 'string' && matchInApp.url.trim() !== '') {
+          if (matchInApp && ((typeof matchInApp.storedFileId === 'string' && matchInApp.storedFileId.trim() !== '') || (typeof matchInApp.url === 'string' && matchInApp.url.trim() !== ''))) {
             return {
               ...r,
-              url: matchInApp.url,
+              submittedRequirementId: matchInApp.id ?? r.submittedRequirementId,
+              storedFileId: matchInApp.storedFileId ?? r.storedFileId,
+              url: matchInApp.url ?? r.url,
               fileName: matchInApp.filename || r.fileName,
+              contentType: matchInApp.contentType ?? r.contentType,
+              fileSizeBytes: matchInApp.fileSizeBytes ?? r.fileSizeBytes,
+              isApproved: matchInApp.isApproved ?? r.isApproved,
             };
           }
         }
         return r;
       });
       setRequirements(merged);
-    } else if (Array.isArray(app.requirements) && app.requirements.length > 0) {
-      const fallbackList: ApplicantRequirementItemDto[] = app.requirements.map((ar, idx) => ({
-        requirementId: `fallback-req-${idx}`,
+    } else if (preloadedPool.length > 0) {
+      const fallbackList: ApplicantRequirementItemDto[] = preloadedPool.map((ar, idx) => ({
+        requirementId: ar.requirementId || `fallback-req-${idx}`,
+        serviceVariantRequirementId: ar.serviceVariantRequirementId ?? null,
         requirementName: ar.label || ar.filename || `Requirement Document ${idx + 1}`,
         description: ar.note || '',
         isRequired: true,
+        submittedRequirementId: ar.id ?? null,
+        storedFileId: ar.storedFileId ?? null,
         fileName: ar.filename || 'Attached Document',
+        contentType: ar.contentType ?? null,
+        fileSizeBytes: ar.fileSizeBytes ?? null,
         url: ar.url,
-        isApproved: false,
+        isApproved: ar.isApproved ?? false,
       }));
       setRequirements(fallbackList);
     }
-  }, [app?.id, activeApplicant?.id, app.requirements]);
+  }, [app?.id, app?.applicantsList, activeApplicant?.id, activeApplicant?.requirements, app?.requirements]);
 
   useEffect(() => {
     fetchRequirements();

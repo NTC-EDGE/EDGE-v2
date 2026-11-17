@@ -17,6 +17,9 @@ interface ApplicantRequirementsCardProps {
   onDownloadDoc?: (doc: ApplicationDocument) => void;
   previewLoadingId?: string | null;
   setPreviewLoadingId: (id: string | null) => void;
+  canEditRequirements?: boolean;
+  uploadingDocId?: string | null;
+  onUploadRequirement?: (doc: ApplicationDocument, matchedReq?: RawRequirement) => void;
 }
 
 function isRawRequirement(item: unknown): item is RawRequirement {
@@ -67,6 +70,9 @@ export function ApplicantRequirementsCard({
   onDownloadDoc,
   previewLoadingId,
   setPreviewLoadingId,
+  canEditRequirements = false,
+  uploadingDocId,
+  onUploadRequirement,
 }: ApplicantRequirementsCardProps) {
   const isMountedRef = React.useRef(true);
 
@@ -259,7 +265,7 @@ export function ApplicantRequirementsCard({
                     }}
                     numberOfLines={1}
                   >
-                    {doc.name}
+                    {doc.requirementName && doc.requirementName !== doc.name ? `${doc.requirementName} (${doc.name})` : doc.name}
                   </Text>
                   <Text
                     style={{
@@ -278,7 +284,7 @@ export function ApplicantRequirementsCard({
                   <>
                     <Icon name="check-circle" size={16} color="#16A34A" />
 
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <TouchableOpacity
                         onPress={handlePreview}
                         disabled={isLoading}
@@ -319,33 +325,78 @@ export function ApplicantRequirementsCard({
                           Download
                         </Text>
                       </TouchableOpacity>
+
+                      {canEditRequirements && onUploadRequirement !== undefined && (
+                        <TouchableOpacity
+                          onPress={() => onUploadRequirement(doc, matched)}
+                          disabled={uploadingDocId === doc.id}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: '#FFFBEB',
+                            borderWidth: 1,
+                            borderColor: '#FDE68A',
+                            paddingVertical: 5,
+                            paddingHorizontal: 10,
+                            borderRadius: 8,
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Icon name={uploadingDocId === doc.id ? 'loader' : 'upload'} size={13} color="#B45309" style={{ marginRight: 4 }} />
+                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#B45309' }}>
+                            {uploadingDocId === doc.id ? 'Uploading...' : 'Replace'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </>
                 ) : (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      backgroundColor: '#FEF2F2',
-                      borderWidth: 1,
-                      borderColor: '#FECACA',
-                      paddingVertical: 4,
-                      paddingHorizontal: 8,
-                      borderRadius: 6,
-                      gap: 4,
-                    }}
-                  >
-                    <Icon name="alert-circle" size={12} color="#DC2626" />
-                    <Text
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <View
                       style={{
-                        fontFamily: TYPOGRAPHY.fonts.primary,
-                        fontSize: 11,
-                        fontWeight: '700',
-                        color: '#DC2626',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: '#FEF2F2',
+                        borderWidth: 1,
+                        borderColor: '#FECACA',
+                        paddingVertical: 4,
+                        paddingHorizontal: 8,
+                        borderRadius: 6,
+                        gap: 4,
                       }}
                     >
-                      Requirement not available
-                    </Text>
+                      <Icon name="alert-circle" size={12} color="#DC2626" />
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          color: '#DC2626',
+                        }}
+                      >
+                        Requirement not available
+                      </Text>
+                    </View>
+                    {canEditRequirements && onUploadRequirement !== undefined && (
+                      <TouchableOpacity
+                        onPress={() => onUploadRequirement(doc, matched)}
+                        disabled={uploadingDocId === doc.id}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: '#1D4ED8',
+                          paddingVertical: 5,
+                          paddingHorizontal: 10,
+                          borderRadius: 8,
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name={uploadingDocId === doc.id ? 'loader' : 'upload'} size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#FFFFFF' }}>
+                          {uploadingDocId === doc.id ? 'Uploading...' : 'Upload'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>
