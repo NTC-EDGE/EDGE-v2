@@ -61,6 +61,21 @@ export interface PendingPaymentLineItemDto {
   amount: number;
 }
 
+export interface BulkPaymentOpItemDto {
+  orderOfPaymentId: string;
+  statementOfAccountId?: string | null;
+  applicantId?: string | null;
+  opNumber: string;
+  soaNumber: string;
+  applicantName: string;
+  amountDue: number;
+  amountReceived?: number;
+  remainingBalance?: number;
+  status: string;
+  officialReceiptNumber?: string | null;
+  lineItems: PendingPaymentLineItemDto[];
+}
+
 export interface ReceiptFeeItemDto {
   id: string;
   feeCode: string;
@@ -99,6 +114,8 @@ export interface PendingPaymentDto {
   paymentReferenceNumber?: string | null;
   payorName?: string | null;
   payorAddress?: string | null;
+  isBulkApplication?: boolean;
+  bulkOpItems?: BulkPaymentOpItemDto[] | null;
 }
 
 export interface OfficialReceiptLineItemDto {
@@ -263,6 +280,7 @@ export interface IssueReceiptLineItemInput {
 export interface IssueOfficialReceiptPayload {
   tenantId: string;
   orderOfPaymentId?: string | null;
+  orderOfPaymentIds?: string[] | null;
   bookletId?: string | null;
   manualOrNumber?: string | null;
   payorName: string;

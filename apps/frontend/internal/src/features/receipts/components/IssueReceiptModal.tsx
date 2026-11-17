@@ -52,6 +52,14 @@ export function IssueReceiptModal({
     setUseManualOr,
     issuanceStrategy,
     selectedSplitIndex,
+    bulkOrScope,
+    selectedBulkOpIndex,
+    bulkOpItems,
+    unpaidBulkOpItems,
+    hasBulkOpOptions,
+    isMultiOpBulk,
+    handleSelectBulkOrScope,
+    handleSelectBulkOpItem,
     activeSuggestionIndex,
     setActiveSuggestionIndex,
     lineItems,
@@ -107,6 +115,26 @@ export function IssueReceiptModal({
     maximumFractionDigits: 2,
   });
 
+  const activeBulkTarget = hasBulkOpOptions ? bulkOpItems[selectedBulkOpIndex] : undefined;
+  const bulkTargetsForTotal = unpaidBulkOpItems.length > 0 ? unpaidBulkOpItems : bulkOpItems;
+  const bulkTotalAmount = bulkTargetsForTotal.reduce((sum, item) => sum + (item.amountDue || 0), 0);
+  const formattedBulkTotal = bulkTotalAmount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const activeOpLabel = hasBulkOpOptions
+    ? (bulkOrScope === 'bulk'
+        ? `Bulk (${Array.from(new Set(bulkTargetsForTotal.map((o) => o.opNumber.replace(/\s*\(#\d+\)\s*$/, '')))).join(', ')})`
+        : `OP #${activeBulkTarget?.opNumber ?? pendingPayment?.opNumber ?? ''}`)
+    : undefined;
+
+  const activeApplicantName = hasBulkOpOptions
+    ? (bulkOrScope === 'bulk'
+        ? `${pendingPayment?.applicantName ?? 'Bulk Payor'} (${bulkTargetsForTotal.length} ${isMultiOpBulk ? 'OPs' : 'Applicants'})`
+        : activeBulkTarget?.applicantName)
+    : undefined;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -114,8 +142,8 @@ export function IssueReceiptModal({
           {/* Top Modal Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <View style={styles.titleRow}>
-              <View style={[styles.iconBox, { backgroundColor: colors.brand.indigoLight }]}>
-                <Lucide name="printer" size={20} color={colors.brand.primary} />
+              <View style={[styles.iconBox, { backgroundColor: '#F1F5F9' }]}>
+                <Lucide name="printer" size={18} color={colors.neutral[700]} />
               </View>
               <View>
                 <Text style={[styles.title, { color: colors.text }]}>
@@ -140,6 +168,171 @@ export function IssueReceiptModal({
               <View style={styles.errorBox}>
                 <Lucide name="alert-triangle" size={18} color={colors.semantic.error} />
                 <Text style={[styles.errorText, { color: colors.semantic.error }]}>{errorMsg}</Text>
+              </View>
+            )}
+
+            {/* Bulk Application OR Issuance Mode (Per OP vs As Bulk) */}
+            {hasBulkOpOptions && (
+              <View
+                style={[
+                  styles.preferredCard,
+                  {
+                    backgroundColor: '#F8FAFC',
+                    borderColor: colors.border,
+                    borderLeftColor: '#4F46E5',
+                  },
+                ]}
+              >
+                <View style={styles.preferredCardHeader}>
+                  <View style={styles.preferredTitleRow}>
+                    <Lucide name="users" size={16} color="#4F46E5" />
+                    <Text style={[styles.preferredTitleText, { color: colors.text }]}>
+                      BULK APPLICATION RECEIPT ISSUANCE
+                    </Text>
+                  </View>
+                  <View style={[styles.preferredBadge, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }]}>
+                    <Text style={[styles.preferredBadgeText, { color: '#475569' }]}>
+                      {isMultiOpBulk ? `${bulkOpItems.length} Orders of Payment` : `${bulkOpItems.length} Applicants`}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.strategyOptionsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.strategyOptionCard,
+                      { borderColor: colors.border, backgroundColor: '#FFFFFF' },
+                      bulkOrScope === 'per_op' && {
+                        borderColor: colors.brand.primary,
+                        backgroundColor: '#F8FAFC',
+                      },
+                    ]}
+                    onPress={() => handleSelectBulkOrScope('per_op')}
+                  >
+                    <View
+                      style={[
+                        styles.strategyRadio,
+                        bulkOrScope === 'per_op' && { borderColor: colors.brand.primary },
+                      ]}
+                    >
+                      {bulkOrScope === 'per_op' && (
+                        <View style={[styles.strategyRadioInner, { backgroundColor: colors.brand.primary }]} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.strategyTitle,
+                          bulkOrScope === 'per_op' && { color: colors.brand.primary },
+                        ]}
+                      >
+                        Issue OR per Order of Payment
+                      </Text>
+                      <Text style={styles.strategySub}>
+                        Issue individual Official Receipts per OP / applicant
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.strategyOptionCard,
+                      { borderColor: colors.border, backgroundColor: '#FFFFFF' },
+                      bulkOrScope === 'bulk' && {
+                        borderColor: colors.brand.primary,
+                        backgroundColor: '#F8FAFC',
+                      },
+                    ]}
+                    onPress={() => handleSelectBulkOrScope('bulk')}
+                  >
+                    <View
+                      style={[
+                        styles.strategyRadio,
+                        bulkOrScope === 'bulk' && { borderColor: colors.brand.primary },
+                      ]}
+                    >
+                      {bulkOrScope === 'bulk' && (
+                        <View style={[styles.strategyRadioInner, { backgroundColor: colors.brand.primary }]} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.strategyTitle,
+                          bulkOrScope === 'bulk' && { color: colors.brand.primary },
+                        ]}
+                      >
+                        Issue OR as Bulk (₱{formattedBulkTotal})
+                      </Text>
+                      <Text style={styles.strategySub}>
+                        Issue 1 consolidated Official Receipt covering all {bulkTargetsForTotal.length} unpaid {isMultiOpBulk ? 'OPs' : 'applicants'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {bulkOrScope === 'per_op' ? (
+                  <View style={styles.splitModesContainer}>
+                    <Text style={[styles.splitModesLabel, { color: colors.neutral[700] }]}>
+                      Select Order of Payment / Applicant to issue OR for now:
+                    </Text>
+                    <View style={styles.splitModesChipsRow}>
+                      {bulkOpItems.map((item, idx) => {
+                        const isPaid = item.status === 'Paid';
+                        const isSelected = selectedBulkOpIndex === idx;
+                        return (
+                          <TouchableOpacity
+                            key={`${item.orderOfPaymentId}-${idx}`}
+                            disabled={isPaid}
+                            onPress={() => handleSelectBulkOpItem(idx)}
+                            style={[
+                              styles.splitModeBtn,
+                              { borderColor: colors.neutral[300], backgroundColor: '#FFFFFF' },
+                              isSelected && { borderColor: colors.brand.primary, backgroundColor: colors.brand.primary },
+                              isPaid && { borderColor: colors.border, backgroundColor: '#F8FAFC', opacity: 0.7 },
+                            ]}
+                          >
+                            <Lucide
+                              name={isPaid ? 'check-circle' : 'file-text'}
+                              size={14}
+                              color={isPaid ? '#16A34A' : isSelected ? '#fff' : colors.neutral[700]}
+                            />
+                            <Text
+                              style={[
+                                styles.splitModeBtnText,
+                                isSelected && { color: '#fff', fontWeight: '700' },
+                                isPaid && { color: colors.neutral[600] },
+                              ]}
+                            >
+                              {item.opNumber} • {item.applicantName} (₱{item.amountDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                              {isPaid && item.officialReceiptNumber ? ` [OR #${item.officialReceiptNumber}]` : ''}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.strategyActiveBanner,
+                      {
+                        backgroundColor: '#FFFFFF',
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Lucide name="layers" size={14} color={colors.neutral[600]} />
+                      <Text style={[styles.strategyActiveBannerText, { color: colors.text }]}>
+                        Included OPs: {Array.from(new Set(bulkTargetsForTotal.map((o) => o.opNumber.replace(/\s*\(#\d+\)\s*$/, '')))).join(', ')} ({bulkTargetsForTotal.length} {isMultiOpBulk ? 'OPs' : 'applicants'})
+                      </Text>
+                    </View>
+                    <Text style={[styles.strategyActiveBannerSub, { color: colors.text }]}>
+                      Total: ₱{formattedBulkTotal}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -185,6 +378,8 @@ export function IssueReceiptModal({
               setPayorName={setPayorName}
               payorAddress={payorAddress}
               setPayorAddress={setPayorAddress}
+              activeOpLabel={activeOpLabel}
+              activeApplicantName={activeApplicantName}
             />
 
             <ReceiptLineItemsTable
@@ -214,13 +409,13 @@ export function IssueReceiptModal({
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionHeaderLeft}>
                   <View style={[styles.sectionIconBadge, { backgroundColor: '#FEF3C7' }]}>
-                    <Lucide name="file-text" size={16} color="#D97706" />
+                    <Lucide name="file-text" size={14} color="#D97706" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.sectionHeaderTitle, { color: '#B45309' }]}>
-                      4. REMARKS & REFERENCE NOTES (OPTIONAL)
+                      4. REMARKS &amp; REFERENCE NOTES (OPTIONAL)
                     </Text>
-                    <Text style={[styles.sectionHeaderSub, { color: colors.textMuted }]}>
+                    <Text style={styles.sectionHeaderSub}>
                       Add transaction notes, endorsement details, or collection remarks
                     </Text>
                   </View>

@@ -1,12 +1,19 @@
 import React from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { Icon, DatePickerInput } from '@edge/ui';
-import { ModeOfPayment, CheckProofFile } from './paymentSubmissionTypes';
+import {
+  ModeOfPayment,
+  OnlinePaymentChannel,
+  ONLINE_PAYMENT_CHANNELS,
+  CheckProofFile,
+} from './paymentSubmissionTypes';
 import { styles } from './paymentSubmissionStyles';
 import { CheckProofUploadField } from './CheckProofUploadField';
 
 interface SingleModeDetailsProps {
   selectedMode: ModeOfPayment;
+  onlineChannel: OnlinePaymentChannel;
+  setOnlineChannel: (channel: OnlinePaymentChannel) => void;
   referenceNumber: string;
   setReferenceNumber: (v: string) => void;
   checkNumber: string;
@@ -22,6 +29,8 @@ interface SingleModeDetailsProps {
 
 export function SingleModeDetails({
   selectedMode,
+  onlineChannel,
+  setOnlineChannel,
   referenceNumber,
   setReferenceNumber,
   checkNumber,
@@ -43,7 +52,7 @@ export function SingleModeDetails({
       <View style={styles.guideBox}>
         <Icon name="info" size={16} color="#0284C7" />
         <Text style={styles.guideText}>
-          You have selected on-site cash payment. Please present your Order of Payment (OP) to the NTC Regional Office Cashier. Submitting here registers your preferred payment method in the queue.
+          You have selected walk-in cash payment. Please present your Order of Payment (OP) to the NTC Regional Office Cashier. Submitting here registers your preferred payment method in the cashier queue.
         </Text>
       </View>
     );
@@ -79,7 +88,7 @@ export function SingleModeDetails({
           </View>
         </View>
         <DatePickerInput
-          label="Check Date"
+          label="Check Date *"
           value={checkDate}
           onChangeText={setCheckDate}
           placeholder="YYYY-MM-DD"
@@ -87,31 +96,75 @@ export function SingleModeDetails({
         <CheckProofUploadField
           file={checkProofFile}
           onFileChange={setCheckProofFile}
+          label="Check Photo / Scanned Proof"
+          helperText="Attach a clear photo or scanned copy of the physical check (JPEG, PNG, or PDF)"
+          cameraTitle="Capture Check Photo"
+          cameraInstruction="Position physical check clearly within frame"
           onPreview={onPreviewCheckProof}
         />
       </View>
     );
   }
 
-  // Online options (LandBank, GCashMaya, BankTransfer)
+  // Online / E-Payment mode (LandBank Link.BizPortal, GCash, Maya, Bank Transfer)
+  const activeChannel =
+    ONLINE_PAYMENT_CHANNELS.find((ch) => ch.id === onlineChannel) ??
+    ONLINE_PAYMENT_CHANNELS[0];
+
   return (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>
-        Transaction Reference / E-Receipt Number <Text style={styles.requiredStar}>*</Text>
-      </Text>
-      <TextInput
-        style={styles.textInput}
-        value={referenceNumber}
-        onChangeText={setReferenceNumber}
-        placeholder={
-          selectedMode === 'LandBank'
-            ? 'e.g. LBP-EPAY-2026-XXXXX'
-            : selectedMode === 'GCashMaya'
-            ? 'e.g. MP-2026-XXXXXXXX'
-            : 'e.g. FT-UBP-XXXXXXXX'
-        }
-        placeholderTextColor="#94A3B8"
+    <View style={styles.checkCardSection}>
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>
+          Payment Channel / Gateway <Text style={styles.requiredStar}>*</Text>
+        </Text>
+        <View style={styles.channelChipRow}>
+          {ONLINE_PAYMENT_CHANNELS.map((channel) => {
+            const isActive = onlineChannel === channel.id;
+            return (
+              <TouchableOpacity
+                key={channel.id}
+                style={[styles.channelChip, isActive && styles.channelChipActive]}
+                onPress={() => setOnlineChannel(channel.id)}
+                activeOpacity={0.75}
+              >
+                <Icon
+                  name={isActive ? 'check-circle' : 'circle'}
+                  size={12}
+                  color={isActive ? '#1D4ED8' : '#64748B'}
+                />
+                <Text style={[styles.channelChipText, isActive && styles.channelChipTextActive]}>
+                  {channel.shortLabel}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>
+          {activeChannel?.refLabel || 'Transaction Reference / E-Receipt Number'}{' '}
+          <Text style={styles.requiredStar}>*</Text>
+        </Text>
+        <TextInput
+          style={styles.textInput}
+          value={referenceNumber}
+          onChangeText={setReferenceNumber}
+          placeholder={activeChannel?.placeholder || 'e.g. LBP-EPAY-2026-XXXXX'}
+          placeholderTextColor="#94A3B8"
+        />
+      </View>
+
+      <CheckProofUploadField
+        file={checkProofFile}
+        onFileChange={setCheckProofFile}
+        label="Payment Confirmation / E-Receipt Proof"
+        helperText="Attach a screenshot, photo, or PDF copy of your online payment confirmation receipt (JPEG, PNG, or PDF)"
+        cameraTitle="Capture Receipt Photo"
+        cameraInstruction="Position payment receipt clearly within frame"
+        onPreview={onPreviewCheckProof}
       />
     </View>
   );
 }
+

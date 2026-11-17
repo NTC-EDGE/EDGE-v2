@@ -72,6 +72,13 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
             newStatus = ApplicationStatus.Completed;
             app.AssessedAt = DateTime.UtcNow;
         }
+        else if (newStatus == ApplicationStatus.ForIssuance &&
+                 app.OrdersOfPayment != null &&
+                 app.OrdersOfPayment.Any(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing))
+        {
+            // Prevent premature transition to ForIssuance when a bulk application still has unpaid Orders of Payment
+            newStatus = ApplicationStatus.PendingPayment;
+        }
 
         app.Status = newStatus;
         if (!string.IsNullOrWhiteSpace(request.Remarks))

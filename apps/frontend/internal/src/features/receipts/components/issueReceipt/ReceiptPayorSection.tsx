@@ -11,6 +11,8 @@ interface ReceiptPayorSectionProps {
   setPayorName: (v: string) => void;
   payorAddress: string;
   setPayorAddress: (v: string) => void;
+  activeOpLabel?: string;
+  activeApplicantName?: string;
 }
 
 export function ReceiptPayorSection({
@@ -20,6 +22,8 @@ export function ReceiptPayorSection({
   setPayorName,
   payorAddress,
   setPayorAddress,
+  activeOpLabel,
+  activeApplicantName,
 }: ReceiptPayorSectionProps) {
   const { colors } = useTheme();
 
@@ -38,13 +42,13 @@ export function ReceiptPayorSection({
       <View style={styles.sectionHeaderRow}>
         <View style={styles.sectionHeaderLeft}>
           <View style={[styles.sectionIconBadge, { backgroundColor: '#E0F2FE' }]}>
-            <Lucide name="user" size={16} color="#0284C7" />
+            <Lucide name="user" size={14} color="#0284C7" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.sectionHeaderTitle, { color: '#0284C7' }]}>
-              2. PAYEE / PAYOR & ORDER OF PAYMENT REFERENCE
+              2. PAYEE / PAYOR &amp; ORDER OF PAYMENT REFERENCE
             </Text>
-            <Text style={[styles.sectionHeaderSub, { color: colors.textMuted }]}>
+            <Text style={styles.sectionHeaderSub}>
               Confirm the payee name and address to be printed on the Official Receipt
             </Text>
           </View>
@@ -55,12 +59,12 @@ export function ReceiptPayorSection({
       <View style={styles.payorFieldsRow}>
         <View style={{ flex: 1.5, minWidth: 240 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800], marginBottom: 0 }]}>
+            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700], marginBottom: 0 }]}>
               Payee Name (Printed on Official Receipt) *
             </Text>
             {isFromPendingPayment && (
-              <Text style={{ fontSize: 11, color: colors.neutral[500], fontWeight: '600' }}>
-                (Editable by Cashier)
+              <Text style={{ fontSize: 11, color: colors.neutral[500], fontWeight: '500' }}>
+                Editable
               </Text>
             )}
           </View>
@@ -75,7 +79,7 @@ export function ReceiptPayorSection({
         </View>
 
         <View style={{ flex: 1, minWidth: 200 }}>
-          <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800] }]}>
+          <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>
             Payee Address (Optional)
           </Text>
           <TextInput
@@ -96,36 +100,26 @@ export function ReceiptPayorSection({
             {
               backgroundColor: '#F8FAFC',
               borderColor: colors.border,
-              borderLeftColor: '#4F46E5',
             },
           ]}
         >
           <View style={styles.readOnlyField}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Lucide name="user" size={13} color={colors.neutral[500]} />
-              <Text style={[styles.readOnlyLabel, { color: colors.neutral[600] }]}>ORIGINAL APPLICANT</Text>
-            </View>
-            <Text style={[styles.readOnlyValue, { color: colors.neutral[900] }]}>
-              {pendingPayment.applicantName}
+            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>ORIGINAL APPLICANT</Text>
+            <Text style={[styles.readOnlyValue, { color: colors.text }]}>
+              {activeApplicantName || pendingPayment.applicantName}
             </Text>
           </View>
 
           <View style={styles.readOnlyField}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Lucide name="file-text" size={13} color={colors.neutral[500]} />
-              <Text style={[styles.readOnlyLabel, { color: colors.neutral[600] }]}>ORDER OF PAYMENT (SOA)</Text>
-            </View>
-            <Text style={[styles.readOnlyValue, { color: colors.neutral[900] }]}>
-              OP #{pendingPayment.opNumber} ({pendingPayment.applicationNumber || pendingPayment.referenceNumber || 'N/A'})
+            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>ORDER OF PAYMENT</Text>
+            <Text style={[styles.readOnlyValue, { color: colors.text }]}>
+              {activeOpLabel || `OP #${pendingPayment.opNumber}`} ({pendingPayment.applicationNumber || pendingPayment.referenceNumber || 'N/A'})
             </Text>
           </View>
 
           <View style={styles.readOnlyField}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Lucide name="tag" size={13} color={colors.neutral[500]} />
-              <Text style={[styles.readOnlyLabel, { color: colors.neutral[600] }]}>SERVICE</Text>
-            </View>
-            <Text style={[styles.readOnlyValue, { color: colors.neutral[900] }]} numberOfLines={1}>
+            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>SERVICE</Text>
+            <Text style={[styles.readOnlyValue, { color: colors.text }]} numberOfLines={1}>
               {pendingPayment.serviceName}
             </Text>
           </View>
@@ -134,3 +128,4 @@ export function ReceiptPayorSection({
     </View>
   );
 }
+

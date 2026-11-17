@@ -11,7 +11,13 @@ import {
 } from '@edge/api';
 import { useToast } from '../../../../../shared/components/Toast';
 import { resolveApplicationTenantId } from '../../../../../shared/helpers/tenantHelper';
-import { ModeOfPayment, CombinationRow, CheckProofFile } from './paymentSubmissionTypes';
+import {
+  ModeOfPayment,
+  OnlinePaymentChannel,
+  ONLINE_PAYMENT_CHANNELS,
+  CombinationRow,
+  CheckProofFile,
+} from './paymentSubmissionTypes';
 import { uploadCheckProof } from './checkProofUploadHelper';
 
 interface UseClientPaymentSubmissionProps {
@@ -20,8 +26,6 @@ interface UseClientPaymentSubmissionProps {
   onSuccess: () => void;
   visible?: boolean;
 }
-
-
 
 export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }: UseClientPaymentSubmissionProps) {
   const toast = useToast();
@@ -41,14 +45,15 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
 
   const tenantId = resolveApplicationTenantId(app);
 
-  const [selectedMode, setSelectedMode] = useState<ModeOfPayment>('LandBank');
+  const [selectedMode, setSelectedMode] = useState<ModeOfPayment>('Online');
+  const [onlineChannel, setOnlineChannel] = useState<OnlinePaymentChannel>('LandBank');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [payorName, setPayorName] = useState(app.applicantName || app.companyName || '');
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Single Check details
+  // Single Check / Online proof details
   const [checkNumber, setCheckNumber] = useState('');
   const [checkBank, setCheckBank] = useState('');
   const [checkDate, setCheckDate] = useState('');
@@ -81,6 +86,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        onlineChannel: 'LandBank',
         checkProofFile: null,
       },
       {
@@ -91,6 +97,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        onlineChannel: 'LandBank',
         checkProofFile: null,
       },
     ];
@@ -102,7 +109,8 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
   // reset payment mode and fields so the client can select and configure their mode of payment afresh.
   useEffect(() => {
     if (visible) {
-      setSelectedMode('LandBank');
+      setSelectedMode('Online');
+      setOnlineChannel('LandBank');
       setReferenceNumber('');
       setPayorName(app.applicantName || app.companyName || '');
       setRemarks('');
@@ -137,6 +145,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        onlineChannel: 'LandBank',
         checkProofFile: null,
       },
       {
@@ -147,6 +156,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        onlineChannel: 'LandBank',
         checkProofFile: null,
       },
     ]);
@@ -165,6 +175,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        onlineChannel: 'LandBank',
         checkProofFile: null,
       },
       {
@@ -175,6 +186,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        onlineChannel: 'LandBank',
         checkProofFile: null,
       },
       {
@@ -185,6 +197,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        onlineChannel: 'LandBank',
         checkProofFile: null,
       },
     ]);
@@ -209,6 +222,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         checkBank: '',
         checkDate: '',
         referenceNumber: '',
+        onlineChannel: 'LandBank',
         checkProofFile: null,
       },
     ]);
@@ -253,6 +267,11 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
   const handleSubmit = async () => {
     setErrorMessage(null);
 
+    const activeChannelMeta =
+      ONLINE_PAYMENT_CHANNELS.find((ch) => ch.id === onlineChannel) ??
+      ONLINE_PAYMENT_CHANNELS[0];
+    const channelLabel = activeChannelMeta?.label || 'Online';
+
     if (selectedMode === 'Check') {
       if (!checkNumber.trim()) {
         setErrorMessage('Please enter the Check Number.');
@@ -260,6 +279,10 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       }
       if (!checkBank.trim()) {
         setErrorMessage('Please specify the Drawee Bank.');
+        return;
+      }
+      if (!checkDate.trim()) {
+        setErrorMessage('Please specify the Check Date.');
         return;
       }
     } else if (selectedMode === 'Combination') {
@@ -276,12 +299,21 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
           setErrorMessage(`Payment mode #${i + 1} (${row.mode}) must have a valid amount greater than 0.`);
           return;
         }
-        if (row.mode === 'Check' && (!row.checkNumber.trim() || !row.checkBank.trim())) {
-          setErrorMessage(`Check payment #${i + 1} requires both Check Number and Drawee Bank.`);
-          return;
+        if (row.mode === 'Check') {
+          if (!row.checkNumber.trim() || !row.checkBank.trim()) {
+            setErrorMessage(`Check payment #${i + 1} requires both Check Number and Drawee Bank.`);
+            return;
+          }
+          if (!row.checkDate.trim()) {
+            setErrorMessage(`Check payment #${i + 1} requires the Check Date.`);
+            return;
+          }
         }
         if (row.mode === 'Online' && !row.referenceNumber.trim()) {
-          setErrorMessage(`Online payment #${i + 1} requires a Reference / E-Receipt Number.`);
+          const rowCh = ONLINE_PAYMENT_CHANNELS.find((ch) => ch.id === (row.onlineChannel ?? 'LandBank'));
+          setErrorMessage(
+            `Online payment #${i + 1} (${rowCh?.shortLabel || 'Online'}) requires a Reference / E-Receipt Number.`
+          );
           return;
         }
       }
@@ -303,9 +335,9 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         );
         return;
       }
-    } else if (selectedMode !== 'CashierOTC') {
+    } else if (selectedMode === 'Online') {
       if (!referenceNumber.trim()) {
-        setErrorMessage('Please provide the transaction reference or e-receipt number.');
+        setErrorMessage(`Please enter the ${activeChannelMeta?.refLabel || 'transaction reference or e-receipt number'}.`);
         return;
       }
     }
@@ -320,11 +352,11 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
     setIsSubmitting(true);
 
     let singleProofFileId: string | null = null;
-    if (selectedMode === 'Check' && checkProofFile !== null) {
+    if ((selectedMode === 'Check' || selectedMode === 'Online') && checkProofFile !== null) {
       const uploadRes = await uploadCheckProof(checkProofFile, tenantId);
       if (!uploadRes.success) {
         setIsSubmitting(false);
-        const msg = `Check Proof Upload Failed: ${uploadRes.error}`;
+        const msg = `Payment Proof Upload Failed: ${uploadRes.error}`;
         setErrorMessage(msg);
         toast.error('Upload Failed', msg);
         return;
@@ -335,11 +367,12 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
     const combinationProofIdMap = new Map<string, string>();
     if (selectedMode === 'Combination') {
       for (const row of combinationRows) {
-        if (row.mode === 'Check' && row.checkProofFile !== null && row.checkProofFile !== undefined) {
+        if ((row.mode === 'Check' || row.mode === 'Online') && row.checkProofFile !== null && row.checkProofFile !== undefined) {
           const uploadRes = await uploadCheckProof(row.checkProofFile, tenantId);
           if (!uploadRes.success) {
             setIsSubmitting(false);
-            const msg = `Check Proof Upload Failed for "${row.checkBank || 'Check'}": ${uploadRes.error}`;
+            const rowDesc = row.mode === 'Check' ? (row.checkBank || 'Check') : (row.onlineChannel || 'Online');
+            const msg = `Proof Upload Failed for "${rowDesc}": ${uploadRes.error}`;
             setErrorMessage(msg);
             toast.error('Upload Failed', msg);
             return;
@@ -404,14 +437,16 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       const firstOnline = combinationRows.find((r) => r.mode === 'Online' && r.referenceNumber.trim());
       primaryRef = firstCheck?.checkNumber.trim() || firstOnline?.referenceNumber.trim() || 'COMBINATION';
 
-      const firstCheckWithProof = combinationRows.find(
-        (r) => r.mode === 'Check' && combinationProofIdMap.has(r.id)
+      const firstRowWithProof = combinationRows.find(
+        (r) => combinationProofIdMap.has(r.id)
       );
       const firstCombProofId =
-        firstCheckWithProof !== undefined ? combinationProofIdMap.get(firstCheckWithProof.id) : undefined;
+        firstRowWithProof !== undefined ? combinationProofIdMap.get(firstRowWithProof.id) : undefined;
 
       const breakdownItems: PaymentBreakdownItem[] = combinationRows.map((r, idx) => {
         const rowProofId = combinationProofIdMap.get(r.id);
+        const rowCh = ONLINE_PAYMENT_CHANNELS.find((ch) => ch.id === (r.onlineChannel ?? 'LandBank'));
+        const hasProof = (r.mode === 'Check' || r.mode === 'Online') && r.checkProofFile !== null && r.checkProofFile !== undefined;
         return {
           id: `comb-${idx + 1}`,
           mode: r.mode,
@@ -420,9 +455,10 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
           checkBank: r.mode === 'Check' && r.checkBank.trim() ? r.checkBank.trim() : undefined,
           checkDate: r.mode === 'Check' && r.checkDate.trim() ? r.checkDate.trim() : undefined,
           referenceNumber: r.mode === 'Online' && r.referenceNumber.trim() ? r.referenceNumber.trim() : undefined,
+          remarks: r.mode === 'Online' ? `Gateway: ${rowCh?.shortLabel || r.onlineChannel || 'Online'}` : undefined,
           proofFileId: rowProofId,
-          proofFileName: r.mode === 'Check' && r.checkProofFile ? r.checkProofFile.name : undefined,
-          proofFileUri: r.mode === 'Check' && r.checkProofFile ? r.checkProofFile.uri : undefined,
+          proofFileName: hasProof && r.checkProofFile ? r.checkProofFile.name : undefined,
+          proofFileUri: hasProof && r.checkProofFile ? r.checkProofFile.uri : undefined,
         };
       });
 
@@ -436,6 +472,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       };
     } else {
       mappedPaymentMethod = 'Online';
+      primaryRef = referenceNumber.trim();
       breakdown = {
         isCombination: false,
         totalAmount: totalAmountDue,
@@ -445,11 +482,17 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
             mode: 'Online',
             amount: totalAmountDue,
             referenceNumber: referenceNumber.trim(),
-            remarks: `Gateway: ${selectedMode}`,
+            remarks: `Gateway: ${channelLabel}`,
+            proofFileId: singleProofFileId ?? undefined,
+            proofFileName: checkProofFile?.name,
+            proofFileUri: checkProofFile?.uri,
           },
         ],
         payorName: payorName.trim() || undefined,
         userNotes: remarks.trim() || undefined,
+        proofOfPaymentFileId: singleProofFileId ?? undefined,
+        proofFileName: checkProofFile?.name,
+        proofFileUri: checkProofFile?.uri,
       };
     }
 
@@ -466,7 +509,10 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
       : (checkRow?.checkDate.trim() || undefined);
 
     const firstCombinationProofId = Array.from(combinationProofIdMap.values())[0] ?? null;
-    const finalProofFileId = selectedMode === 'Check' ? singleProofFileId : firstCombinationProofId;
+    const finalProofFileId =
+      selectedMode === 'Check' || selectedMode === 'Online'
+        ? singleProofFileId
+        : firstCombinationProofId;
 
     const payload: SubmitPaymentRequest = {
       orderOfPaymentId: app.op?.id,
@@ -499,6 +545,8 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
     totalAmountDue,
     selectedMode,
     setSelectedMode,
+    onlineChannel,
+    setOnlineChannel,
     referenceNumber,
     setReferenceNumber,
     payorName,

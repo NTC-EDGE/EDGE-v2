@@ -22,6 +22,21 @@ public record PendingPaymentLineItemDto(
     decimal Amount
 );
 
+public record BulkPaymentOpItemDto(
+    Guid OrderOfPaymentId,
+    Guid? StatementOfAccountId,
+    Guid? ApplicantId,
+    string OpNumber,
+    string SoaNumber,
+    string ApplicantName,
+    decimal AmountDue,
+    decimal AmountReceived,
+    decimal RemainingBalance,
+    string Status,
+    string? OfficialReceiptNumber,
+    List<PendingPaymentLineItemDto> LineItems
+);
+
 public record PendingPaymentDto(
     Guid OrderOfPaymentId,
     Guid ApplicationId,
@@ -47,7 +62,9 @@ public record PendingPaymentDto(
     DateTime? CheckDate = null,
     string? PaymentReferenceNumber = null,
     string? PayorName = null,
-    string? PayorAddress = null
+    string? PayorAddress = null,
+    bool IsBulkApplication = false,
+    List<BulkPaymentOpItemDto>? BulkOpItems = null
 );
 
 public record GetPendingPaymentsQuery(
@@ -171,15 +188,36 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
 
         var list = await _receiptRepository.GetPendingOrdersOfPaymentAsync(targetTenantId, request.SearchTerm, effectiveFieldOffice, cancellationToken);
 
+        var receiptsByOpId = new Dictionary<Guid, List<OfficialReceipt>>();
+        foreach (var pendingOp in list.Where(o => o.AmountReceived > 0 || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber)))
+        {
+            if (!receiptsByOpId.ContainsKey(pendingOp.Id))
+            {
+                var opReceipts = await _receiptRepository.GetByOrderOfPaymentIdAsync(pendingOp.Id, cancellationToken);
+                receiptsByOpId[pendingOp.Id] = (opReceipts ?? new List<OfficialReceipt>())
+                    .Where(r => r.Status != ReceiptStatus.Cancelled)
+                    .OrderBy(r => r.IssuedAt)
+                    .ToList();
+            }
+        }
+
         var dtos = list.Select(op =>
         {
             var app = op.Application;
-            var primaryApplicant = app?.ApplicationApplicants?.Select(aa => aa.Applicant).FirstOrDefault();
+            var soaApplicantId = op.StatementOfAccount?.ApplicantId;
+            var matchedApplicant = soaApplicantId.HasValue
+                ? app?.ApplicationApplicants?.FirstOrDefault(aa => aa.ApplicantId == soaApplicantId.Value)?.Applicant
+                : null;
+            var primaryApplicant = matchedApplicant ?? app?.ApplicationApplicants?.Select(aa => aa.Applicant).FirstOrDefault();
             var primaryDetail = primaryApplicant?.ApplicantDetail;
             var filingUser = app?.User;
 
             string applicantName = "Applicant";
-            if (primaryDetail != null && !string.IsNullOrWhiteSpace(primaryDetail.FirstName))
+            if (!string.IsNullOrWhiteSpace(op.StatementOfAccount?.IssuedToName))
+            {
+                applicantName = op.StatementOfAccount.IssuedToName.Trim();
+            }
+            else if (primaryDetail != null && !string.IsNullOrWhiteSpace(primaryDetail.FirstName))
             {
                 applicantName = $"{primaryDetail.FirstName} {primaryDetail.LastName}".Trim();
             }
@@ -213,6 +251,125 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
 
             TryExtractCheckAndRefDetails(op.Remarks, ref effectiveCheckNumber, ref effectiveCheckBank, ref effectiveCheckDate, ref paymentRefNumber, ref effectivePayorName);
 
+            var activeAppOps = app?.OrdersOfPayment?
+                .Where(o => o.Status != OpStatus.Returned)
+                .OrderBy(o => o.CreatedAt)
+                .ToList() ?? new List<OrderOfPayment>();
+
+            var appApplicants = app?.ApplicationApplicants?
+                .Where(aa => aa.Applicant != null)
+                .ToList() ?? new List<ApplicationApplicant>();
+
+            var isBulkApp = app != null && (
+                app.SubmissionMode == SubmissionMode.Bulk ||
+                appApplicants.Count > 1 ||
+                activeAppOps.Count > 1);
+
+            List<BulkPaymentOpItemDto>? bulkOpItems = null;
+            if (activeAppOps.Count > 1)
+            {
+                bulkOpItems = activeAppOps.Select(sibOp =>
+                {
+                    var sibSoaApplicantId = sibOp.StatementOfAccount?.ApplicantId;
+                    var sibAppApplicant = sibSoaApplicantId.HasValue
+                        ? appApplicants.FirstOrDefault(aa => aa.ApplicantId == sibSoaApplicantId.Value)?.Applicant
+                        : null;
+                    var sibDetail = sibAppApplicant?.ApplicantDetail;
+                    var sibName = !string.IsNullOrWhiteSpace(sibOp.StatementOfAccount?.IssuedToName)
+                        ? sibOp.StatementOfAccount.IssuedToName.Trim()
+                        : (sibDetail != null && !string.IsNullOrWhiteSpace(sibDetail.FirstName)
+                            ? $"{sibDetail.FirstName} {sibDetail.LastName}".Trim()
+                            : applicantName);
+
+                    var sibLineItems = sibOp.StatementOfAccount?.LineItems?.Select(li => new PendingPaymentLineItemDto(
+                        li.ItemCode ?? "FEE",
+                        li.Description ?? li.Particular ?? "Processing Fee",
+                        li.Amount
+                    )).ToList() ?? new List<PendingPaymentLineItemDto>();
+
+                    var sibReceived = sibOp.AmountReceived;
+                    var sibRem = sibOp.AmountDue > sibReceived ? sibOp.AmountDue - sibReceived : 0m;
+
+                    return new BulkPaymentOpItemDto(
+                        sibOp.Id,
+                        sibOp.StatementOfAccountId,
+                        sibSoaApplicantId,
+                        sibOp.OpNumber,
+                        sibOp.StatementOfAccount?.SoaNumber ?? string.Empty,
+                        sibName,
+                        sibOp.AmountDue,
+                        sibReceived,
+                        sibRem,
+                        sibOp.Status.ToString(),
+                        sibOp.Status == OpStatus.Paid ? sibOp.OfficialReceiptNumber : null,
+                        sibLineItems
+                    );
+                }).ToList();
+            }
+            else if (isBulkApp && appApplicants.Count > 1)
+            {
+                var count = appApplicants.Count;
+                var perApplicantAmount = Math.Round(op.AmountDue / count, 2);
+                var opIssuedReceipts = receiptsByOpId.TryGetValue(op.Id, out var rList) ? rList : new List<OfficialReceipt>();
+                var usedReceiptIds = new HashSet<Guid>();
+
+                bulkOpItems = appApplicants.Select((aa, idx) =>
+                {
+                    var aDetail = aa.Applicant?.ApplicantDetail;
+                    var aName = aDetail != null && !string.IsNullOrWhiteSpace(aDetail.FirstName)
+                        ? $"{aDetail.FirstName} {aDetail.LastName}".Trim()
+                        : $"Applicant #{idx + 1}";
+                    var itemAmount = idx == count - 1
+                        ? Math.Max(0m, op.AmountDue - (perApplicantAmount * (count - 1)))
+                        : perApplicantAmount;
+                    var perApplicantLineItems = lineItems.Count > 0
+                        ? lineItems.Select(li => new PendingPaymentLineItemDto(
+                            li.FeeCode,
+                            $"{li.Description} ({aName})",
+                            Math.Round(li.Amount / count, 2)
+                        )).ToList()
+                        : new List<PendingPaymentLineItemDto>
+                        {
+                            new("PAYMENT", $"Payment for {serviceName} ({aName})", itemAmount)
+                        };
+
+                    var slotMarker = $"(#{idx + 1})";
+                    var matchedReceipt = opIssuedReceipts.FirstOrDefault(r =>
+                        !usedReceiptIds.Contains(r.Id) &&
+                        ((r.Remarks != null && r.Remarks.Contains(slotMarker, StringComparison.OrdinalIgnoreCase)) ||
+                         (!string.IsNullOrWhiteSpace(aName) &&
+                          ((r.PayorName != null && string.Equals(r.PayorName.Trim(), aName, StringComparison.OrdinalIgnoreCase)) ||
+                           (r.Remarks != null && r.Remarks.Contains($"({aName})", StringComparison.OrdinalIgnoreCase)) ||
+                           (r.LineItems != null && r.LineItems.Any(li => li.Description != null && li.Description.Contains($"({aName})", StringComparison.OrdinalIgnoreCase)))))));
+
+                    if (matchedReceipt != null)
+                    {
+                        usedReceiptIds.Add(matchedReceipt.Id);
+                    }
+
+                    var isApplicantPaid = op.Status == OpStatus.Paid || matchedReceipt != null;
+                    var applicantStatus = isApplicantPaid ? OpStatus.Paid.ToString() : OpStatus.Billed.ToString();
+                    var applicantOrNumber = matchedReceipt?.OfficialReceiptNumber ?? (op.Status == OpStatus.Paid ? op.OfficialReceiptNumber : null);
+                    var applicantReceived = isApplicantPaid ? (matchedReceipt?.Amount ?? itemAmount) : 0m;
+                    var applicantRemaining = isApplicantPaid ? 0m : itemAmount;
+
+                    return new BulkPaymentOpItemDto(
+                        op.Id,
+                        op.StatementOfAccountId,
+                        aa.ApplicantId,
+                        $"{op.OpNumber} (#{idx + 1})",
+                        op.StatementOfAccount?.SoaNumber ?? string.Empty,
+                        aName,
+                        itemAmount,
+                        applicantReceived,
+                        applicantRemaining,
+                        applicantStatus,
+                        applicantOrNumber,
+                        perApplicantLineItems
+                    );
+                }).ToList();
+            }
+
             return new PendingPaymentDto(
                 op.Id,
                 op.ApplicationId,
@@ -238,7 +395,9 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
                 effectiveCheckDate,
                 paymentRefNumber,
                 effectivePayorName,
-                op.StatementOfAccount?.IssuedToAddress
+                op.StatementOfAccount?.IssuedToAddress,
+                isBulkApp,
+                bulkOpItems
             );
         }).ToList();
 

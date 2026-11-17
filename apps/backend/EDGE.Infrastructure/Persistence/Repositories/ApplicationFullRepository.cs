@@ -784,10 +784,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         OfficialReceiptNumber = d.OfficialReceiptNumber,
                         Remarks = d.Remarks
                     }).ToList(),
-                    OfficialReceiptNumber = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
-                        .Select(o => o.OfficialReceiptNumber)
-                        .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                    OfficialReceiptNumber = app.OrdersOfPayment.Any(o => o.Status == Domain.Enums.OpStatus.Billed || o.Status == Domain.Enums.OpStatus.Processing)
+                        ? null
+                        : app.OrdersOfPayment
+                            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                            .Select(o => o.OfficialReceiptNumber)
+                            .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     SoaNumber = app.StatementsOfAccount
                         .OrderByDescending(s => s.CreatedAt)
                         .Select(s => s.SoaNumber)
@@ -803,47 +805,59 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         .Select(o => o.PaidAt)
                         .FirstOrDefault(),
                     TotalAmountDue = app.StatementsOfAccount
+                        .Where(s => !s.IsDeleted)
+                        .Sum(s => (decimal?)s.TotalAmount) ?? app.StatementsOfAccount
                         .OrderByDescending(s => s.CreatedAt)
                         .Select(s => (decimal?)s.TotalAmount)
                         .FirstOrDefault(),
                     PaymentMethod = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.PaymentMethod != null ? o.PaymentMethod.ToString() : null)
                         .FirstOrDefault(),
                     CheckNumber = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckNumber)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     CheckName = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckName)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     CheckBank = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckBank)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     CheckDate = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckDate)
                         .FirstOrDefault(d => d != null),
                     PayorName = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckName)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     PaymentRemarks = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.Remarks)
                         .FirstOrDefault(r => !string.IsNullOrEmpty(r)),
                     OrderOfPaymentId = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenBy(o => o.CreatedAt)
                         .Select(o => (Guid?)o.Id)
                         .FirstOrDefault(),
                     OpNumber = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenBy(o => o.CreatedAt)
                         .Select(o => o.OpNumber)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     OpStatus = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenBy(o => o.CreatedAt)
                         .Select(o => o.Status.ToString())
                         .FirstOrDefault(),
                     Histories = app.Histories.Select(h => new EDGE.Application.Applications.Dtos.ApplicationHistoryDto
@@ -1765,6 +1779,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
     {
         return await _context.OrdersOfPayment
             .Include(o => o.Application)
+                .ThenInclude(a => a.OrdersOfPayment)
+            .Include(o => o.Application)
+                .ThenInclude(a => a.StatementsOfAccount)
             .Include(o => o.StatementOfAccount)
                 .ThenInclude(s => s.LineItems)
             .Include(o => o.Histories)

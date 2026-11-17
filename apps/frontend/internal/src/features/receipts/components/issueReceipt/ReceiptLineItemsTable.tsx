@@ -48,31 +48,23 @@ export function ReceiptLineItemsTable({
       <View style={styles.breakdownHeader}>
         <View style={styles.sectionHeaderLeft}>
           <View style={[styles.sectionIconBadge, { backgroundColor: '#ECFDF5' }]}>
-            <Lucide name="credit-card" size={16} color="#059669" />
+            <Lucide name="file-text" size={14} color="#059669" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.sectionHeaderTitle, { color: '#059669' }]}>
-              {isFromPendingPayment ? '3. PRESCRIBED ITEMS TO BE PAID (ASSESSED FEES)' : '3. PARTICULARS & FEE BREAKDOWN'}
+              {isFromPendingPayment ? '3. ASSESSED FEES & PARTICULARS' : '3. PARTICULARS & FEE BREAKDOWN'}
             </Text>
             <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
               {isFromPendingPayment
-                ? 'Fees and particulars reflect the assessed fees or selected payment mode allocation for this receipt.'
+                ? 'Assessed fees or selected payment mode allocation for this receipt'
                 : 'Search fee code (e.g. REG-FEE, EXAM) or enter custom particulars'}
             </Text>
           </View>
         </View>
         <View style={styles.breakdownActions}>
-          <View
-            style={[
-              styles.feeCountSummaryBadge,
-              {
-                backgroundColor: '#ECFDF5',
-                borderColor: '#6EE7B7',
-              },
-            ]}
-          >
-            <Text style={[styles.feeCountSummaryText, { color: '#065F46' }]}>
-              {lineItems.length} {lineItems.length === 1 ? 'Item' : 'Items'} • ₱{(totalAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <View style={styles.feeCountSummaryBadge}>
+            <Text style={styles.feeCountSummaryText}>
+              {lineItems.length} {lineItems.length === 1 ? 'Item' : 'Items'}
             </Text>
           </View>
           {!isFromPendingPayment && (
@@ -89,42 +81,24 @@ export function ReceiptLineItemsTable({
 
       {/* Line Items List */}
       {isFromPendingPayment ? (
-        <View style={{ marginBottom: 4 }}>
+        <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, overflow: 'hidden' }}>
           {lineItems.map((item, idx) => {
-            const upperCode = (item.feeCode || '').toUpperCase();
-            const isDstItem = upperCode === 'DST' || item.description.toUpperCase().includes('DOCUMENTARY STAMP');
-            const isSurchargeItem = upperCode === 'SUR' || upperCode.includes('SUR') || item.description.toUpperCase().includes('SURCHARGE');
-            const itemAccentColor = isSurchargeItem
-              ? '#DC2626'
-              : isDstItem
-                ? '#059669'
-                : colors.brand.primary;
-            const badgeBgColor = isSurchargeItem
-              ? '#FEE2E2'
-              : isDstItem
-                ? '#ECFDF5'
-                : '#EFF6FF';
-            const badgeTextColor = isSurchargeItem
-              ? '#991B1B'
-              : isDstItem
-                ? '#065F46'
-                : colors.brand.primary;
-
+            const isLast = idx === lineItems.length - 1;
             return (
               <View
                 key={idx}
                 style={[
                   styles.readOnlyLineItemCard,
                   {
-                    borderColor: colors.border,
-                    borderLeftColor: itemAccentColor,
-                    backgroundColor: '#F8FAFC',
+                    borderBottomColor: colors.border,
+                    borderBottomWidth: isLast ? 0 : 1,
+                    backgroundColor: '#FFFFFF',
                   },
                 ]}
               >
                 <View style={styles.readOnlyLineItemLeft}>
-                  <View style={[styles.readOnlyFeeCodeBadge, { backgroundColor: badgeBgColor }]}>
-                    <Text style={[styles.readOnlyFeeCodeText, { color: badgeTextColor }]}>
+                  <View style={styles.readOnlyFeeCodeBadge}>
+                    <Text style={styles.readOnlyFeeCodeText}>
                       {item.feeCode || 'FEE'}
                     </Text>
                   </View>
@@ -132,7 +106,7 @@ export function ReceiptLineItemsTable({
                     {item.description}
                   </Text>
                 </View>
-                <Text style={[styles.readOnlyAmountText, { color: colors.semantic.successText }]}>
+                <Text style={[styles.readOnlyAmountText, { color: colors.text }]}>
                   ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
@@ -147,17 +121,14 @@ export function ReceiptLineItemsTable({
               styles.lineItemWrapper,
               {
                 borderWidth: 1,
-                borderLeftWidth: 4,
                 borderColor: colors.border,
-                borderLeftColor: colors.brand.primary,
-                borderRadius: 10,
+                borderRadius: 8,
                 padding: 10,
                 backgroundColor: '#F8FAFC',
               },
             ]}
           >
             <View style={styles.lineItemRow}>
-              {/* Description / Particulars Search Input */}
               <View style={{ flex: 3, marginRight: 8, position: 'relative' }}>
                 <View style={[styles.searchInputWrapper, { borderColor: colors.neutral[300] }]}>
                   <Lucide name="search" size={14} color={colors.neutral[400]} style={{ marginRight: 6 }} />
@@ -175,7 +146,6 @@ export function ReceiptLineItemsTable({
                 </View>
               </View>
 
-              {/* Amount Input */}
               <View style={{ width: 140, marginRight: 6 }}>
                 <View style={[styles.amountInputWrapper, { borderColor: colors.neutral[300] }]}>
                   <Text style={[styles.currencyPrefix, { color: colors.neutral[500] }]}>₱</Text>
@@ -190,7 +160,6 @@ export function ReceiptLineItemsTable({
                 </View>
               </View>
 
-              {/* Remove Row Button */}
               {lineItems.length > 1 && (
                 <TouchableOpacity
                   onPress={() => handleRemoveLineItem(idx)}
@@ -202,7 +171,6 @@ export function ReceiptLineItemsTable({
               )}
             </View>
 
-            {/* Auto-Complete Fee Suggestions Popover */}
             {activeSuggestionIndex === idx && (
               <FeeSuggestionsDropdown
                 feeCatalog={feeCatalog}
@@ -221,20 +189,17 @@ export function ReceiptLineItemsTable({
         style={[
           styles.totalBanner,
           {
-            backgroundColor: '#ECFDF5',
-            borderColor: '#6EE7B7',
-            borderLeftColor: '#059669',
+            backgroundColor: '#F8FAFC',
+            borderColor: colors.border,
           },
         ]}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Lucide name="check-circle" size={18} color="#059669" />
-          <Text style={[styles.totalBannerLabel, { color: '#065F46' }]}>TOTAL AMOUNT RECEIVED:</Text>
-        </View>
-        <Text style={[styles.totalBannerValue, { color: '#065F46' }]}>
+        <Text style={[styles.totalBannerLabel, { color: colors.neutral[600] }]}>TOTAL AMOUNT RECEIVED</Text>
+        <Text style={[styles.totalBannerValue, { color: colors.text }]}>
           ₱{(totalAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Text>
       </View>
     </View>
   );
 }
+

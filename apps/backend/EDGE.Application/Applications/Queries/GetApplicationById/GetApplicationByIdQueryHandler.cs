@@ -52,7 +52,15 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         var primaryVariant = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>())
             .Select(aa => aa.Applicant?.ServiceVariant)
             .FirstOrDefault(v => v != null);
-        var paidOp = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+        var activeOrdersOfPayment = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+            .Where(o => o.Status != Domain.Enums.OpStatus.Returned)
+            .ToList();
+        var hasUnpaidOp = activeOrdersOfPayment.Any(o => o.Status == Domain.Enums.OpStatus.Billed || o.Status == Domain.Enums.OpStatus.Processing);
+        var effectiveStatus = (app.Status == Domain.Enums.ApplicationStatus.ForIssuance && hasUnpaidOp)
+            ? Domain.Enums.ApplicationStatus.PendingPayment
+            : app.Status;
+
+        var paidOp = activeOrdersOfPayment
             .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
             .FirstOrDefault(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
 
@@ -144,9 +152,9 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             Office = app.Office ?? (app.Tenant != null ? app.Tenant.Name : null),
             ApplicationNumber = app.ApplicationNumber,
             ReferenceNumber = app.ReferenceNumber,
-            Status = app.Status.ToString(),
+            Status = effectiveStatus.ToString(),
             Intent = app.Intent.ToString(),
-            QueueTab = ApplicationStatusHelper.DetermineQueueTab(app.Status),
+            QueueTab = ApplicationStatusHelper.DetermineQueueTab(effectiveStatus),
             SubmissionMode = app.SubmissionMode.ToString(),
             DataEntryMethod = app.DataEntryMethod?.ToString(),
             EvaluatingOfficer = resolvedEvaluatorName,
@@ -169,7 +177,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
             ServiceVariantName = primaryVariant?.Description ?? FormatServiceVariantType(primaryVariant?.Type),
             ServiceVariantType = FormatServiceVariantType(primaryVariant?.Type),
-            OfficialReceiptNumber = resolvedOrNumber,
+            OfficialReceiptNumber = hasUnpaidOp ? null : resolvedOrNumber,
             OrNumbers = allOrNumbers,
             AmountPaid = resolvedAmountPaid,
             PaidAt = paidOp?.PaidAt,
@@ -432,37 +440,46 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     Timestamp = sh.Timestamp
                 }).ToList()
             }).ToList(),
-            OrdersOfPayment = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>()).Select(op => new OrderOfPaymentDto
+            OrdersOfPayment = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>()).Select(op =>
             {
-                Id = op.Id,
-                ApplicationId = op.ApplicationId,
-                StatementOfAccountId = op.StatementOfAccountId,
-                OpNumber = op.OpNumber,
-                Status = op.Status.ToString(),
-                AmountDue = op.AmountDue,
-                AmountReceived = op.AmountReceived,
-                PaymentMethod = op.PaymentMethod?.ToString(),
-                OfficialReceiptNumber = op.OfficialReceiptNumber,
-                OrNumbers = allOrNumbers,
-                CheckNumber = op.CheckNumber,
-                CheckName = op.CheckName,
-                CheckBank = op.CheckBank,
-                CheckDate = op.CheckDate,
-                VerifiedByCashierId = op.VerifiedByCashierId,
-                PaidAt = op.PaidAt,
-                Remarks = op.Remarks,
-                Histories = (op.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>()).Select(oh => new OpHistoryDto
+                var opOrSources = new[] { op.OfficialReceiptNumber }
+                    .Concat((op.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>())
+                        .Where(h => h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase)))
+                        .Select(h => h.OfficialReceiptNumber));
+                var opOrNumbers = DelimitedStringHelper.ParseDistinctTokens(opOrSources, comparer: StringComparer.OrdinalIgnoreCase);
+
+                return new OrderOfPaymentDto
                 {
-                    Id = oh.Id,
-                    Action = oh.Action,
-                    FromStatus = oh.FromStatus?.ToString(),
-                    ToStatus = oh.ToStatus.ToString(),
-                    StaffName = oh.StaffName,
-                    StaffRole = oh.StaffRole,
-                    OfficialReceiptNumber = oh.OfficialReceiptNumber,
-                    Remarks = oh.Remarks,
-                    Timestamp = oh.Timestamp
-                }).ToList()
+                    Id = op.Id,
+                    ApplicationId = op.ApplicationId,
+                    StatementOfAccountId = op.StatementOfAccountId,
+                    OpNumber = op.OpNumber,
+                    Status = op.Status.ToString(),
+                    AmountDue = op.AmountDue,
+                    AmountReceived = op.AmountReceived,
+                    PaymentMethod = op.PaymentMethod?.ToString(),
+                    OfficialReceiptNumber = op.OfficialReceiptNumber,
+                    OrNumbers = opOrNumbers,
+                    CheckNumber = op.CheckNumber,
+                    CheckName = op.CheckName,
+                    CheckBank = op.CheckBank,
+                    CheckDate = op.CheckDate,
+                    VerifiedByCashierId = op.VerifiedByCashierId,
+                    PaidAt = op.PaidAt,
+                    Remarks = op.Remarks,
+                    Histories = (op.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>()).Select(oh => new OpHistoryDto
+                    {
+                        Id = oh.Id,
+                        Action = oh.Action,
+                        FromStatus = oh.FromStatus?.ToString(),
+                        ToStatus = oh.ToStatus.ToString(),
+                        StaffName = oh.StaffName,
+                        StaffRole = oh.StaffRole,
+                        OfficialReceiptNumber = oh.OfficialReceiptNumber,
+                        Remarks = oh.Remarks,
+                        Timestamp = oh.Timestamp
+                    }).ToList()
+                };
             }).ToList(),
             Histories = (app.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>()).Select(h => new ApplicationHistoryDto
             {

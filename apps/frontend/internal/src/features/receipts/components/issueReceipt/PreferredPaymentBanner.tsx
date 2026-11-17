@@ -35,21 +35,21 @@ export function PreferredPaymentBanner({
         style={[
           styles.preferredCard,
           {
-            backgroundColor: '#F0F9FF',
-            borderColor: '#7DD3FC',
-            borderLeftColor: '#0284C7',
+            backgroundColor: '#F8FAFC',
+            borderColor: colors.border,
+            borderLeftColor: '#6D28D9',
           },
         ]}
       >
         <View style={styles.preferredCardHeader}>
           <View style={styles.preferredTitleRow}>
-            <Lucide name={hasCheckDetails ? 'credit-card' : 'globe'} size={18} color="#0284C7" />
-            <Text style={[styles.preferredTitleText, { color: '#0369A1' }]}>
+            <Lucide name={hasCheckDetails ? 'credit-card' : 'globe'} size={16} color="#6D28D9" />
+            <Text style={[styles.preferredTitleText, { color: '#4C1D95' }]}>
               CLIENT SUBMITTED PAYMENT
             </Text>
           </View>
-          <View style={[styles.preferredBadge, { backgroundColor: '#E0F2FE' }]}>
-            <Text style={[styles.preferredBadgeText, { color: '#0284C7' }]}>
+          <View style={[styles.preferredBadge, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }]}>
+            <Text style={[styles.preferredBadgeText, { color: '#475569' }]}>
               {hasCheckDetails ? 'Check Payment' : 'Online Payment'}
             </Text>
           </View>
@@ -57,20 +57,20 @@ export function PreferredPaymentBanner({
 
         <View style={styles.preferredItemsRow}>
           {hasCheckDetails && (
-            <View style={[styles.preferredItemPill, { backgroundColor: '#FFFFFF', borderColor: '#BAE6FD' }]}>
-              <Lucide name="credit-card" size={16} color="#0284C7" />
-              <Text style={[styles.preferredItemText, { color: '#0369A1' }]}>
-                <Text style={{ fontWeight: '800' }}>Drawee Bank:</Text> {pendingPayment.checkBank || 'Not Specified'}
+            <View style={[styles.preferredItemPill, { backgroundColor: '#FFFFFF', borderColor: colors.border }]}>
+              <Lucide name="credit-card" size={14} color={colors.neutral[600]} />
+              <Text style={[styles.preferredItemText, { color: colors.text }]}>
+                <Text style={{ fontWeight: '700' }}>Drawee Bank:</Text> {pendingPayment.checkBank || 'Not Specified'}
                 {pendingPayment.checkNumber ? ` • Check #: ${pendingPayment.checkNumber}` : ''}
                 {pendingPayment.checkDate ? ` • Date: ${new Date(pendingPayment.checkDate).toLocaleDateString('en-US')}` : ''}
               </Text>
             </View>
           )}
           {hasOnlineDetails && (
-            <View style={[styles.preferredItemPill, { backgroundColor: '#FFFFFF', borderColor: '#BBF7D0' }]}>
-              <Lucide name="globe" size={16} color="#16A34A" />
-              <Text style={[styles.preferredItemText, { color: '#15803D' }]}>
-                <Text style={{ fontWeight: '800' }}>Reference #:</Text> {pendingPayment.paymentReferenceNumber || 'Pending Gateway Verification'}
+            <View style={[styles.preferredItemPill, { backgroundColor: '#FFFFFF', borderColor: colors.border }]}>
+              <Lucide name="globe" size={14} color={colors.neutral[600]} />
+              <Text style={[styles.preferredItemText, { color: colors.text }]}>
+                <Text style={{ fontWeight: '700' }}>Reference #:</Text> {pendingPayment.paymentReferenceNumber || 'Pending Verification'}
               </Text>
             </View>
           )}
@@ -79,8 +79,8 @@ export function PreferredPaymentBanner({
     );
   }
 
-  const effectiveTotal = preferredBreakdown.totalAmount > 0 
-    ? preferredBreakdown.totalAmount 
+  const effectiveTotal = preferredBreakdown.totalAmount > 0
+    ? preferredBreakdown.totalAmount
     : (pendingPayment?.amountDue ?? 0);
 
   return (
@@ -88,8 +88,8 @@ export function PreferredPaymentBanner({
       style={[
         styles.preferredCard,
         {
-          backgroundColor: '#F5F3FF',
-          borderColor: '#C4B5FD',
+          backgroundColor: '#F8FAFC',
+          borderColor: colors.border,
           borderLeftColor: '#6D28D9',
         },
       ]}
@@ -97,13 +97,13 @@ export function PreferredPaymentBanner({
       {/* Header with Title and Mode Badge */}
       <View style={styles.preferredCardHeader}>
         <View style={styles.preferredTitleRow}>
-          <Lucide name="layers" size={20} color="#6D28D9" />
+          <Lucide name="layers" size={16} color="#6D28D9" />
           <Text style={[styles.preferredTitleText, { color: '#4C1D95' }]}>
             CLIENT PAYMENT BREAKDOWN
           </Text>
         </View>
-        <View style={[styles.preferredBadge, { backgroundColor: '#EDE9FE' }]}>
-          <Text style={[styles.preferredBadgeText, { color: '#6D28D9' }]}>
+        <View style={[styles.preferredBadge, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }]}>
+          <Text style={[styles.preferredBadgeText, { color: '#475569' }]}>
             {preferredBreakdown.isCombination ? 'Combination / Split Payment' : `${preferredBreakdown.items[0]?.mode ?? 'Single'} Mode`}
           </Text>
         </View>
@@ -119,33 +119,33 @@ export function PreferredPaymentBanner({
               style={[
                 styles.preferredItemPill,
                 {
-                  backgroundColor: isItemIssued ? '#F0FDF4' : '#FFFFFF',
-                  borderColor: isItemIssued ? '#86EFAC' : '#DDD6FE',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: colors.border,
                 },
               ]}
             >
               <Lucide
                 name={isItemIssued ? 'check-circle' : item.mode === 'Cash' ? 'dollar-sign' : item.mode === 'Check' ? 'credit-card' : 'globe'}
-                size={16}
-                color={isItemIssued ? '#16A34A' : '#6D28D9'}
+                size={14}
+                color={isItemIssued ? '#16A34A' : colors.neutral[600]}
               />
-              <Text style={[styles.preferredItemText, { color: isItemIssued ? '#166534' : '#3B0764' }]}>
-                <Text style={{ fontWeight: '800' }}>{item.mode}:</Text> ₱
+              <Text style={[styles.preferredItemText, { color: colors.text }]}>
+                <Text style={{ fontWeight: '700' }}>{item.mode}:</Text> ₱
                 {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 {item.mode === 'Check' && item.checkNumber ? ` (${item.checkBank || 'Bank'} #${item.checkNumber})` : ''}
                 {item.mode === 'Online' && item.referenceNumber ? ` (Ref: ${item.referenceNumber})` : ''}
               </Text>
-              {item.mode === 'Check' && Boolean(item.proofFileName || item.proofFileId) && (
-                <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <Lucide name="paperclip" size={11} color="#1D4ED8" />
-                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#1D4ED8' }}>
+              {Boolean(item.proofFileName || item.proofFileId) && (
+                <View style={{ backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Lucide name="paperclip" size={11} color="#475569" />
+                  <Text style={{ fontSize: 10.5, fontWeight: '600', color: '#475569' }}>
                     {item.proofFileName ? `Proof: ${item.proofFileName}` : 'Proof Attached'}
                   </Text>
                 </View>
               )}
               {isItemIssued && (
-                <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#166534' }}>
+                <View style={{ backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#166534' }}>
                     ISSUED (OR #{item.orNumber})
                   </Text>
                 </View>
@@ -155,25 +155,24 @@ export function PreferredPaymentBanner({
         })}
       </View>
 
-      {/* Senior-Friendly Strategy Selector for Combination Mode */}
+      {/* Strategy Selector for Combination Mode */}
       {preferredBreakdown.isCombination && (() => {
         const hasAnyIssued = preferredBreakdown.items.some((i) => i.isIssued || i.orNumber);
 
         return (
           <View style={styles.regionalStrategySection}>
-            <Text style={[styles.strategySectionHeading, { color: '#5B21B6' }]}>
-              {hasAnyIssued ? 'SPLIT RECEIPT STATUS' : 'HOW DO YOU WANT TO ISSUE THIS RECEIPT?'}
+            <Text style={[styles.strategySectionHeading, { color: colors.neutral[600] }]}>
+              {hasAnyIssued ? 'SPLIT RECEIPT STATUS' : 'ISSUANCE OPTION'}
             </Text>
             <View style={styles.strategyOptionsRow}>
-              {/* Option 1: 1 Combined Receipt (Only available when NO portions have been issued yet) */}
               {!hasAnyIssued && (
                 <TouchableOpacity
                   style={[
                     styles.strategyOptionCard,
-                    { borderColor: '#DDD6FE', backgroundColor: '#FFFFFF' },
+                    { borderColor: colors.border, backgroundColor: '#FFFFFF' },
                     issuanceStrategy === 'Consolidated' && {
                       borderColor: colors.brand.primary,
-                      backgroundColor: '#EFF6FF',
+                      backgroundColor: '#F8FAFC',
                     },
                   ]}
                   onPress={() => onSelectStrategy('Consolidated')}
@@ -204,14 +203,13 @@ export function PreferredPaymentBanner({
                 </TouchableOpacity>
               )}
 
-              {/* Option 2: Split into Separate Receipts */}
               <TouchableOpacity
                 style={[
                   styles.strategyOptionCard,
-                  { borderColor: '#DDD6FE', backgroundColor: '#FFFFFF' },
+                  { borderColor: colors.border, backgroundColor: '#FFFFFF' },
                   issuanceStrategy === 'SplitPerMode' && {
                     borderColor: colors.brand.primary,
-                    backgroundColor: '#EFF6FF',
+                    backgroundColor: '#F8FAFC',
                   },
                 ]}
                 onPress={() => onSelectStrategy('SplitPerMode')}
@@ -244,10 +242,9 @@ export function PreferredPaymentBanner({
               </TouchableOpacity>
             </View>
 
-            {/* When SplitPerMode is active, select which mode portion to issue */}
             {issuanceStrategy === 'SplitPerMode' && (
               <View style={styles.splitModesContainer}>
-                <Text style={[styles.splitModesLabel, { color: colors.neutral[800] }]}>
+                <Text style={[styles.splitModesLabel, { color: colors.neutral[700] }]}>
                   {hasAnyIssued
                     ? 'Select remaining payment portion to issue now:'
                     : 'Select which payment portion to issue now:'}
@@ -265,23 +262,23 @@ export function PreferredPaymentBanner({
                           styles.splitModeBtn,
                           { borderColor: colors.neutral[300], backgroundColor: '#FFFFFF' },
                           isSelected && { borderColor: colors.brand.primary, backgroundColor: colors.brand.primary },
-                          isItemIssued && { borderColor: '#86EFAC', backgroundColor: '#F0FDF4', opacity: 0.85 },
+                          isItemIssued && { borderColor: colors.border, backgroundColor: '#F8FAFC', opacity: 0.7 },
                         ]}
                       >
                         <Lucide
                           name={isItemIssued ? 'check-circle' : item.mode === 'Cash' ? 'dollar-sign' : item.mode === 'Check' ? 'credit-card' : 'globe'}
-                          size={15}
-                          color={isItemIssued ? '#16A34A' : isSelected ? '#fff' : colors.brand.primary}
+                          size={14}
+                          color={isItemIssued ? '#16A34A' : isSelected ? '#fff' : colors.neutral[700]}
                         />
                         <Text
                           style={[
                             styles.splitModeBtnText,
-                            isSelected && { color: '#fff', fontWeight: '800' },
-                            isItemIssued && { color: '#166534', fontWeight: '700' },
+                            isSelected && { color: '#fff', fontWeight: '700' },
+                            isItemIssued && { color: colors.neutral[600] },
                           ]}
                         >
                           {item.mode}: ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          {isItemIssued ? ` (Issued: OR #${item.orNumber})` : ''}
+                          {isItemIssued ? ` (OR #${item.orNumber})` : ''}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -290,49 +287,49 @@ export function PreferredPaymentBanner({
               </View>
             )}
 
-          {/* Senior Feedback Bar */}
-          <View
-            style={[
-              styles.strategyActiveBanner,
-              {
-                backgroundColor: issuanceStrategy === 'Consolidated' ? '#EFF6FF' : '#F0FDF4',
-                borderColor: issuanceStrategy === 'Consolidated' ? '#93C5FD' : '#86EFAC',
-              },
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Lucide
-                name={issuanceStrategy === 'Consolidated' ? 'check-circle' : 'scissors'}
-                size={16}
-                color={issuanceStrategy === 'Consolidated' ? '#1D4ED8' : '#15803D'}
-              />
-              <Text
-                style={[
-                  styles.strategyActiveBannerText,
-                  { color: issuanceStrategy === 'Consolidated' ? '#1E40AF' : '#166534' },
-                ]}
-              >
-                {issuanceStrategy === 'Consolidated'
-                  ? 'Issuing 1 Combined Receipt for all modes'
-                  : `Issuing Receipt for ${preferredBreakdown.items[selectedSplitIndex]?.mode ?? 'Selected'} portion`}
-              </Text>
-            </View>
-            <Text
+            <View
               style={[
-                styles.strategyActiveBannerSub,
-                { color: issuanceStrategy === 'Consolidated' ? '#1E40AF' : '#166534' },
+                styles.strategyActiveBanner,
+                {
+                  backgroundColor: '#FFFFFF',
+                  borderColor: colors.border,
+                },
               ]}
             >
-              Amount: ₱
-              {(issuanceStrategy === 'Consolidated'
-                ? effectiveTotal
-                : (preferredBreakdown.items[selectedSplitIndex]?.amount ?? 0)
-              ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Lucide
+                  name={issuanceStrategy === 'Consolidated' ? 'check-circle' : 'scissors'}
+                  size={14}
+                  color={colors.neutral[600]}
+                />
+                <Text
+                  style={[
+                    styles.strategyActiveBannerText,
+                    { color: colors.text },
+                  ]}
+                >
+                  {issuanceStrategy === 'Consolidated'
+                    ? 'Issuing 1 Combined Receipt for all modes'
+                    : `Issuing Receipt for ${preferredBreakdown.items[selectedSplitIndex]?.mode ?? 'Selected'} portion`}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.strategyActiveBannerSub,
+                  { color: colors.text },
+                ]}
+              >
+                Amount: ₱
+                {(issuanceStrategy === 'Consolidated'
+                  ? effectiveTotal
+                  : (preferredBreakdown.items[selectedSplitIndex]?.amount ?? 0)
+                ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+            </View>
           </View>
-        </View>
-      );
-    })()}
-  </View>
-);
+        );
+      })()}
+    </View>
+  );
 }
+

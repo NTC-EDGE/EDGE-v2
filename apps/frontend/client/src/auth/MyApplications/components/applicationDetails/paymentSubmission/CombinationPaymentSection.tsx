@@ -2,9 +2,15 @@ import React from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { Icon, DatePickerInput } from '@edge/ui';
 import { PaymentItemMode } from '@edge/api';
-import { CombinationRow, CheckProofFile } from './paymentSubmissionTypes';
+import {
+  CombinationRow,
+  CheckProofFile,
+  ONLINE_PAYMENT_CHANNELS,
+} from './paymentSubmissionTypes';
 import { styles } from './paymentSubmissionStyles';
 import { CheckProofUploadField } from './CheckProofUploadField';
+
+const COMBINATION_MODES: PaymentItemMode[] = ['Cash', 'Check', 'Online'];
 
 interface CombinationPaymentSectionProps {
   totalAmountDue: number;
@@ -145,102 +151,155 @@ export function CombinationPaymentSection({
       </View>
 
       {/* Combination Rows */}
-      {combinationRows.map((row, index) => (
-        <View key={row.id} style={styles.combinationItemCard}>
-          <View style={styles.combinationItemHeader}>
-            <View style={styles.modePillSelector}>
-              {(['Cash', 'Check', 'Online'] as PaymentItemMode[]).map((mode) => {
-                const isActive = row.mode === mode;
-                return (
-                  <TouchableOpacity
-                    key={mode}
-                    style={[
-                      styles.modeSelectBtn,
-                      isActive && styles.modeSelectBtnActive,
-                    ]}
-                    onPress={() => onUpdateRow(row.id, { mode })}
-                  >
-                    <Text
+      {combinationRows.map((row) => {
+        const currentChannel = row.onlineChannel ?? 'LandBank';
+        const channelMeta =
+          ONLINE_PAYMENT_CHANNELS.find((ch) => ch.id === currentChannel) ??
+          ONLINE_PAYMENT_CHANNELS[0];
+
+        return (
+          <View key={row.id} style={styles.combinationItemCard}>
+            <View style={styles.combinationItemHeader}>
+              <View style={styles.modePillSelector}>
+                {COMBINATION_MODES.map((mode) => {
+                  const isActive = row.mode === mode;
+                  return (
+                    <TouchableOpacity
+                      key={mode}
                       style={[
-                        styles.modeSelectBtnText,
-                        isActive && styles.modeSelectBtnTextActive,
+                        styles.modeSelectBtn,
+                        isActive && styles.modeSelectBtnActive,
                       ]}
+                      onPress={() => onUpdateRow(row.id, { mode })}
                     >
-                      {mode}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      <Text
+                        style={[
+                          styles.modeSelectBtnText,
+                          isActive && styles.modeSelectBtnTextActive,
+                        ]}
+                      >
+                        {mode}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
-            <View style={styles.amountInputInlineWrapper}>
-              <Text style={styles.currencyPrefix}>₱</Text>
-              <TextInput
-                style={styles.amountInlineInput}
-                keyboardType="numeric"
-                value={row.amount}
-                onChangeText={(val) => onUpdateRow(row.id, { amount: val })}
-                placeholder="0.00"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-
-            {combinationRows.length > 2 && (
-              <TouchableOpacity
-                style={styles.removeRowBtn}
-                onPress={() => onRemoveRow(row.id)}
-                activeOpacity={0.7}
-              >
-                <Icon name="trash-2" size={15} color="#EF4444" />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Sub-fields for Check row */}
-          {row.mode === 'Check' && (
-            <View style={{ gap: 6 }}>
-              <View style={styles.subFieldsRow}>
+              <View style={styles.amountInputInlineWrapper}>
+                <Text style={styles.currencyPrefix}>₱</Text>
                 <TextInput
-                  style={[styles.textInput, styles.compactInput, { flex: 1 }]}
-                  placeholder="Check # *"
+                  style={styles.amountInlineInput}
+                  keyboardType="numeric"
+                  value={row.amount}
+                  onChangeText={(val) => onUpdateRow(row.id, { amount: val })}
+                  placeholder="0.00"
                   placeholderTextColor="#94A3B8"
-                  value={row.checkNumber}
-                  onChangeText={(val) => onUpdateRow(row.id, { checkNumber: val })}
-                />
-                <TextInput
-                  style={[styles.textInput, styles.compactInput, { flex: 1 }]}
-                  placeholder="Drawee Bank *"
-                  placeholderTextColor="#94A3B8"
-                  value={row.checkBank}
-                  onChangeText={(val) => onUpdateRow(row.id, { checkBank: val })}
                 />
               </View>
-              <DatePickerInput
-                placeholder="Check Date (YYYY-MM-DD)"
-                value={row.checkDate}
-                onChangeText={(val) => onUpdateRow(row.id, { checkDate: val })}
-              />
-              <CheckProofUploadField
-                compact={true}
-                file={row.checkProofFile ?? null}
-                onFileChange={(proof) => onUpdateRow(row.id, { checkProofFile: proof })}
-                onPreview={onPreviewCheckProof}
-              />
-            </View>
-          )}
 
-          {/* Sub-fields for Online row */}
-          {row.mode === 'Online' && (
-            <TextInput
-              style={[styles.textInput, styles.compactInput]}
-              placeholder="Online Ref # / E-Receipt *"
-              placeholderTextColor="#94A3B8"
-              value={row.referenceNumber}
-              onChangeText={(val) => onUpdateRow(row.id, { referenceNumber: val })}
-            />
-          )}
-        </View>
-      ))}
+              {combinationRows.length > 2 && (
+                <TouchableOpacity
+                  style={styles.removeRowBtn}
+                  onPress={() => onRemoveRow(row.id)}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="trash-2" size={15} color="#EF4444" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Sub-fields for Cash row */}
+            {row.mode === 'Cash' && (
+              <Text style={styles.cashRowHint}>
+                Walk-in cash portion payable at NTC Regional Office Cashier
+              </Text>
+            )}
+
+            {/* Sub-fields for Check row */}
+            {row.mode === 'Check' && (
+              <View style={{ gap: 6 }}>
+                <View style={styles.subFieldsRow}>
+                  <TextInput
+                    style={[styles.textInput, styles.compactInput, { flex: 1 }]}
+                    placeholder="Check Number *"
+                    placeholderTextColor="#94A3B8"
+                    value={row.checkNumber}
+                    onChangeText={(val) => onUpdateRow(row.id, { checkNumber: val })}
+                  />
+                  <TextInput
+                    style={[styles.textInput, styles.compactInput, { flex: 1 }]}
+                    placeholder="Drawee Bank *"
+                    placeholderTextColor="#94A3B8"
+                    value={row.checkBank}
+                    onChangeText={(val) => onUpdateRow(row.id, { checkBank: val })}
+                  />
+                </View>
+                <DatePickerInput
+                  placeholder="Check Date * (YYYY-MM-DD)"
+                  value={row.checkDate}
+                  onChangeText={(val) => onUpdateRow(row.id, { checkDate: val })}
+                />
+                <CheckProofUploadField
+                  compact={true}
+                  compactAttachLabel="Attach Check Photo / Proof"
+                  cameraTitle="Capture Check Photo"
+                  cameraInstruction="Position physical check clearly within frame"
+                  file={row.checkProofFile ?? null}
+                  onFileChange={(proof) => onUpdateRow(row.id, { checkProofFile: proof })}
+                  onPreview={onPreviewCheckProof}
+                />
+              </View>
+            )}
+
+            {/* Sub-fields for Online row */}
+            {row.mode === 'Online' && (
+              <View style={{ gap: 6 }}>
+                <View style={styles.channelChipRow}>
+                  {ONLINE_PAYMENT_CHANNELS.map((channel) => {
+                    const isChannelActive = currentChannel === channel.id;
+                    return (
+                      <TouchableOpacity
+                        key={channel.id}
+                        style={[
+                          styles.channelChipCompact,
+                          isChannelActive && styles.channelChipActive,
+                        ]}
+                        onPress={() => onUpdateRow(row.id, { onlineChannel: channel.id })}
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={[
+                            styles.channelChipCompactText,
+                            isChannelActive && styles.channelChipTextActive,
+                          ]}
+                        >
+                          {channel.shortLabel}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <TextInput
+                  style={[styles.textInput, styles.compactInput]}
+                  placeholder={`${channelMeta?.refLabel || 'Online Ref # / E-Receipt'} * (${channelMeta?.placeholder || 'Ref #'})`}
+                  placeholderTextColor="#94A3B8"
+                  value={row.referenceNumber}
+                  onChangeText={(val) => onUpdateRow(row.id, { referenceNumber: val })}
+                />
+                <CheckProofUploadField
+                  compact={true}
+                  compactAttachLabel="Attach E-Receipt / Proof"
+                  cameraTitle="Capture Receipt Photo"
+                  cameraInstruction="Position payment receipt clearly within frame"
+                  file={row.checkProofFile ?? null}
+                  onFileChange={(proof) => onUpdateRow(row.id, { checkProofFile: proof })}
+                  onPreview={onPreviewCheckProof}
+                />
+              </View>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }

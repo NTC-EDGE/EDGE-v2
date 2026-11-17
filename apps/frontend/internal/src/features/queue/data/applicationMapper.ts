@@ -619,7 +619,14 @@ export function mapApplicationDtoToUI(
     };
   });
 
-  const feStatus = mapBEStatusToFE(dto.status);
+  const rawFeStatus = mapBEStatusToFE(dto.status);
+  const hasUnpaidOpInDto =
+    ('ordersOfPayment' in dto &&
+      Array.isArray(dto.ordersOfPayment) &&
+      dto.ordersOfPayment.some((o) => o.status === 'Billed' || o.status === 'Processing')) ||
+    ('opStatus' in dto && (dto.opStatus === 'Billed' || dto.opStatus === 'Processing'));
+  const feStatus =
+    rawFeStatus === 'ForIssuance' && hasUnpaidOpInDto ? 'PendingPayment' : rawFeStatus;
 
   const isBulk =
     dto.submissionMode === 'Bulk' ||
@@ -810,26 +817,38 @@ export function mapApplicationDtoToUI(
     hasCashierClaim
   );
 
-  const sortedOps = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
-    ? [...dto.ordersOfPayment].sort((a, b) => {
-        const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
-        const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
-        if (hasOrA && !hasOrB) return -1;
-        if (!hasOrA && hasOrB) return 1;
+  const rawOrdersOfPayment =
+    'ordersOfPayment' in dto && Array.isArray(dto.ordersOfPayment)
+      ? dto.ordersOfPayment.filter((o) => o.status !== 'Returned')
+      : [];
 
-        const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
-        const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
-        const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
-        const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
-        return timeB - timeA;
-      })
-    : [];
+  const sortedOpsForActive = [...rawOrdersOfPayment].sort((a, b) => {
+    if (feStatus === 'PendingPayment' || hasUnpaidOpInDto) {
+      const unpaidA = a.status === 'Billed' || a.status === 'Processing';
+      const unpaidB = b.status === 'Billed' || b.status === 'Processing';
+      if (unpaidA && !unpaidB) return -1;
+      if (!unpaidA && unpaidB) return 1;
+      if (a.status === 'Processing' && b.status === 'Billed') return -1;
+      if (a.status === 'Billed' && b.status === 'Processing') return 1;
+    } else {
+      const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
+      const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
+      if (hasOrA && !hasOrB) return -1;
+      if (!hasOrA && hasOrB) return 1;
+    }
 
-  const activeOp = sortedOps[0];
+    const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+    const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+    const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
+    const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
+    return timeB - timeA;
+  });
+
+  const activeOp = sortedOpsForActive[0];
 
   const activeSoaIds = new Set(soasList.map((s) => s.id));
-  const filteredOps = sortedOps.filter((op) => activeSoaIds.size === 0 || activeSoaIds.has(op.statementOfAccountId));
-  const opsSource = filteredOps.length > 0 ? filteredOps : sortedOps;
+  const filteredOps = rawOrdersOfPayment.filter((op) => activeSoaIds.size === 0 || activeSoaIds.has(op.statementOfAccountId));
+  const opsSource = filteredOps.length > 0 ? filteredOps : rawOrdersOfPayment;
 
   const opsList: OpRecordSummary[] = opsSource.map((op) => {
     const matchedSoa = soasList.find((s) => s.id === op.statementOfAccountId);
@@ -880,7 +899,9 @@ export function mapApplicationDtoToUI(
     permitTitle: resolvedServiceName,
     category: resolvedCategory,
     status: feStatus,
-    queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role, {
+    queueTab:
+      (hasUnpaidOpInDto && dto.queueTab === 'issuance' ? undefined : parseBackendQueueTab(dto.queueTab)) ??
+      deriveQueueTab(feStatus, role, {
       hasSoa: Boolean(activeSoa || (dto.statementsOfAccount && dto.statementsOfAccount.length > 0)),
       hasOp: Boolean(dto.ordersOfPayment && dto.ordersOfPayment.length > 0),
       hasAccountantHistory: histories.some((h) => {
