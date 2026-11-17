@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using EDGE.Application.Common.Helpers;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
@@ -70,37 +71,36 @@ public static class StatementOfAccountPrintMapper
         var primaryVariant = app?.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
         var primaryService = app?.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
         var variantDesc = (primaryVariant?.Description ?? primaryVariant?.Type.ToString() ?? "").ToLowerInvariant();
-        var serviceName = (primaryService?.Name ?? "").ToLowerInvariant();
 
-        if (variantDesc.Contains("renew") || serviceName.Contains("renew"))
+        if (primaryVariant?.Type == ServiceVariantType.Renewal || app?.RenewedFromApplicationId != null || Regex.IsMatch(variantDesc, @"\b(renew|renewal|rn)\b", RegexOptions.IgnoreCase))
         {
             model.IsRen = true;
         }
-        else if (variantDesc.Contains("mod") || serviceName.Contains("mod"))
+        else if (primaryVariant?.Type == ServiceVariantType.Modification || primaryVariant?.Type == ServiceVariantType.Upgrade || Regex.IsMatch(variantDesc, @"\b(mod|modification|upgrade|amend|amendment)\b", RegexOptions.IgnoreCase))
         {
             model.IsMod = true;
         }
-        else if (variantDesc.Contains("dup") || serviceName.Contains("dup"))
+        else if (Regex.IsMatch(variantDesc, @"\b(dup|duplicate|replacement|lost)\b", RegexOptions.IgnoreCase))
         {
             model.IsDup = true;
         }
-        else if (variantDesc.Contains("cv") || serviceName.Contains("cv"))
+        else if (Regex.IsMatch(variantDesc, @"\bcv\b", RegexOptions.IgnoreCase) || variantDesc.Contains("change of vehicle"))
         {
             model.IsCv = true;
         }
-        else if (variantDesc.Contains("roc") || serviceName.Contains("roc"))
+        else if (Regex.IsMatch(variantDesc, @"\broc\b", RegexOptions.IgnoreCase) || variantDesc.Contains("radio operator certificate"))
         {
             model.IsRoc = true;
         }
-        else if (variantDesc.Contains("co") || serviceName.Contains("co"))
+        else if (Regex.IsMatch(variantDesc, @"\bco\b", RegexOptions.IgnoreCase) || variantDesc.Contains("change of ownership"))
         {
             model.IsCo = true;
         }
-        else if (variantDesc.Contains("ma") || serviceName.Contains("ma"))
+        else if (Regex.IsMatch(variantDesc, @"\bma\b", RegexOptions.IgnoreCase) || variantDesc.Contains("mobile amateur"))
         {
             model.IsMa = true;
         }
-        else if (variantDesc.Contains("ms") || serviceName.Contains("ms"))
+        else if (Regex.IsMatch(variantDesc, @"\bms\b", RegexOptions.IgnoreCase) || variantDesc.Contains("mobile station"))
         {
             model.IsMs = true;
         }

@@ -128,8 +128,8 @@ public static class StatementOfAccountAcroFormFiller
                 }
             }
 
-            // 9. Render TOTAL amount in the designated Sub-Total column (y ≈ 321f, x ≈ 544f)
-            if (model.TotalAmount.HasValue && model.TotalAmount.Value > 0)
+            // 9. Render TOTAL amount in the TOTAL row (baseline y ≈ 316.5f, x ≈ 544.6f) ONLY when not already rendered by ORAmount
+            if (string.IsNullOrWhiteSpace(model.OrNo) && model.TotalAmount.HasValue && model.TotalAmount.Value > 0)
             {
                 var page = pdfDoc.GetFirstPage();
                 var canvas = new PdfCanvas(page);
@@ -138,7 +138,7 @@ public static class StatementOfAccountAcroFormFiller
                     new Paragraph(model.TotalAmount.Value.ToString("N2"))
                         .SetFontSize(8.5f)
                         .SetBold(),
-                    544f, 321.5f,
+                    544.6f, 316.5f,
                     TextAlignment.RIGHT);
             }
         }
