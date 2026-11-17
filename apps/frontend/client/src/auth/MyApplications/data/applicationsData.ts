@@ -1158,6 +1158,12 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       lbl.includes('corporate name')
     );
 
+    const fvRepNameCandidate = findApFv((lbl, id) =>
+      id === 'fd000000-0000-0000-0000-000000000082' ||
+      lbl.includes('representative name') ||
+      lbl.includes('authorized representative')
+    );
+
     const appType = ap.applicantType || 'Individual';
     const isIndividualAp = appType.toLowerCase() === 'individual';
     const appStatus = normalizeApplicationStatus(rawStatus);
@@ -1171,24 +1177,37 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     const repName =
       apDetails.representativeName ||
       ap.representativeName ||
+      fvRepNameCandidate ||
       (!isIndividualAp ? (filingUser?.name || undefined) : undefined);
 
+    const rawCandLower = typeof rawCandidate === 'string' ? rawCandidate.trim().toLowerCase() : '';
+    const repLower = typeof repName === 'string' ? repName.trim().toLowerCase() : '';
+    const filingLower = typeof filingUser?.name === 'string' ? filingUser.name.trim().toLowerCase() : '';
+    const isRawCandidateRep =
+      rawCandLower.length > 0 &&
+      ((repLower.length > 0 && rawCandLower === repLower) ||
+       (isBulk && filingLower.length > 0 && rawCandLower === filingLower && (Boolean(combinedFromFv) || Boolean(fvIndivNameCandidate) || Boolean(fvCorpNameCandidate))));
+
     const name =
-      isValidCandidate(rawCandidate)
-        ? formatProperName(rawCandidate)
-        : isValidCandidate(combinedFromFv)
-          ? formatProperName(combinedFromFv)
-          : isValidCandidate(fvIndivNameCandidate)
-            ? formatProperName(fvIndivNameCandidate)
-            : !isIndividualAp && isValidCandidate(fvCorpNameCandidate)
-              ? formatProperName(fvCorpNameCandidate)
-              : !isIndividualAp && isValidCandidate(compName)
-                ? formatProperName(compName)
-                : !isIndividualAp && isValidCandidate(repName)
-                  ? formatProperName(repName)
-                  : isBulk
-                    ? `Applicant #${idx + 1}`
-                    : formatProperName(filingUser?.name) || formatProperName(compName) || formatProperName(repName) || 'Applicant';
+      !isIndividualAp && isRawCandidateRep && isValidCandidate(fvCorpNameCandidate)
+        ? formatProperName(fvCorpNameCandidate)
+        : !isIndividualAp && isRawCandidateRep && isValidCandidate(compName)
+          ? formatProperName(compName)
+          : isValidCandidate(rawCandidate) && !isRawCandidateRep
+            ? formatProperName(rawCandidate)
+            : isValidCandidate(combinedFromFv)
+              ? formatProperName(combinedFromFv)
+              : isValidCandidate(fvIndivNameCandidate)
+                ? formatProperName(fvIndivNameCandidate)
+                : !isIndividualAp && isValidCandidate(fvCorpNameCandidate)
+                  ? formatProperName(fvCorpNameCandidate)
+                  : !isIndividualAp && isValidCandidate(compName)
+                    ? formatProperName(compName)
+                    : isValidCandidate(rawCandidate)
+                      ? formatProperName(rawCandidate)
+                      : isBulk
+                        ? `Applicant #${idx + 1}`
+                        : formatProperName(filingUser?.name) || formatProperName(compName) || 'Applicant';
 
     const birthDate =
       apDetails.birthDate ||

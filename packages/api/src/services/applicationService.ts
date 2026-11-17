@@ -547,14 +547,16 @@ export const applicationService = {
     });
   },
 
-  getIssuedDocumentPrintUrl(applicationId: string): string {
+  getIssuedDocumentPrintUrl(applicationId: string, applicantId?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/issued-document/print`;
+    const query = applicantId ? `?applicantId=${encodeURIComponent(applicantId)}` : '';
+    return `${base}/api/v2/applications/${applicationId}/issued-document/print${query}`;
   },
 
-  getIssuedDocumentDownloadUrl(applicationId: string): string {
+  getIssuedDocumentDownloadUrl(applicationId: string, applicantId?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/issued-document/print?download=true`;
+    const query = applicantId ? `&applicantId=${encodeURIComponent(applicantId)}` : '';
+    return `${base}/api/v2/applications/${applicationId}/issued-document/print?download=true${query}`;
   },
 
   async previewIssuedDocumentPdf(
@@ -565,6 +567,7 @@ export const applicationService = {
       issueDate?: string;
       expiryDate?: string;
       documentType?: string;
+      applicantId?: string;
     }
   ) {
     return safeAsync(async () => {
@@ -587,6 +590,7 @@ export const applicationService = {
       issueDate?: string;
       expiryDate?: string;
       documentType?: string;
+      applicantId?: string;
     }
   ) {
     return safeAsync(async () => {

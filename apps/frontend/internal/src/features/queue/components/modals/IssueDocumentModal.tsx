@@ -210,6 +210,16 @@ export function IssueDocumentModal({
       ...app,
       applicant: activeApplicant.name || app.applicant,
       basicInfo: activeApplicant.basicInfo ?? app.basicInfo,
+      address: {
+        streetAddress: activeApplicant.streetAddress || activeApplicant.address || app.address?.streetAddress || '',
+        address: activeApplicant.address || activeApplicant.streetAddress || app.address?.address || '',
+        barangay: activeApplicant.barangay || app.address?.barangay || '',
+        city: activeApplicant.city || app.address?.city || '',
+        province: activeApplicant.province || app.address?.province || '',
+        region: activeApplicant.region || app.address?.region || '',
+        zipCode: activeApplicant.zipCode || app.address?.zipCode || '',
+      },
+      applicantsList: [activeApplicant],
     };
   }, [app, activeApplicant]);
 
@@ -284,6 +294,7 @@ export function IssueDocumentModal({
             issueDate,
             expiryDate,
             documentType: applicationType,
+            applicantId: activeApplicant?.id,
           });
 
           if (!active) return;
@@ -315,7 +326,7 @@ export function IssueDocumentModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [visible, app.id, previewFormat, formNumber, licenseNumber, issueDate, expiryDate, applicationType, reloadKey]);
+  }, [visible, app.id, previewFormat, formNumber, licenseNumber, issueDate, expiryDate, applicationType, activeApplicant?.id, reloadKey]);
 
   const canSubmit = formNumber.trim().length > 0 && !isSubmitting && !isLoadingDefaults;
 

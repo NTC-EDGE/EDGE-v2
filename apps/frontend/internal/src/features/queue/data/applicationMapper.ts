@@ -275,16 +275,33 @@ export function mapApplicationDtoToUI(
         .trim()
     : primaryApplicantName;
 
+  const primaryRepNameFromFv = findPrimaryFv((lbl, id) =>
+    id === 'fd000000-0000-0000-0000-000000000082' ||
+    lbl.includes('representative name') ||
+    lbl.includes('authorized representative')
+  );
+  const primaryFullNameLower = typeof primaryFullName === 'string' ? primaryFullName.trim().toLowerCase() : '';
+  const primaryRepLower = typeof primaryRepNameFromFv === 'string' ? primaryRepNameFromFv.trim().toLowerCase() : '';
+  const filingUserLower = typeof rawFilingUser?.name === 'string' ? rawFilingUser.name.trim().toLowerCase() : '';
+  const isPrimaryFullNameRepresentative =
+    primaryFullNameLower.length > 0 &&
+    ((primaryRepLower.length > 0 && primaryFullNameLower === primaryRepLower) ||
+     (isCompanySubmission && filingUserLower.length > 0 && primaryFullNameLower === filingUserLower));
+
   const applicantName =
-    isValidName(primaryFullName)
-      ? formatProperName(primaryFullName)
-      : isCompanySubmission && isValidName(companyDetails?.name)
-        ? formatProperName(companyDetails.name)
-        : isValidName(rawFilingUser?.name)
-          ? formatProperName(rawFilingUser.name)
-          : isValidName(companyObj?.name)
-            ? formatProperName(companyObj.name)
-            : formatProperName(companyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
+    isCompanySubmission && isValidName(companyDetails?.name) && (isPrimaryFullNameRepresentative || !isValidName(primaryFullName))
+      ? formatProperName(companyDetails.name)
+      : isValidName(primaryFullName) && !isPrimaryFullNameRepresentative
+        ? formatProperName(primaryFullName)
+        : isValidName(companyDetails?.name)
+          ? formatProperName(companyDetails.name)
+          : isValidName(primaryFullName)
+            ? formatProperName(primaryFullName)
+            : isValidName(companyObj?.name)
+              ? formatProperName(companyObj.name)
+              : isValidName(rawFilingUser?.name)
+                ? formatProperName(rawFilingUser.name)
+                : 'Applicant';
 
   const rawPrimaryAddress = primaryDetail?.address ?? rawFilingUser?.company?.address ?? '';
   const parsedPrimaryAddr = parseAddressSegments(rawPrimaryAddress);
@@ -425,22 +442,41 @@ export function mapApplicationDtoToUI(
       lbl.includes('corporate name')
     );
 
+    const fvRepNameCandidate = findFv((lbl, id) =>
+      id === 'fd000000-0000-0000-0000-000000000082' ||
+      lbl.includes('representative name') ||
+      lbl.includes('authorized representative')
+    );
+
+    const nameCandLower = typeof nameCandidate === 'string' ? nameCandidate.trim().toLowerCase() : '';
+    const itemRepLower = typeof fvRepNameCandidate === 'string' ? fvRepNameCandidate.trim().toLowerCase() : '';
+    const isNameCandidateRep =
+      nameCandLower.length > 0 &&
+      ((itemRepLower.length > 0 && nameCandLower === itemRepLower) ||
+       (isBulkDto && filingUserLower.length > 0 && nameCandLower === filingUserLower && (Boolean(combinedFromFv) || Boolean(fvIndivNameCandidate) || Boolean(fvCorpNameCandidate))));
+
     const resolvedName =
-      isValidName(nameCandidate)
-        ? formatProperName(nameCandidate)
-        : isValidName(combinedFromFv)
-          ? formatProperName(combinedFromFv)
-          : isValidName(fvIndivNameCandidate)
-            ? formatProperName(fvIndivNameCandidate)
-            : !isIndividualItem && isValidName(fvCorpNameCandidate)
-              ? formatProperName(fvCorpNameCandidate)
-              : !isIndividualItem && isValidName(itemCompanyDetails?.name)
-                ? formatProperName(itemCompanyDetails.name)
-                : !isBulkDto && isValidName(rawFilingUser?.name)
-                  ? formatProperName(rawFilingUser.name)
-                  : isBulkDto
-                    ? `Applicant #${idx + 1}`
-                    : formatProperName(itemCompanyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
+      !isIndividualItem && isNameCandidateRep && isValidName(fvCorpNameCandidate)
+        ? formatProperName(fvCorpNameCandidate)
+        : !isIndividualItem && isNameCandidateRep && isValidName(itemCompanyDetails?.name)
+          ? formatProperName(itemCompanyDetails.name)
+          : isValidName(nameCandidate) && !isNameCandidateRep
+            ? formatProperName(nameCandidate)
+            : isValidName(combinedFromFv)
+              ? formatProperName(combinedFromFv)
+              : isValidName(fvIndivNameCandidate)
+                ? formatProperName(fvIndivNameCandidate)
+                : !isIndividualItem && isValidName(fvCorpNameCandidate)
+                  ? formatProperName(fvCorpNameCandidate)
+                  : !isIndividualItem && isValidName(itemCompanyDetails?.name)
+                    ? formatProperName(itemCompanyDetails.name)
+                    : isValidName(nameCandidate)
+                      ? formatProperName(nameCandidate)
+                      : !isBulkDto && isValidName(rawFilingUser?.name)
+                        ? formatProperName(rawFilingUser.name)
+                        : isBulkDto
+                          ? `Applicant #${idx + 1}`
+                          : formatProperName(itemCompanyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
 
     const rawAdFirst = isValidName(ad?.firstName) ? ad.firstName.trim() : '';
     const rawAdMiddle = ad?.middleName ? ad.middleName.trim() : '';

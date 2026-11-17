@@ -955,6 +955,7 @@ public static class ApplicationEndpoints
         [FromQuery] string? issueDate,
         [FromQuery] string? expiryDate,
         [FromQuery] string? documentType,
+        [FromQuery] Guid? applicantId,
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
@@ -967,48 +968,126 @@ public static class ApplicationEndpoints
             return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
         }
 
-        var issuedDoc = await repository.GetIssuedDocumentByApplicationIdAsync(id, cancellationToken);
-        if (issuedDoc == null)
+        var orderedAppApplicants = (app.ApplicationApplicants ?? Enumerable.Empty<ApplicationApplicant>())
+            .OrderBy(aa => aa.SequenceOrder)
+            .ToList();
+
+        var existingIssuedDocs = (app.IssuedDocumentDetails ?? Enumerable.Empty<IssuedDocumentDetail>()).ToList();
+        var primaryIssuedDoc = await repository.GetIssuedDocumentByApplicationIdAsync(id, cancellationToken);
+        if (primaryIssuedDoc != null && existingIssuedDocs.All(d => d.Id != primaryIssuedDoc.Id))
         {
-            if (app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved || app.Status == ApplicationStatus.ForIssuance)
-            {
-                var paidOp = app.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
-                var defaultDocType = app.ApplicationApplicants.FirstOrDefault()?.Applicant?.Service?.Name ?? "Statutory License";
-                issuedDoc = new IssuedDocumentDetail
-                {
-                    Id = Guid.NewGuid(),
-                    ApplicationId = app.Id,
-                    DocumentType = !string.IsNullOrWhiteSpace(documentType) ? documentType.Trim() : defaultDocType,
-                    FormNumber = !string.IsNullOrWhiteSpace(formNumber) ? formNumber.Trim() : (app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString()),
-                    LicenseNumber = !string.IsNullOrWhiteSpace(licenseNumber) ? licenseNumber.Trim() : (app.ApplicationNumber ?? app.ReferenceNumber),
-                    IssueDate = DateTime.UtcNow,
-                    ExpiryDate = DateTime.UtcNow.AddYears(3),
-                    OfficialReceiptNumber = paidOp?.OfficialReceiptNumber ?? "OR-RECORDED",
-                    IssuedByStaffName = "Authorized Licensing Officer",
-                    QrVerificationCode = $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}"
-                };
-            }
-            else
-            {
-                return Results.NotFound(new { message = $"No issued document found for Application '{id}'. The application has not been issued yet." });
-            }
-        }
-        else
-        {
-            if (!string.IsNullOrWhiteSpace(formNumber)) issuedDoc.FormNumber = formNumber.Trim();
-            if (!string.IsNullOrWhiteSpace(licenseNumber)) issuedDoc.LicenseNumber = licenseNumber.Trim();
-            if (!string.IsNullOrWhiteSpace(documentType)) issuedDoc.DocumentType = documentType.Trim();
+            existingIssuedDocs.Add(primaryIssuedDoc);
         }
 
-        if (!string.IsNullOrWhiteSpace(issueDate) && DateTime.TryParse(issueDate, out var parsedIssue))
+        if (existingIssuedDocs.Count == 0 &&
+            app.Status != ApplicationStatus.Completed &&
+            app.Status != ApplicationStatus.Approved &&
+            app.Status != ApplicationStatus.ForIssuance)
         {
-            issuedDoc.IssueDate = parsedIssue;
-        }
-        if (!string.IsNullOrWhiteSpace(expiryDate) && DateTime.TryParse(expiryDate, out var parsedExpiry))
-        {
-            issuedDoc.ExpiryDate = parsedExpiry;
+            return Results.NotFound(new { message = $"No issued document found for Application '{id}'. The application has not been issued yet." });
         }
 
+        var paidOp = app.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
+        var defaultDocType = orderedAppApplicants.FirstOrDefault()?.Applicant?.Service?.Name ?? "Statutory License";
+
+        IssuedDocumentDetail BuildDocForApplicant(ApplicationApplicant? aa, int idx, int totalCount)
+        {
+            var targetAppId = aa?.ApplicantId;
+            var matchedDoc = (targetAppId.HasValue
+                ? existingIssuedDocs.FirstOrDefault(d => d.ApplicantId == targetAppId.Value)
+                : null) ?? (idx < existingIssuedDocs.Count ? existingIssuedDocs[idx] : existingIssuedDocs.FirstOrDefault());
+
+            var baseForm = !string.IsNullOrWhiteSpace(formNumber)
+                ? formNumber.Trim()
+                : (matchedDoc?.FormNumber ?? app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString());
+            var baseLic = !string.IsNullOrWhiteSpace(licenseNumber)
+                ? licenseNumber.Trim()
+                : (matchedDoc?.LicenseNumber ?? app.ApplicationNumber ?? app.ReferenceNumber);
+
+            var resolvedForm = totalCount > 1 && !string.IsNullOrWhiteSpace(formNumber)
+                ? $"{baseForm}-{idx + 1:D2}"
+                : baseForm;
+            var resolvedLic = totalCount > 1 && !string.IsNullOrWhiteSpace(licenseNumber) && !string.IsNullOrWhiteSpace(baseLic)
+                ? $"{baseLic}-{idx + 1:D2}"
+                : baseLic;
+
+            var matchedSoa = targetAppId.HasValue
+                ? app.StatementsOfAccount?.FirstOrDefault(s => !s.IsDeleted && s.ApplicantId == targetAppId.Value)
+                : null;
+            var matchedApplicantOp = matchedSoa != null
+                ? app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == matchedSoa.Id && o.Status == OpStatus.Paid)
+                : null;
+
+            var doc = new IssuedDocumentDetail
+            {
+                Id = matchedDoc?.Id ?? Guid.NewGuid(),
+                ApplicationId = app.Id,
+                ApplicantId = targetAppId,
+                Applicant = aa?.Applicant,
+                DocumentType = !string.IsNullOrWhiteSpace(documentType) ? documentType.Trim() : (matchedDoc?.DocumentType ?? defaultDocType),
+                FormNumber = resolvedForm,
+                LicenseNumber = resolvedLic,
+                CallSign = matchedDoc?.CallSign,
+                StationClass = matchedDoc?.StationClass,
+                FrequencyBand = matchedDoc?.FrequencyBand,
+                IssueDate = matchedDoc?.IssueDate ?? DateTime.UtcNow,
+                ExpiryDate = matchedDoc?.ExpiryDate ?? DateTime.UtcNow.AddYears(3),
+                OfficialReceiptNumber = matchedApplicantOp?.OfficialReceiptNumber ?? matchedDoc?.OfficialReceiptNumber ?? paidOp?.OfficialReceiptNumber ?? "OR-RECORDED",
+                IssuedByStaffName = matchedDoc?.IssuedByStaffName ?? "Authorized Licensing Officer",
+                OriginalEvaluatorName = matchedDoc?.OriginalEvaluatorName,
+                QrVerificationCode = matchedDoc?.QrVerificationCode ?? $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}",
+                Remarks = matchedDoc?.Remarks
+            };
+
+            if (!string.IsNullOrWhiteSpace(issueDate) && DateTime.TryParse(issueDate, out var parsedIssue))
+            {
+                doc.IssueDate = parsedIssue;
+            }
+            if (!string.IsNullOrWhiteSpace(expiryDate) && DateTime.TryParse(expiryDate, out var parsedExpiry))
+            {
+                doc.ExpiryDate = parsedExpiry;
+            }
+
+            return doc;
+        }
+
+        if (applicantId.HasValue && applicantId.Value != Guid.Empty)
+        {
+            var matchedIdx = orderedAppApplicants.FindIndex(aa => aa.ApplicantId == applicantId.Value);
+            var matchedAa = matchedIdx >= 0 ? orderedAppApplicants[matchedIdx] : orderedAppApplicants.FirstOrDefault();
+            var singleDoc = BuildDocForApplicant(matchedAa, matchedIdx >= 0 ? matchedIdx : 0, 1);
+            var singleModel = IssuedDocumentPrintMapper.MapToPrintModel(singleDoc, app);
+            var singlePdfBytes = printingService.PrintIssuedDocument(singleModel);
+            var singleSafeDocName = $"{singleModel.DocumentType}_{singleModel.LicenseNumber ?? singleModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
+
+            if (download)
+            {
+                return Results.File(singlePdfBytes, "application/pdf", singleSafeDocName);
+            }
+
+            httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{singleSafeDocName}\"";
+            return Results.File(singlePdfBytes, "application/pdf", enableRangeProcessing: true);
+        }
+
+        if (orderedAppApplicants.Count > 1)
+        {
+            var models = orderedAppApplicants
+                .Select((aa, idx) => IssuedDocumentPrintMapper.MapToPrintModel(BuildDocForApplicant(aa, idx, orderedAppApplicants.Count), app))
+                .ToList();
+            var bulkPdfBytes = printingService.PrintIssuedDocuments(models);
+            var firstModel = models[0];
+            var bulkSafeDocName = $"{firstModel.DocumentType}_{firstModel.LicenseNumber ?? firstModel.FormNumber ?? id.ToString()}_Bulk.pdf".Replace(" ", "_");
+
+            if (download)
+            {
+                return Results.File(bulkPdfBytes, "application/pdf", bulkSafeDocName);
+            }
+
+            httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{bulkSafeDocName}\"";
+            return Results.File(bulkPdfBytes, "application/pdf", enableRangeProcessing: true);
+        }
+
+        var issuedDoc = BuildDocForApplicant(orderedAppApplicants.FirstOrDefault(), 0, 1);
         var printModel = IssuedDocumentPrintMapper.MapToPrintModel(issuedDoc, app);
         var pdfBytes = printingService.PrintIssuedDocument(printModel);
         var safeDocName = $"{printModel.DocumentType}_{printModel.LicenseNumber ?? printModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");

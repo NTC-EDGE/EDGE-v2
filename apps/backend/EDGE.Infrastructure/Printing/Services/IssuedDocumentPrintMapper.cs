@@ -37,37 +37,106 @@ public static class IssuedDocumentPrintMapper
         model.ServiceCode = serviceCode;
         model.ServiceCategory = !string.IsNullOrWhiteSpace(categoryName) ? categoryName : "Telecommunications";
 
-        // 2. Resolve Applicant / Licensee / Examinee
-        var fallbackApplicantName = app?.ApplicationApplicants
-            .Select(aa => aa.Applicant)
-            .Where(a => a != null)
-            .Select(a => a?.CompanyDetail?.Name ?? (a?.ApplicantDetail != null ? $"{a.ApplicantDetail.FirstName} {a.ApplicantDetail.LastName}".Trim() : null))
-            .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+        // 2. Resolve Applicant / Licensee / Examinee (scoped to doc.ApplicantId for bulk applications)
+        var isBulkApp = app != null && (app.SubmissionMode == Domain.Enums.SubmissionMode.Bulk || (app.ApplicationApplicants?.Count ?? 0) > 1);
+        var applicant = doc.Applicant
+            ?? (doc.ApplicantId.HasValue
+                ? app?.ApplicationApplicants?.FirstOrDefault(aa => aa.ApplicantId == doc.ApplicantId.Value)?.Applicant
+                : null)
+            ?? app?.ApplicationApplicants?.OrderBy(aa => aa.SequenceOrder).Select(aa => aa.Applicant).FirstOrDefault();
 
-        var fallbackAddress = app?.ApplicationApplicants
-            .Select(aa => aa.Applicant)
-            .Where(a => a != null)
-            .Select(a => a?.CompanyDetail?.Address ?? (a?.ApplicantDetail != null ? a.ApplicantDetail.Address : null))
-            .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+        var applicantFieldValues = (app?.FormSubmissions ?? Enumerable.Empty<FormSubmission>())
+            .Where(fs => applicant != null && fs.ApplicantId == applicant.Id)
+            .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<FormFieldValue>())
+            .ToList();
 
-        var applicant = doc.Applicant ?? app?.ApplicationApplicants.Select(aa => aa.Applicant).FirstOrDefault();
+        if (applicantFieldValues.Count == 0 && !isBulkApp)
+        {
+            applicantFieldValues = app?.FormSubmissions?.SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<FormFieldValue>()).ToList() ?? new List<FormFieldValue>();
+        }
+
         var applicantPerson = applicant?.ApplicantDetail;
-        var company = applicant?.CompanyDetail ?? app?.User?.CompanyDetail;
+        var company = applicant?.CompanyDetail ?? (!isBulkApp ? app?.User?.CompanyDetail : null);
 
-        var applicantName = company?.Name
-            ?? (applicantPerson != null ? $"{applicantPerson.FirstName} {applicantPerson.LastName}".Trim() : null)
-            ?? fallbackApplicantName
-            ?? (app?.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : "Grantee");
+        var repNameFromFields = FindField(applicantFieldValues, "authorized representative name", "representative name")?.Value?.Trim();
+        var filingUserFullName = app?.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : null;
 
-        model.LicenseeName = applicantName;
-        model.CompanyName = company?.Name;
-        model.Address = company?.Address
-            ?? applicantPerson?.Address
-            ?? fallbackAddress
+        var personNameFromDetail = applicantPerson != null
+            ? string.Join(" ", new[] { applicantPerson.FirstName, applicantPerson.MiddleName, applicantPerson.LastName, applicantPerson.Suffix }
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())).Trim()
+            : null;
+
+        var firstNameFromFields = FindField(applicantFieldValues, "first name", "given name")?.Value?.Trim();
+        var middleNameFromFields = FindField(applicantFieldValues, "middle name")?.Value?.Trim();
+        var lastNameFromFields = FindField(applicantFieldValues, "last name", "surname", "family name")?.Value?.Trim();
+        var suffixFromFields = FindField(applicantFieldValues, "suffix", "extension")?.Value?.Trim();
+        var personNameFromFields = string.Join(" ", new[] { firstNameFromFields, middleNameFromFields, lastNameFromFields, suffixFromFields }
+            .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+
+        var fullLegalNameFromFields = FindField(applicantFieldValues, "full legal name", "full name", "applicant name", "name of applicant")?.Value?.Trim();
+        var companyNameFromFields = FindField(applicantFieldValues, "company / business name", "company name", "business name", "corporate name")?.Value?.Trim();
+
+        var resolvedCompanyName = !string.IsNullOrWhiteSpace(applicant?.CompanyDetail?.Name)
+            ? applicant.CompanyDetail.Name.Trim()
+            : (!string.IsNullOrWhiteSpace(companyNameFromFields)
+                ? companyNameFromFields
+                : (!isBulkApp ? company?.Name : null));
+
+        bool isPersonDetailRepresentative = !string.IsNullOrWhiteSpace(personNameFromDetail) &&
+            ((!string.IsNullOrWhiteSpace(repNameFromFields) && string.Equals(personNameFromDetail, repNameFromFields, StringComparison.OrdinalIgnoreCase)) ||
+             (isBulkApp && !string.IsNullOrWhiteSpace(filingUserFullName) && string.Equals(personNameFromDetail, filingUserFullName, StringComparison.OrdinalIgnoreCase) &&
+              (!string.IsNullOrWhiteSpace(personNameFromFields) || !string.IsNullOrWhiteSpace(fullLegalNameFromFields) || !string.IsNullOrWhiteSpace(resolvedCompanyName))));
+
+        var isCompanyApplicant = applicant?.ApplicantType == Domain.Enums.ApplicantType.Company;
+
+        string? resolvedApplicantName;
+        if (isCompanyApplicant && !string.IsNullOrWhiteSpace(resolvedCompanyName) && (isPersonDetailRepresentative || string.IsNullOrWhiteSpace(personNameFromDetail)))
+        {
+            resolvedApplicantName = resolvedCompanyName;
+        }
+        else if (!string.IsNullOrWhiteSpace(personNameFromDetail) && !isPersonDetailRepresentative)
+        {
+            resolvedApplicantName = personNameFromDetail;
+        }
+        else if (!string.IsNullOrWhiteSpace(personNameFromFields))
+        {
+            resolvedApplicantName = personNameFromFields;
+        }
+        else if (!string.IsNullOrWhiteSpace(fullLegalNameFromFields))
+        {
+            resolvedApplicantName = fullLegalNameFromFields;
+        }
+        else if (!string.IsNullOrWhiteSpace(resolvedCompanyName))
+        {
+            resolvedApplicantName = resolvedCompanyName;
+        }
+        else if (!string.IsNullOrWhiteSpace(personNameFromDetail))
+        {
+            resolvedApplicantName = personNameFromDetail;
+        }
+        else
+        {
+            resolvedApplicantName = !isBulkApp && !string.IsNullOrWhiteSpace(filingUserFullName) ? filingUserFullName : "Grantee";
+        }
+
+        var addressFromFields = FindField(applicantFieldValues, "complete address", "street address", "address")?.Value?.Trim();
+
+        model.LicenseeName = resolvedApplicantName;
+        model.CompanyName = isCompanyApplicant ? resolvedCompanyName : null;
+        model.Address = (!string.IsNullOrWhiteSpace(applicantPerson?.Address) ? applicantPerson.Address : null)
+            ?? (!string.IsNullOrWhiteSpace(addressFromFields) ? addressFromFields : null)
+            ?? (!string.IsNullOrWhiteSpace(applicant?.CompanyDetail?.Address) ? applicant.CompanyDetail.Address : null)
+            ?? (!isBulkApp ? company?.Address : null)
             ?? "Address on Record";
 
-        model.ContactNumber = company?.ContactNumber ?? applicantPerson?.ContactNumber;
-        model.Email = company?.Email ?? applicantPerson?.EmailAddress ?? app?.User?.Email;
+        model.ContactNumber = (!string.IsNullOrWhiteSpace(applicantPerson?.ContactNumber) ? applicantPerson.ContactNumber : null)
+            ?? FindField(applicantFieldValues, "contact / mobile number", "contact number", "mobile number")?.Value?.Trim()
+            ?? company?.ContactNumber;
+        model.Email = (!string.IsNullOrWhiteSpace(applicantPerson?.EmailAddress) ? applicantPerson.EmailAddress : null)
+            ?? FindField(applicantFieldValues, "email address", "email")?.Value?.Trim()
+            ?? company?.Email
+            ?? (!isBulkApp ? app?.User?.Email : null);
 
         // Personal specifics (ROC, Exam, Amateur)
         if (applicantPerson != null)
@@ -88,7 +157,9 @@ public static class IssuedDocumentPrintMapper
         model.StationClass = doc.StationClass ?? "Commercial Station";
         model.FrequencyBand = doc.FrequencyBand ?? "Assigned Bandwidth & Frequency Allocation";
 
-        var allFieldValues = app?.FormSubmissions?.SelectMany(fs => fs.FieldValues).ToList() ?? new List<FormFieldValue>();
+        var allFieldValues = applicantFieldValues.Count > 0
+            ? applicantFieldValues
+            : (app?.FormSubmissions?.SelectMany(fs => fs.FieldValues).ToList() ?? new List<FormFieldValue>());
 
         // Extract Equipment & Device Details (including Repeater Rows)
         ExtractEquipmentDetails(allFieldValues, model);

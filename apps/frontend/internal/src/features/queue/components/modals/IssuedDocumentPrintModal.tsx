@@ -135,8 +135,37 @@ export function IssuedDocumentPrintModal({
     return eligibleTemplates[0] ?? findMatchingTemplate(app);
   }, [eligibleTemplates, app]);
 
-  // Primary active print target mode: Defaults to real cloud PDF template preview
   const [activeTarget, setActiveTarget] = useState<IssuedPrintTargetMode>('pdf');
+  const [selectedApplicantId, setSelectedApplicantId] = useState<string>('ALL');
+
+  const applicantsList = app.applicantsList ?? [];
+  const isBulkApp =
+    app.applicationType === 'BULK' ||
+    app.mode === 'Bulk' ||
+    applicantsList.length > 1;
+  const selectedApplicant = useMemo(
+    () => (selectedApplicantId !== 'ALL' ? applicantsList.find((a) => a.id === selectedApplicantId) : undefined),
+    [applicantsList, selectedApplicantId]
+  );
+  const effectiveApplicantId = selectedApplicant?.id;
+  const effectiveApp = useMemo<ApplicationData>(() => {
+    if (!selectedApplicant) return app;
+    return {
+      ...app,
+      applicant: selectedApplicant.name || app.applicant,
+      basicInfo: selectedApplicant.basicInfo ?? app.basicInfo,
+      address: {
+        streetAddress: selectedApplicant.streetAddress || selectedApplicant.address || app.address?.streetAddress || '',
+        address: selectedApplicant.address || selectedApplicant.streetAddress || app.address?.address || '',
+        barangay: selectedApplicant.barangay || app.address?.barangay || '',
+        city: selectedApplicant.city || app.address?.city || '',
+        province: selectedApplicant.province || app.address?.province || '',
+        region: selectedApplicant.region || app.address?.region || '',
+        zipCode: selectedApplicant.zipCode || app.address?.zipCode || '',
+      },
+      applicantsList: [selectedApplicant],
+    };
+  }, [app, selectedApplicant]);
 
   // Printing Configurations
   const [outputMode, setOutputMode] = useState<PrintOutputMode>(
@@ -185,6 +214,7 @@ export function IssuedDocumentPrintModal({
             issueDate: initialOptions?.issueDate,
             expiryDate: initialOptions?.expiryDate,
             documentType: initialOptions?.issuedDocumentType,
+            applicantId: effectiveApplicantId,
           });
 
           if (!active) return;
@@ -224,7 +254,7 @@ export function IssuedDocumentPrintModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [visible, app.id, activeTarget, initialOptions, reloadKey]);
+  }, [visible, app.id, activeTarget, initialOptions, effectiveApplicantId, reloadKey]);
 
   // Applicant 1x1 Photo URL for accountable form / admission slip
   const [applicantPhotoUrl, setApplicantPhotoUrl] = useState<string | null>(
@@ -374,11 +404,11 @@ export function IssuedDocumentPrintModal({
   // Accountable Form Overlay HTML
   const accountableOverlayHtml = useMemo(() => {
     try {
-      return generateAccountableFormOverlayHtml(app, currentPrintOptions, activeTemplate);
+      return generateAccountableFormOverlayHtml(effectiveApp, currentPrintOptions, activeTemplate);
     } catch {
       return '';
     }
-  }, [app, currentPrintOptions, activeTemplate]);
+  }, [effectiveApp, currentPrintOptions, activeTemplate]);
 
   // Alignment test sheet HTML
   const alignmentTestHtml = useMemo(() => {
@@ -398,6 +428,7 @@ export function IssuedDocumentPrintModal({
           issueDate: initialOptions?.issueDate,
           expiryDate: initialOptions?.expiryDate,
           documentType: initialOptions?.issuedDocumentType,
+          applicantId: effectiveApplicantId,
         });
 
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -412,7 +443,7 @@ export function IssuedDocumentPrintModal({
         console.warn('Direct blob fetch failed, falling back to direct URL open:', err);
       }
 
-      const url = applicationService.getIssuedDocumentPrintUrl(app.id);
+      const url = applicationService.getIssuedDocumentPrintUrl(app.id, effectiveApplicantId);
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWindow = window.open(url, '_blank');
         if (printWindow !== null) {
@@ -421,7 +452,7 @@ export function IssuedDocumentPrintModal({
         return;
       }
     } else if (activeTarget === 'accountable') {
-      const html = generateAccountableFormOverlayHtml(app, currentPrintOptions, activeTemplate);
+      const html = generateAccountableFormOverlayHtml(effectiveApp, currentPrintOptions, activeTemplate);
       openDocumentPrintWindow(html);
     } else {
       const html = generateAlignmentTestSheetHtml(currentPrintOptions, activeTemplate);
@@ -437,6 +468,7 @@ export function IssuedDocumentPrintModal({
         issueDate: initialOptions?.issueDate,
         expiryDate: initialOptions?.expiryDate,
         documentType: initialOptions?.issuedDocumentType,
+        applicantId: effectiveApplicantId,
       });
 
       if (
@@ -802,6 +834,109 @@ export function IssuedDocumentPrintModal({
               </Text>
             </View>
           </View>
+
+          {/* Bulk Applicants Selector Bar */}
+          {isBulkApp && applicantsList.length > 1 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+                paddingHorizontal: SPACING[16],
+                paddingVertical: 8,
+                backgroundColor: isDark ? colors.neutral[800] : colors.brand[50],
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? colors.neutral[700] : colors.brand[200],
+                borderLeftWidth: 4,
+                borderLeftColor: isDark ? '#818cf8' : '#4f46e5',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: isDark ? colors.brand[300] : colors.brand[800],
+                }}
+              >
+                APPLICANTS ({applicantsList.length}):
+              </Text>
+              <TouchableOpacity
+                onPress={() => setSelectedApplicantId('ALL')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  backgroundColor:
+                    selectedApplicantId === 'ALL'
+                      ? (isDark ? colors.brand[600] : colors.brand[700])
+                      : (isDark ? colors.neutral[800] : '#FFFFFF'),
+                  borderWidth: 1,
+                  borderColor:
+                    selectedApplicantId === 'ALL'
+                      ? (isDark ? colors.brand[400] : colors.brand[700])
+                      : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                }}
+              >
+                <Lucide
+                  name="layers"
+                  size={11}
+                  color={selectedApplicantId === 'ALL' ? '#FFFFFF' : (isDark ? colors.neutral[400] : '#64748B')}
+                />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: selectedApplicantId === 'ALL' ? '700' : '500',
+                    color: selectedApplicantId === 'ALL' ? '#FFFFFF' : (isDark ? colors.neutral[200] : '#334155'),
+                  }}
+                >
+                  All ({applicantsList.length} Forms)
+                </Text>
+              </TouchableOpacity>
+              {applicantsList.map((appItem, idx) => {
+                const isSelected = selectedApplicantId === appItem.id;
+                return (
+                  <TouchableOpacity
+                    key={appItem.id || `print-app-${idx}`}
+                    onPress={() => setSelectedApplicantId(appItem.id)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      backgroundColor: isSelected
+                        ? (isDark ? colors.brand[600] : colors.brand[700])
+                        : (isDark ? colors.neutral[800] : '#FFFFFF'),
+                      borderWidth: 1,
+                      borderColor: isSelected
+                        ? (isDark ? colors.brand[400] : colors.brand[700])
+                        : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                    }}
+                  >
+                    <Lucide
+                      name="user"
+                      size={11}
+                      color={isSelected ? '#FFFFFF' : (isDark ? colors.neutral[400] : '#64748B')}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: isSelected ? '700' : '500',
+                        color: isSelected ? '#FFFFFF' : (isDark ? colors.neutral[200] : '#334155'),
+                      }}
+                    >
+                      {appItem.name || `Applicant #${idx + 1}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {/* Animated Progress Bar during PDF generation from Cloud */}
           {activeTarget === 'pdf' && isLoadingPdf && (

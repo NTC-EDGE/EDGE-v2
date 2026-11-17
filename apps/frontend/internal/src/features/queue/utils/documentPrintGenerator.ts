@@ -145,8 +145,21 @@ export function findMatchingTemplate(app: ApplicationData, templateId?: string):
   return eligible[0] ?? ACCOUNTABLE_FORM_TEMPLATES[0];
 }
 
+function formatApplicantItemAddress(item: NonNullable<ApplicationData['applicantsList']>[number], fallbackAddress: string): string {
+  const parts = [
+    item.streetAddress || item.address,
+    item.barangay,
+    item.city,
+    item.province,
+    item.region,
+    item.zipCode ? `Zip: ${item.zipCode}` : undefined,
+  ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim().length > 0));
+  return parts.length > 0 ? parts.join(', ') : fallbackAddress;
+}
+
 /**
  * Generates the full statutory document HTML for Plain Bond Paper printing.
+ * For bulk applications with multiple applicants in app.applicantsList, generates one page per applicant.
  */
 export function generateStatutoryDocumentHtml(
   app: ApplicationData,
@@ -155,8 +168,8 @@ export function generateStatutoryDocumentHtml(
   const { sizeCss, widthMm, heightMm } = getPaperSizeCss(options);
 
   const docTitle = safeStr(options.issuedDocumentType || app.serviceName, 'STATUTORY REGULATORY LICENSE');
-  const formNum = safeStr(options.formNumber || app.applicationNumber, `NTC-${app.office || 'R07'}-${new Date().getFullYear()}-FORM-001`);
-  const licNum = safeStr(options.licenseNumber, `NTC-${app.office || 'R07'}-${new Date().getFullYear()}-LIC-001`);
+  const baseFormNum = safeStr(options.formNumber || app.applicationNumber, `NTC-${app.office || 'R07'}-${new Date().getFullYear()}-FORM-001`);
+  const baseLicNum = safeStr(options.licenseNumber, `NTC-${app.office || 'R07'}-${new Date().getFullYear()}-LIC-001`);
   const callSign = safeStr(options.callSign, 'N/A');
   const stationClass = safeStr(options.stationClass, 'Land Mobile / Fixed Station');
   const freqBand = safeStr(options.frequencyBand, '144.000 - 146.000 MHz (VHF)');
@@ -164,17 +177,127 @@ export function generateStatutoryDocumentHtml(
   const expiryDateStr = formatDate(options.expiryDate || new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000).toISOString());
   const orList = extractOrNumbers(options.officialReceiptNumber, app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber);
   const orNumber = formatOrDisplay(orList) || 'N/A';
-  const applicantName = safeStr(app.applicant, 'Applicant Name');
-  const fullAddress = formatFullAddress(app);
+  const defaultAddress = formatFullAddress(app);
   const signatoryName = safeStr(options.signatoryName || app.issuingOfficer || app.evaluatingOfficer, 'REGIONAL DIRECTOR');
   const signatoryTitle = safeStr(options.signatoryTitle, 'Regional Director / Authorized Signatory');
   const officeName = safeStr(app.office || app.assignedTo, 'National Telecommunications Commission - Regional Office');
+
+  const applicants = app.applicantsList && app.applicantsList.length > 0
+    ? app.applicantsList
+    : [{ id: app.id, name: safeStr(app.applicant, 'Applicant Name'), applicantType: app.applicantType, status: 'Complete' as const }];
+
+  const pagesHtml = applicants.map((appItem, idx) => {
+    const applicantName = safeStr(appItem.name || app.applicant, 'Applicant Name');
+    const fullAddress = 'streetAddress' in appItem || 'address' in appItem
+      ? formatApplicantItemAddress(appItem, defaultAddress)
+      : defaultAddress;
+    const formNum = applicants.length > 1 ? `${baseFormNum}-${String(idx + 1).padStart(2, '0')}` : baseFormNum;
+    const licNum = applicants.length > 1 ? `${baseLicNum}-${String(idx + 1).padStart(2, '0')}` : baseLicNum;
+    const pageBreakStyle = idx < applicants.length - 1 ? 'page-break-after: always;' : '';
+
+    return `
+  <div class="page-sheet" style="${pageBreakStyle}">
+    <div class="page-border">
+      <svg class="watermark" viewBox="0 0 100 100" fill="none" stroke="#1e3a8a" stroke-width="1.5">
+        <circle cx="50" cy="50" r="46" stroke-width="2" />
+        <circle cx="50" cy="50" r="41" stroke-dasharray="2,2" />
+        <polygon points="50,15 61,38 85,38 66,54 73,78 50,63 27,78 34,54 15,38 39,38" fill="none" stroke-width="1.2" />
+        <text x="50" y="93" text-anchor="middle" font-size="6" font-family="Arial" font-weight="bold">OFFICIAL SEAL • NTC</text>
+      </svg>
+
+      <div class="content-layer">
+        <div>
+          <div class="header-section">
+            <div class="header-text-block">
+              <div class="republic-text">Republic of the Philippines</div>
+              <div class="dept-text">Department of Information and Communications Technology</div>
+              <div class="agency-name">National Telecommunications Commission</div>
+              <div class="office-sub">${officeName}</div>
+            </div>
+          </div>
+
+          <div class="doc-title-box">
+            <div class="doc-main-title">${docTitle}</div>
+          </div>
+
+          <div class="control-row">
+            <div class="control-item">FORM NO: <strong class="mono">${formNum}</strong></div>
+            <div class="control-item">LICENSE / CERT NO: <strong class="mono">${licNum}</strong></div>
+            <div class="control-item">OR NO: <strong>${orNumber}</strong></div>
+          </div>
+
+          <div class="licensee-box">
+            <div class="licensee-label">Grantee / Registered Entity:</div>
+            <div class="licensee-name">${applicantName}</div>
+            <div class="licensee-addr">📍 ${fullAddress}</div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Call Sign</th>
+                <th>Station Class</th>
+                <th>Service Category</th>
+                <th>Date Issued</th>
+                <th>Expiration Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="val-bold mono" style="font-size: 11pt; color: #1e3a8a;">${callSign}</td>
+                <td class="val-bold">${stationClass}</td>
+                <td>${safeStr(app.serviceCategory, 'Telecommunications')}</td>
+                <td>${issueDateStr}</td>
+                <td class="val-bold" style="color: #b91c1c;">${expiryDateStr}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 40%;">Authorized Frequencies</th>
+                <th style="width: 35%;">Transmitter Specifications</th>
+                <th style="width: 25%;">Points of Communication</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">${freqBand}</td>
+                <td>Transceiver Unit / Compliant Output Power</td>
+                <td>Authorized NTC Coordinates / Field Zones</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="statutory-clauses">
+            Pursuant to the provisions of the Public Telecommunications Policy Act (RA 7925), Act No. 3846 as amended, and existing NTC rules and regulations, the grantee is hereby authorized to install, operate, and maintain the radio station described above. This authority is subject to the terms and conditions prescribed herein and on the reverse side hereof.
+          </div>
+        </div>
+
+        <div>
+          <div class="footer-sign-section">
+            <div class="signature-box">
+              <div class="sign-line"></div>
+              <div class="sign-name">${signatoryName}</div>
+              <div class="sign-title">${signatoryTitle}</div>
+            </div>
+          </div>
+
+          <div class="bottom-footnote">
+            NTC-EDGE Official Digital System • Generated on ${formatDate(new Date().toISOString())} • RA 11032 Ease of Doing Business Certified
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  }).join('\n');
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>${docTitle} - #${formNum}</title>
+  <title>${docTitle} - #${baseFormNum}</title>
   <style>
     @page {
       size: ${sizeCss};
@@ -186,17 +309,20 @@ export function generateStatutoryDocumentHtml(
       padding: 0;
     }
     body {
-      width: ${widthMm}mm;
-      height: ${heightMm}mm;
       font-family: "Times New Roman", Times, "Liberation Serif", serif;
       color: #0f172a;
       background: #ffffff;
       margin: 0 auto;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .page-sheet {
+      width: ${widthMm}mm;
+      height: ${heightMm}mm;
       padding: 14mm 16mm;
       position: relative;
       overflow: hidden;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      margin: 0 auto;
     }
     .page-border {
       width: 100%;
@@ -414,100 +540,7 @@ export function generateStatutoryDocumentHtml(
   </style>
 </head>
 <body>
-  <div class="page-border">
-    <!-- SVG Seal Watermark Background -->
-    <svg class="watermark" viewBox="0 0 100 100" fill="none" stroke="#1e3a8a" stroke-width="1.5">
-      <circle cx="50" cy="50" r="46" stroke-width="2" />
-      <circle cx="50" cy="50" r="41" stroke-dasharray="2,2" />
-      <polygon points="50,15 61,38 85,38 66,54 73,78 50,63 27,78 34,54 15,38 39,38" fill="none" stroke-width="1.2" />
-      <text x="50" y="93" text-anchor="middle" font-size="6" font-family="Arial" font-weight="bold">OFFICIAL SEAL • NTC</text>
-    </svg>
-
-    <div class="content-layer">
-      <div>
-        <div class="header-section">
-          <div class="header-text-block">
-            <div class="republic-text">Republic of the Philippines</div>
-            <div class="dept-text">Department of Information and Communications Technology</div>
-            <div class="agency-name">National Telecommunications Commission</div>
-            <div class="office-sub">${officeName}</div>
-          </div>
-        </div>
-
-        <div class="doc-title-box">
-          <div class="doc-main-title">${docTitle}</div>
-        </div>
-
-        <div class="control-row">
-          <div class="control-item">FORM NO: <strong class="mono">${formNum}</strong></div>
-          <div class="control-item">LICENSE / CERT NO: <strong class="mono">${licNum}</strong></div>
-          <div class="control-item">OR NO: <strong>${orNumber}</strong></div>
-        </div>
-
-        <div class="licensee-box">
-          <div class="licensee-label">Grantee / Registered Entity:</div>
-          <div class="licensee-name">${applicantName}</div>
-          <div class="licensee-addr">📍 ${fullAddress}</div>
-        </div>
-
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Call Sign</th>
-              <th>Station Class</th>
-              <th>Service Category</th>
-              <th>Date Issued</th>
-              <th>Expiration Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="val-bold mono" style="font-size: 11pt; color: #1e3a8a;">${callSign}</td>
-              <td class="val-bold">${stationClass}</td>
-              <td>${safeStr(app.serviceCategory, 'Telecommunications')}</td>
-              <td>${issueDateStr}</td>
-              <td class="val-bold" style="color: #b91c1c;">${expiryDateStr}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width: 40%;">Authorized Frequencies</th>
-              <th style="width: 35%;">Transmitter Specifications</th>
-              <th style="width: 25%;">Points of Communication</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="mono">${freqBand}</td>
-              <td>Transceiver Unit / Compliant Output Power</td>
-              <td>Authorized NTC Coordinates / Field Zones</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="statutory-clauses">
-          Pursuant to the provisions of the Public Telecommunications Policy Act (RA 7925), Act No. 3846 as amended, and existing NTC rules and regulations, the grantee is hereby authorized to install, operate, and maintain the radio station described above. This authority is subject to the terms and conditions prescribed herein and on the reverse side hereof.
-        </div>
-      </div>
-
-      <div>
-        <div class="footer-sign-section">
-          <div class="signature-box">
-            <div class="sign-line"></div>
-            <div class="sign-name">${signatoryName}</div>
-            <div class="sign-title">${signatoryTitle}</div>
-          </div>
-        </div>
-
-        <div class="bottom-footnote">
-          NTC-EDGE Official Digital System • Generated on ${formatDate(new Date().toISOString())} • RA 11032 Ease of Doing Business Certified
-        </div>
-      </div>
-    </div>
-  </div>
+${pagesHtml}
 </body>
 </html>`;
 }
@@ -515,6 +548,7 @@ export function generateStatutoryDocumentHtml(
 /**
  * Generates the precision data overlay HTML for Accountable Form printing.
  * Suppresses background graphics and prints ONLY dynamic fields at exact millimeter coordinates.
+ * For bulk applications with multiple applicants in app.applicantsList, generates one page per applicant.
  */
 export function generateAccountableFormOverlayHtml(
   app: ApplicationData,
@@ -528,9 +562,8 @@ export function generateAccountableFormOverlayHtml(
   const offsetY = options.calibration.offsetYmm || 0;
   const scale = (options.calibration.scalePercent || 100) / 100;
 
-  // Resolve values dictionary for template field mappings
-  const formNum = safeStr(options.formNumber || app.applicationNumber, `NTC-${app.office || 'R07'}-${new Date().getFullYear()}-001`);
-  const licNum = safeStr(options.licenseNumber, formNum);
+  const baseFormNum = safeStr(options.formNumber || app.applicationNumber, `NTC-${app.office || 'R07'}-${new Date().getFullYear()}-001`);
+  const baseLicNum = safeStr(options.licenseNumber, baseFormNum);
   const callSign = safeStr(options.callSign, 'N/A');
   const stationClass = safeStr(options.stationClass, 'Station Class A');
   const freqBand = safeStr(options.frequencyBand, '144.000 - 146.000 MHz');
@@ -538,8 +571,7 @@ export function generateAccountableFormOverlayHtml(
   const expiryDateStr = formatDate(options.expiryDate || new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000).toISOString());
   const orList = extractOrNumbers(options.officialReceiptNumber, app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber);
   const orNumber = formatOrDisplay(orList) || 'N/A';
-  const applicantName = safeStr(app.applicant, 'Applicant Name');
-  const fullAddress = formatFullAddress(app);
+  const defaultAddress = formatFullAddress(app);
   const signatoryName = safeStr(options.signatoryName || app.issuingOfficer || app.evaluatingOfficer, 'REGIONAL DIRECTOR');
   const signatoryTitle = safeStr(options.signatoryTitle, 'Regional Director / Authorized Signatory');
   const serviceName = safeStr(app.serviceName, 'Radio Service');
@@ -552,116 +584,135 @@ export function generateAccountableFormOverlayHtml(
   const examDate = formatDate(options.issueDate || app.createdAt);
   const examTime = safeStr(options.remarks && options.remarks.includes(':') ? options.remarks : '08:00 AM');
 
-  const valuesMap: Record<string, string> = {
-    formNumber: formNum,
-    licenseNumber: licNum,
-    applicantName: applicantName,
-    address: fullAddress,
-    callSign: callSign,
-    stationClass: stationClass,
-    serviceCategory: serviceCategory,
-    serviceName: serviceName,
-    examFor: examFor,
-    examVenue: examVenue,
-    examDate: examDate,
-    examTime: examTime,
-    applicantPhoto: safeStr(options.applicantPhotoUrl, ''),
-    frequencyBand: freqBand,
-    equipmentDetails: `Make: Standard / Transceiver Power: Compliant`,
-    issueDate: issueDateStr,
-    expiryDate: expiryDateStr,
-    orNumber: orNumber,
-    signatoryName: signatoryName,
-    signatoryTitle: signatoryTitle,
-    remarks: remarks,
-    totalAmount: totalAmount,
-    amountInWords: totalAmount,
-    agency: 'National Telecommunications Commission',
-    birthDate: app.basicInfo?.dob ? formatDate(app.basicInfo.dob) : 'N/A',
-  };
+  const applicants = app.applicantsList && app.applicantsList.length > 0
+    ? app.applicantsList
+    : [{ id: app.id, name: safeStr(app.applicant, 'Applicant Name'), applicantType: app.applicantType, status: 'Complete' as const }];
 
-  const fieldsHtml = activeTemplate.fields.map((f) => {
-    const rawVal = valuesMap[f.id] || '';
-    const displayVal = f.uppercase ? rawVal.toUpperCase() : rawVal;
-    const topPos = f.topMm + offsetY;
-    const leftPos = f.leftMm + offsetX;
-    const widthStyle = f.widthMm ? `width: ${f.widthMm}mm;` : '';
-    const heightStyle = f.heightMm ? `height: ${f.heightMm}mm;` : '';
-    const fontStyle = `font-size: ${f.fontSizePt || 10}pt;`;
-    const weightStyle = f.fontWeight ? `font-weight: ${f.fontWeight};` : '';
-    const alignStyle = f.textAlign ? `text-align: ${f.textAlign};` : 'text-align: left;';
-    const fontFam = f.isMonospace ? 'font-family: "Courier New", Courier, monospace;' : 'font-family: Arial, Helvetica, sans-serif;';
+  const sheetsHtml = applicants.map((appItem, idx) => {
+    const applicantName = safeStr(appItem.name || app.applicant, 'Applicant Name');
+    const fullAddress = 'streetAddress' in appItem || 'address' in appItem
+      ? formatApplicantItemAddress(appItem, defaultAddress)
+      : defaultAddress;
+    const formNum = applicants.length > 1 ? `${baseFormNum}-${String(idx + 1).padStart(2, '0')}` : baseFormNum;
+    const licNum = applicants.length > 1 ? `${baseLicNum}-${String(idx + 1).padStart(2, '0')}` : baseLicNum;
+    const itemDob = ('basicInfo' in appItem && appItem.basicInfo?.dob)
+      ? formatDate(appItem.basicInfo.dob)
+      : (app.basicInfo?.dob ? formatDate(app.basicInfo.dob) : 'N/A');
 
-    if (f.id === 'applicantPhoto' || f.id === 'photo') {
-      const photoSrc = options.applicantPhotoUrl || valuesMap.applicantPhoto || '';
-      if (photoSrc && photoSrc.trim().length > 0) {
+    const valuesMap: Record<string, string> = {
+      formNumber: formNum,
+      licenseNumber: licNum,
+      applicantName: applicantName,
+      address: fullAddress,
+      callSign: callSign,
+      stationClass: stationClass,
+      serviceCategory: serviceCategory,
+      serviceName: serviceName,
+      examFor: examFor,
+      examVenue: examVenue,
+      examDate: examDate,
+      examTime: examTime,
+      applicantPhoto: safeStr(options.applicantPhotoUrl, ''),
+      frequencyBand: freqBand,
+      equipmentDetails: `Make: Standard / Transceiver Power: Compliant`,
+      issueDate: issueDateStr,
+      expiryDate: expiryDateStr,
+      orNumber: orNumber,
+      signatoryName: signatoryName,
+      signatoryTitle: signatoryTitle,
+      remarks: remarks,
+      totalAmount: totalAmount,
+      amountInWords: totalAmount,
+      agency: 'National Telecommunications Commission',
+      birthDate: itemDob,
+    };
+
+    const fieldsHtml = activeTemplate.fields.map((f) => {
+      const rawVal = valuesMap[f.id] || '';
+      const displayVal = f.uppercase ? rawVal.toUpperCase() : rawVal;
+      const topPos = f.topMm + offsetY;
+      const leftPos = f.leftMm + offsetX;
+      const widthStyle = f.widthMm ? `width: ${f.widthMm}mm;` : '';
+      const heightStyle = f.heightMm ? `height: ${f.heightMm}mm;` : '';
+      const fontStyle = `font-size: ${f.fontSizePt || 10}pt;`;
+      const weightStyle = f.fontWeight ? `font-weight: ${f.fontWeight};` : '';
+      const alignStyle = f.textAlign ? `text-align: ${f.textAlign};` : 'text-align: left;';
+      const fontFam = f.isMonospace ? 'font-family: "Courier New", Courier, monospace;' : 'font-family: Arial, Helvetica, sans-serif;';
+
+      if (f.id === 'applicantPhoto' || f.id === 'photo') {
+        const photoSrc = options.applicantPhotoUrl || valuesMap.applicantPhoto || '';
+        if (photoSrc && photoSrc.trim().length > 0) {
+          return `
+            <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} overflow: hidden; border: 1pt solid #cbd5e1; background: #ffffff; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
+              <img src="${photoSrc}" alt="1x1 ID Picture" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+            </div>
+          `;
+        }
         return `
-          <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} overflow: hidden; border: 1pt solid #cbd5e1; background: #ffffff; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
-            <img src="${photoSrc}" alt="1x1 ID Picture" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+          <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} border: 1.5pt dashed #94a3b8; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; padding: 2mm;">
+            <div style="font-family: Arial, sans-serif; font-size: 7.5pt; font-weight: bold; color: #475569;">1" × 1"</div>
+            <div style="font-family: Arial, sans-serif; font-size: 6pt; color: #94a3b8; margin-top: 1mm;">PHOTO</div>
           </div>
         `;
       }
-      return `
-        <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} border: 1.5pt dashed #94a3b8; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; padding: 2mm;">
-          <div style="font-family: Arial, sans-serif; font-size: 7.5pt; font-weight: bold; color: #475569;">1" × 1"</div>
-          <div style="font-family: Arial, sans-serif; font-size: 6pt; color: #94a3b8; margin-top: 1mm;">PHOTO</div>
-        </div>
-      `;
-    }
 
-    if (f.id === 'qrCode') {
-      const qrCodeVal = options.qrCodeValue || safeStr(app.referenceNumber || app.applicationNumber || app.id, 'NTC-VERIFY');
-      return `
-        <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;">
-          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" style="display: block;">
-            <rect width="100" height="100" fill="#ffffff" />
-            <rect x="5" y="5" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
-            <rect x="11" y="11" width="16" height="16" fill="#000000" />
-            <rect x="67" y="5" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
-            <rect x="73" y="11" width="16" height="16" fill="#000000" />
-            <rect x="5" y="67" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
-            <rect x="11" y="73" width="16" height="16" fill="#000000" />
-            <rect x="40" y="8" width="6" height="6" fill="#000" />
-            <rect x="52" y="8" width="6" height="6" fill="#000" />
-            <rect x="40" y="20" width="6" height="12" fill="#000" />
-            <rect x="52" y="24" width="6" height="6" fill="#000" />
-            <rect x="8" y="40" width="12" height="6" fill="#000" />
-            <rect x="24" y="40" width="6" height="14" fill="#000" />
-            <rect x="36" y="40" width="10" height="10" fill="#000" />
-            <rect x="52" y="38" width="8" height="8" fill="#000" />
-            <rect x="68" y="40" width="8" height="6" fill="#000" />
-            <rect x="82" y="40" width="10" height="6" fill="#000" />
-            <rect x="40" y="56" width="6" height="12" fill="#000" />
-            <rect x="52" y="52" width="10" height="6" fill="#000" />
-            <rect x="68" y="54" width="6" height="10" fill="#000" />
-            <rect x="80" y="54" width="12" height="6" fill="#000" />
-            <rect x="40" y="74" width="12" height="6" fill="#000" />
-            <rect x="58" y="70" width="6" height="12" fill="#000" />
-            <rect x="70" y="68" width="6" height="16" fill="#000" />
-            <rect x="84" y="68" width="8" height="8" fill="#000" />
-            <rect x="52" y="86" width="14" height="6" fill="#000" />
-            <rect x="72" y="86" width="8" height="6" fill="#000" />
-            <rect x="86" y="80" width="6" height="14" fill="#000" />
-          </svg>
-          <div style="font-family: 'Courier New', monospace; font-size: 5pt; font-weight: bold; color: #000000; text-align: center; margin-top: 0.5mm; letter-spacing: 0.2px;">
-            ${qrCodeVal}
+      if (f.id === 'qrCode') {
+        const qrCodeVal = options.qrCodeValue || safeStr(app.referenceNumber || app.applicationNumber || app.id, 'NTC-VERIFY');
+        return `
+          <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;">
+            <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" style="display: block;">
+              <rect width="100" height="100" fill="#ffffff" />
+              <rect x="5" y="5" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+              <rect x="11" y="11" width="16" height="16" fill="#000000" />
+              <rect x="67" y="5" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+              <rect x="73" y="11" width="16" height="16" fill="#000000" />
+              <rect x="5" y="67" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+              <rect x="11" y="73" width="16" height="16" fill="#000000" />
+              <rect x="40" y="8" width="6" height="6" fill="#000" />
+              <rect x="52" y="8" width="6" height="6" fill="#000" />
+              <rect x="40" y="20" width="6" height="12" fill="#000" />
+              <rect x="52" y="24" width="6" height="6" fill="#000" />
+              <rect x="8" y="40" width="12" height="6" fill="#000" />
+              <rect x="24" y="40" width="6" height="14" fill="#000" />
+              <rect x="36" y="40" width="10" height="10" fill="#000" />
+              <rect x="52" y="38" width="8" height="8" fill="#000" />
+              <rect x="68" y="40" width="8" height="6" fill="#000" />
+              <rect x="82" y="40" width="10" height="6" fill="#000" />
+              <rect x="40" y="56" width="6" height="12" fill="#000" />
+              <rect x="52" y="52" width="10" height="6" fill="#000" />
+              <rect x="68" y="54" width="6" height="10" fill="#000" />
+              <rect x="80" y="54" width="12" height="6" fill="#000" />
+              <rect x="40" y="74" width="12" height="6" fill="#000" />
+              <rect x="58" y="70" width="6" height="12" fill="#000" />
+              <rect x="70" y="68" width="6" height="16" fill="#000" />
+              <rect x="84" y="68" width="8" height="8" fill="#000" />
+              <rect x="52" y="86" width="14" height="6" fill="#000" />
+              <rect x="72" y="86" width="8" height="6" fill="#000" />
+              <rect x="86" y="80" width="6" height="14" fill="#000" />
+            </svg>
+            <div style="font-family: 'Courier New', monospace; font-size: 5pt; font-weight: bold; color: #000000; text-align: center; margin-top: 0.5mm; letter-spacing: 0.2px;">
+              ${qrCodeVal}
+            </div>
           </div>
+        `;
+      }
+
+      return `
+        <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${fontStyle} ${weightStyle} ${alignStyle} ${fontFam}">
+          ${displayVal}
         </div>
       `;
-    }
+    }).join('\n');
 
-    return `
-      <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${fontStyle} ${weightStyle} ${alignStyle} ${fontFam}">
-        ${displayVal}
-      </div>
-    `;
+    const pageBreakStyle = idx < applicants.length - 1 ? 'page-break-after: always;' : '';
+    return `<div class="overlay-sheet" style="${pageBreakStyle}">${fieldsHtml}</div>`;
   }).join('\n');
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Accountable Form Overlay - ${activeTemplate.code} - ${formNum}</title>
+  <title>Accountable Form Overlay - ${activeTemplate.code} - ${baseFormNum}</title>
   <style>
     @page {
       size: ${sizeCss};
@@ -673,17 +724,19 @@ export function generateAccountableFormOverlayHtml(
       padding: 0;
     }
     body {
-      width: ${widthMm}mm;
-      height: ${heightMm}mm;
       margin: 0;
       padding: 0;
-      position: relative;
       background: transparent;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .overlay-sheet {
+      width: ${widthMm}mm;
+      height: ${heightMm}mm;
+      position: relative;
       overflow: hidden;
       transform: scale(${scale});
       transform-origin: top left;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
     }
     .overlay-field {
       position: absolute;
@@ -695,7 +748,7 @@ export function generateAccountableFormOverlayHtml(
   </style>
 </head>
 <body>
-  ${fieldsHtml}
+  ${sheetsHtml}
 </body>
 </html>`;
 }
