@@ -9,19 +9,26 @@ import {
   useBankDeposits,
   useCashierRcdReport,
   useCancelledOrReport,
-  receiptService,
+  mutateApplications,
   PendingPaymentDto,
   OrBookletDto,
   OfficialReceiptDto,
   AgencyBankAccountDto,
   BankDepositDto,
-  BookletStatus,
   ReceiptStatus,
   PaymentMethod,
 } from '@edge/api';
 import { useAuthContext } from '../../auth/context/AuthContext';
 
 export type ReceiptTab = 'pending_payments' | 'receipts' | 'booklets' | 'deposits' | 'accounts' | 'reports';
+
+function isReceiptStatus(value: string): value is ReceiptStatus {
+  return value === 'Issued' || value === 'Deposited' || value === 'Cancelled';
+}
+
+function isPaymentMethod(value: string): value is PaymentMethod {
+  return value === 'Cash' || value === 'Check' || value === 'Online';
+}
 
 export function useReceiptsState() {
   const { user } = useAuthContext();
@@ -78,8 +85,9 @@ export function useReceiptsState() {
   }, [reportDateRange]);
 
   // Conditional tenant IDs to lazily call endpoints only when the tab or modal is active
+  // Keep pendingPaymentsTenantId active across Receipt Management tabs so the tab badge count remains accurate
   const isReceiptsActive = activeTab === 'receipts' || activeTab === 'pending_payments';
-  const pendingPaymentsTenantId = isReceiptsActive ? tenantId : null;
+  const pendingPaymentsTenantId = tenantId;
   const bookletsTenantId = (activeTab === 'booklets' || isBundleModalOpen || isIssueModalOpen) ? tenantId : null;
   const nextOrTenantId = (isReceiptsActive || isIssueModalOpen) ? tenantId : null;
   const receiptsTenantId = isReceiptsActive ? tenantId : null;
@@ -114,8 +122,8 @@ export function useReceiptsState() {
     mutate: mutateReceipts,
   } = useOfficialReceipts({
     tenantId: receiptsTenantId,
-    status: statusFilter !== 'all' ? (statusFilter as ReceiptStatus) : undefined,
-    paymentMethod: paymentMethodFilter !== 'all' ? (paymentMethodFilter as PaymentMethod) : undefined,
+    status: isReceiptStatus(statusFilter) ? statusFilter : undefined,
+    paymentMethod: isPaymentMethod(paymentMethodFilter) ? paymentMethodFilter : undefined,
     search: searchQuery.trim().length > 0 ? searchQuery.trim() : undefined,
   });
 
@@ -173,15 +181,16 @@ export function useReceiptsState() {
   }, []);
 
   const refreshAll = useCallback(() => {
-    mutatePendingPayments();
-    mutateBooklets();
-    mutateNextOr();
-    mutateReceipts();
-    mutateUndeposited();
-    mutateBankAccounts();
-    mutateDeposits();
-    mutateRcd();
-    mutateCancelled();
+    void mutatePendingPayments();
+    void mutateBooklets();
+    void mutateNextOr();
+    void mutateReceipts();
+    void mutateUndeposited();
+    void mutateBankAccounts();
+    void mutateDeposits();
+    void mutateRcd();
+    void mutateCancelled();
+    void mutateApplications();
   }, [
     mutatePendingPayments,
     mutateBooklets,
