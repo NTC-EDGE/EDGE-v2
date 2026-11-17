@@ -250,15 +250,22 @@ export function generateSoaPrintableHtml(
   const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Classify transaction type checkboxes
-  const variantLower = (app.serviceVariantName || app.serviceName || app.category || '').toLowerCase();
-  const isRen = variantLower.includes('renew');
-  const isMod = variantLower.includes('mod') && !isRen;
-  const isDup = variantLower.includes('dup');
-  const isCv = variantLower.includes('cv') || variantLower.includes('convert');
-  const isRoc = variantLower.includes('roc') || variantLower.includes('operator');
-  const isCo = variantLower.includes('co') || variantLower.includes('ownership');
-  const isMa = variantLower.includes('ma');
-  const isMs = variantLower.includes('ms');
+  const variantText = (
+    app.serviceVariantName ||
+    app.applicantsList?.find((a) => typeof a.serviceVariantName === 'string' && a.serviceVariantName.length > 0)?.serviceVariantName ||
+    app.services?.find((s) => typeof s.serviceVariantName === 'string' && s.serviceVariantName.length > 0)?.serviceVariantName ||
+    app.category ||
+    ''
+  ).toLowerCase();
+
+  const isRen = /\b(renew|renewal)\b/i.test(variantText);
+  const isMod = !isRen && /\b(mod|modification|upgrade|amend|amendment)\b/i.test(variantText);
+  const isDup = /\b(dup|duplicate|replacement|lost)\b/i.test(variantText);
+  const isCv = /\bcv\b/i.test(variantText) || variantText.includes('change of vehicle');
+  const isRoc = /\broc\b/i.test(variantText) || variantText.includes('radio operator certificate');
+  const isCo = /\bco\b/i.test(variantText) || variantText.includes('change of ownership');
+  const isMa = /\bma\b/i.test(variantText) || variantText.includes('mobile amateur');
+  const isMs = /\bms\b/i.test(variantText) || variantText.includes('mobile station');
   const isNew = !isRen && !isMod && !isDup && !isCv && !isRoc && !isCo && !isMa && !isMs;
 
   const isForAssessmentOnly = app.intent === 'AssessmentOnly' || app.isAssessmentOnly === true;
