@@ -4,6 +4,8 @@ import { CategoryGrid } from "./CategoryGrid";
 import { BulkApplicantsPanel } from "../accreditation/customer-premises";
 import { ExamBulkApplicantsPanel } from "../exams/radio-operator";
 import { GeneralBulkApplicantsPanel } from "../shared/GeneralBulkApplicantsPanel";
+import { isServiceVariantIndividual } from "../shared/helpers/applicantDisplayHelper";
+import { applyImportedApplicantsToCohort, BulkImportMode } from "../shared/spreadsheet";
 import { styles } from "../Services.styles";
 
 interface ContentColumnProps {
@@ -94,7 +96,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           bulkMethod={bulkMethod}
           onAddApplicant={handleAddExamApplicant}
           onSubmitAll={() => {
-            servicesState.setIsBulkSubmitOpen(true);
+            setExamWizardStep(6);
           }}
         />
       ) : activeWizardService === "general-service" &&
@@ -121,29 +123,46 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           onRemoveApplicant={handleRemoveGeneralApplicant}
           onRemoveApplicants={handleRemoveMultipleGeneralApplicants}
           onAddApplicant={handleAddGeneralApplicant}
-          onApplicantsImported={(imported) => {
+          onApplicantsImported={(imported, mode: BulkImportMode = "REPLACE") => {
             const baseApp = generalApplicants[0];
+            const isIndiv = isServiceVariantIndividual(
+              selectedService,
+              undefined,
+              baseApp?.selectedVariantId,
+              baseApp?.selectedVariantName
+            );
             const enriched = imported.map((app) => ({
               ...app,
               selectedVariantId: baseApp?.selectedVariantId || app.selectedVariantId,
               selectedVariantName: baseApp?.selectedVariantName || app.selectedVariantName,
               selectedElementId: baseApp?.selectedElementId || app.selectedElementId,
               selectedElementTitle: baseApp?.selectedElementTitle || app.selectedElementTitle,
-              applicantType: baseApp?.applicantType || app.applicantType || "individual",
-              ...(baseApp?.applicantType === "company"
-                ? {
-                    companyName: baseApp.companyName || app.companyName,
-                    representativeName: baseApp.representativeName || app.representativeName,
-                    representativePosition: baseApp.representativePosition || app.representativePosition,
-                    representativeFirstName: baseApp.representativeFirstName || app.representativeFirstName,
-                    representativeMiddleName: baseApp.representativeMiddleName || app.representativeMiddleName,
-                    representativeLastName: baseApp.representativeLastName || app.representativeLastName,
-                    representativeSuffix: baseApp.representativeSuffix || app.representativeSuffix,
-                    dtiSecRegistration: baseApp.dtiSecRegistration || app.dtiSecRegistration,
-                  }
-                : {}),
+              applicantType: isIndiv ? ("individual" as const) : (app.applicantType || ("company" as const)),
+              representativeName: baseApp?.representativeName || app.representativeName,
+              representativePosition: baseApp?.representativePosition || app.representativePosition,
+              representativeFirstName: baseApp?.representativeFirstName || app.representativeFirstName,
+              representativeMiddleName: baseApp?.representativeMiddleName || app.representativeMiddleName,
+              representativeLastName: baseApp?.representativeLastName || app.representativeLastName,
+              representativeSuffix: baseApp?.representativeSuffix || app.representativeSuffix,
+              representativeEmail: baseApp?.representativeEmail || app.representativeEmail,
+              representativeContactNumber: baseApp?.representativeContactNumber || app.representativeContactNumber,
+              companyName: isIndiv ? (baseApp?.companyName || "") : (app.companyName || baseApp?.companyName),
+              dtiSecRegistration: isIndiv ? (baseApp?.dtiSecRegistration || "") : (app.dtiSecRegistration || baseApp?.dtiSecRegistration),
+              companyAddress: baseApp?.companyAddress || app.companyAddress,
+              companyRegion: baseApp?.companyRegion || app.companyRegion,
+              companyProvince: baseApp?.companyProvince || app.companyProvince,
+              companyCity: baseApp?.companyCity || app.companyCity,
+              companyBarangay: baseApp?.companyBarangay || app.companyBarangay,
+              companyStreet: baseApp?.companyStreet || app.companyStreet,
+              companyZipCode: baseApp?.companyZipCode || app.companyZipCode,
             }));
-            servicesState.setGeneralApplicants(enriched);
+            const nextCohort = applyImportedApplicantsToCohort(
+              generalApplicants,
+              enriched,
+              mode,
+              isIndiv
+            );
+            servicesState.setGeneralApplicants(nextCohort);
             setCurrentGeneralApplicantIndex(0);
           }}
           service={selectedService}

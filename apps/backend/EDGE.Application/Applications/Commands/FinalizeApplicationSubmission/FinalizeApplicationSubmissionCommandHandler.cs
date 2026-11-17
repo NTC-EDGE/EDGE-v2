@@ -81,8 +81,13 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
             }
             else
             {
-                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken);
+                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken)
+                             ?? await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
                 if (dbUser != null && app.UserId.HasValue && app.UserId.Value == dbUser.Id)
+                {
+                    isOwner = true;
+                }
+                else if (app.Status == ApplicationStatus.Draft && !app.UserId.HasValue)
                 {
                     isOwner = true;
                 }
@@ -150,6 +155,14 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
 
         trackedApp.Status = ApplicationStatus.Submitted;
         trackedApp.ApplicationNumber = targetAppNumber;
+
+        foreach (var aa in app.ApplicationApplicants)
+        {
+            if (aa.Applicant != null && aa.Applicant.Status == ApplicantStatus.Incomplete)
+            {
+                aa.Applicant.Status = ApplicantStatus.Complete;
+            }
+        }
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try

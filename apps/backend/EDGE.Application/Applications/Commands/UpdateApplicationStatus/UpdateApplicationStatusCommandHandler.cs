@@ -72,6 +72,13 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
             newStatus = ApplicationStatus.Completed;
             app.AssessedAt = DateTime.UtcNow;
         }
+        else if (newStatus == ApplicationStatus.ForIssuance &&
+                 app.OrdersOfPayment != null &&
+                 app.OrdersOfPayment.Any(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing))
+        {
+            // Prevent premature transition to ForIssuance when a bulk application still has unpaid Orders of Payment
+            newStatus = ApplicationStatus.PendingPayment;
+        }
 
         app.Status = newStatus;
         if (!string.IsNullOrWhiteSpace(request.Remarks))
@@ -174,19 +181,25 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                 }
             }
             // When Evaluator approves official application:
-            // SOA status changes to FOR Order of Payment, and Order of Payment is initialized for Accountant review
+            // SOA status changes to FOR Order of Payment.
+            // Note: Order of Payment (OP) series number is NOT generated here — it is generated ONLY after Accountant approval
+            // so that OP series numbers follow the chronological order of Accountant approvals independently of SOA series numbers.
             else if (newStatus == ApplicationStatus.ForAccountant)
             {
-                var latestSoa = app.StatementsOfAccount?.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
-                if (latestSoa != null)
+                var activeSoas = app.StatementsOfAccount?
+                    .Where(s => !s.IsDeleted)
+                    .OrderBy(s => s.CreatedAt)
+                    .ToList() ?? new System.Collections.Generic.List<StatementOfAccount>();
+
+                foreach (var targetSoa in activeSoas)
                 {
-                    var prevSoaStatus = latestSoa.Status;
-                    latestSoa.Status = SoaStatus.ForOrderOfPayment;
+                    var prevSoaStatus = targetSoa.Status;
+                    targetSoa.Status = SoaStatus.ForOrderOfPayment;
 
                     await _applicationRepository.AddSoaHistoryAsync(new SoaHistory
                     {
                         Id = Guid.NewGuid(),
-                        StatementOfAccountId = latestSoa.Id,
+                        StatementOfAccountId = targetSoa.Id,
                         Action = "Assessment approved by Evaluator. SOA endorsed FOR Order of Payment.",
                         FromStatus = prevSoaStatus,
                         ToStatus = SoaStatus.ForOrderOfPayment,
@@ -197,42 +210,18 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                         Timestamp = DateTime.UtcNow
                     }, cancellationToken);
 
-                    var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == latestSoa.Id)
-                                     ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Returned);
+                    // Only update an existing OP if one already exists from a prior Accountant return cycle.
+                    // Do NOT create a new OP or allocate an OpNumber before Accountant approval.
+                    var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == targetSoa.Id)
+                                     ?? (activeSoas.Count == 1
+                                         ? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Returned)
+                                         : null);
 
-                    if (existingOp == null)
-                    {
-                        var op = new OrderOfPayment
-                        {
-                            Id = Guid.NewGuid(),
-                            ApplicationId = app.Id,
-                            StatementOfAccountId = latestSoa.Id,
-                            OpNumber = _numberingSeriesService != null
-                                ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId, cancellationToken)
-                                : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
-                            AmountDue = latestSoa.TotalAmount,
-                            Status = OpStatus.Billed,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _applicationRepository.AddOpAsync(op, cancellationToken);
-
-                        await _applicationRepository.AddOpHistoryAsync(new OpHistory
-                        {
-                            Id = Guid.NewGuid(),
-                            OrderOfPaymentId = op.Id,
-                            Action = "Order of Payment initialized for Accountant review.",
-                            ToStatus = OpStatus.Billed,
-                            PerformedByUserId = actingUserId,
-                            StaffName = staffName,
-                            StaffRole = staffRole,
-                            Timestamp = DateTime.UtcNow
-                        }, cancellationToken);
-                    }
-                    else
+                    if (existingOp != null)
                     {
                         var prevOpStatus = existingOp.Status;
                         existingOp.Status = OpStatus.Billed;
-                        existingOp.AmountDue = latestSoa.TotalAmount;
+                        existingOp.AmountDue = targetSoa.TotalAmount;
                         existingOp.AmountReceived = 0;
                         existingOp.PaymentMethod = null;
                         existingOp.CheckNumber = null;

@@ -50,6 +50,7 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
 
   const isIndividual = (singleApplicant.applicantType || '').toLowerCase() === 'individual';
   const isCompany = !isIndividual && ((singleApplicant.applicantType || '').toLowerCase() === 'company' || Boolean(singleApplicant.companyName));
+  const hasSponsoringCompany = isCompany || Boolean(singleApplicant.companyName && singleApplicant.companyName.trim().length > 0 && singleApplicant.companyName.trim() !== 'Company Applicant');
 
   const resolvedSchool = singleApplicant.schoolAttended || singleApplicant.schoolName || null;
   const resolvedCourse = singleApplicant.courseTaken || singleApplicant.courseDegree || null;
@@ -60,14 +61,14 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
     <ApplicantDetailsReviewCard
       activeApplicant={{
         applicantType: isCompany ? 'company' : 'individual',
-        companyName: isCompany ? (singleApplicant.companyName || null) : null,
-        registrationNumber: isCompany ? (singleApplicant.registrationNumber || null) : null,
-        companyAddress: isCompany ? (singleApplicant.companyAddress || null) : null,
-        companyEmail: isCompany ? (singleApplicant.companyEmail || null) : null,
-        companyContactNumber: isCompany ? (singleApplicant.companyContactNumber || null) : null,
-        representativeName: isCompany ? (singleApplicant.representativeName || null) : null,
-        representativeEmail: isCompany ? (singleApplicant.representativeEmail || null) : null,
-        representativeContactNumber: isCompany ? (singleApplicant.representativeContactNumber || null) : null,
+        companyName: hasSponsoringCompany ? (singleApplicant.companyName || null) : null,
+        registrationNumber: hasSponsoringCompany ? (singleApplicant.registrationNumber || null) : null,
+        companyAddress: hasSponsoringCompany ? (singleApplicant.companyAddress || null) : null,
+        companyEmail: hasSponsoringCompany ? (singleApplicant.companyEmail || null) : null,
+        companyContactNumber: hasSponsoringCompany ? (singleApplicant.companyContactNumber || null) : null,
+        representativeName: hasSponsoringCompany ? (singleApplicant.representativeName || null) : null,
+        representativeEmail: hasSponsoringCompany ? (singleApplicant.representativeEmail || null) : null,
+        representativeContactNumber: hasSponsoringCompany ? (singleApplicant.representativeContactNumber || null) : null,
         notes: singleApplicant.notes,
         schoolAttended: resolvedSchool,
         schoolName: resolvedSchool,

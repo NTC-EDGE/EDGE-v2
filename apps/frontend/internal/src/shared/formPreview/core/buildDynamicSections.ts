@@ -277,7 +277,12 @@ export function buildDynamicSections(
         });
       };
 
-      if (isUnrelatedSection(sectionTitle) || isUnrelatedSection(sectionKey)) {
+      if (
+        isUnrelatedSection(sectionTitle) ||
+        isUnrelatedSection(sectionKey) ||
+        sectionKey.toLowerCase().trim() === 'additionalspecifications' ||
+        sectionTitle.toLowerCase().trim() === 'additional technical specifications'
+      ) {
         markSectionRendered();
         return;
       }

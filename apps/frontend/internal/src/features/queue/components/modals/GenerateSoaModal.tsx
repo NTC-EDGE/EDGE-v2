@@ -29,7 +29,7 @@ import {
   FeeCalculationResultDto,
   useSoaNotes,
 } from '@edge/api';
-import { ApplicationData, SoaItem } from '../../../../types/application';
+import { ApplicationData, ApplicantItem, SoaItem, SoaRecordSummary } from '../../../../types/application';
 import {
   EditableLineItem,
   normalizeYmd,
@@ -39,10 +39,13 @@ import {
   mapCalculatedFeesToEditableItems,
   mapExistingSoaItemsToEditableItems,
   calculateLineItemAmount,
+  doesApplicationAskForYears,
+  doesFeeCodeUseYears,
   SOA_STANDARD_PARTICULARS,
   SoaStandardParticular,
   SoaParticularCategory,
   normalizeParticularKey,
+  resolveDedupFeeKey,
   isDuplicateParticular,
   getAvailableStandardParticular,
 } from '../../utils/soaModalHelpers';
@@ -54,6 +57,23 @@ interface GenerateSoaModalProps {
   onSuccess?: () => void;
 }
 
+function resolveApplicantAddress(applicant: ApplicantItem, fallbackAddress: string): string {
+  const rawParts = [
+    applicant.streetAddress || applicant.address,
+    applicant.barangay,
+    applicant.city,
+    applicant.province,
+    applicant.zipCode,
+  ]
+    .map((p) => (p || '').trim())
+    .filter((p) => p.length > 0);
+
+  if (rawParts.length > 0) {
+    return Array.from(new Set(rawParts)).join(', ');
+  }
+  return fallbackAddress;
+}
+
 export function GenerateSoaModal({
   visible,
   app,
@@ -61,6 +81,34 @@ export function GenerateSoaModal({
   onSuccess,
 }: GenerateSoaModalProps) {
   const { colors, isDark } = useTheme();
+
+  const isBulkApp =
+    app.applicationType === 'BULK' ||
+    (app.mode || '').toUpperCase() === 'BULK' ||
+    (app.applicantsList !== undefined && app.applicantsList.length > 1);
+
+  const eligibleApplicants = useMemo<ApplicantItem[]>(() => {
+    if (!app.applicantsList || app.applicantsList.length === 0) return [];
+    const filtered = app.applicantsList.filter(
+      (a) => a.status !== 'Incomplete' && a.status !== 'ForEndorsement'
+    );
+    return filtered.length > 0 ? filtered : app.applicantsList;
+  }, [app.applicantsList]);
+
+  const [billingScopeMode, setBillingScopeMode] = useState<'BULK' | 'INDIVIDUAL'>('BULK');
+  const [selectedApplicantId, setSelectedApplicantId] = useState<string>('ALL');
+
+  const selectedSingleApplicant = useMemo<ApplicantItem | undefined>(() => {
+    if (!isBulkApp || billingScopeMode !== 'INDIVIDUAL' || selectedApplicantId === 'ALL') {
+      return undefined;
+    }
+    return eligibleApplicants.find((a) => a.id === selectedApplicantId);
+  }, [isBulkApp, billingScopeMode, selectedApplicantId, eligibleApplicants]);
+
+  const existingApplicantSoa = useMemo<SoaRecordSummary | undefined>(() => {
+    if (!selectedSingleApplicant || !app.soasList) return undefined;
+    return app.soasList.find((s) => s.applicantId === selectedSingleApplicant.id);
+  }, [selectedSingleApplicant, app.soasList]);
 
   const isExistingSoa = Boolean(
     (app.soaItems && app.soaItems.length > 0) ||
@@ -82,6 +130,11 @@ export function GenerateSoaModal({
   const [calculatedFees, setCalculatedFees] = useState<FeeCalculationResultDto | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationError, setCalculationError] = useState<string | null>(null);
+
+  const appAsksForYears = useMemo(
+    () => doesApplicationAskForYears(app, calculatedFees),
+    [app, calculatedFees]
+  );
 
   // Mode: automated statutory calculation vs manual customization
   const [isManualMode, setIsManualMode] = useState(false);
@@ -119,36 +172,189 @@ export function GenerateSoaModal({
   }, [filteredParticulars]);
 
   // Fetch backend calculated fees based on statutory formula & service catalog
-  const fetchBackendCalculatedFees = useCallback(async () => {
-    if (!app.id) return;
-    setIsCalculating(true);
-    setCalculationError(null);
+  const fetchBackendCalculatedFees = useCallback(
+    async (overrideScope?: 'BULK' | 'INDIVIDUAL', overrideApplicantId?: string) => {
+      if (!app.id) return;
+      setIsCalculating(true);
+      setCalculationError(null);
 
-    const [res, err] = await applicationService.calculateApplicationFees(app.id);
-    setIsCalculating(false);
+      const activeScope = overrideScope ?? billingScopeMode;
+      const activeAppId = overrideApplicantId ?? selectedApplicantId;
+      const targetApplicantId =
+        isBulkApp && activeScope === 'INDIVIDUAL'
+          ? (activeAppId !== 'ALL' ? activeAppId : eligibleApplicants[0]?.id)
+          : undefined;
+      const targetUnits =
+        isBulkApp && activeScope === 'INDIVIDUAL'
+          ? 1
+          : (isBulkApp ? Math.max(eligibleApplicants.length, 1) : 1);
 
-    if (err !== null || !res?.data) {
-      const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
-        ? String(Reflect.get(err, 'message'))
-        : 'Failed to calculate statutory fees automatically.';
-      setCalculationError(errMsg);
+      const [res, err] = await applicationService.calculateApplicationFees(app.id, {
+        applicantId: targetApplicantId,
+        noOfUnits: targetUnits,
+      });
+      setIsCalculating(false);
+
+      if (err !== null || !res?.data) {
+        const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+          ? String(Reflect.get(err, 'message'))
+          : 'Failed to calculate statutory fees automatically.';
+        setCalculationError(errMsg);
+        return;
+      }
+
+      const rawCalcData = res.data;
+      const seenCalcKeys = new Set<string>();
+      const dedupedLineItems = (rawCalcData.lineItems ?? []).filter((li) => {
+        const key = resolveDedupFeeKey(li.itemCode || '', li.particular || '');
+        if (seenCalcKeys.has(key)) return false;
+        seenCalcKeys.add(key);
+        return true;
+      });
+      const dedupedSubTotal = dedupedLineItems
+        .filter((li) => !li.isTax && !li.isSurcharge)
+        .reduce((sum, li) => sum + (li.amount || 0), 0);
+      const dedupedSurcharge = dedupedLineItems
+        .filter((li) => Boolean(li.isSurcharge))
+        .reduce((sum, li) => sum + (li.amount || 0), 0);
+      const dedupedTax = dedupedLineItems
+        .filter((li) => Boolean(li.isTax))
+        .reduce((sum, li) => sum + (li.amount || 0), 0);
+      const calcData: FeeCalculationResultDto = {
+        ...rawCalcData,
+        lineItems: dedupedLineItems,
+        subTotal: dedupedLineItems.length > 0 ? dedupedSubTotal : rawCalcData.subTotal,
+        surchargeAmount: dedupedLineItems.length > 0 ? dedupedSurcharge : rawCalcData.surchargeAmount,
+        taxAmount: dedupedLineItems.length > 0 ? dedupedTax : rawCalcData.taxAmount,
+        totalAmount:
+          dedupedLineItems.length > 0
+            ? dedupedSubTotal + dedupedSurcharge + dedupedTax
+            : rawCalcData.totalAmount,
+      };
+      setCalculatedFees(calcData);
+
+      const hasTargetExistingItems =
+        isBulkApp && activeScope === 'INDIVIDUAL'
+          ? (activeAppId !== 'ALL' && Boolean(app.soasList?.some((s) => s.applicantId === activeAppId && s.items.length > 0)))
+          : (isExistingSoa && app.soaBillingMode !== 'INDIVIDUAL');
+
+      if (!hasTargetExistingItems) {
+        setCustomLineItems(mapCalculatedFeesToEditableItems(calcData.lineItems, 'calc'));
+      }
+    },
+    [app.id, app.soasList, app.soaBillingMode, billingScopeMode, selectedApplicantId, isBulkApp, eligibleApplicants, isExistingSoa]
+  );
+
+  const handleSelectBillingScope = (nextScope: 'BULK' | 'INDIVIDUAL') => {
+    setBillingScopeMode(nextScope);
+    const fallbackAddress = resolveInitialAddress(app);
+
+    if (nextScope === 'BULK') {
+      setSelectedApplicantId('ALL');
+      setIssuedToName(resolveInitialName(app));
+      setIssuedToType(resolveInitialType(app));
+      setIssuedToAddress(fallbackAddress);
+      setIsManualMode(false);
+      void fetchBackendCalculatedFees('BULK', 'ALL');
+    } else {
+      const nextApplicantId = selectedApplicantId !== 'ALL' ? selectedApplicantId : 'ALL';
+      const matchedApplicant = eligibleApplicants.find((a) => a.id === nextApplicantId) ?? eligibleApplicants[0];
+      const matchedSoa = nextApplicantId !== 'ALL'
+        ? app.soasList?.find((s) => s.applicantId === nextApplicantId)
+        : undefined;
+
+      if (nextApplicantId === 'ALL') {
+        setIssuedToName(
+          matchedApplicant
+            ? `${matchedApplicant.name} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
+            : resolveInitialName(app)
+        );
+        setIssuedToType('Individual');
+        setIssuedToAddress(matchedApplicant ? resolveApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress);
+        setIsManualMode(false);
+      } else if (matchedSoa) {
+        setIssuedToName(matchedSoa.issuedToName || matchedApplicant?.name || resolveInitialName(app));
+        setIssuedToType(matchedSoa.issuedToType);
+        setIssuedToAddress(matchedSoa.issuedToAddress || (matchedApplicant ? resolveApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress));
+        if (matchedSoa.items.length > 0) {
+          setCustomLineItems(mapExistingSoaItemsToEditableItems(matchedSoa.items));
+          setIsManualMode(true);
+        } else {
+          setIsManualMode(false);
+        }
+      } else if (matchedApplicant) {
+        setIssuedToName(matchedApplicant.name);
+        setIssuedToType('Individual');
+        setIssuedToAddress(resolveApplicantAddress(matchedApplicant, fallbackAddress));
+        setIsManualMode(false);
+      }
+      void fetchBackendCalculatedFees('INDIVIDUAL', nextApplicantId);
+    }
+  };
+
+  const handleSelectApplicantTarget = (nextApplicantId: string) => {
+    setSelectedApplicantId(nextApplicantId);
+    const fallbackAddress = resolveInitialAddress(app);
+
+    if (nextApplicantId === 'ALL') {
+      const firstApplicant = eligibleApplicants[0];
+      setIssuedToName(
+        firstApplicant
+          ? `${firstApplicant.name} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
+          : resolveInitialName(app)
+      );
+      setIssuedToType('Individual');
+      setIssuedToAddress(firstApplicant ? resolveApplicantAddress(firstApplicant, fallbackAddress) : fallbackAddress);
+      setIsManualMode(false);
+      void fetchBackendCalculatedFees('INDIVIDUAL', 'ALL');
       return;
     }
 
-    const calcData = res.data;
-    setCalculatedFees(calcData);
+    const matchedApplicant = eligibleApplicants.find((a) => a.id === nextApplicantId);
+    const matchedSoa = app.soasList?.find((s) => s.applicantId === nextApplicantId);
 
-    // If new SOA (not existing), populate default custom line items from calculated result
-    if (!isExistingSoa) {
-      setCustomLineItems(mapCalculatedFeesToEditableItems(calcData.lineItems, 'calc'));
+    if (matchedSoa) {
+      setIssuedToName(matchedSoa.issuedToName || matchedApplicant?.name || resolveInitialName(app));
+      setIssuedToType(matchedSoa.issuedToType);
+      setIssuedToAddress(matchedSoa.issuedToAddress || (matchedApplicant ? resolveApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress));
+      if (matchedSoa.items.length > 0) {
+        setCustomLineItems(mapExistingSoaItemsToEditableItems(matchedSoa.items));
+        setIsManualMode(true);
+      } else {
+        setIsManualMode(false);
+      }
+    } else if (matchedApplicant) {
+      setIssuedToName(matchedApplicant.name);
+      setIssuedToType('Individual');
+      setIssuedToAddress(resolveApplicantAddress(matchedApplicant, fallbackAddress));
+      setIsManualMode(false);
     }
-  }, [app.id, isExistingSoa]);
+
+    void fetchBackendCalculatedFees('INDIVIDUAL', nextApplicantId);
+  };
 
   useEffect(() => {
     if (visible) {
-      setIssuedToName(resolveInitialName(app));
-      setIssuedToType(resolveInitialType(app));
-      setIssuedToAddress(resolveInitialAddress(app));
+      const initialScope: 'BULK' | 'INDIVIDUAL' =
+        isBulkApp && app.soaBillingMode === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'BULK';
+      setBillingScopeMode(initialScope);
+      setSelectedApplicantId('ALL');
+
+      const fallbackAddress = resolveInitialAddress(app);
+      if (initialScope === 'INDIVIDUAL' && eligibleApplicants.length > 0) {
+        const firstApplicant = eligibleApplicants[0];
+        setIssuedToName(
+          firstApplicant
+            ? `${firstApplicant.name} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
+            : resolveInitialName(app)
+        );
+        setIssuedToType('Individual');
+        setIssuedToAddress(firstApplicant ? resolveApplicantAddress(firstApplicant, fallbackAddress) : fallbackAddress);
+      } else {
+        setIssuedToName(resolveInitialName(app));
+        setIssuedToType(resolveInitialType(app));
+        setIssuedToAddress(fallbackAddress);
+      }
 
       const rawDue = normalizeYmd(app.soaDueDate || app.dueDate);
       const computedDue = rawDue || (() => {
@@ -158,7 +364,7 @@ export function GenerateSoaModal({
       })();
       setDueDate(computedDue);
 
-      if (isExistingSoa && app.soaItems && app.soaItems.length > 0) {
+      if (isExistingSoa && initialScope === 'BULK' && app.soaItems && app.soaItems.length > 0) {
         // Pre-populate existing SOA line items so custom edits & payments are preserved
         setCustomLineItems(mapExistingSoaItemsToEditableItems(app.soaItems));
         setIsManualMode(true);
@@ -168,9 +374,9 @@ export function GenerateSoaModal({
 
       setRemarks(app.soaRemarks || app.remarks || '');
       setSelectedSoaNoteId(app.soaNoteId ?? null);
-      fetchBackendCalculatedFees();
+      void fetchBackendCalculatedFees(initialScope, 'ALL');
     }
-  }, [visible, app, isExistingSoa, fetchBackendCalculatedFees]);
+  }, [visible, app.id]);
 
   useEffect(() => {
     if (visible && tenantSoaNotes.length > 0) {
@@ -210,12 +416,19 @@ export function GenerateSoaModal({
       prev.map((item) => {
         if (item.id !== id) return item;
         const updated = { ...item, [field]: value };
-        if (field === 'noOfUnits' || field === 'feeRate' || field === 'validityYears') {
+        const itemUsesYears =
+          appAsksForYears &&
+          doesFeeCodeUseYears(updated.itemCode, updated.particular, calculatedFees?.formulaApplied, appAsksForYears);
+        if (!itemUsesYears) {
+          updated.validityYears = 0;
+        }
+        if (field === 'noOfUnits' || field === 'feeRate' || field === 'validityYears' || field === 'itemCode') {
           updated.amount = calculateLineItemAmount(
             updated.validityYears,
             updated.noOfUnits,
             updated.feeRate,
-            updated.itemCode
+            updated.itemCode,
+            updated.particular
           );
         }
         return updated;
@@ -233,11 +446,24 @@ export function GenerateSoaModal({
       prev.map((item) => {
         if (item.id !== itemId) return item;
         const isOthers = Boolean(selected.isOthers);
+        const itemUsesYears =
+          appAsksForYears &&
+          doesFeeCodeUseYears(selected.defaultCode, selected.particular, calculatedFees?.formulaApplied, appAsksForYears);
+        const nextYears = itemUsesYears ? (item.validityYears > 0 ? item.validityYears : 1) : 0;
+        const nextAmount = calculateLineItemAmount(
+          nextYears,
+          item.noOfUnits,
+          item.feeRate,
+          selected.defaultCode,
+          selected.particular
+        );
         return {
           ...item,
           particular: selected.particular,
           itemCode: selected.defaultCode,
           description: isOthers ? item.description : undefined,
+          validityYears: nextYears,
+          amount: nextAmount,
         };
       })
     );
@@ -271,11 +497,14 @@ export function GenerateSoaModal({
       return;
     }
 
+    const usesYears =
+      appAsksForYears &&
+      doesFeeCodeUseYears(available.defaultCode, available.particular, calculatedFees?.formulaApplied, appAsksForYears);
     const newItem: EditableLineItem = {
       id: `item-new-${Date.now()}`,
       particular: available.particular,
       itemCode: available.defaultCode,
-      validityYears: 1,
+      validityYears: usesYears ? 1 : 0,
       noOfUnits: 1,
       feeRate: 100,
       amount: 100,
@@ -292,9 +521,14 @@ export function GenerateSoaModal({
   };
 
   // Compute displayed total
-  const displayedTotal = isManualMode
+  const singleUnitTotal = isManualMode
     ? customLineItems.reduce((sum, item) => sum + item.amount, 0)
     : (calculatedFees?.totalAmount ?? (app.totalAmountDue > 0 ? app.totalAmountDue : 0));
+
+  const displayedTotal =
+    isBulkApp && billingScopeMode === 'INDIVIDUAL' && selectedApplicantId === 'ALL'
+      ? singleUnitTotal * Math.max(eligibleApplicants.length, 1)
+      : singleUnitTotal;
 
   const handleGenerate = async () => {
     const isReturned =
@@ -307,7 +541,9 @@ export function GenerateSoaModal({
       return;
     }
 
-    if (issuedToName.trim().length === 0) {
+    const isPerApplicantBatch = isBulkApp && billingScopeMode === 'INDIVIDUAL' && selectedApplicantId === 'ALL';
+
+    if (!isPerApplicantBatch && issuedToName.trim().length === 0) {
       toast.error('Please provide the Payor / Issued To Name.');
       return;
     }
@@ -350,8 +586,68 @@ export function GenerateSoaModal({
     }
 
     const resolvedDue = dueDate.trim() || normalizeYmd(app.soaDueDate || app.dueDate) || (new Date().toISOString().split('T')[0] ?? '');
+    const fallbackAddress = resolveInitialAddress(app);
 
-    const [res, err] = await applicationService.createSoa(app.id, {
+    if (isBulkApp && billingScopeMode === 'INDIVIDUAL') {
+      const targetApplicants =
+        selectedApplicantId === 'ALL'
+          ? eligibleApplicants
+          : eligibleApplicants.filter((a) => a.id === selectedApplicantId);
+
+      if (targetApplicants.length === 0) {
+        setSubmitting(false);
+        toast.error('No eligible applicant selected for Individual SOA generation.');
+        return;
+      }
+
+      for (const targetApp of targetApplicants) {
+        const indivName =
+          selectedApplicantId !== 'ALL' && issuedToName.trim().length > 0
+            ? issuedToName.trim()
+            : (targetApp.name || resolveInitialName(app));
+        const indivAddress =
+          selectedApplicantId !== 'ALL' && issuedToAddress.trim().length > 0
+            ? issuedToAddress.trim()
+            : resolveApplicantAddress(targetApp, fallbackAddress);
+        const indivType: IssuedToTypeDto =
+          selectedApplicantId !== 'ALL' ? issuedToType : 'Individual';
+
+        const [, err] = await applicationService.createSoa(app.id, {
+          applicantId: targetApp.id,
+          noOfUnits: 1,
+          issuedToType: indivType,
+          issuedToName: indivName,
+          issuedToAddress: indivAddress,
+          dueDate: resolvedDue,
+          lineItems: lineItemRequests,
+          remarks: remarks.trim() || undefined,
+          soaNoteId: selectedSoaNoteId || undefined,
+        });
+
+        if (err !== null) {
+          setSubmitting(false);
+          toast.error(`Failed to generate Individual SOA for ${indivName}.`);
+          return;
+        }
+      }
+
+      setSubmitting(false);
+      const msg =
+        targetApplicants.length > 1
+          ? `Generated ${targetApplicants.length} Individual Statement(s) of Account.`
+          : `Individual Statement of Account ${existingApplicantSoa ? 'updated' : 'generated'} for ${targetApplicants[0]?.name || 'applicant'}.`;
+      toast.success(msg);
+      await mutateApplications(app.id);
+      if (onSuccess) {
+        onSuccess();
+      }
+      onClose();
+      return;
+    }
+
+    const [, err] = await applicationService.createSoa(app.id, {
+      applicantId: undefined,
+      noOfUnits: isBulkApp ? Math.max(eligibleApplicants.length, 1) : 1,
       issuedToType,
       issuedToName: issuedToName.trim(),
       issuedToAddress: issuedToAddress.trim(),
@@ -450,6 +746,8 @@ export function GenerateSoaModal({
                 {
                   backgroundColor: isDark ? colors.brand[900] + '33' : colors.brand[50],
                   borderColor: isDark ? colors.brand[800] : colors.brand[200],
+                  borderLeftWidth: 4,
+                  borderLeftColor: isDark ? colors.brand[400] : colors.brand[600],
                 },
               ]}
             >
@@ -507,7 +805,7 @@ export function GenerateSoaModal({
                       borderWidth: 1,
                       borderColor: isDark ? colors.brand[500] : colors.brand[600],
                     }}
-                    onPress={fetchBackendCalculatedFees}
+                    onPress={() => void fetchBackendCalculatedFees()}
                   >
                     <Lucide
                       name="refresh-cw"
@@ -634,14 +932,267 @@ export function GenerateSoaModal({
                       { color: isDark ? colors.neutral[300] : colors.neutral[700] },
                     ]}
                   >
-                    Applicants:{' '}
+                    Billing Mode:{' '}
                     <Text style={{ fontWeight: TYPOGRAPHY.weights.bold }}>
-                      {app.applicantsList?.length || 1} unit(s)
+                      {isBulkApp
+                        ? (billingScopeMode === 'INDIVIDUAL'
+                            ? (selectedApplicantId === 'ALL'
+                                ? `Individual SOA (${eligibleApplicants.length} Applicants)`
+                                : 'Individual SOA (Single Applicant)')
+                            : `Bulk Consolidated (${eligibleApplicants.length || 1} units)`)
+                        : 'Single Application'}
                     </Text>
                   </Text>
                 </View>
               </View>
             </View>
+
+            {/* ── Bulk vs Individual SOA Billing Scope Selector (Bulk Applications Only) ── */}
+            {isBulkApp && (
+              <View
+                style={[
+                  styles.sectionCard,
+                  {
+                    backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                    borderLeftWidth: 4,
+                    borderLeftColor: isDark ? '#818cf8' : '#4f46e5',
+                  },
+                ]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View
+                      style={[
+                        styles.sectionIconBadge,
+                        { backgroundColor: isDark ? '#312e81' : '#e0e7ff' },
+                      ]}
+                    >
+                      <Lucide name="layers" size={15} color={isDark ? '#a5b4fc' : '#4338ca'} />
+                    </View>
+                    <View>
+                      <Text
+                        style={[
+                          styles.sectionTitle,
+                          { color: isDark ? '#a5b4fc' : '#4338ca', marginBottom: 2 },
+                        ]}
+                      >
+                        BULK SOA &amp; ORDER OF PAYMENT (OP) BILLING MODE
+                      </Text>
+                      <Text
+                        style={[
+                          styles.sectionSubtitle,
+                          { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                        ]}
+                      >
+                        Choose whether to issue 1 consolidated Bulk SOA/OP for all applicants or Individual SOA/OP per applicant.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+                  <Pressable
+                    onPress={() => handleSelectBillingScope('BULK')}
+                    style={[
+                      {
+                        flex: 1,
+                        minWidth: 240,
+                        padding: 12,
+                        borderRadius: RADIUS.card,
+                        borderWidth: 1.5,
+                        borderColor:
+                          billingScopeMode === 'BULK'
+                            ? (isDark ? colors.brand[400] : colors.brand[600])
+                            : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                        backgroundColor:
+                          billingScopeMode === 'BULK'
+                            ? (isDark ? colors.brand[900] + '55' : colors.brand[50])
+                            : (isDark ? colors.neutral[900] : COLORS.neutral.white),
+                        gap: 4,
+                      },
+                      Platform.select({ web: { cursor: 'pointer' } as object }),
+                    ]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Lucide
+                          name="layers"
+                          size={15}
+                          color={billingScopeMode === 'BULK' ? (isDark ? colors.brand[300] : colors.brand[700]) : (isDark ? colors.neutral[400] : colors.neutral[500])}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: '700',
+                            color: billingScopeMode === 'BULK' ? (isDark ? colors.brand[300] : colors.brand[800]) : (isDark ? colors.neutral[200] : colors.neutral[800]),
+                          }}
+                        >
+                          Bulk SOA &amp; Bulk OP (Consolidated)
+                        </Text>
+                      </View>
+                      {billingScopeMode === 'BULK' && (
+                        <Lucide name="check-circle" size={15} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 11, color: isDark ? colors.neutral[400] : colors.neutral[600], lineHeight: 15 }}>
+                      Generates 1 consolidated SOA and 1 Bulk OP covering all {eligibleApplicants.length} eligible applicant(s).
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => handleSelectBillingScope('INDIVIDUAL')}
+                    style={[
+                      {
+                        flex: 1,
+                        minWidth: 240,
+                        padding: 12,
+                        borderRadius: RADIUS.card,
+                        borderWidth: 1.5,
+                        borderColor:
+                          billingScopeMode === 'INDIVIDUAL'
+                            ? (isDark ? colors.brand[400] : colors.brand[600])
+                            : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                        backgroundColor:
+                          billingScopeMode === 'INDIVIDUAL'
+                            ? (isDark ? colors.brand[900] + '55' : colors.brand[50])
+                            : (isDark ? colors.neutral[900] : COLORS.neutral.white),
+                        gap: 4,
+                      },
+                      Platform.select({ web: { cursor: 'pointer' } as object }),
+                    ]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Lucide
+                          name="users"
+                          size={15}
+                          color={billingScopeMode === 'INDIVIDUAL' ? (isDark ? colors.brand[300] : colors.brand[700]) : (isDark ? colors.neutral[400] : colors.neutral[500])}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: '700',
+                            color: billingScopeMode === 'INDIVIDUAL' ? (isDark ? colors.brand[300] : colors.brand[800]) : (isDark ? colors.neutral[200] : colors.neutral[800]),
+                          }}
+                        >
+                          Individual SOA &amp; Individual OP (By Applicant)
+                        </Text>
+                      </View>
+                      {billingScopeMode === 'INDIVIDUAL' && (
+                        <Lucide name="check-circle" size={15} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 11, color: isDark ? colors.neutral[400] : colors.neutral[600], lineHeight: 15 }}>
+                      Generates distinct per-applicant SOA and Individual OP (either for a single applicant or for all applicants).
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {billingScopeMode === 'INDIVIDUAL' && (
+                  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200] }}>
+                    <Text
+                      style={[
+                        styles.fieldLabel,
+                        { color: isDark ? colors.neutral[300] : colors.neutral[700], marginBottom: 8 },
+                      ]}
+                    >
+                      Select Target Applicant(s) for Individual SOA:
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      <Pressable
+                        onPress={() => handleSelectApplicantTarget('ALL')}
+                        style={[
+                          {
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: RADIUS.sm,
+                            borderWidth: 1,
+                            borderColor:
+                              selectedApplicantId === 'ALL'
+                                ? (isDark ? colors.brand[400] : colors.brand[600])
+                                : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                            backgroundColor:
+                              selectedApplicantId === 'ALL'
+                                ? (isDark ? colors.brand[900] : colors.brand[100])
+                                : (isDark ? colors.neutral[900] : COLORS.neutral.white),
+                          },
+                          Platform.select({ web: { cursor: 'pointer' } as object }),
+                        ]}
+                      >
+                        <Lucide
+                          name="users"
+                          size={13}
+                          color={selectedApplicantId === 'ALL' ? (isDark ? colors.brand[300] : colors.brand[800]) : (isDark ? colors.neutral[400] : colors.neutral[600])}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: selectedApplicantId === 'ALL' ? '700' : '600',
+                            color: selectedApplicantId === 'ALL' ? (isDark ? colors.brand[200] : colors.brand[900]) : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                          }}
+                        >
+                          All Eligible Applicants ({eligibleApplicants.length} Individual SOAs)
+                        </Text>
+                      </Pressable>
+
+                      {eligibleApplicants.map((applicant, idx) => {
+                        const isSelected = selectedApplicantId === applicant.id;
+                        const applicantHasSoa = Boolean(app.soasList?.some((s) => s.applicantId === applicant.id));
+                        return (
+                          <Pressable
+                            key={applicant.id}
+                            onPress={() => handleSelectApplicantTarget(applicant.id)}
+                            style={[
+                              {
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                                paddingHorizontal: 10,
+                                paddingVertical: 6,
+                                borderRadius: RADIUS.sm,
+                                borderWidth: 1,
+                                borderColor: isSelected
+                                  ? (isDark ? colors.brand[400] : colors.brand[600])
+                                  : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                                backgroundColor: isSelected
+                                  ? (isDark ? colors.brand[900] : colors.brand[100])
+                                  : (isDark ? colors.neutral[900] : COLORS.neutral.white),
+                              },
+                              Platform.select({ web: { cursor: 'pointer' } as object }),
+                            ]}
+                          >
+                            <Lucide
+                              name={applicantHasSoa ? 'check-circle' : 'user'}
+                              size={12}
+                              color={
+                                applicantHasSoa
+                                  ? (isDark ? '#34d399' : '#059669')
+                                  : isSelected
+                                  ? (isDark ? colors.brand[300] : colors.brand[800])
+                                  : (isDark ? colors.neutral[400] : colors.neutral[600])
+                              }
+                            />
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontWeight: isSelected ? '700' : '500',
+                                color: isSelected ? (isDark ? colors.brand[200] : colors.brand[900]) : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                              }}
+                            >
+                              #{idx + 1} {applicant.name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* ── Section 1: Payor Information ── */}
             <View
@@ -650,17 +1201,39 @@ export function GenerateSoaModal({
                 {
                   backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
                   borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                  borderLeftWidth: 4,
+                  borderLeftColor: isDark ? '#38bdf8' : '#0284c7',
                 },
               ]}
             >
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: isDark ? colors.brand[400] : colors.brand[700] },
-                ]}
-              >
-                1. BILLING &amp; PAYOR INFORMATION
-              </Text>
+              <View style={styles.sectionHeaderWithIcon}>
+                <View
+                  style={[
+                    styles.sectionIconBadge,
+                    { backgroundColor: isDark ? '#0c4a6e' : '#e0f2fe' },
+                  ]}
+                >
+                  <Lucide name="user" size={15} color={isDark ? '#38bdf8' : '#0284c7'} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: isDark ? '#38bdf8' : '#0369a1' },
+                    ]}
+                  >
+                    1. BILLING &amp; PAYOR INFORMATION
+                  </Text>
+                  <Text
+                    style={[
+                      styles.sectionSubtitle,
+                      { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                    ]}
+                  >
+                    Verify the payor name, billing address, and payment due date for this Statement of Account.
+                  </Text>
+                </View>
+              </View>
 
               <View style={styles.formRow}>
                 <View style={styles.formField}>
@@ -730,31 +1303,99 @@ export function GenerateSoaModal({
               style={[
                 styles.sectionCard,
                 {
-                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                  backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                  borderColor: isDark ? '#059669' : '#a7f3d0',
+                  borderLeftWidth: 4,
+                  borderLeftColor: isDark ? '#10b981' : '#059669',
                 },
               ]}
             >
               <View style={styles.sectionHeaderRow}>
-                <View>
-                  <Text
+                <View style={[styles.sectionHeaderWithIcon, { flex: 1, minWidth: 240 }]}>
+                  <View
                     style={[
-                      styles.sectionTitle,
-                      { color: isDark ? colors.brand[400] : colors.brand[700] },
+                      styles.sectionIconBadge,
+                      { backgroundColor: isDark ? '#064e3b' : '#d1fae5' },
                     ]}
                   >
-                    2. STATUTORY PARTICULARS &amp; FEE BREAKDOWN
-                  </Text>
-                  <Text
-                    style={[
-                      styles.sectionSubtitle,
-                      { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                    ]}
-                  >
-                    {isManualMode
-                      ? 'Editable line items active. Modify particulars, rates, and units below.'
-                      : 'Showing automated statutory fee schedule.'}
-                  </Text>
+                    <Lucide name="credit-card" size={15} color={isDark ? '#34d399' : '#059669'} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Text
+                        style={[
+                          styles.sectionTitle,
+                          { color: isDark ? '#34d399' : '#047857' },
+                        ]}
+                      >
+                        2. STATUTORY PARTICULARS &amp; FEE BREAKDOWN
+                      </Text>
+                      <View
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          borderRadius: 10,
+                          backgroundColor: isDark ? '#064e3b' : '#ecfdf5',
+                          borderWidth: 1,
+                          borderColor: isDark ? '#059669' : '#6ee7b7',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: isDark ? '#6ee7b7' : '#047857',
+                            fontFamily: TYPOGRAPHY.fonts.primary,
+                          }}
+                        >
+                          {isManualMode
+                            ? `${customLineItems.length} ITEM(S) • PHP ${singleUnitTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                            : `${calculatedFees?.lineItems.length ?? 0} ITEM(S) • PHP ${singleUnitTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                        </Text>
+                      </View>
+                      {Boolean(calculatedFees?.formulaApplied) && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            paddingHorizontal: 8,
+                            paddingVertical: 2,
+                            borderRadius: 10,
+                            backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                            borderWidth: 1,
+                            borderColor: isDark ? colors.brand[600] : colors.brand[300],
+                          }}
+                        >
+                          <Lucide
+                            name="code"
+                            size={10}
+                            color={isDark ? colors.brand[300] : colors.brand[700]}
+                          />
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontWeight: '700',
+                              color: isDark ? colors.brand[300] : colors.brand[700],
+                              fontFamily: TYPOGRAPHY.fonts.primary,
+                            }}
+                          >
+                            {calculatedFees?.formulaApplied}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.sectionSubtitle,
+                        { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                      ]}
+                    >
+                      {isManualMode
+                        ? 'Editable line items active. Modify particulars, rates, and units below.'
+                        : 'Showing automated statutory fee schedule.'}
+                    </Text>
+                  </View>
                 </View>
 
                 {/* Mode Switcher Button */}
@@ -816,7 +1457,7 @@ export function GenerateSoaModal({
                   <Text style={[styles.errorBannerText, { color: COLORS.semantic.error }]}>
                     {calculationError}
                   </Text>
-                  <Pressable onPress={fetchBackendCalculatedFees} style={styles.retryBtn}>
+                  <Pressable onPress={() => void fetchBackendCalculatedFees()} style={styles.retryBtn}>
                     <Text style={styles.retryBtnText}>Retry</Text>
                   </Pressable>
                 </View>
@@ -831,8 +1472,14 @@ export function GenerateSoaModal({
                       style={[
                         styles.itemRowCard,
                         {
-                          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                          backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
                           borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                          borderLeftWidth: 4,
+                          borderLeftColor: item.isTax
+                            ? (isDark ? '#10b981' : '#059669')
+                            : item.isSurcharge
+                            ? (isDark ? '#f87171' : '#dc2626')
+                            : (isDark ? colors.brand[400] : colors.brand[600]),
                         },
                       ]}
                     >
@@ -896,14 +1543,16 @@ export function GenerateSoaModal({
                         >
                           Units: <Text style={{ fontWeight: TYPOGRAPHY.weights.semibold }}>{item.noOfUnits}</Text>
                         </Text>
-                        <Text
-                          style={[
-                            styles.itemMetaText,
-                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                          ]}
-                        >
-                          Validity: <Text style={{ fontWeight: TYPOGRAPHY.weights.semibold }}>{item.validityYears} yr(s)</Text>
-                        </Text>
+                        {item.validityYears > 0 && (
+                          <Text
+                            style={[
+                              styles.itemMetaText,
+                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                            ]}
+                          >
+                            Validity: <Text style={{ fontWeight: TYPOGRAPHY.weights.semibold }}>{item.validityYears} yr(s)</Text>
+                          </Text>
+                        )}
                         <Text
                           style={[
                             styles.itemMetaText,
@@ -963,8 +1612,14 @@ export function GenerateSoaModal({
                         style={[
                           styles.itemRowCard,
                           {
-                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
                             borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                            borderLeftWidth: 4,
+                            borderLeftColor: item.isTax
+                              ? (isDark ? '#10b981' : '#059669')
+                              : item.isSurcharge
+                              ? (isDark ? '#f87171' : '#dc2626')
+                              : (isDark ? colors.brand[400] : colors.brand[600]),
                           },
                         ]}
                       >
@@ -1055,32 +1710,52 @@ export function GenerateSoaModal({
                             />
                           </View>
 
-                          <View style={{ flex: 0.7 }}>
-                            <Text
-                              style={[
-                                styles.miniLabel,
-                                { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                              ]}
-                            >
-                              Years
-                            </Text>
-                            <TextInput
-                              style={[
-                                styles.inputSm,
-                                {
-                                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                                  color: isDark ? colors.neutral[100] : colors.neutral[900],
-                                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                                  textAlign: 'center',
-                                },
-                              ]}
-                              keyboardType="numeric"
-                              value={String(item.validityYears || 1)}
-                              onChangeText={(v) =>
-                                handleUpdateItem(item.id, 'validityYears', Number(v) || 1)
-                              }
-                            />
-                          </View>
+                          {appAsksForYears && (
+                            <View style={{ flex: 0.7 }}>
+                              <Text
+                                style={[
+                                  styles.miniLabel,
+                                  { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                                ]}
+                              >
+                                Years
+                              </Text>
+                              {doesFeeCodeUseYears(item.itemCode, item.particular, calculatedFees?.formulaApplied, appAsksForYears) ? (
+                                <TextInput
+                                  style={[
+                                    styles.inputSm,
+                                    {
+                                      backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                      color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                      borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                      textAlign: 'center',
+                                    },
+                                  ]}
+                                  keyboardType="numeric"
+                                  value={String(item.validityYears || 1)}
+                                  onChangeText={(v) =>
+                                    handleUpdateItem(item.id, 'validityYears', Number(v) || 1)
+                                  }
+                                />
+                              ) : (
+                                <View
+                                  style={[
+                                    styles.inputSm,
+                                    {
+                                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                                      borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    },
+                                  ]}
+                                >
+                                  <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
+                                    N/A
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          )}
 
                           <View style={{ flex: 0.7 }}>
                             <Text
@@ -1296,113 +1971,147 @@ export function GenerateSoaModal({
                 </View>
               )}
 
-              {/* ── Remarks & Notes ── */}
-              <View
-                style={[
-                  styles.sectionCard,
-                  {
-                    backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                    borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                    marginBottom: 16,
-                  },
-                ]}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-                  <Text
+            </View>
+
+            {/* ── Section 3: Remarks & Notes ── */}
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                  borderLeftWidth: 4,
+                  borderLeftColor: isDark ? '#fbbf24' : '#d97706',
+                },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
+                <View style={styles.sectionHeaderWithIcon}>
+                  <View
                     style={[
-                      styles.sectionTitle,
-                      { color: isDark ? colors.neutral[100] : colors.neutral[900], marginBottom: 0 },
+                      styles.sectionIconBadge,
+                      { backgroundColor: isDark ? '#451a03' : '#fef3c7' },
                     ]}
                   >
-                    SOA Remarks & Assessment Instructions
-                  </Text>
-                  {tenantSoaNotes.length > 0 && (
-                    <Text style={{ fontSize: 11, color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
-                      Loaded from Regional Templates
-                    </Text>
-                  )}
-                </View>
-
-                {tenantSoaNotes.length > 0 && (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                    {tenantSoaNotes.map((note) => {
-                      const isSelected = selectedSoaNoteId === note.id;
-                      const isDefault = note.code === 'DEFAULT' || (note.title && note.title.toLowerCase().includes('default'));
-                      return (
-                        <Pressable
-                          key={note.id}
-                          onPress={() => {
-                            setRemarks(note.notes);
-                            setSelectedSoaNoteId(note.id);
-                            toast.success(`Applied ${note.title || note.code || 'regional'} template`);
-                          }}
-                          style={[
-                            {
-                              paddingHorizontal: 8,
-                              paddingVertical: 4,
-                              borderRadius: 6,
-                              borderWidth: 1,
-                              borderColor: isSelected
-                                ? (isDark ? colors.brand[500] : colors.brand[600])
-                                : (isDark ? colors.neutral[700] : colors.neutral[300]),
-                              backgroundColor: isSelected
-                                ? (isDark ? colors.brand[900] : colors.brand[50])
-                                : (isDark ? colors.neutral[800] : colors.neutral[100]),
-                            },
-                            Platform.select({ web: { cursor: 'pointer' } as object }),
-                          ]}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              fontWeight: isSelected ? '700' : '500',
-                              color: isSelected
-                                ? (isDark ? colors.brand[300] : colors.brand[700])
-                                : (isDark ? colors.neutral[300] : colors.neutral[700]),
-                            }}
-                          >
-                            {note.title || note.code || 'Regional Note'}{isDefault ? ' (Default)' : ''}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+                    <Lucide name="file-text" size={15} color={isDark ? '#fbbf24' : '#d97706'} />
                   </View>
+                  <View>
+                    <Text
+                      style={[
+                        styles.sectionTitle,
+                        { color: isDark ? '#fbbf24' : '#b45309', marginBottom: 0 },
+                      ]}
+                    >
+                      3. SOA REMARKS &amp; ASSESSMENT INSTRUCTIONS
+                    </Text>
+                    <Text
+                      style={[
+                        styles.sectionSubtitle,
+                        { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                      ]}
+                    >
+                      Select a regional note template or enter custom payment instructions.
+                    </Text>
+                  </View>
+                </View>
+                {tenantSoaNotes.length > 0 && (
+                  <Text style={{ fontSize: 11, color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
+                    Loaded from Regional Templates
+                  </Text>
                 )}
-
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      minHeight: 64,
-                      textAlignVertical: 'top',
-                      backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
-                      color: isDark ? colors.neutral[100] : colors.neutral[900],
-                      borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                    },
-                  ]}
-                  multiline
-                  numberOfLines={3}
-                  value={remarks}
-                  onChangeText={setRemarks}
-                  placeholder="Enter remarks or payment instructions for this Statement of Account..."
-                />
               </View>
 
-              {/* ── Total Assessment Summary Card ── */}
-              <View
+              {tenantSoaNotes.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
+                  {tenantSoaNotes.map((note) => {
+                    const isSelected = selectedSoaNoteId === note.id;
+                    const isDefault = note.code === 'DEFAULT' || (note.title && note.title.toLowerCase().includes('default'));
+                    return (
+                      <Pressable
+                        key={note.id}
+                        onPress={() => {
+                          setRemarks(note.notes);
+                          setSelectedSoaNoteId(note.id);
+                          toast.success(`Applied ${note.title || note.code || 'regional'} template`);
+                        }}
+                        style={[
+                          {
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                            borderWidth: 1,
+                            borderColor: isSelected
+                              ? (isDark ? colors.brand[500] : colors.brand[600])
+                              : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                            backgroundColor: isSelected
+                              ? (isDark ? colors.brand[900] : colors.brand[50])
+                              : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                          },
+                          Platform.select({ web: { cursor: 'pointer' } as object }),
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: isSelected ? '700' : '500',
+                            color: isSelected
+                              ? (isDark ? colors.brand[300] : colors.brand[700])
+                              : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                          }}
+                        >
+                          {note.title || note.code || 'Regional Note'}{isDefault ? ' (Default)' : ''}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
+              <TextInput
                 style={[
-                  styles.totalSummaryCard,
+                  styles.input,
                   {
-                    backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100],
+                    minHeight: 64,
+                    textAlignVertical: 'top',
+                    backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+                    color: isDark ? colors.neutral[100] : colors.neutral[900],
                     borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
                   },
                 ]}
-              >
+                multiline
+                numberOfLines={3}
+                value={remarks}
+                onChangeText={setRemarks}
+                placeholder="Enter remarks or payment instructions for this Statement of Account..."
+              />
+            </View>
+
+            {/* ── Total Assessment Summary Card ── */}
+            <View
+              style={[
+                styles.totalSummaryCard,
+                {
+                  backgroundColor: isDark ? '#064e3b' + '55' : '#ecfdf5',
+                  borderColor: isDark ? '#059669' : '#6ee7b7',
+                  borderLeftWidth: 5,
+                  borderLeftColor: isDark ? '#34d399' : '#059669',
+                },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View
+                  style={[
+                    styles.sectionIconBadge,
+                    { backgroundColor: isDark ? '#065f46' : '#d1fae5' },
+                  ]}
+                >
+                  <Lucide name="check-circle" size={16} color={isDark ? '#34d399' : '#059669'} />
+                </View>
                 <View>
                   <Text
                     style={[
                       styles.totalLabel,
-                      { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                      { color: isDark ? '#6ee7b7' : '#047857' },
                     ]}
                   >
                     CALCULATED TOTAL AMOUNT DUE
@@ -1410,7 +2119,7 @@ export function GenerateSoaModal({
                   <Text
                     style={[
                       styles.totalSub,
-                      { color: isDark ? colors.neutral[300] : colors.neutral[600] },
+                      { color: isDark ? colors.neutral[300] : colors.neutral[700] },
                     ]}
                   >
                     {isManualMode
@@ -1418,15 +2127,15 @@ export function GenerateSoaModal({
                       : `${calculatedFees?.lineItems.length ?? 0} statutory fee item(s) assessed`}
                   </Text>
                 </View>
-                <Text
-                  style={[
-                    styles.totalValue,
-                    { color: isDark ? colors.brand[400] : colors.brand[700] },
-                  ]}
-                >
-                  PHP {displayedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </Text>
               </View>
+              <Text
+                style={[
+                  styles.totalValue,
+                  { color: isDark ? '#34d399' : '#047857' },
+                ]}
+              >
+                PHP {displayedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </Text>
             </View>
           </ScrollView>
 
@@ -1481,7 +2190,11 @@ export function GenerateSoaModal({
                   <>
                     <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
                     <Text style={styles.submitBtnText}>
-                      {isExistingSoa
+                      {isBulkApp && billingScopeMode === 'INDIVIDUAL'
+                        ? (selectedApplicantId === 'ALL'
+                            ? `Generate ${eligibleApplicants.length} Individual SOA(s)`
+                            : `${existingApplicantSoa ? 'Update' : 'Generate'} Applicant SOA`)
+                        : isExistingSoa
                         ? (isManualMode ? 'Save Statement of Account' : 'Update & Recalculate SOA')
                         : (isManualMode ? 'Generate Custom SOA' : 'Generate Statement of Account')}
                     </Text>
@@ -1617,6 +2330,18 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     borderWidth: 1,
     gap: SPACING[12],
+  },
+  sectionHeaderWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sectionIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionHeaderRow: {
     flexDirection: 'row',

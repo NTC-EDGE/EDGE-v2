@@ -11,11 +11,17 @@ import {
   ServiceRequirementItem,
   isRequirementMandatory,
 } from "../hooks/useGeneralServiceWizard";
+import { isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
 import {
   getSpreadsheetTemplateForService,
-  generateCsvContent,
-  downloadCsvFile,
+  downloadTemplateFile,
+  readPickedSpreadsheetText,
   parseSpreadsheetContent,
+  CsvParseResult,
+  BulkImportConfirmModal,
+  BulkImportMode,
+  hasManualApplicantEntries,
+  getManualEntriesCount,
 } from "../spreadsheet";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
@@ -68,7 +74,8 @@ interface GeneralFilingModeStepProps {
   setIsFileUploaded?: (val: boolean) => void;
   uploadedFileName?: string;
   setUploadedFileName?: (name: string) => void;
-  onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
+  applicants?: GeneralApplicantData[];
+  onApplicantsImported?: (applicants: GeneralApplicantData[], mode?: BulkImportMode) => void;
   errors?: Record<string, string>;
 }
 
@@ -119,10 +126,12 @@ export function GeneralFilingModeStep({
   setIsFileUploaded,
   uploadedFileName,
   setUploadedFileName,
+  applicants = [],
   onApplicantsImported,
   errors = {},
 }: GeneralFilingModeStepProps) {
   const [loading, setLoading] = useState(false);
+  const [pendingImportResult, setPendingImportResult] = useState<CsvParseResult | null>(null);
   const [localSelectedClassId, setLocalSelectedClassId] = useState<string>("");
   const [selectedGeoRegionId, setSelectedGeoRegionId] = useState<string>("");
   const [selectedGeoProvinceId, setSelectedGeoProvinceId] = useState<string>("");
@@ -165,16 +174,19 @@ export function GeneralFilingModeStep({
   const currentVariant = variants.find(
     (v) => String(v.id) === String(selectedVariantId || activeApplicant?.selectedVariantId)
   );
-  const isIndividualVariant = currentVariant?.isIndividual !== undefined ? currentVariant.isIndividual : !isCompanyCertService;
+  const isIndividualVariant = isServiceVariantIndividual(
+    service,
+    variants,
+    selectedVariantId || activeApplicant?.selectedVariantId,
+    currentVariant?.name || currentVariant?.description || activeApplicant?.selectedVariantName
+  );
   const isMandatoryCompanyService = false;
 
   React.useEffect(() => {
     if (!appMode) {
       onAppModeChange("SINGLE");
-    } else if (applicantType === "individual" && appMode === "BULK") {
-      onAppModeChange("SINGLE");
     }
-  }, [appMode, applicantType, onAppModeChange]);
+  }, [appMode, onAppModeChange]);
 
   const selectedClassId = selectedElementId || localSelectedClassId;
 
@@ -182,16 +194,30 @@ export function GeneralFilingModeStep({
 
   const evaluationContext = useMemo<FormEvaluationContext>(() => {
     const selectedElement = variantElements.find((e) => String(e.id) === String(selectedClassId));
+    const effectiveVariantName =
+      currentVariant?.name ||
+      (currentVariant?.description && currentVariant?.type
+        ? `${currentVariant.description} (${currentVariant.type})`
+        : currentVariant?.description ||
+          currentVariant?.type ||
+          activeApplicant?.selectedVariantName ||
+          form?.serviceVariantName ||
+          service?.title);
+
     return {
+      serviceCategory: service?.category,
+      serviceTitle: service?.title,
+      serviceName: form?.serviceName || service?.title,
+      serviceCode: form?.serviceCode || service?.code,
+      applicationType: currentVariant?.type
+        ? String(currentVariant.type)
+        : effectiveVariantName,
       variantId: selectedVariantId || activeApplicant?.selectedVariantId || form?.serviceVariantId,
-      variantName:
-        currentVariant?.name ||
-        activeApplicant?.selectedVariantName ||
-        form?.serviceVariantName ||
-        service?.title,
-      variantDescription: currentVariant?.description,
-      variantType: currentVariant?.type,
-      applicantType: applicantType || activeApplicant?.applicantType,
+      variantName: effectiveVariantName,
+      variantDescription:
+        currentVariant?.description || effectiveVariantName || form?.serviceVariantName,
+      variantType: currentVariant?.type ? String(currentVariant.type) : undefined,
+      applicantType: isIndividualVariant ? "individual" : "company",
       elementCodes: selectedElement?.code ? [selectedElement.code] : undefined,
       elementNames: selectedElement?.description
         ? [selectedElement.description]
@@ -205,7 +231,7 @@ export function GeneralFilingModeStep({
     currentVariant,
     variantElements,
     selectedClassId,
-    applicantType,
+    isIndividualVariant,
     form,
     service,
   ]);
@@ -399,8 +425,22 @@ export function GeneralFilingModeStep({
   const hasElementsToDisplay = classOptions.length > 0 && !isLifetimeSupplementary;
 
   const handleDownloadTemplate = () => {
-    const csvContent = generateCsvContent(templateConfig);
-    downloadCsvFile(templateConfig.filename, csvContent);
+    downloadTemplateFile(templateConfig);
+  };
+
+  const finalizeSpreadsheetImport = (parseResult: CsvParseResult, mode: BulkImportMode) => {
+    if ((parseResult.applicants?.length ?? 0) > 0 && onApplicantsImported) {
+      onApplicantsImported(parseResult.applicants, mode);
+    }
+    if (setIsFileUploaded) {
+      setIsFileUploaded(true);
+    }
+    Alert.alert(
+      "Spreadsheet Imported",
+      mode === "APPEND"
+        ? `Retained existing manual entries and added ${parseResult.validCount} valid applicant(s) into the cohort.`
+        : `Populated ${parseResult.totalRows} applicant entries (${parseResult.validCount} valid) into the system.`
+    );
   };
 
   const handleUploadSpreadsheet = async () => {
@@ -430,29 +470,21 @@ export function GeneralFilingModeStep({
       }
 
       if (setUploadedFileName) {
-        setUploadedFileName(asset?.name || "applicants_template.csv");
+        setUploadedFileName(asset?.name || "applicants_template.xlsx");
       }
 
-      let fileText = "";
-      if (Platform.OS === "web" && asset?.file && typeof asset.file.text === "function") {
-        fileText = await asset.file.text();
-      } else if (asset?.uri) {
-        const response = await fetch(asset.uri);
-        fileText = await response.text();
-      }
+      const fileText = await readPickedSpreadsheetText(asset);
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, service, form, evaluationContext);
-        if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
-          onApplicantsImported(parseResult.applicants);
+        if (
+          (parseResult.applicants?.length ?? 0) > 0 &&
+          hasManualApplicantEntries(applicants, isIndividualVariant)
+        ) {
+          setPendingImportResult(parseResult);
+          return;
         }
-        if (setIsFileUploaded) {
-          setIsFileUploaded(true);
-        }
-        Alert.alert(
-          "Spreadsheet Imported",
-          `Populated ${parseResult.totalRows} applicant entries (${parseResult.validCount} valid) into the system.`
-        );
+        finalizeSpreadsheetImport(parseResult, "REPLACE");
       }
     } catch (err) {
       console.error("Failed to upload spreadsheet:", err);
@@ -948,10 +980,17 @@ export function GeneralFilingModeStep({
                   <ValidatedInput
                     label="Contact Number"
                     placeholder="e.g., 09171234567"
-                    value={activeApplicant?.contactNo ?? companyContactNo}
+                    value={
+                      activeApplicant?.representativeContactNumber ??
+                      (appMode !== "BULK" ? (activeApplicant?.contactNo ?? companyContactNo) : "") ??
+                      ""
+                    }
                     onChangeText={(text) => {
                       onCompanyContactNoChange?.(text);
-                      updateActiveApplicant?.({ contactNo: text });
+                      updateActiveApplicant?.({
+                        representativeContactNumber: text,
+                        ...(appMode !== "BULK" && !isIndividualVariant ? { contactNo: text } : {}),
+                      });
                     }}
                   />
                 </View>
@@ -959,9 +998,16 @@ export function GeneralFilingModeStep({
                   <ValidatedInput
                     label="Email Address"
                     placeholder="e.g., representative@domain.com"
-                    value={activeApplicant?.email ?? ""}
+                    value={
+                      activeApplicant?.representativeEmail ??
+                      (appMode !== "BULK" ? activeApplicant?.email : "") ??
+                      ""
+                    }
                     onChangeText={(text) => {
-                      updateActiveApplicant?.({ email: text });
+                      updateActiveApplicant?.({
+                        representativeEmail: text,
+                        ...(appMode !== "BULK" && !isIndividualVariant ? { email: text } : {}),
+                      });
                     }}
                   />
                 </View>
@@ -1026,7 +1072,7 @@ export function GeneralFilingModeStep({
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                     <Icon name="map-pin" size={15} color="#0F2C59" />
                     <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#0F2C59" }}>
-                      Applicant Address
+                      {appMode === "BULK" ? "Sponsoring Company / Organization Address" : "Organization / Filing Entity Address"}
                     </Text>
                   </View>
 
@@ -1035,7 +1081,7 @@ export function GeneralFilingModeStep({
                       <Select
                         label="Region"
                         placeholder={loadingRegions ? "Loading regions..." : "Select Region..."}
-                        value={activeApplicant?.region || ""}
+                        value={activeApplicant?.companyRegion || (appMode !== "BULK" ? activeApplicant?.region : "") || ""}
                         options={regions.map((r) => ({
                           label: r.code ? `${r.name} (${r.code})` : r.name,
                           value: r.name,
@@ -1046,10 +1092,14 @@ export function GeneralFilingModeStep({
                             setSelectedGeoRegionId(matched.id);
                           }
                           updateActiveApplicant?.({
-                            region: val,
-                            province: "",
-                            city: "",
-                            barangay: "",
+                            companyRegion: val,
+                            companyProvince: "",
+                            companyCity: "",
+                            companyBarangay: "",
+                            companyAddress: [activeApplicant?.companyStreet, val].filter(Boolean).join(", "),
+                            ...(appMode !== "BULK" && !isIndividualVariant
+                              ? { region: val, province: "", city: "", barangay: "" }
+                              : {}),
                           });
                         }}
                       />
@@ -1064,7 +1114,7 @@ export function GeneralFilingModeStep({
                             ? "Select Region first..."
                             : "Select Province..."
                         }
-                        value={activeApplicant?.province || ""}
+                        value={activeApplicant?.companyProvince || (appMode !== "BULK" ? activeApplicant?.province : "") || ""}
                         options={provinces.map((p) => ({
                           label: p.name,
                           value: p.name,
@@ -1075,9 +1125,20 @@ export function GeneralFilingModeStep({
                             setSelectedGeoProvinceId(matched.id);
                           }
                           updateActiveApplicant?.({
-                            province: val,
-                            city: "",
-                            barangay: "",
+                            companyProvince: val,
+                            companyCity: "",
+                            companyBarangay: "",
+                            companyAddress: [
+                              activeApplicant?.companyStreet,
+                              val,
+                              activeApplicant?.companyRegion,
+                              activeApplicant?.companyZipCode,
+                            ]
+                              .filter(Boolean)
+                              .join(", "),
+                            ...(appMode !== "BULK" && !isIndividualVariant
+                              ? { province: val, city: "", barangay: "" }
+                              : {}),
                           });
                         }}
                       />
@@ -1095,7 +1156,7 @@ export function GeneralFilingModeStep({
                             ? "Select Province first..."
                             : "Select City / Municipality..."
                         }
-                        value={activeApplicant?.city || ""}
+                        value={activeApplicant?.companyCity || (appMode !== "BULK" ? activeApplicant?.city : "") || ""}
                         options={municipalities.map((m) => ({
                           label: m.name,
                           value: m.name,
@@ -1106,8 +1167,20 @@ export function GeneralFilingModeStep({
                             setSelectedGeoMunicipalityId(matched.id);
                           }
                           updateActiveApplicant?.({
-                            city: val,
-                            barangay: "",
+                            companyCity: val,
+                            companyBarangay: "",
+                            companyAddress: [
+                              activeApplicant?.companyStreet,
+                              val,
+                              activeApplicant?.companyProvince,
+                              activeApplicant?.companyRegion,
+                              activeApplicant?.companyZipCode,
+                            ]
+                              .filter(Boolean)
+                              .join(", "),
+                            ...(appMode !== "BULK" && !isIndividualVariant
+                              ? { city: val, barangay: "" }
+                              : {}),
                           });
                         }}
                       />
@@ -1122,14 +1195,25 @@ export function GeneralFilingModeStep({
                             ? "Select City first..."
                             : "Select Barangay..."
                         }
-                        value={activeApplicant?.barangay || ""}
+                        value={activeApplicant?.companyBarangay || (appMode !== "BULK" ? activeApplicant?.barangay : "") || ""}
                         options={barangays.map((b) => ({
                           label: b.name,
                           value: b.name,
                         }))}
                         onValueChange={(val: string) => {
                           updateActiveApplicant?.({
-                            barangay: val,
+                            companyBarangay: val,
+                            companyAddress: [
+                              activeApplicant?.companyStreet,
+                              val,
+                              activeApplicant?.companyCity,
+                              activeApplicant?.companyProvince,
+                              activeApplicant?.companyRegion,
+                              activeApplicant?.companyZipCode,
+                            ]
+                              .filter(Boolean)
+                              .join(", "),
+                            ...(appMode !== "BULK" && !isIndividualVariant ? { barangay: val } : {}),
                           });
                         }}
                       />
@@ -1141,11 +1225,27 @@ export function GeneralFilingModeStep({
                       <ValidatedInput
                         label="Street / Building / Unit No."
                         placeholder="e.g., 123 Ayala Avenue, Tower One"
-                        value={activeApplicant?.street || activeApplicant?.address || ""}
+                        value={
+                          activeApplicant?.companyStreet ||
+                          (appMode !== "BULK" ? (activeApplicant?.street || activeApplicant?.address) : "") ||
+                          ""
+                        }
                         onChangeText={(val) => {
                           updateActiveApplicant?.({
-                            street: val,
-                            address: val,
+                            companyStreet: val,
+                            companyAddress: [
+                              val,
+                              activeApplicant?.companyBarangay,
+                              activeApplicant?.companyCity,
+                              activeApplicant?.companyProvince,
+                              activeApplicant?.companyRegion,
+                              activeApplicant?.companyZipCode,
+                            ]
+                              .filter(Boolean)
+                              .join(", "),
+                            ...(appMode !== "BULK" && !isIndividualVariant
+                              ? { street: val, address: val }
+                              : {}),
                           });
                         }}
                       />
@@ -1154,10 +1254,21 @@ export function GeneralFilingModeStep({
                       <ValidatedInput
                         label="Zip Code"
                         placeholder="e.g., 1226"
-                        value={activeApplicant?.zipCode || ""}
+                        value={activeApplicant?.companyZipCode || (appMode !== "BULK" ? activeApplicant?.zipCode : "") || ""}
                         onChangeText={(val) => {
                           updateActiveApplicant?.({
-                            zipCode: val,
+                            companyZipCode: val,
+                            companyAddress: [
+                              activeApplicant?.companyStreet,
+                              activeApplicant?.companyBarangay,
+                              activeApplicant?.companyCity,
+                              activeApplicant?.companyProvince,
+                              activeApplicant?.companyRegion,
+                              val,
+                            ]
+                              .filter(Boolean)
+                              .join(", "),
+                            ...(appMode !== "BULK" && !isIndividualVariant ? { zipCode: val } : {}),
                           });
                         }}
                       />
@@ -1260,6 +1371,25 @@ export function GeneralFilingModeStep({
           />
         )}
       </View>
+
+      <BulkImportConfirmModal
+        visible={pendingImportResult !== null}
+        existingCount={getManualEntriesCount(applicants, isIndividualVariant)}
+        importedCount={pendingImportResult?.applicants?.length ?? 0}
+        onRetainAndAdd={() => {
+          if (pendingImportResult) {
+            finalizeSpreadsheetImport(pendingImportResult, "APPEND");
+          }
+          setPendingImportResult(null);
+        }}
+        onDisregardAndReplace={() => {
+          if (pendingImportResult) {
+            finalizeSpreadsheetImport(pendingImportResult, "REPLACE");
+          }
+          setPendingImportResult(null);
+        }}
+        onCancel={() => setPendingImportResult(null)}
+      />
     </View>
   );
 }

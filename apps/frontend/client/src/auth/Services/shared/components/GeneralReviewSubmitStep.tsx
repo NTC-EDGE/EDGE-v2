@@ -25,6 +25,7 @@ import { LicenseFeeSummaryCard } from './generalReview/LicenseFeeSummaryCard';
 import { RequestFeeSummaryCard } from './generalReview/RequestFeeSummaryCard';
 import { UploadedDocumentsReviewCard } from './generalReview/UploadedDocumentsReviewCard';
 import { FilingIntentReviewCard } from './generalReview/FilingIntentReviewCard';
+import { isServiceVariantIndividual } from '../helpers/applicantDisplayHelper';
 
 export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
   const {
@@ -33,10 +34,18 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
     applicants = [],
     currentApplicantIndex = 0,
     appMode,
+    variants = [],
     variantRequirements = [],
     filingIntent = 'Regular',
     onFilingIntentChange,
   } = props;
+
+  const isIndividualApp = isServiceVariantIndividual(
+    service,
+    variants,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedVariantName
+  );
 
   const [previewFile, setPreviewFile] = useState<PreviewFileTarget>(null);
   const [previewLabel, setPreviewLabel] = useState<string>('');
@@ -121,6 +130,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
               applicants={applicants}
               currentApplicantIndex={currentApplicantIndex}
               onSelectApplicant={props.onSelectApplicant}
+              isIndividualApplication={isIndividualApp}
             />
           </>
         }

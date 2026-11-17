@@ -44,10 +44,35 @@ public class ServiceVariantFormulaRepository : IServiceVariantFormulaRepository
 
     public async Task<ServiceVariantElementFormula?> GetElementFormulaAsync(Guid serviceVariantId, Guid elementId, CancellationToken cancellationToken = default)
     {
-        return await _context.ServiceVariantElementFormulas
+        var direct = await _context.ServiceVariantElementFormulas
             .Include(f => f.ServiceVariant)
             .Include(f => f.Element)
             .FirstOrDefaultAsync(f => f.ServiceVariantId == serviceVariantId && f.ElementId == elementId, cancellationToken);
+
+        if (direct != null)
+        {
+            return direct;
+        }
+
+        // Fallback if caller passed ServiceVariantElement.Id instead of Element.Id: resolve by Code
+        var variantElement = await _context.ServiceVariantElements
+            .AsNoTracking()
+            .FirstOrDefaultAsync(sve => sve.Id == elementId && sve.ServiceVariantId == serviceVariantId, cancellationToken);
+
+        if (variantElement != null && !string.IsNullOrWhiteSpace(variantElement.Code))
+        {
+            var code = variantElement.Code.Trim();
+            return await _context.ServiceVariantElementFormulas
+                .Include(f => f.ServiceVariant)
+                .Include(f => f.Element)
+                .FirstOrDefaultAsync(
+                    f => f.ServiceVariantId == serviceVariantId &&
+                         f.Element != null &&
+                         (f.Element.Code.ToLower() == code.ToLower() || f.Element.Name.ToLower() == code.ToLower()),
+                    cancellationToken);
+        }
+
+        return null;
     }
 
     public async Task<List<ServiceVariantElementFormula>> GetAllElementFormulasAsync(CancellationToken cancellationToken = default)

@@ -17,6 +17,7 @@ public class ApplicantDto
     public string? ServiceCategoryName { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? ApplicationType { get; set; }
     public string? Element { get; set; }
     public Guid? SubmissionId { get; set; }
     public CompanyDetailDto? Company { get; set; }
@@ -46,6 +47,7 @@ public class ApplicantDetailDto
     public string? Suffix { get; set; }
     public string Nationality { get; set; } = string.Empty;
     public string Sex { get; set; } = string.Empty;
+    public string? CivilStatus { get; set; }
     public double? Height { get; set; }
     public double? Weight { get; set; }
     public DateOnly BirthDate { get; set; }

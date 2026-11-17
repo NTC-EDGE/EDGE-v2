@@ -10,6 +10,18 @@ import {
   hasExplicitVariantCondition,
   checkSingleDependency,
 } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
+import {
+  isPersonalInfoSection,
+  isNonInputSystemSection,
+  isStandardApplicantSyncField,
+  isExcludedNonEditableField,
+  isObsoleteCopyOfPermitField,
+  isFormFieldRepeater,
+  resolveRepeaterSubColumnsForField,
+  resolveEffectiveFieldOptions,
+  cleanSectionPrefix,
+} from "./formSpreadsheetHelper";
 
 export interface DropdownFieldValidation {
   fieldId?: string;
@@ -25,6 +37,28 @@ export interface SpreadsheetTemplateConfig {
   description: string;
   dropdownValidations?: DropdownFieldValidation[];
 }
+
+export const SUFFIX_DROPDOWN_OPTIONS = ["Jr.", "Sr.", "II", "III", "IV", "V"];
+
+export const PHILIPPINE_REGION_OPTIONS = [
+  "National Capital Region (NCR)",
+  "Cordillera Administrative Region (CAR)",
+  "Region I (Ilocos Region)",
+  "Region II (Cagayan Valley)",
+  "Region III (Central Luzon)",
+  "Region IV-A (Calabarzon)",
+  "Mimaropa Region",
+  "Region V (Bicol Region)",
+  "Region VI (Western Visayas)",
+  "Region VII (Central Visayas)",
+  "Region VIII (Eastern Visayas)",
+  "Region IX (Zamboanga Peninsula)",
+  "Region X (Northern Mindanao)",
+  "Region XI (Davao Region)",
+  "Region XII (Soccsksargen)",
+  "Region XIII (Caraga)",
+  "Bangsamoro Autonomous Region In Muslim Mindanao (BARMM)",
+];
 
 export function normalizeHeaderSlug(raw: string): string {
   if (!raw || typeof raw !== "string") return "";
@@ -42,8 +76,18 @@ function enrichStaticTemplate(config: SpreadsheetTemplateConfig): SpreadsheetTem
 
   const dropdowns: DropdownFieldValidation[] = [];
   const knownDropdowns: Record<string, { label: string; options: string[] }> = {
+    suffix: { label: "Suffix", options: SUFFIX_DROPDOWN_OPTIONS },
+    representativesuffix: { label: "Representative Suffix", options: SUFFIX_DROPDOWN_OPTIONS },
     sex: { label: "Sex", options: ["Male", "Female"] },
     gender: { label: "Sex", options: ["Male", "Female"] },
+    civilstatus: {
+      label: "Civil Status",
+      options: ["Single", "Married", "Widowed", "Separated"],
+    },
+    region: {
+      label: "Region",
+      options: PHILIPPINE_REGION_OPTIONS,
+    },
     entitytype: {
       label: "Entity Type",
       options: [
@@ -54,6 +98,7 @@ function enrichStaticTemplate(config: SpreadsheetTemplateConfig): SpreadsheetTem
         "Cooperative",
         "Association",
         "Non-Profit",
+        "Others",
       ],
     },
     examineetype: {
@@ -92,12 +137,37 @@ function enrichStaticTemplate(config: SpreadsheetTemplateConfig): SpreadsheetTem
   };
 }
 
-function generateSampleValueForField(field: FieldDto, rowIndex: number): string {
+function generateSampleValueForField(
+  field: FieldDto,
+  rowIndex: number,
+  effectiveContext: FormEvaluationContext,
+  rowSampleValues: Record<string, string>
+): string {
   const lbl = typeof field.label === "string" ? field.label.toLowerCase() : "";
-  const fType = typeof field.type === "string" ? field.type.toLowerCase() : "";
+  const fId = typeof (field.fieldId || field.id) === "string" ? (field.fieldId || field.id || "").toLowerCase() : "";
+  const fType = typeof (field.type || field.fieldType) === "string" ? (field.type || field.fieldType || "").toLowerCase() : "";
 
-  // If select, dropdown, or radio with options, pick one of the options
-  const parsed = parseOptions(field);
+  // Special handling for locked Action Requested in NTC 1-24 Blocking / Unblocking
+  if (
+    fId === "action_requested" ||
+    fId === "fd000000-0000-0000-0000-000000000307" ||
+    lbl.includes("action requested")
+  ) {
+    const varDesc = (
+      effectiveContext.variantDescription ||
+      effectiveContext.variantName ||
+      effectiveContext.applicationType ||
+      ""
+    ).toLowerCase();
+    const varId = (effectiveContext.variantId || "").toLowerCase();
+    const isUnblocking = varDesc.includes("unblock") || varId.includes("402");
+    const isBlocking = (varDesc.includes("block") || varId.includes("401")) && !isUnblocking;
+    if (isBlocking || isUnblocking) {
+      return isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+    }
+  }
+
+  const parsed = resolveEffectiveFieldOptions(field, effectiveContext, rowSampleValues);
   if (parsed.length > 0) {
     const opt = parsed[rowIndex % parsed.length];
     if (opt !== undefined && opt !== null) {
@@ -110,16 +180,27 @@ function generateSampleValueForField(field: FieldDto, rowIndex: number): string 
     }
   }
 
-  if (fType === "date") {
+  if (fType === "date" || lbl.includes("date")) {
     return rowIndex === 0 ? "2026-12-31" : "2027-06-30";
   }
+  if (fType === "time" || lbl.includes("time of")) {
+    return rowIndex === 0 ? "09:30 AM" : "02:15 PM";
+  }
   if (fType === "number" || fType === "integer") {
+    if (lbl.includes("weight")) return rowIndex === 0 ? "68" : "56";
+    if (lbl.includes("height")) return rowIndex === 0 ? "170" : "162";
     return rowIndex === 0 ? "1" : "2";
   }
   if (fType === "email") {
     return rowIndex === 0 ? "engineer1@example.ph" : "technician2@example.ph";
   }
-  if (fType === "tel" || fType === "phone" || lbl.includes("contact") || lbl.includes("mobile") || lbl.includes("phone")) {
+  if (
+    fType === "tel" ||
+    fType === "phone" ||
+    lbl.includes("contact") ||
+    lbl.includes("mobile") ||
+    lbl.includes("phone")
+  ) {
     return rowIndex === 0 ? "09171234567" : "09189876543";
   }
   if (fType === "checkbox" || fType === "boolean") {
@@ -133,14 +214,50 @@ function generateSampleValueForField(field: FieldDto, rowIndex: number): string 
   if (lbl.includes("technician")) {
     return rowIndex === 0 ? "Juan Santos" : "Pedro Reyes";
   }
-  if (lbl.includes("ece") || (lbl.includes("license") && lbl.includes("no"))) {
+  if (lbl.includes("ece") || lbl.includes("ect") || (lbl.includes("certificate") && lbl.includes("no"))) {
     return rowIndex === 0 ? "PECE-0012948" : "PECE-0044912";
   }
+  if (lbl.includes("permit no") || fId.includes("permitno") || fId.includes("permitrslno")) {
+    return rowIndex === 0 ? "RSL-2024-00812" : "RSL-2024-00945";
+  }
+  if (lbl.includes("license no") || fId.includes("licenseno")) {
+    return rowIndex === 0 ? "LIC-2023-00419" : "LIC-2023-00782";
+  }
+  if (lbl.includes("cpcn")) {
+    return rowIndex === 0 ? "CPCN-2022-0019" : "PA-2023-0084";
+  }
+  if (lbl.includes("cor") && lbl.includes("vas")) {
+    return rowIndex === 0 ? "COR-VAS-2023-0045" : "COR-VAS-2023-0112";
+  }
+  if (lbl.includes("invoice")) {
+    return rowIndex === 0 ? "INV-2026-00481" : "INV-2026-00912";
+  }
   if (lbl.includes("call sign") || lbl.includes("callsign")) {
-    return rowIndex === 0 ? "DX1ABC" : "DW1XYZ";
+    return rowIndex === 0 ? "DU1ABC" : "DW1XYZ";
   }
   if (lbl.includes("power") || lbl.includes("watt")) {
-    return rowIndex === 0 ? "100W" : "50W";
+    return rowIndex === 0 ? "50" : "100";
+  }
+  if (lbl.includes("bandwidth")) {
+    return rowIndex === 0 ? "25" : "12.5";
+  }
+  if (lbl.includes("emission")) {
+    return rowIndex === 0 ? "16K0F3E" : "2K70J3E";
+  }
+  if (lbl.includes("hours of operation")) {
+    return rowIndex === 0 ? "24 Hours" : "08:00 AM - 05:00 PM";
+  }
+  if (lbl.includes("service area") || lbl.includes("points of comm")) {
+    return rowIndex === 0 ? "Metro Manila / NCR" : "Nationwide";
+  }
+  if (lbl.includes("exact location") || lbl.includes("station location")) {
+    return rowIndex === 0 ? "123 Agham Road, Diliman, Quezon City" : "Cebu IT Park, Lahug, Cebu City";
+  }
+  if (lbl.includes("longitude")) {
+    return rowIndex === 0 ? "121° 02' 35\" E" : "123° 53' 07\" E";
+  }
+  if (lbl.includes("latitude")) {
+    return rowIndex === 0 ? "14° 38' 20\" N" : "10° 18' 56\" N";
   }
   if (lbl.includes("school") || lbl.includes("university")) {
     return rowIndex === 0 ? "University of the Philippines" : "Polytechnic University of the Philippines";
@@ -154,8 +271,23 @@ function generateSampleValueForField(field: FieldDto, rowIndex: number): string 
   if (lbl.includes("special order") || lbl.includes("so no")) {
     return rowIndex === 0 ? "SO-2022-00412" : "SO-2020-00891";
   }
+  if (lbl.includes("seminar") || lbl.includes("place of exam")) {
+    return rowIndex === 0 ? "NTC Central Office, Quezon City" : "NTC Region VII, Cebu City";
+  }
+  if (lbl.includes("rating")) {
+    return rowIndex === 0 ? "88%" : "85%";
+  }
+  if (lbl.includes("employment location")) {
+    return rowIndex === 0 ? "Manila, Philippines" : "Cebu City, Philippines";
+  }
   if (lbl.includes("vessel") || lbl.includes("ship")) {
     return rowIndex === 0 ? "MV Emerald Sea" : "MV Pacific Star";
+  }
+  if (lbl.includes("imo")) {
+    return rowIndex === 0 ? "IMO 9412834 / 4500 GT" : "IMO 9582910 / 3200 GT";
+  }
+  if (lbl.includes("aircraft reg")) {
+    return rowIndex === 0 ? "RP-C8912" : "RP-C4410";
   }
   if (lbl.includes("serial")) {
     return rowIndex === 0 ? "SN-849201" : "SN-849202";
@@ -163,8 +295,8 @@ function generateSampleValueForField(field: FieldDto, rowIndex: number): string 
   if (lbl.includes("model")) {
     return rowIndex === 0 ? "TX-5000" : "RX-200";
   }
-  if (lbl.includes("brand") || lbl.includes("manufacturer")) {
-    return rowIndex === 0 ? "Motorola" : "Icom";
+  if (lbl.includes("brand") || lbl.includes("manufacturer") || lbl.includes("dealer")) {
+    return rowIndex === 0 ? "Motorola Solutions Phils." : "Icom Philippines Inc.";
   }
   if (lbl.includes("frequency")) {
     return rowIndex === 0 ? "144.000 MHz" : "430.000 MHz";
@@ -172,8 +304,12 @@ function generateSampleValueForField(field: FieldDto, rowIndex: number): string 
   if (lbl.includes("year")) {
     return rowIndex === 0 ? "1" : "3";
   }
+  if (lbl.includes("circumstance")) {
+    return rowIndex === 0 ? "Original permit was misplaced during office relocation" : "Original document was damaged by water";
+  }
 
-  const baseLabel = typeof field.label === "string" && field.label.trim().length > 0 ? field.label.trim() : "Field";
+  const baseLabel =
+    typeof field.label === "string" && field.label.trim().length > 0 ? field.label.trim() : "Field";
   return rowIndex === 0 ? `Sample ${baseLabel}` : `Example ${baseLabel}`;
 }
 
@@ -201,7 +337,8 @@ function matchesDependencyTarget(field: FieldDto, targetKey: string | undefined)
 function isFieldDependencyReachable(
   entry: ScopedFieldEntry,
   allFormFields: FieldDto[],
-  contextVisibleEntries: ScopedFieldEntry[]
+  contextVisibleEntries: ScopedFieldEntry[],
+  effectiveContext: FormEvaluationContext
 ): boolean {
   const deps = extractFieldDependencyRules(entry.field, entry.section);
   if (deps.length === 0) return true;
@@ -228,11 +365,13 @@ function isFieldDependencyReachable(
     // If the parent field is visible and has dropdown options, verify that at least one allowed option
     // can satisfy the dependency rule.
     if (matchingVisible.length > 0) {
-      const parentDropdowns = matchingVisible.filter((p) => parseOptions(p.field).length > 0);
+      const parentDropdowns = matchingVisible.filter(
+        (p) => resolveEffectiveFieldOptions(p.field, effectiveContext).length > 0
+      );
       if (parentDropdowns.length === matchingVisible.length) {
         let canSatisfy = false;
         for (const parentEntry of parentDropdowns) {
-          const opts = parseOptions(parentEntry.field);
+          const opts = resolveEffectiveFieldOptions(parentEntry.field, effectiveContext);
           for (const opt of opts) {
             const candidateValues = [opt.label, opt.value].filter(
               (v): v is string => typeof v === "string" && v.trim().length > 0
@@ -265,6 +404,14 @@ function isFieldDependencyReachable(
   return true;
 }
 
+function formatHeaderWithOptions(rawLabel: string, optLabels: string[]): string {
+  if (optLabels.length === 0) return rawLabel;
+  if (optLabels.length <= 5) {
+    return `${rawLabel} (${optLabels.join(" | ")})`;
+  }
+  return `${rawLabel} (Options: ${optLabels.slice(0, 3).join(" | ")} | ...)`;
+}
+
 export function buildDynamicSpreadsheetTemplate(
   service: NTCService,
   form: FormDto,
@@ -273,6 +420,17 @@ export function buildDynamicSpreadsheetTemplate(
   if (!Array.isArray(form.sections) || form.sections.length === 0) {
     return null;
   }
+
+  const isIndividualService = isServiceVariantIndividual(
+    service,
+    undefined,
+    evaluationContext?.variantId || form.serviceVariantId,
+    evaluationContext?.variantName ||
+      evaluationContext?.variantDescription ||
+      evaluationContext?.applicationType ||
+      form.serviceVariantName
+  );
+  const isCorporateService = !isIndividualService;
 
   const effectiveContext: FormEvaluationContext = {
     serviceCategory: evaluationContext?.serviceCategory || service.category,
@@ -289,42 +447,49 @@ export function buildDynamicSpreadsheetTemplate(
       form.serviceVariantName,
     elementCodes: evaluationContext?.elementCodes,
     elementNames: evaluationContext?.elementNames,
-    applicantType: evaluationContext?.applicantType,
+    applicantType: isIndividualService ? "individual" : "company",
     formValues: evaluationContext?.formValues,
   };
 
-  const excludedTypes = new Set([
-    "file",
-    "upload",
-    "attachment",
-    "document",
-    "signature",
-    "header",
-    "divider",
-    "button",
-    "label_only",
-    "static_text",
-  ]);
-
   const sortedSections = [...form.sections].sort(
-    (a, b) => (typeof a.orderIndex === "number" ? a.orderIndex : 0) - (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+    (a, b) =>
+      (typeof a.orderIndex === "number" ? a.orderIndex : 0) -
+      (typeof b.orderIndex === "number" ? b.orderIndex : 0)
   );
 
+  // 1. Extract any custom dropdown options configured by admin for personal info fields (Sex, Civil Status, Suffix, Entity Type)
+  const customPersonalDropdowns = new Map<string, { field?: FieldDto; options: string[] }>();
+  for (const sec of sortedSections) {
+    if (!evaluateContextOnlyVisibility(sec.visibilityCondition, effectiveContext)) continue;
+    for (const f of sec.fields || []) {
+      if (!isFieldContextVisible(f, sec, effectiveContext)) continue;
+      const opts = parseOptions(f);
+      if (opts.length === 0) continue;
+      const optLabels = opts
+        .map((o) => (typeof o.label === "string" && o.label.trim().length > 0 ? o.label.trim() : o.value.trim()))
+        .filter((s) => s.length > 0);
+      if (optLabels.length === 0) continue;
+
+      const idLower = (f.fieldId || f.id || "").toLowerCase();
+      const lblSlug = normalizeHeaderSlug(f.label || "");
+      if (idLower.includes("sex") || idLower.includes("gender") || lblSlug === "sex" || lblSlug === "gender") {
+        customPersonalDropdowns.set("sex", { field: f, options: optLabels });
+      } else if (idLower.includes("civilstatus") || idLower.includes("civil_status") || lblSlug === "civilstatus") {
+        customPersonalDropdowns.set("civilstatus", { field: f, options: optLabels });
+      } else if (idLower.includes("suffix") || lblSlug === "suffix") {
+        customPersonalDropdowns.set("suffix", { field: f, options: optLabels });
+      } else if (idLower.includes("entitytype") || lblSlug === "entitytype") {
+        customPersonalDropdowns.set("entitytype", { field: f, options: optLabels });
+      }
+    }
+  }
+
+  // 2. Collect visible Form Builder sections & fields (matching DynamicFormRenderer.tsx)
   const allFormFields: FieldDto[] = [];
   const contextVisibleEntries: ScopedFieldEntry[] = [];
 
   for (const sec of sortedSections) {
-    const secKey = typeof sec.key === "string" ? sec.key.toLowerCase() : "";
-    const secTitle = typeof sec.title === "string" ? sec.title.toLowerCase() : "";
-    if (
-      secKey.includes("upload") ||
-      secKey.includes("document") ||
-      secKey.includes("file") ||
-      secKey.includes("signature") ||
-      secTitle.includes("upload") ||
-      secTitle.includes("document") ||
-      secTitle.includes("signature")
-    ) {
+    if (isPersonalInfoSection(sec) || isNonInputSystemSection(sec)) {
       continue;
     }
 
@@ -334,15 +499,42 @@ export function buildDynamicSpreadsheetTemplate(
 
     const fields = Array.isArray(sec.fields) ? sec.fields : [];
     const sortedFields = [...fields].sort(
-      (a, b) => (typeof a.orderIndex === "number" ? a.orderIndex : 0) - (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+      (a, b) =>
+        (typeof a.orderIndex === "number" ? a.orderIndex : 0) -
+        (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+    );
+
+    // Check if this section has a repeater field that already includes serialNumber / frequencyRange / makeModel
+    const sectionHasEquipmentRepeater = sortedFields.some(
+      (f) =>
+        isFormFieldRepeater(f) &&
+        isFieldContextVisible(f, sec, effectiveContext) &&
+        resolveRepeaterSubColumnsForField(f, effectiveContext).some(
+          (sc) => sc.type === "equipments_serial" || sc.type === "serials"
+        )
     );
 
     for (const f of sortedFields) {
-      const fType = typeof (f.type || f.fieldType) === "string" ? (f.type || f.fieldType || "").toLowerCase().trim() : "";
-      if (excludedTypes.has(fType)) continue;
+      if (isExcludedNonEditableField(f)) continue;
+      if (isObsoleteCopyOfPermitField(f, effectiveContext)) continue;
+      if (isStandardApplicantSyncField(f, sec)) continue;
 
       const fLabel = typeof f.label === "string" ? f.label.trim() : "";
       if (fLabel.length === 0) continue;
+
+      // Avoid duplicating standalone repeater-shadow fields when the same section already expands an equipment repeater
+      const fIdLower = (f.fieldId || f.id || "").toLowerCase().trim();
+      if (
+        sectionHasEquipmentRepeater &&
+        !isFormFieldRepeater(f) &&
+        (fIdLower === "fd000000-0000-0000-0000-000000000111" || // serialNumber
+          fIdLower === "fd000000-0000-0000-0000-000000000112" || // frequencyRange
+          fIdLower === "fd000000-0000-0000-0000-000000000270" || // makeModel
+          fIdLower === "fd000000-0000-0000-0000-000000000084" || // makeTypeModel
+          fIdLower === "fd000000-0000-0000-0000-000000000087")   // serialNumbers
+      ) {
+        continue;
+      }
 
       allFormFields.push(f);
 
@@ -359,70 +551,28 @@ export function buildDynamicSpreadsheetTemplate(
   }
 
   const reachableEntries = contextVisibleEntries.filter((entry) =>
-    isFieldDependencyReachable(entry, allFormFields, contextVisibleEntries)
+    isFieldDependencyReachable(entry, allFormFields, contextVisibleEntries, effectiveContext)
   );
 
-  if (reachableEntries.length === 0) {
-    return null;
-  }
-
-  // Group by normalized label slug while respecting variant-specific overrides
-  const groupedBySlug = new Map<string, ScopedFieldEntry[]>();
-  const slugOrder: string[] = [];
-
-  for (const entry of reachableEntries) {
-    const fLabel = typeof entry.field.label === "string" ? entry.field.label.trim() : "";
-    const norm = normalizeHeaderSlug(fLabel);
-    if (!norm) continue;
-
-    const existing = groupedBySlug.get(norm);
-    if (!existing) {
-      groupedBySlug.set(norm, [entry]);
-      slugOrder.push(norm);
-    } else {
-      existing.push(entry);
-    }
-  }
-
-  // If a column has both variant-specific fields and generic base fields, keep the variant-specific overrides
-  for (const [slug, entries] of groupedBySlug.entries()) {
-    if (entries.length > 1) {
-      const variantSpecific = entries.filter((e) => e.hasVariantRule);
-      if (variantSpecific.length > 0) {
-        groupedBySlug.set(slug, variantSpecific);
-      }
-    }
-  }
-
-  const code = typeof service.code === "string" ? service.code.toUpperCase() : "";
-  const title = typeof service.title === "string" ? service.title.toUpperCase() : "";
-  const cat = typeof service.category === "string" ? service.category.toUpperCase() : "";
-
-  const isCorporateService =
-    effectiveContext.applicantType === "company" ||
-    code === "NTC_1_18" ||
-    title.includes("CUSTOMER PREMISES") ||
-    title.includes("ACCREDITATION") ||
-    title.includes("VALUE-ADDED") ||
-    title.includes("VAS") ||
-    title.includes("DEALER") ||
-    title.includes("MANUFACTURER") ||
-    cat.includes("ACCREDIT");
-
+  // 3. Build Standard Applicant Details Columns (100% aligned with ApplicantInformationFormSection.tsx)
   const baseCols: Array<{ header: string; sample1: string; sample2: string }> = isCorporateService
     ? [
         { header: "Business Name", sample1: "Acme Communications Corp.", sample2: "Metro Radio Supplies" },
         { header: "Entity Type", sample1: "Corporation", sample2: "Single Proprietorship" },
         { header: "DTI/SEC No", sample1: "SEC-CS202100982", sample2: "DTI-0981284" },
+        { header: "Representative First Name", sample1: "Juan", sample2: "Maria" },
+        { header: "Representative Middle Name", sample1: "Reyes", sample2: "Santos" },
+        { header: "Representative Last Name", sample1: "Dela Cruz", sample2: "Aquino" },
+        { header: "Representative Suffix", sample1: "", sample2: "" },
+        { header: "Representative Position", sample1: "Managing Director", sample2: "General Manager" },
         { header: "Contact Number", sample1: "09171234567", sample2: "09189876543" },
         { header: "Email", sample1: "regulatory@acme.ph", sample2: "sales@metroradio.ph" },
+        { header: "Region", sample1: "National Capital Region (NCR)", sample2: "Region VII (Central Visayas)" },
         { header: "Province", sample1: "Metro Manila", sample2: "Cebu" },
-        { header: "City", sample1: "Quezon City", sample2: "Cebu City" },
+        { header: "City / Municipality", sample1: "Quezon City", sample2: "Cebu City" },
         { header: "Barangay", sample1: "Diliman", sample2: "Mabolo" },
-        { header: "Street", sample1: "Commonwealth Ave", sample2: "MJ Cuenco Ave" },
+        { header: "Street Address", sample1: "Unit 402, 123 Commonwealth Ave", sample2: "456 MJ Cuenco Ave" },
         { header: "Zip Code", sample1: "1101", sample2: "6000" },
-        { header: "Authorized Representative", sample1: "Juan Dela Cruz", sample2: "Maria Santos" },
-        { header: "Representative Position", sample1: "Managing Director", sample2: "General Manager" },
       ]
     : [
         { header: "First Name", sample1: "Juan", sample2: "Maria" },
@@ -431,13 +581,15 @@ export function buildDynamicSpreadsheetTemplate(
         { header: "Suffix", sample1: "", sample2: "Jr." },
         { header: "Date of Birth", sample1: "1995-05-12", sample2: "1998-11-20" },
         { header: "Sex", sample1: "Male", sample2: "Female" },
+        { header: "Civil Status", sample1: "Single", sample2: "Married" },
         { header: "Nationality", sample1: "Filipino", sample2: "Filipino" },
         { header: "Contact Number", sample1: "09171234567", sample2: "09189876543" },
         { header: "Email", sample1: "juan.delacruz@example.ph", sample2: "maria.aquino@example.ph" },
+        { header: "Region", sample1: "National Capital Region (NCR)", sample2: "Region VII (Central Visayas)" },
         { header: "Province", sample1: "Metro Manila", sample2: "Cebu" },
-        { header: "City", sample1: "Quezon City", sample2: "Cebu City" },
+        { header: "City / Municipality", sample1: "Quezon City", sample2: "Cebu City" },
         { header: "Barangay", sample1: "Diliman", sample2: "Mabolo" },
-        { header: "Street", sample1: "Commonwealth Ave", sample2: "MJ Cuenco Ave" },
+        { header: "Street Address", sample1: "Unit 402, 123 Commonwealth Ave", sample2: "456 MJ Cuenco Ave" },
         { header: "Zip Code", sample1: "1101", sample2: "6000" },
       ];
 
@@ -445,26 +597,8 @@ export function buildDynamicSpreadsheetTemplate(
   const sampleRow1: string[] = [];
   const sampleRow2: string[] = [];
   const seenHeaderSlugs = new Set<string>();
+  const baseHeaderSlugs = new Set<string>();
   const rowSampleValues: [Record<string, string>, Record<string, string>] = [{}, {}];
-
-  const collectDistinctOptions = (entries: ScopedFieldEntry[]): string[] => {
-    const optLabels: string[] = [];
-    for (const entry of entries) {
-      const opts = parseOptions(entry.field);
-      for (const opt of opts) {
-        const oLabel =
-          typeof opt.label === "string" && opt.label.trim().length > 0
-            ? opt.label.trim()
-            : typeof opt.value === "string"
-            ? opt.value.trim()
-            : "";
-        if (oLabel.length > 0 && !optLabels.includes(oLabel)) {
-          optLabels.push(oLabel);
-        }
-      }
-    }
-    return optLabels;
-  };
 
   const recordSampleValue = (
     rowIndex: 0 | 1,
@@ -487,28 +621,26 @@ export function buildDynamicSpreadsheetTemplate(
     }
   };
 
-  const isExamService =
-    code === "NTC_1_01" ||
-    title.includes("RADIO OPERATOR EXAM") ||
-    title.includes("EXAMINATION");
-
   const dropdownValidations: DropdownFieldValidation[] = [];
 
   for (const base of baseCols) {
     const slug = normalizeHeaderSlug(base.header);
-    const matchingFormEntries = groupedBySlug.get(slug);
-    const configuredOpts = matchingFormEntries ? collectDistinctOptions(matchingFormEntries) : [];
+    const customOverride = customPersonalDropdowns.get(slug);
 
-    if (matchingFormEntries && configuredOpts.length > 0) {
-      const primaryField = matchingFormEntries[0]?.field;
+    if (customOverride && customOverride.options.length > 0) {
+      const primaryField = customOverride.field;
       dropdownValidations.push({
-        fieldId: primaryField ? (typeof primaryField.fieldId === "string" ? primaryField.fieldId : primaryField.id) : undefined,
+        fieldId: primaryField
+          ? typeof primaryField.fieldId === "string"
+            ? primaryField.fieldId
+            : primaryField.id
+          : undefined,
         header: base.header,
         label: base.header,
-        allowedOptions: configuredOpts,
+        allowedOptions: customOverride.options,
       });
-      const s1 = configuredOpts[0] || base.sample1;
-      const s2 = configuredOpts[1 % configuredOpts.length] || base.sample2;
+      const s1 = customOverride.options[0] || base.sample1;
+      const s2 = customOverride.options[1 % customOverride.options.length] || base.sample2;
       headers.push(base.header);
       sampleRow1.push(s1);
       sampleRow2.push(s2);
@@ -527,6 +659,30 @@ export function buildDynamicSpreadsheetTemplate(
           label: "Sex",
           allowedOptions: ["Male", "Female"],
         });
+      } else if (slug === "civilstatus" && !isCorporateService) {
+        dropdownValidations.push({
+          header: "Civil Status",
+          label: "Civil Status",
+          allowedOptions: ["Single", "Married", "Widowed", "Separated"],
+        });
+      } else if (slug === "suffix" && !isCorporateService) {
+        dropdownValidations.push({
+          header: "Suffix",
+          label: "Suffix",
+          allowedOptions: SUFFIX_DROPDOWN_OPTIONS,
+        });
+      } else if (slug === "representativesuffix" && isCorporateService) {
+        dropdownValidations.push({
+          header: "Representative Suffix",
+          label: "Representative Suffix",
+          allowedOptions: SUFFIX_DROPDOWN_OPTIONS,
+        });
+      } else if (slug === "region") {
+        dropdownValidations.push({
+          header: "Region",
+          label: "Region",
+          allowedOptions: PHILIPPINE_REGION_OPTIONS,
+        });
       } else if (slug === "entitytype" && isCorporateService) {
         dropdownValidations.push({
           header: "Entity Type",
@@ -539,38 +695,181 @@ export function buildDynamicSpreadsheetTemplate(
             "Cooperative",
             "Association",
             "Non-Profit",
+            "Others",
           ],
         });
       }
     }
 
     seenHeaderSlugs.add(slug);
+    baseHeaderSlugs.add(slug);
   }
 
-  if (isExamService && !groupedBySlug.has("examineetype")) {
-    dropdownValidations.push({
-      header: "Examinee Type",
-      label: "Examinee Type",
-      allowedOptions: ["First Taker", "Retaker", "Upgrade", "Removal"],
-    });
+  // Also reserve common aliases for baseCols so non-applicant fields with same names get disambiguated
+  for (const alias of ["city", "municipality", "street", "address"]) {
+    baseHeaderSlugs.add(alias);
   }
 
-  for (const slug of slugOrder) {
-    if (seenHeaderSlugs.has(slug)) {
+  // 4. Separate Repeater fields vs Standard Dynamic fields while preserving section order
+  // Group non-repeater fields by a composite key that disambiguates collisions across sections
+  interface ColumnGroup {
+    groupKey: string;
+    displayHeaderLabel: string;
+    entries: ScopedFieldEntry[];
+  }
+
+  const orderedItems: Array<
+    | { kind: "fieldGroup"; group: ColumnGroup }
+    | { kind: "repeater"; entry: ScopedFieldEntry }
+  > = [];
+  const fieldGroupMap = new Map<string, ColumnGroup>();
+
+  for (const entry of reachableEntries) {
+    if (isFormFieldRepeater(entry.field)) {
+      orderedItems.push({ kind: "repeater", entry });
       continue;
     }
 
-    const entries = groupedBySlug.get(slug);
-    if (!entries || entries.length === 0) continue;
+    const rawLabel = typeof entry.field.label === "string" ? entry.field.label.trim() : "";
+    const baseSlug = normalizeHeaderSlug(rawLabel);
+    if (!baseSlug) continue;
 
-    seenHeaderSlugs.add(slug);
+    // Check if this field's label collides with baseCols (e.g. "Business Name" or "Contact Number" in Service Provider section)
+    const collidesWithBase = baseHeaderSlugs.has(baseSlug);
+    const secPrefix = cleanSectionPrefix(entry.section.title);
 
+    let effectiveHeaderLabel = rawLabel;
+    let groupKey = baseSlug;
+
+    if (collidesWithBase && secPrefix.length > 0) {
+      effectiveHeaderLabel = `${secPrefix} - ${rawLabel}`;
+      groupKey = normalizeHeaderSlug(effectiveHeaderLabel);
+    } else {
+      const existingGroup = fieldGroupMap.get(baseSlug);
+      if (existingGroup) {
+        // Check if existingGroup is in a DIFFERENT section and both have no variant rules (meaning both appear on the form at the same time, e.g. "Remarks" in Station vs Antenna)
+        const existingFirst = existingGroup.entries[0];
+        const sameFieldId =
+          existingFirst &&
+          (existingFirst.field.fieldId || existingFirst.field.id) ===
+            (entry.field.fieldId || entry.field.id);
+        const sameSection =
+          existingFirst &&
+          (existingFirst.section.key || existingFirst.section.title) ===
+            (entry.section.key || entry.section.title);
+
+        if (!sameFieldId && !sameSection && secPrefix.length > 0) {
+          effectiveHeaderLabel = `${secPrefix} - ${rawLabel}`;
+          groupKey = normalizeHeaderSlug(effectiveHeaderLabel);
+        }
+      }
+    }
+
+    const existing = fieldGroupMap.get(groupKey);
+    if (!existing) {
+      const newGroup: ColumnGroup = {
+        groupKey,
+        displayHeaderLabel: effectiveHeaderLabel,
+        entries: [entry],
+      };
+      fieldGroupMap.set(groupKey, newGroup);
+      orderedItems.push({ kind: "fieldGroup", group: newGroup });
+    } else {
+      existing.entries.push(entry);
+    }
+  }
+
+  // Respect variant-specific overrides within each fieldGroup
+  for (const group of fieldGroupMap.values()) {
+    if (group.entries.length > 1) {
+      const variantSpecific = group.entries.filter((e) => e.hasVariantRule);
+      if (variantSpecific.length > 0) {
+        group.entries = variantSpecific;
+      }
+    }
+  }
+
+  const collectDistinctOptions = (entries: ScopedFieldEntry[]): string[] => {
+    const optLabels: string[] = [];
+    for (const entry of entries) {
+      const opts = resolveEffectiveFieldOptions(
+        entry.field,
+        effectiveContext,
+        rowSampleValues[0]
+      );
+      for (const opt of opts) {
+        const oLabel =
+          typeof opt.label === "string" && opt.label.trim().length > 0
+            ? opt.label.trim()
+            : typeof opt.value === "string"
+            ? opt.value.trim()
+            : "";
+        if (oLabel.length > 0 && !optLabels.includes(oLabel)) {
+          optLabels.push(oLabel);
+        }
+      }
+    }
+    return optLabels;
+  };
+
+  for (const item of orderedItems) {
+    if (item.kind === "repeater") {
+      const { entry } = item;
+      const subCols = resolveRepeaterSubColumnsForField(entry.field, effectiveContext);
+      const repeaterTitlePrefix = cleanSectionPrefix(entry.field.label || entry.section.title);
+
+      for (const subCol of subCols) {
+        let subHeaderLabel = subCol.label;
+        let subSlug = normalizeHeaderSlug(subHeaderLabel);
+
+        if (seenHeaderSlugs.has(subSlug) && repeaterTitlePrefix.length > 0) {
+          subHeaderLabel = `${repeaterTitlePrefix} - ${subCol.label}`;
+          subSlug = normalizeHeaderSlug(subHeaderLabel);
+        }
+
+        if (seenHeaderSlugs.has(subSlug)) {
+          continue;
+        }
+        seenHeaderSlugs.add(subSlug);
+
+        const optLabels =
+          subCol.options && subCol.options.length > 0
+            ? subCol.options
+                .map((o) => (o.label || o.value || "").trim())
+                .filter((s) => s.length > 0)
+            : [];
+
+        if (optLabels.length > 0) {
+          dropdownValidations.push({
+            fieldId: `${entry.field.fieldId || entry.field.id || "repeater"}:${subCol.subKey}`,
+            header: subHeaderLabel,
+            label: subHeaderLabel,
+            allowedOptions: optLabels,
+          });
+        }
+
+        const headerText = formatHeaderWithOptions(subHeaderLabel, optLabels);
+        headers.push(headerText);
+        sampleRow1.push(subCol.sample1);
+        sampleRow2.push(subCol.sample2);
+        recordSampleValue(0, subHeaderLabel, subCol.sample1);
+        recordSampleValue(1, subHeaderLabel, subCol.sample2);
+      }
+      continue;
+    }
+
+    const { group } = item;
+    if (seenHeaderSlugs.has(group.groupKey)) {
+      continue;
+    }
+    seenHeaderSlugs.add(group.groupKey);
+
+    const entries = group.entries;
     const primaryField = entries[0]?.field;
     if (!primaryField) continue;
 
-    const rawLabel = typeof primaryField.label === "string" ? primaryField.label.trim() : "";
+    const rawLabel = group.displayHeaderLabel;
     const optLabels = collectDistinctOptions(entries);
-    let headerText = rawLabel;
 
     if (optLabels.length > 0) {
       dropdownValidations.push({
@@ -579,17 +878,11 @@ export function buildDynamicSpreadsheetTemplate(
         label: rawLabel,
         allowedOptions: optLabels,
       });
-
-      if (optLabels.length <= 5) {
-        headerText = `${rawLabel} (${optLabels.join(" | ")})`;
-      } else {
-        headerText = `${rawLabel} (Options: ${optLabels.slice(0, 3).join(" | ")} | ...)`;
-      }
     }
 
+    const headerText = formatHeaderWithOptions(rawLabel, optLabels);
     headers.push(headerText);
 
-    // Generate sample values per row while respecting inter-field visibility conditions
     const rowIndices: Array<0 | 1> = [0, 1];
     for (const rowIndex of rowIndices) {
       const rowCtx: FormEvaluationContext = {
@@ -601,7 +894,12 @@ export function buildDynamicSpreadsheetTemplate(
       );
 
       if (visibleEntryForRow) {
-        const sampleVal = generateSampleValueForField(visibleEntryForRow.field, rowIndex);
+        const sampleVal = generateSampleValueForField(
+          visibleEntryForRow.field,
+          rowIndex,
+          effectiveContext,
+          rowSampleValues[rowIndex]
+        );
         if (rowIndex === 0) {
           sampleRow1.push(sampleVal);
         } else {
@@ -618,8 +916,10 @@ export function buildDynamicSpreadsheetTemplate(
     }
   }
 
+  const code = typeof service.code === "string" ? service.code.toUpperCase() : "";
+  const title = typeof service.title === "string" ? service.title.toUpperCase() : "";
   const rawFilename = (code || title || "NTC_Service").replace(/[^a-zA-Z0-9_-]/g, "_");
-  const filename = `${rawFilename}_Bulk_Template.csv`;
+  const filename = `${rawFilename}_Bulk_Template.xlsx`;
 
   return {
     filename,
@@ -637,73 +937,79 @@ function getStaticSpreadsheetTemplateForService(service: NTCService): Spreadshee
   // 1. CPE Supplier Accreditation (NTC 1-18)
   if (code === "NTC_1_18" || title.includes("CUSTOMER PREMISES") || title.includes("ACCREDITATION")) {
     return {
-      filename: "NTC_CPE_Supplier_Accreditation_Template.csv",
+      filename: "NTC_CPE_Supplier_Accreditation_Template.xlsx",
       headers: [
         "Business Name",
         "Entity Type",
         "DTI/SEC No",
+        "Representative First Name",
+        "Representative Middle Name",
+        "Representative Last Name",
+        "Representative Suffix",
+        "Representative Position",
         "Contact Number",
         "Email",
+        "Region",
         "Province",
-        "City",
+        "City / Municipality",
         "Barangay",
-        "Street",
-        "Zone",
-        "Unit/Bldg No",
+        "Street Address",
         "Zip Code",
-        "No of Years",
-        "Variation",
-        "Application Type",
-        "Accreditation No",
-        "Supervising Engineer Name",
-        "ECE License No",
-        "Radio Technician Name",
-        "Technician License No",
+        "Supervising Engineer",
+        "Certificate/ECT No.",
+        "Certificate/ECT No. Date of Expiry",
+        "Technician Name",
+        "Certificate/Number",
+        "Certificate/Number Date of Expiry",
       ],
       sampleRows: [
         [
           "Acme Communications Corp.",
           "Corporation",
           "SEC-CS202100982",
+          "Juan",
+          "Reyes",
+          "Dela Cruz",
+          "",
+          "Managing Director",
           "09171234567",
           "regulatory@acme.ph",
+          "National Capital Region (NCR)",
           "Metro Manila",
           "Quezon City",
           "Diliman",
-          "Commonwealth Ave",
-          "Zone 1",
-          "Unit 402",
+          "Unit 402, Commonwealth Ave",
           "1101",
-          "3",
-          "Mobile",
-          "NEW",
-          "",
           "Engr. Roberto Dela Cruz",
           "PECE-0012948",
+          "2027-12-31",
           "Juan Santos",
           "ECT-009812",
+          "2027-12-31",
         ],
         [
           "Metro Radio Supplies",
           "Single Proprietorship",
           "DTI-0981284",
+          "Maria",
+          "Santos",
+          "Aquino",
+          "",
+          "General Manager",
           "09189876543",
           "sales@metroradio.ph",
+          "Region VII (Central Visayas)",
           "Cebu",
           "Cebu City",
           "Mabolo",
-          "MJ Cuenco Ave",
-          "Zone 2",
-          "Bldg A",
+          "Bldg A, MJ Cuenco Ave",
           "6000",
-          "1",
-          "Non-Mobile",
-          "RENEWAL",
-          "CPE-2023-00481",
           "Engr. Maria Santos",
           "PECE-0044912",
+          "2028-06-30",
           "Pedro Reyes",
           "ECT-003412",
+          "2028-06-30",
         ],
       ],
       description: "Use this template for bulk filing of Customer Premises Equipment (CPE) Supplier Accreditation.",
@@ -713,7 +1019,7 @@ function getStaticSpreadsheetTemplateForService(service: NTCService): Spreadshee
   // 2. Radio Operator Exam (NTC 1-01)
   if (code === "NTC_1_01" || title.includes("RADIO OPERATOR EXAM") || title.includes("EXAMINATION")) {
     return {
-      filename: "NTC_Radio_Operator_Exam_Template.csv",
+      filename: "NTC_Radio_Operator_Exam_Template.xlsx",
       headers: [
         "First Name",
         "Middle Name",
@@ -721,22 +1027,19 @@ function getStaticSpreadsheetTemplateForService(service: NTCService): Spreadshee
         "Suffix",
         "Date of Birth",
         "Sex",
+        "Civil Status",
         "Nationality",
+        "Contact Number",
+        "Email",
         "Region",
         "Province",
-        "City",
+        "City / Municipality",
         "Barangay",
-        "Street",
+        "Street Address",
         "Zip Code",
-        "School Name",
-        "Course / Degree",
+        "School / University Attended",
+        "Course / Degree Program",
         "Year Graduated",
-        "Special Order (SO) Number",
-        "Email",
-        "Contact Number",
-        "Exam Type",
-        "Examinee Type",
-        "Class/Element",
       ],
       sampleRows: [
         [
@@ -746,7 +1049,10 @@ function getStaticSpreadsheetTemplateForService(service: NTCService): Spreadshee
           "Jr.",
           "1995-05-15",
           "Male",
+          "Single",
           "Filipino",
+          "09171234567",
+          "juan.delacruz@email.com",
           "National Capital Region (NCR)",
           "Metro Manila",
           "Quezon City",
@@ -756,12 +1062,6 @@ function getStaticSpreadsheetTemplateForService(service: NTCService): Spreadshee
           "Technological University of the Philippines",
           "BS Electronics Engineering",
           "2018",
-          "SO-2018-0912",
-          "juan.delacruz@email.com",
-          "09171234567",
-          "Radiotelephony",
-          "First Taker",
-          "1PHN - Elements 1, 2, 3 & 4",
         ],
         [
           "Maria",
@@ -770,7 +1070,10 @@ function getStaticSpreadsheetTemplateForService(service: NTCService): Spreadshee
           "",
           "1998-08-22",
           "Female",
+          "Married",
           "Filipino",
+          "09189876543",
+          "maria.reyes@email.com",
           "Region VII (Central Visayas)",
           "Cebu",
           "Cebu City",
@@ -780,348 +1083,69 @@ function getStaticSpreadsheetTemplateForService(service: NTCService): Spreadshee
           "University of San Carlos",
           "BS Information Technology",
           "2020",
-          "",
-          "maria.reyes@email.com",
-          "09189876543",
-          "Amateur",
-          "Upgrader",
-          "Class B - Elements 5, 6 & 7",
         ],
       ],
       description: "Use this template for batch filing of Radio Operator Examination admission slips.",
     };
   }
 
-  // 3. Commercial Radio Operator Certificates (NTC 1-02) / Amateur (NTC 1-03)
-  if (
-    code === "NTC_1_02" ||
-    code === "NTC_1_03" ||
-    code === "NTC_AMA_LICENSES" ||
-    title.includes("RADIO OPERATOR CERTIFICATES") ||
-    title.includes("AMATEUR SERVICE")
-  ) {
-    return {
-      filename: "NTC_Radio_Operator_Certificates_Template.csv",
-      headers: [
-        "Applicant Name",
-        "Email",
-        "Contact Number",
-        "Address",
-        "Application Type",
-        "Number of Years",
-        "Type of Certificate / Class",
-        "Existing Certificate No",
-        "Date of Expiry",
-        "Modification Reason",
-        "Employment Status",
-        "Employment Location",
-        "Place of Exam/Seminar",
-        "Exam Date",
-        "Ratings",
-      ],
-      sampleRows: [
-        [
-          "Capt. Gabriel Aquino",
-          "gabriel.aquino@shipping.ph",
-          "09171112233",
-          "Manila Port Area, Manila",
-          "NEW",
-          "3",
-          "GROC",
-          "",
-          "",
-          "",
-          "Employed",
-          "M/V Archipelago Express",
-          "NTC Central Office",
-          "2026-01-10",
-          "Passed (92%)",
-        ],
-        [
-          "Carlos Mendoza",
-          "carlos.mendoza@amateur.ph",
-          "09185556677",
-          "Davao City, Davao del Sur",
-          "RENEWAL",
-          "2",
-          "Class A",
-          "ROC-2023-8891",
-          "2026-03-31",
-          "",
-          "Self-Employed",
-          "Davao Amateur Radio Club",
-          "DX Seminar Manila",
-          "2024-02-15",
-          "Passed Element 8, 9, 10",
-        ],
-      ],
-      description: "Template for Radio Operator and Amateur Radio Certificate applications.",
-    };
-  }
-
-  // 4. Permits in the Amateur Service (NTC 1-09)
-  if (
-    code === "NTC_1_09" ||
-    title.includes("PERMITS IN THE AMATEUR SERVICE") ||
-    (title.includes("PERMIT") && title.includes("AMATEUR"))
-  ) {
-    return {
-      filename: "NTC_Permits_In_The_Amateur_Service_Template.csv",
-      headers: [
-        "Applicant Name",
-        "Call Sign",
-        "Contact Number",
-        "Email",
-        "Region",
-        "Province",
-        "City",
-        "Barangay",
-        "Street",
-        "Room / Unit / Bldg",
-        "Zip Code",
-        "Service Area",
-        "Frequency",
-        "Bandwidth",
-        "Bandwidth Unit",
-        "Emission",
-        "Power Output",
-        "Hours of Operation",
-        "Station Class",
-        "Exact Location",
-        "Longitude",
-        "Latitude",
-        "Configuration",
-        "Data Rate",
-        "Equipment Serial Numbers",
-        "Equipment Frequency Ranges",
-        "Antenna Type",
-        "Antenna Height (cm)",
-        "Antenna Gain (dB)",
-        "Name of Dealer / Seller",
-        "Authorized Seller / Buyer",
-        "Amateur License No / Permit No",
-        "Seller Address",
-        "OR / Invoice No",
-        "Permit / RSL No",
-        "Intended Use",
-        "Storage Location Details",
-      ],
-      sampleRows: [
-        [
-          "Juan Dela Cruz",
-          "DU1ABC",
-          "09171234567",
-          "juandelacruz@example.ph",
-          "NCR",
-          "Metro Manila",
-          "Quezon City",
-          "Central",
-          "123 Agham Road",
-          "Unit 402",
-          "1100",
-          "Nationwide",
-          "144.000 - 146.000 MHz",
-          "25",
-          "MHz",
-          "16K0F3E",
-          "50W",
-          "24 Hours / As Needed",
-          "FX/FB",
-          "Transmitter Site Bldg B, Quezon City",
-          "121.0437 E",
-          "14.6507 N",
-          "Simplex / Duplex",
-          "9600 bps",
-          "SN-IC7300-88192; SN-FT991A-10294",
-          "144-148 MHz; 430-440 MHz",
-          "Yagi / Directional",
-          "1500",
-          "12 dB",
-          "Manila Amateur Radio Supplies Inc.",
-          "Authorized Distributor",
-          "ARSL-2023-00918",
-          "456 Quezon Ave, Quezon City",
-          "OR-2024-88910",
-          "RSL-AMA-2023-0091",
-          "Storage At",
-          "Secure Storage Facility, Warehouse 3, Pasig City",
-        ],
-      ],
-      description: "Use this template for bulk filing of applicants under the selected Permit application type.",
-    };
-  }
-
-  // 5. RFID, SRD, WDN Devices (NTC 1-19)
-  if (code === "NTC_1_19" || title.includes("RFID") || title.includes("WDN")) {
-    return {
-      filename: "NTC_Device_Registration_Template.csv",
-      headers: [
-        "Business Name",
-        "Entity Type",
-        "DTI/SEC No",
-        "Contact Number",
-        "Email",
-        "Address",
-        "Registration Type",
-        "Invoice Number",
-        "Device Type",
-        "Make / Type / Model",
-        "Equipment Serial Numbers",
-      ],
-      sampleRows: [
-        [
-          "Pacific Network Solutions Inc.",
-          "Corporation",
-          "SEC-2022091823",
-          "09173334455",
-          "telecom@pacific.ph",
-          "BGC, Taguig City",
-          "Dealers",
-          "",
-          "Wireless Data Network (WDN) - Indoor",
-          "Ubiquiti UniFi U6-Pro",
-          "SN-UBQ-882109; SN-UBQ-882110; SN-UBQ-882111",
-        ],
-        [
-          "Apex Retail Warehouse Corp.",
-          "Corporation",
-          "SEC-2023081102",
-          "09185556677",
-          "logistics@apex.ph",
-          "Pasig City, Metro Manila",
-          "Non-Dealers",
-          "INV-2026-00481",
-          "Radio Frequency Identification (RFID) Devices",
-          "Zebra FX9600 RFID Reader",
-          "SN-ZBR-440192; SN-ZBR-440193",
-        ],
-      ],
-      description: "Template for registration of RFID, SRD, and indoor WDN devices with serial numbers and invoice details.",
-    };
-  }
-
-  // 5. TVRO Registration Certificate (NTC 1-22)
-  if (code === "NTC_1_22" || code === "NTC_TVRO_CATV_LICENSES" || title.includes("TVRO")) {
-    return {
-      filename: "NTC_TVRO_Registration_Template.csv",
-      headers: [
-        "Applicant Name",
-        "Email",
-        "Contact Number",
-        "Address",
-        "Classification",
-        "Number of Years",
-        "Equipment Type",
-        "Equipment Make/Model",
-        "Equipment Serial No",
-        "Frequency Range",
-        "Antenna Make/Model",
-        "Dish Diameter",
-        "Polarization",
-        "Satellite Name",
-        "Downlink Frequency",
-        "Programs List",
-      ],
-      sampleRows: [
-        [
-          "Luzon Cable Network Inc.",
-          "tvro@luzoncable.ph",
-          "09174445566",
-          "San Fernando, Pampanga",
-          "Commercial",
-          "3",
-          "Satellite Receiver",
-          "Harmonic ProView 7100",
-          "SN-HM-778129",
-          "3.7 - 4.2 GHz",
-          "Patriot Prime Focus",
-          "3.8m",
-          "Dual Linear (H/V)",
-          "Asiasat 7 (105.5°E)",
-          "3840 MHz",
-          "News, Sports, Educational Channels",
-        ],
-      ],
-      description: "Template for TVRO satellite receiver station registration.",
-    };
-  }
-
-  // 6. VAS Provider Registration (NTC 1-20)
-  if (code === "NTC_1_20" || title.includes("VALUE-ADDED") || title.includes("VAS")) {
-    return {
-      filename: "NTC_VAS_Provider_Registration_Template.csv",
-      headers: [
-        "Company Name",
-        "Type of Entity",
-        "Contact Number",
-        "Email",
-        "Address",
-        "Application Type",
-        "Number of Years",
-        "CPCN / PA / CA No.",
-        "CPCN / PA / CA No. Date of Expiry",
-        "COR / VAS No.",
-        "COR / VAS No. Date of Expiry",
-        "Trade Name",
-        "Value Added Services",
-      ],
-      sampleRows: [
-        [
-          "CloudVoice Philippines Corp.",
-          "Corporation",
-          "09178889900",
-          "compliance@cloudvoice.ph",
-          "Makati City, Metro Manila",
-          "RENEWAL",
-          "1",
-          "CPCN-2020-0019",
-          "2030-12-31",
-          "COR-VAS-2022-0045",
-          "2026-12-31",
-          "CloudConnect",
-          "Messaging Service; Audio Conferencing; Audio and Video Conferencing",
-        ],
-      ],
-      description: "Template for Certificate of Registration as Value-Added Service (VAS) Provider.",
-    };
-  }
-
-  // Default Standard General Template
+  // Default Standard General Template (Aligned with ApplicantInformationFormSection)
   return {
-    filename: `${(service.code || "NTC_Service").replace(/\s+/g, "_")}_Bulk_Template.csv`,
+    filename: `${(service.code || "NTC_Service").replace(/\s+/g, "_")}_Bulk_Template.xlsx`,
     headers: [
       "First Name",
+      "Middle Name",
       "Last Name",
-      "Email",
-      "Contact Number",
+      "Suffix",
       "Date of Birth",
-      "Physical Address",
-      "Application Type",
-      "Number of Years",
-      "Notes / Remarks",
+      "Sex",
+      "Civil Status",
+      "Nationality",
+      "Contact Number",
+      "Email",
+      "Region",
+      "Province",
+      "City / Municipality",
+      "Barangay",
+      "Street Address",
+      "Zip Code",
     ],
     sampleRows: [
       [
         "Juan",
+        "Reyes",
         "Dela Cruz",
-        "juan.delacruz@example.com",
+        "",
+        "1995-05-12",
+        "Male",
+        "Single",
+        "Filipino",
         "09171234567",
-        "1990-01-01",
-        "Quezon City, Metro Manila",
-        "NEW",
-        "1",
-        "Standard batch filing entry",
+        "juan.delacruz@example.com",
+        "National Capital Region (NCR)",
+        "Metro Manila",
+        "Quezon City",
+        "Diliman",
+        "Unit 402, 123 Commonwealth Ave",
+        "1101",
       ],
       [
         "Maria",
         "Santos",
-        "maria.santos@example.com",
+        "Aquino",
+        "",
+        "1998-11-20",
+        "Female",
+        "Married",
+        "Filipino",
         "09189876543",
-        "1992-06-15",
-        "Cebu City, Cebu",
-        "NEW",
-        "1",
-        "Standard batch filing entry",
+        "maria.aquino@example.com",
+        "Region VII (Central Visayas)",
+        "Cebu",
+        "Cebu City",
+        "Mabolo",
+        "456 MJ Cuenco Ave",
+        "6000",
       ],
     ],
     description: `Batch applicant intake template for ${service.title}.`,

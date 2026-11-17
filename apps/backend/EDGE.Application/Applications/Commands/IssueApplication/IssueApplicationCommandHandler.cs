@@ -108,34 +108,63 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
         }
         var orNumber = paidOp?.OfficialReceiptNumber;
 
-        // 6. Generate secure verification token
-        var qrVerificationCode = $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpper()}";
+        // 7. Construct IssuedDocumentDetail (for all applicants in bulk application, or single applicant)
+        var orderedAppApplicants = (app.ApplicationApplicants ?? Enumerable.Empty<ApplicationApplicant>())
+            .OrderBy(aa => aa.SequenceOrder)
+            .ToList();
 
-        // 7. Construct IssuedDocumentDetail
-        var issuedDoc = new IssuedDocumentDetail
+        var targetApplicantIds = orderedAppApplicants.Count > 1 && !request.ApplicantId.HasValue
+            ? orderedAppApplicants.Select(aa => (Guid?)aa.ApplicantId).ToList()
+            : new System.Collections.Generic.List<Guid?> { request.ApplicantId ?? orderedAppApplicants.FirstOrDefault()?.ApplicantId };
+
+        IssuedDocumentDetail? primaryIssuedDoc = null;
+        var baseFormNum = request.FormNumber.Trim();
+        var baseLicNum = string.IsNullOrWhiteSpace(request.LicenseNumber) ? null : request.LicenseNumber.Trim();
+
+        for (int idx = 0; idx < targetApplicantIds.Count; idx++)
         {
-            Id = Guid.NewGuid(),
-            ApplicationId = app.Id,
-            ApplicantId = request.ApplicantId ?? app.ApplicationApplicants.FirstOrDefault()?.ApplicantId,
-            DocumentType = string.IsNullOrWhiteSpace(request.DocumentType) ? "Certificate" : request.DocumentType.Trim(),
-            FormNumber = request.FormNumber.Trim(),
-            LicenseNumber = string.IsNullOrWhiteSpace(request.LicenseNumber) ? null : request.LicenseNumber.Trim(),
-            CallSign = string.IsNullOrWhiteSpace(request.CallSign) ? null : request.CallSign.Trim().ToUpper(),
-            StationClass = string.IsNullOrWhiteSpace(request.StationClass) ? null : request.StationClass.Trim(),
-            FrequencyBand = string.IsNullOrWhiteSpace(request.FrequencyBand) ? null : request.FrequencyBand.Trim(),
-            IssueDate = request.IssueDate,
-            ExpiryDate = request.ExpiryDate,
-            OriginalEvaluatorUserId = originalEvaluatorUserId,
-            OriginalEvaluatorName = originalEvaluatorName,
-            IssuedByUserId = userContext.UserId,
-            IssuedByStaffName = userContext.StaffName,
-            IsAlternateIssuer = isAlternateIssuer,
-            OfficialReceiptNumber = orNumber,
-            QrVerificationCode = qrVerificationCode,
-            Remarks = request.Remarks
-        };
+            var appApplicantId = targetApplicantIds[idx];
+            var itemFormNum = targetApplicantIds.Count > 1 ? $"{baseFormNum}-{idx + 1:D2}" : baseFormNum;
+            var itemLicNum = baseLicNum != null
+                ? (targetApplicantIds.Count > 1 ? $"{baseLicNum}-{idx + 1:D2}" : baseLicNum)
+                : null;
 
-        await _repository.AddIssuedDocumentDetailAsync(issuedDoc, cancellationToken);
+            var matchedSoa = appApplicantId.HasValue
+                ? app.StatementsOfAccount?.FirstOrDefault(s => !s.IsDeleted && s.ApplicantId == appApplicantId.Value)
+                : null;
+            var matchedOp = matchedSoa != null
+                ? app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == matchedSoa.Id && o.Status == OpStatus.Paid)
+                : null;
+            var itemOrNumber = matchedOp?.OfficialReceiptNumber ?? orNumber;
+
+            var issuedDocItem = new IssuedDocumentDetail
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                ApplicantId = appApplicantId,
+                DocumentType = string.IsNullOrWhiteSpace(request.DocumentType) ? "Certificate" : request.DocumentType.Trim(),
+                FormNumber = itemFormNum,
+                LicenseNumber = itemLicNum,
+                CallSign = string.IsNullOrWhiteSpace(request.CallSign) ? null : request.CallSign.Trim().ToUpper(),
+                StationClass = string.IsNullOrWhiteSpace(request.StationClass) ? null : request.StationClass.Trim(),
+                FrequencyBand = string.IsNullOrWhiteSpace(request.FrequencyBand) ? null : request.FrequencyBand.Trim(),
+                IssueDate = request.IssueDate,
+                ExpiryDate = request.ExpiryDate,
+                OriginalEvaluatorUserId = originalEvaluatorUserId,
+                OriginalEvaluatorName = originalEvaluatorName,
+                IssuedByUserId = userContext.UserId,
+                IssuedByStaffName = userContext.StaffName,
+                IsAlternateIssuer = isAlternateIssuer,
+                OfficialReceiptNumber = itemOrNumber,
+                QrVerificationCode = $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpper()}",
+                Remarks = request.Remarks
+            };
+
+            await _repository.AddIssuedDocumentDetailAsync(issuedDocItem, cancellationToken);
+            primaryIssuedDoc ??= issuedDocItem;
+        }
+
+        var issuedDoc = primaryIssuedDoc!;
 
         // 8. Transition Application Status to Completed
         var prevAppStatus = app.Status;

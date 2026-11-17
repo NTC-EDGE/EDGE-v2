@@ -52,7 +52,11 @@ export function CompanyDetailsSection({
         />
         <InfoRow
           label="Company Name:"
-          value={app.companyDetails?.name || app.applicant}
+          value={
+            app.companyDetails?.name ||
+            app.filingUser?.company?.name ||
+            (app.applicantType === "Company" && app.applicationType !== "BULK" ? app.applicant : "—")
+          }
           isEditing={isEditingSection}
           editValue={compNameDraft}
           onEditChange={setCompNameDraft}

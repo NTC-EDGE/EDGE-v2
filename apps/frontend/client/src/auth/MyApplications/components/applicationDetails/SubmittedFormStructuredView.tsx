@@ -14,6 +14,7 @@ import {
 export interface SubmittedApplicantData {
   applicantName?: string;
   name?: string;
+  applicantType?: string | null;
   sex?: string;
   nationality?: string;
   streetAddress?: string;
@@ -39,6 +40,8 @@ export interface SubmittedApplicantData {
   courseDegree?: string | null;
   yearGraduated?: string | null;
   specialOrderNo?: string | null;
+  signatureUrl?: string | null;
+  eSignature?: string | null;
 }
 
 export interface SubmittedFormStructuredViewProps {
@@ -161,9 +164,26 @@ export function SubmittedFormStructuredView({
       courseTaken={singleApplicant?.courseTaken || singleApplicant?.courseDegree || null}
       yearGraduated={singleApplicant?.yearGraduated || null}
       specialOrderNo={singleApplicant?.specialOrderNo || null}
+      applicantType={singleApplicant?.applicantType || undefined}
       companyName={singleApplicant?.companyName}
       representativeName={singleApplicant?.representativeName}
       notes={singleApplicant?.notes}
+      activeApplicant={
+        singleApplicant
+          ? {
+              applicantType: singleApplicant.applicantType || undefined,
+              companyName: singleApplicant.companyName || undefined,
+              representativeName: singleApplicant.representativeName || undefined,
+              notes: singleApplicant.notes || undefined,
+              schoolAttended: singleApplicant.schoolAttended || singleApplicant.schoolName || undefined,
+              courseTaken: singleApplicant.courseTaken || singleApplicant.courseDegree || undefined,
+              yearGraduated: singleApplicant.yearGraduated || undefined,
+              specialOrderNo: singleApplicant.specialOrderNo || undefined,
+              signatureUrl: singleApplicant.signatureUrl || singleApplicant.eSignature || undefined,
+            }
+          : undefined
+      }
+      showEquivalentFormHeader={false}
       showApplicantCard={showApplicantCard}
       showSignatureCard={true}
       onPreviewFile={onPreviewFile}

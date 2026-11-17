@@ -13,6 +13,9 @@ interface CheckProofUploadFieldProps {
   label?: string;
   helperText?: string;
   compact?: boolean;
+  compactAttachLabel?: string;
+  cameraTitle?: string;
+  cameraInstruction?: string;
   onPreview?: (file: CheckProofFile) => void;
 }
 
@@ -40,6 +43,9 @@ export function CheckProofUploadField({
   label = 'Check Photo / Scanned Proof',
   helperText = 'Attach a clear photo or scanned copy of the physical check (JPEG, PNG, or PDF)',
   compact = false,
+  compactAttachLabel = 'Attach Check Photo / Proof',
+  cameraTitle = 'Capture Payment Proof Photo',
+  cameraInstruction = 'Position the check or payment receipt clearly within frame',
   onPreview,
 }: CheckProofUploadFieldProps) {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
@@ -213,7 +219,7 @@ export function CheckProofUploadField({
             activeOpacity={0.7}
           >
             <Icon name="paperclip" size={12} color="#475569" />
-            <Text style={styles.proofCompactAttachBtnText}>Attach Check Photo / Proof</Text>
+            <Text style={styles.proofCompactAttachBtnText}>{compactAttachLabel}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.proofCompactAttachBtn}
@@ -229,8 +235,8 @@ export function CheckProofUploadField({
           onClose={() => setIsCameraModalOpen(false)}
           onCapture={handleCameraCapture}
           onFallbackToFilePick={handlePickDocument}
-          title="Capture Check Photo"
-          instructionText="Position physical check clearly within frame"
+          title={cameraTitle}
+          instructionText={cameraInstruction}
         />
       </>
     );
@@ -334,8 +340,8 @@ export function CheckProofUploadField({
         onClose={() => setIsCameraModalOpen(false)}
         onCapture={handleCameraCapture}
         onFallbackToFilePick={handlePickDocument}
-        title="Capture Check Photo"
-        instructionText="Position physical check clearly within frame"
+        title={cameraTitle}
+        instructionText={cameraInstruction}
       />
 
       {file !== null && isImageFile(file) && typeof file?.uri === 'string' && (

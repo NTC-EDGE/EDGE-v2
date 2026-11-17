@@ -61,20 +61,24 @@ export function ApplicantParticularsCard({ applicant }: ApplicantParticularsCard
       (applicant.applicantType || '').toLowerCase() === 'company' ||
       Boolean(applicant.companyName)
     );
+  const hasSponsoringCompany = isCompany || Boolean(applicant.companyName && applicant.companyName.trim().length > 0);
 
   return (
     <ApplicantDetailsReviewCard
       activeApplicant={{
         applicantType: isCompany ? 'company' : 'individual',
-        companyName: isCompany ? (applicant.companyName || null) : null,
-        registrationNumber: isCompany ? (applicant.registrationNumber || null) : null,
-        companyAddress: isCompany ? (applicant.companyAddress || null) : null,
-        companyEmail: isCompany ? (applicant.companyEmail || null) : null,
-        companyContactNumber: isCompany ? (applicant.companyContactNumber || null) : null,
-        representativeName: isCompany ? (applicant.representativeName || null) : null,
-        representativeEmail: isCompany ? (applicant.representativeEmail || null) : null,
-        representativeContactNumber: isCompany ? (applicant.representativeContactNumber || null) : null,
+        companyName: hasSponsoringCompany ? (applicant.companyName || null) : null,
+        registrationNumber: hasSponsoringCompany ? (applicant.registrationNumber || null) : null,
+        companyAddress: hasSponsoringCompany ? (applicant.companyAddress || null) : null,
+        companyEmail: hasSponsoringCompany ? (applicant.companyEmail || null) : null,
+        companyContactNumber: hasSponsoringCompany ? (applicant.companyContactNumber || null) : null,
+        representativeName: hasSponsoringCompany ? (applicant.representativeName || null) : null,
+        representativeEmail: hasSponsoringCompany ? (applicant.representativeEmail || null) : null,
+        representativeContactNumber: hasSponsoringCompany ? (applicant.representativeContactNumber || null) : null,
         notes: applicant.notes || null,
+        schoolAttended: applicant.schoolAttended || null,
+        courseTaken: applicant.courseTaken || null,
+        yearGraduated: applicant.yearGraduated || null,
       }}
       resolvedFullName={fullName}
       resolvedEmail={email}

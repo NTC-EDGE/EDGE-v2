@@ -185,8 +185,21 @@ public class AdminUpdateApplicantProfileCommandTests
             ApplicationId = appId,
             ApplicantId = applicantId,
             FirstName = "NewFirst",
+            MiddleName = "NewMiddle",
             LastName = "NewLast",
-            Email = "new@example.com"
+            Suffix = "III",
+            Email = "new@example.com",
+            ContactNumber = "09180001111",
+            Address = "100 Ayala Ave",
+            Barangay = "Bel-Air",
+            City = "Makati City",
+            Province = "Metro Manila",
+            Region = "NCR",
+            ZipCode = "1209",
+            Dob = "1992-03-15",
+            Sex = "Male",
+            CivilStatus = "Married",
+            Nationality = "Filipino"
         };
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -196,8 +209,16 @@ public class AdminUpdateApplicantProfileCommandTests
 
         // Verification of changes
         applicant.ApplicantDetail.FirstName.Should().Be("NewFirst");
+        applicant.ApplicantDetail.MiddleName.Should().Be("NewMiddle");
         applicant.ApplicantDetail.LastName.Should().Be("NewLast");
+        applicant.ApplicantDetail.Suffix.Should().Be("III");
         applicant.ApplicantDetail.EmailAddress.Should().Be("new@example.com");
+        applicant.ApplicantDetail.ContactNumber.Should().Be("09180001111");
+        applicant.ApplicantDetail.Address.Should().Be("100 Ayala Ave");
+        applicant.ApplicantDetail.ZipCode.Should().Be("1209");
+        applicant.ApplicantDetail.BirthDate.Should().Be(new DateOnly(1992, 3, 15));
+        applicant.ApplicantDetail.Sex.Should().Be("Male");
+        applicant.ApplicantDetail.Nationality.Should().Be("Filipino");
 
         // Verify audit trails logged for changed fields
         _mockAppRepo.Verify(r => r.AddCorrectionAuditTrailAsync(

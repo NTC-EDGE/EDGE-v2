@@ -60,6 +60,7 @@ export interface ApplicantDetailsSnapshot {
   applicantType?: string;
   companyName?: string | null;
   registrationNumber?: string | null;
+  dtiSecRegistration?: string | null;
   companyAddress?: string | null;
   companyEmail?: string | null;
   companyContactNumber?: string | null;
@@ -117,25 +118,31 @@ export function ApplicantDetailsReviewCard({
 }: ApplicantDetailsReviewCardProps) {
   const applicantType = (activeApplicant?.applicantType || 'individual').trim().toLowerCase();
   const isCompany = applicantType === 'company';
+  const rawCompanyName = activeApplicant?.companyName && activeApplicant.companyName.trim().length > 0
+    ? activeApplicant.companyName.trim()
+    : null;
+  const showFilingEntity = isCompany || Boolean(rawCompanyName);
 
-  // Company / Filing Entity & Submitter fields - strictly for company applications
-  const companyName = isCompany ? (activeApplicant?.companyName || null) : null;
-  const registrationNumber = isCompany ? (activeApplicant?.registrationNumber || null) : null;
-  const companyAddress = isCompany ? (activeApplicant?.companyAddress || null) : null;
-  const companyEmail = isCompany ? (activeApplicant?.companyEmail || null) : null;
-  const companyContactNumber = isCompany ? (activeApplicant?.companyContactNumber || null) : null;
+  // Company / Filing Entity & Submitter fields - shown for company applications or liaison filings with a sponsoring company
+  const companyName = showFilingEntity ? rawCompanyName : null;
+  const registrationNumber = showFilingEntity
+    ? (activeApplicant?.registrationNumber || activeApplicant?.dtiSecRegistration || null)
+    : null;
+  const companyAddress = showFilingEntity ? (activeApplicant?.companyAddress || null) : null;
+  const companyEmail = showFilingEntity ? (activeApplicant?.companyEmail || null) : null;
+  const companyContactNumber = showFilingEntity ? (activeApplicant?.companyContactNumber || null) : null;
 
-  const repFromParts = isCompany ? [
+  const repFromParts = showFilingEntity ? [
     activeApplicant?.representativeFirstName,
     activeApplicant?.representativeMiddleName,
     activeApplicant?.representativeLastName,
     activeApplicant?.representativeSuffix,
   ].filter(Boolean).join(' ') : '';
 
-  const representativeName = isCompany ? (activeApplicant?.representativeName || (repFromParts.length > 0 ? repFromParts : null)) : null;
-  const representativePosition = isCompany ? (activeApplicant?.representativePosition || null) : null;
-  const representativeEmail = isCompany ? (activeApplicant?.representativeEmail || null) : null;
-  const representativeContactNumber = isCompany ? (activeApplicant?.representativeContactNumber || null) : null;
+  const representativeName = showFilingEntity ? (activeApplicant?.representativeName || (repFromParts.length > 0 ? repFromParts : null)) : null;
+  const representativePosition = showFilingEntity ? (activeApplicant?.representativePosition || null) : null;
+  const representativeEmail = showFilingEntity ? (activeApplicant?.representativeEmail || null) : null;
+  const representativeContactNumber = showFilingEntity ? (activeApplicant?.representativeContactNumber || null) : null;
   const notes = activeApplicant?.notes || null;
 
   const schoolAttended =
@@ -175,7 +182,7 @@ export function ApplicantDetailsReviewCard({
     Boolean(notes);
 
   const hasFilingEntityData =
-    isCompany && (
+    showFilingEntity && (
       Boolean(companyName) ||
       Boolean(registrationNumber) ||
       Boolean(companyAddress) ||
@@ -190,14 +197,16 @@ export function ApplicantDetailsReviewCard({
     return null;
   }
 
+  const displayEntityName = companyName || (isCompany ? resolvedFullName : null);
+
   return (
     <>
-      {isCompany && (
+      {hasFilingEntityData && (
         <SectionCard icon="briefcase" title="Filing Entity & Submitter Details" accentColor="#0F2C59">
-          {(companyName || resolvedFullName) ? (
+          {displayEntityName ? (
             <SummaryRow
-              label="Registered Business / Corporate Name"
-              value={companyName || resolvedFullName}
+              label={isCompany ? "Registered Business / Corporate Name" : "Sponsoring Company / Organization Name"}
+              value={displayEntityName}
             />
           ) : null}
           {registrationNumber ? (

@@ -10,6 +10,24 @@ import {
   extractFieldDependencyRules,
   hasExplicitVariantCondition,
 } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
+import {
+  PHILIPPINE_REGION_OPTIONS,
+  SUFFIX_DROPDOWN_OPTIONS,
+} from "./spreadsheetTemplates";
+import {
+  isPersonalInfoSection,
+  isNonInputSystemSection,
+  isStandardApplicantSyncField,
+  isExcludedNonEditableField,
+  isObsoleteCopyOfPermitField,
+  isFormFieldRepeater,
+  resolveRepeaterSubColumnsForField,
+  ExpandedRepeaterSubColumn,
+  resolveEffectiveFieldOptions,
+  isMultiSelectCheckboxField,
+  cleanSectionPrefix,
+} from "./formSpreadsheetHelper";
 
 export interface ParsedRowResult {
   rowNumber: number;
@@ -64,6 +82,120 @@ export function parseCsvLine(line: string): string[] {
   return result;
 }
 
+const MONTHS_ARRAY = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function parseFlexibleBirthDate(rawDate: string): {
+  birthYear: string;
+  birthMonth: string;
+  birthDay: string;
+  isoDate: string;
+} {
+  const fallback = {
+    birthYear: "2000",
+    birthMonth: "January",
+    birthDay: "1",
+    isoDate: "2000-01-01",
+  };
+  if (!rawDate || !rawDate.trim()) return fallback;
+
+  const trimmed = rawDate.trim();
+
+  // Check YYYY-MM-DD or MM/DD/YYYY or DD/MM/YYYY
+  const slashOrDashParts = trimmed.split(/[-/.]/).map((p) => p.trim());
+  if (slashOrDashParts.length === 3) {
+    const p0 = slashOrDashParts[0] || "";
+    const p1 = slashOrDashParts[1] || "";
+    const p2 = slashOrDashParts[2] || "";
+
+    let yearNum = 2000;
+    let monthIdx = 0; // 0-11
+    let dayNum = 1;
+
+    if (p0.length === 4 && /^\d{4}$/.test(p0)) {
+      // YYYY-MM-DD
+      yearNum = parseInt(p0, 10);
+      const m = parseInt(p1, 10);
+      const d = parseInt(p2, 10);
+      if (!isNaN(m) && m >= 1 && m <= 12) {
+        monthIdx = m - 1;
+      } else {
+        const matchedM = MONTHS_ARRAY.findIndex((mn) =>
+          mn.toLowerCase().startsWith(p1.toLowerCase().slice(0, 3))
+        );
+        if (matchedM !== -1) monthIdx = matchedM;
+      }
+      if (!isNaN(d) && d >= 1 && d <= 31) dayNum = d;
+    } else if (p2.length === 4 && /^\d{4}$/.test(p2)) {
+      // MM/DD/YYYY or DD/MM/YYYY or DD-MMM-YYYY
+      yearNum = parseInt(p2, 10);
+      const n0 = parseInt(p0, 10);
+      const n1 = parseInt(p1, 10);
+      if (isNaN(n1)) {
+        // DD-MMM-YYYY (e.g. 15-May-1995)
+        const matchedM = MONTHS_ARRAY.findIndex((mn) =>
+          mn.toLowerCase().startsWith(p1.toLowerCase().slice(0, 3))
+        );
+        if (matchedM !== -1) monthIdx = matchedM;
+        if (!isNaN(n0) && n0 >= 1 && n0 <= 31) dayNum = n0;
+      } else if (!isNaN(n0) && !isNaN(n1)) {
+        if (n0 > 12 && n1 >= 1 && n1 <= 12) {
+          // DD/MM/YYYY
+          dayNum = Math.min(31, Math.max(1, n0));
+          monthIdx = n1 - 1;
+        } else {
+          // MM/DD/YYYY (standard Excel US date format)
+          monthIdx = Math.min(11, Math.max(0, n0 - 1));
+          dayNum = Math.min(31, Math.max(1, n1));
+        }
+      }
+    }
+
+    const birthMonth = MONTHS_ARRAY[monthIdx] || "January";
+    const birthYear = String(yearNum);
+    const birthDay = String(dayNum);
+    const mm = String(monthIdx + 1).padStart(2, "0");
+    const dd = String(dayNum).padStart(2, "0");
+    return {
+      birthYear,
+      birthMonth,
+      birthDay,
+      isoDate: `${birthYear}-${mm}-${dd}`,
+    };
+  }
+
+  // Fallback Date.parse for "May 12, 1995"
+  const parsedMs = Date.parse(trimmed);
+  if (!isNaN(parsedMs)) {
+    const dObj = new Date(parsedMs);
+    const y = dObj.getFullYear();
+    const m = dObj.getMonth();
+    const d = dObj.getDate();
+    if (y >= 1900 && y <= 2100) {
+      return {
+        birthYear: String(y),
+        birthMonth: MONTHS_ARRAY[m] || "January",
+        birthDay: String(d),
+        isoDate: `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+      };
+    }
+  }
+
+  return fallback;
+}
+
 export function parseSpreadsheetContent(
   csvContent: string,
   service: NTCService,
@@ -85,6 +217,17 @@ export function parseSpreadsheetContent(
     };
   }
 
+  const isIndividualService = isServiceVariantIndividual(
+    service,
+    undefined,
+    evaluationContext?.variantId || form?.serviceVariantId,
+    evaluationContext?.variantName ||
+      evaluationContext?.variantDescription ||
+      evaluationContext?.applicationType ||
+      form?.serviceVariantName
+  );
+  const isCorporateService = !isIndividualService;
+
   const effectiveContext: FormEvaluationContext = {
     serviceCategory: evaluationContext?.serviceCategory || service.category,
     serviceTitle: evaluationContext?.serviceTitle || service.title,
@@ -100,12 +243,58 @@ export function parseSpreadsheetContent(
       form?.serviceVariantName,
     elementCodes: evaluationContext?.elementCodes,
     elementNames: evaluationContext?.elementNames,
-    applicantType: evaluationContext?.applicantType,
+    applicantType: isIndividualService ? "individual" : "company",
     formValues: evaluationContext?.formValues,
   };
 
   const rawHeaders = parseCsvLine(lines[0] || "");
   const headers = rawHeaders.map((h) => normalizeHeaderKey(h));
+
+  // Identify base applicant column indices so non-applicant fields don't accidentally bind to them
+  const baseHeaderSlugs = new Set([
+    "firstname",
+    "middlename",
+    "lastname",
+    "suffix",
+    "dateofbirth",
+    "birthdate",
+    "sex",
+    "gender",
+    "civilstatus",
+    "nationality",
+    "contactnumber",
+    "email",
+    "region",
+    "province",
+    "city",
+    "citymunicipality",
+    "barangay",
+    "street",
+    "streetaddress",
+    "zipcode",
+    "businessname",
+    "companyname",
+    "entitytype",
+    "dtisecno",
+    "representativefirstname",
+    "representativemiddlename",
+    "representativelastname",
+    "representativesuffix",
+    "authorizedrepresentative",
+    "representativeposition",
+  ]);
+  const baseColIndices = new Set<number>();
+  for (let h = 0; h < headers.length; h++) {
+    const hKey = headers[h];
+    if (hKey && baseHeaderSlugs.has(hKey)) {
+      baseColIndices.add(h);
+    }
+  }
+
+  // Extract any custom dropdown options configured by admin for personal info fields
+  let customSexOptions: string[] | null = null;
+  let customCivilStatusOptions: string[] | null = null;
+  let customEntityTypeOptions: string[] | null = null;
 
   interface ScopedFormField {
     field: FieldDto;
@@ -114,17 +303,143 @@ export function parseSpreadsheetContent(
   }
 
   const formFields: ScopedFormField[] = [];
+  const repeaterFields: Array<{
+    field: FieldDto;
+    section: FormSectionDto;
+    subColumns: Array<{
+      subCol: ExpandedRepeaterSubColumn;
+      colIndex: number;
+    }>;
+    directColIndex: number;
+  }> = [];
+
   if (form && Array.isArray(form.sections)) {
-    for (const sec of form.sections) {
+    const sortedSections = [...form.sections].sort(
+      (a, b) =>
+        (typeof a.orderIndex === "number" ? a.orderIndex : 0) -
+        (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+    );
+
+    for (const sec of sortedSections) {
       if (!evaluateContextOnlyVisibility(sec.visibilityCondition, effectiveContext)) {
         continue;
       }
+
+      // Check personal info overrides first
+      for (const f of sec.fields || []) {
+        if (!isFieldContextVisible(f, sec, effectiveContext)) continue;
+        const opts = parseOptions(f);
+        if (opts.length > 0) {
+          const optLabels = opts
+            .map((o) => (typeof o.label === "string" && o.label.trim().length > 0 ? o.label.trim() : o.value.trim()))
+            .filter(Boolean);
+          const idLower = (f.fieldId || f.id || "").toLowerCase();
+          const lblSlug = normalizeHeaderKey(f.label || "");
+          if (idLower.includes("sex") || idLower.includes("gender") || lblSlug === "sex" || lblSlug === "gender") {
+            customSexOptions = optLabels;
+          } else if (idLower.includes("civilstatus") || idLower.includes("civil_status") || lblSlug === "civilstatus") {
+            customCivilStatusOptions = optLabels;
+          } else if (idLower.includes("entitytype") || lblSlug === "entitytype") {
+            customEntityTypeOptions = optLabels;
+          }
+        }
+      }
+
+      if (isPersonalInfoSection(sec) || isNonInputSystemSection(sec)) {
+        continue;
+      }
+
       const secFields = Array.isArray(sec.fields) ? sec.fields : [];
-      for (const f of secFields) {
+      const sortedFields = [...secFields].sort(
+        (a, b) =>
+          (typeof a.orderIndex === "number" ? a.orderIndex : 0) -
+          (typeof b.orderIndex === "number" ? b.orderIndex : 0)
+      );
+
+      const sectionHasEquipmentRepeater = sortedFields.some(
+        (f) =>
+          isFormFieldRepeater(f) &&
+          isFieldContextVisible(f, sec, effectiveContext) &&
+          resolveRepeaterSubColumnsForField(f, effectiveContext).some(
+            (sc) => sc.type === "equipments_serial" || sc.type === "serials"
+          )
+      );
+
+      for (const f of sortedFields) {
+        if (isExcludedNonEditableField(f)) continue;
+        if (isObsoleteCopyOfPermitField(f, effectiveContext)) continue;
+        if (isStandardApplicantSyncField(f, sec)) continue;
+
         if (typeof f.label === "string" && f.label.trim().length > 0) {
           if (!isFieldContextVisible(f, sec, effectiveContext)) {
             continue;
           }
+
+          const fIdLower = (f.fieldId || f.id || "").toLowerCase().trim();
+          if (
+            sectionHasEquipmentRepeater &&
+            !isFormFieldRepeater(f) &&
+            (fIdLower === "fd000000-0000-0000-0000-000000000111" ||
+              fIdLower === "fd000000-0000-0000-0000-000000000112" ||
+              fIdLower === "fd000000-0000-0000-0000-000000000270" ||
+              fIdLower === "fd000000-0000-0000-0000-000000000084" ||
+              fIdLower === "fd000000-0000-0000-0000-000000000087")
+          ) {
+            continue;
+          }
+
+          if (isFormFieldRepeater(f)) {
+            const subCols = resolveRepeaterSubColumnsForField(f, effectiveContext);
+            const repeaterPrefix = cleanSectionPrefix(f.label || sec.title);
+            const mappedSubCols: Array<{ subCol: ExpandedRepeaterSubColumn; colIndex: number }> = [];
+
+            for (const subCol of subCols) {
+              const rawSubNorm = normalizeHeaderKey(subCol.label);
+              const qualSubNorm =
+                repeaterPrefix.length > 0
+                  ? normalizeHeaderKey(`${repeaterPrefix} - ${subCol.label}`)
+                  : "";
+              const subKeyNorm = normalizeHeaderKey(subCol.subKey);
+
+              let subIdx = -1;
+              if (qualSubNorm.length > 0) {
+                subIdx = headers.findIndex((h) => h === qualSubNorm);
+              }
+              if (subIdx === -1 && rawSubNorm.length > 0) {
+                subIdx = headers.findIndex((h, idx) => !baseColIndices.has(idx) && h === rawSubNorm);
+              }
+              if (subIdx === -1 && subKeyNorm.length > 0) {
+                subIdx = headers.findIndex((h, idx) => !baseColIndices.has(idx) && h === subKeyNorm);
+              }
+              if (subIdx === -1 && rawSubNorm.length > 3) {
+                subIdx = headers.findIndex(
+                  (h, idx) =>
+                    !baseColIndices.has(idx) &&
+                    h.length > 3 &&
+                    (h.includes(rawSubNorm) || rawSubNorm.includes(h))
+                );
+              }
+
+              if (subIdx !== -1) {
+                mappedSubCols.push({ subCol, colIndex: subIdx });
+              }
+            }
+
+            const directNorm = normalizeHeaderKey(f.label);
+            const directColIndex =
+              directNorm.length > 0
+                ? headers.findIndex((h, idx) => !baseColIndices.has(idx) && h === directNorm)
+                : -1;
+
+            repeaterFields.push({
+              field: f,
+              section: sec,
+              subColumns: mappedSubCols,
+              directColIndex,
+            });
+            continue;
+          }
+
           formFields.push({
             field: f,
             section: sec,
@@ -148,8 +463,11 @@ export function parseSpreadsheetContent(
 
   for (const sf of formFields) {
     const f = sf.field;
-    const rawLabel = typeof f.label === "string" ? f.label : "";
+    const rawLabel = typeof f.label === "string" ? f.label.trim() : "";
     const normLabel = normalizeHeaderKey(rawLabel);
+    const secPrefix = cleanSectionPrefix(sf.section.title);
+    const qualNormLabel =
+      secPrefix.length > 0 ? normalizeHeaderKey(`${secPrefix} - ${rawLabel}`) : "";
     const normId =
       typeof f.fieldId === "string"
         ? f.fieldId.toLowerCase().replace(/[^a-z0-9]/g, "")
@@ -158,17 +476,34 @@ export function parseSpreadsheetContent(
         : "";
 
     let foundIndex = -1;
-    for (let h = 0; h < headers.length; h++) {
-      const hNorm = headers[h];
-      if (!hNorm) continue;
-      if (hNorm === normLabel || (normId.length > 0 && hNorm === normId)) {
-        foundIndex = h;
-        break;
+
+    // 1. Prefer section-qualified header match first (e.g. "Particulars of Service Provider - Contact Number")
+    if (qualNormLabel.length > 0) {
+      for (let h = 0; h < headers.length; h++) {
+        if (headers[h] === qualNormLabel) {
+          foundIndex = h;
+          break;
+        }
       }
     }
 
+    // 2. Exact match on non-base columns first
+    if (foundIndex === -1) {
+      for (let h = 0; h < headers.length; h++) {
+        if (baseColIndices.has(h)) continue;
+        const hNorm = headers[h];
+        if (!hNorm) continue;
+        if (hNorm === normLabel || (normId.length > 0 && hNorm === normId)) {
+          foundIndex = h;
+          break;
+        }
+      }
+    }
+
+    // 3. Partial match on non-base columns
     if (foundIndex === -1 && normLabel.length > 3) {
       for (let h = 0; h < headers.length; h++) {
+        if (baseColIndices.has(h)) continue;
         const hNorm = headers[h];
         if (!hNorm || hNorm.length <= 3) continue;
         if (normLabel.includes(hNorm) || hNorm.includes(normLabel)) {
@@ -196,7 +531,6 @@ export function parseSpreadsheetContent(
     }
   }
 
-  // If a column has both variant-specific fields and generic base fields, keep the variant-specific overrides
   for (const [colIdx, candidates] of rawMappingsByCol.entries()) {
     if (candidates.length > 1) {
       const variantSpecific = candidates.filter((c) => c.hasVariantRule);
@@ -205,21 +539,6 @@ export function parseSpreadsheetContent(
       }
     }
   }
-
-  const hasCustomDropdownForSlug = (slugs: string[]): boolean => {
-    for (const candidates of rawMappingsByCol.values()) {
-      for (const c of candidates) {
-        if (slugs.includes(c.normalizedLabel) && parseOptions(c.field).length > 0) {
-          return true;
-        }
-      }
-    }
-    return false;
-  };
-
-  const hasCustomSexDropdown = hasCustomDropdownForSlug(["sex", "gender"]);
-  const hasCustomExamineeDropdown = hasCustomDropdownForSlug(["examineetype", "takertype", "applicantcategory"]);
-  const hasCustomEntityDropdown = hasCustomDropdownForSlug(["entitytype", "businesstype", "companytype"]);
 
   const results: ParsedRowResult[] = [];
   const applicants: GeneralApplicantData[] = [];
@@ -232,7 +551,7 @@ export function parseSpreadsheetContent(
     const rowDict: Record<string, string> = {};
     for (let h = 0; h < headers.length && h < cols.length; h++) {
       const headerKey = headers[h];
-      if (headerKey) {
+      if (headerKey && rowDict[headerKey] === undefined) {
         rowDict[headerKey] = cols[h] || "";
       }
     }
@@ -248,7 +567,10 @@ export function parseSpreadsheetContent(
         const normalized = normalizeHeaderKey(k);
         if (normalized.length >= 4) {
           for (const dictKey of Object.keys(rowDict)) {
-            if (dictKey.includes(normalized) || (dictKey.length >= 4 && normalized.includes(dictKey))) {
+            if (
+              dictKey.includes(normalized) ||
+              (dictKey.length >= 4 && normalized.includes(dictKey))
+            ) {
               if (rowDict[dictKey] !== undefined && rowDict[dictKey] !== "") {
                 return rowDict[dictKey] || "";
               }
@@ -259,47 +581,143 @@ export function parseSpreadsheetContent(
       return "";
     };
 
-    const firstName = getVal("firstname", "first", "name", "applicantname", "businessname", "companyname");
+    const rawFirstName = getVal("firstname", "first", "applicantname");
     const middleName = getVal("middlename", "middle", "middleinitial", "mi");
     const lastName = getVal("lastname", "last", "surname");
-    const suffix = getVal("suffix", "ext", "extension");
+    const rawSuffix = getVal("suffix", "ext", "extension");
     const email = getVal("email", "emailaddress");
-    const contactNo = getVal("contactnumber", "contactno", "phone", "mobile", "cellphone");
-    const birthDate = getVal("dateofbirth", "birthdate", "dob");
+    const rawContactNo = getVal("contactnumber", "contactno", "phone", "mobile", "cellphone").trim();
+    const contactNo = /^9\d{9}$/.test(rawContactNo) ? `0${rawContactNo}` : rawContactNo;
+    const rawBirthDate = getVal("dateofbirth", "birthdate", "dob");
     const nationality = getVal("nationality", "citizenship") || "Filipino";
-    const region = getVal("region", "regionname");
+    const rawRegion = getVal("region", "regionname");
     const province = getVal("province", "state");
-    const city = getVal("city", "municipality", "citymunicipality");
+    const city = getVal("citymunicipality", "city", "municipality");
     const barangay = getVal("barangay", "brgy", "bgy");
-    const street = getVal("street", "streetaddress", "addressline1", "streetzone");
+    const street = getVal("streetaddress", "street", "addressline1", "streetzone", "unitbldgno");
     const zipCode = getVal("zipcode", "zip", "postalcode", "postal");
-    const schoolName = getVal("schoolname", "school", "university", "schoolattended", "education");
-    const courseDegree = getVal("coursedegree", "course", "degree", "program");
+    const schoolName = getVal(
+      "schooluniversityattended",
+      "schoolname",
+      "school",
+      "university",
+      "schoolattended",
+      "education"
+    );
+    const courseDegree = getVal("coursedegreeprogram", "coursedegree", "course", "degree", "program");
     const yearGraduated = getVal("yeargraduated", "graduatedyear", "graduationyear", "yeargrad");
     const specialOrderNo = getVal("specialorderno", "specialorder", "sono", "so", "specialordernumber");
-    const examType = getVal("examtype", "examcategory", "applicationtype", "apptype", "category") || "Radiotelephony";
-    const selectedOption = getVal("selectedoption", "classelement", "elements", "element", "class", "optionclass", "radiooption") || "1PHN - Elements 1, 2, 3 & 4";
+    const examType =
+      getVal("examtype", "examcategory", "applicationtype", "apptype", "category") ||
+      "Radiotelephony";
+    const selectedOption =
+      getVal("selectedoption", "classelement", "elements", "element", "class", "optionclass", "radiooption") ||
+      "1PHN - Elements 1, 2, 3 & 4";
     const appType = getVal("applicationtype", "apptype", "examcategory") || "NEW";
     const years = getVal("noofyears", "numberofyears", "years") || "1";
     const notes = getVal("notes", "remarks", "specialneeds", "assistance") || "";
 
-    const repFirstName = getVal("representativefirstname", "repfirstname", "repfirst");
-    const repMiddleName = getVal("representativemiddlename", "repmiddlename", "repmiddle");
-    const repLastName = getVal("representativelastname", "replastname", "replast");
+    let repFirstName = getVal("representativefirstname", "repfirstname", "repfirst");
+    let repMiddleName = getVal("representativemiddlename", "repmiddlename", "repmiddle");
+    let repLastName = getVal("representativelastname", "replastname", "replast");
     const repSuffix = getVal("representativesuffix", "repsuffix");
-    const repName = getVal("representativename", "authorizedrepresentative", "representative", "repname") ||
-      [repFirstName, repMiddleName, repLastName, repSuffix].filter(Boolean).join(" ");
+    const rawRepFullName = getVal("authorizedrepresentative", "representativename", "representative", "repname");
+
+    if (!repFirstName && !repLastName && rawRepFullName) {
+      const nameParts = rawRepFullName.trim().split(/\s+/);
+      if (nameParts.length === 1) {
+        repFirstName = nameParts[0] || "";
+      } else if (nameParts.length === 2) {
+        repFirstName = nameParts[0] || "";
+        repLastName = nameParts[1] || "";
+      } else if (nameParts.length >= 3) {
+        repFirstName = nameParts[0] || "";
+        repMiddleName = nameParts.slice(1, -1).join(" ");
+        repLastName = nameParts[nameParts.length - 1] || "";
+      }
+    }
+
+    const repName =
+      [repFirstName, repMiddleName, repLastName, repSuffix].filter(Boolean).join(" ") ||
+      rawRepFullName;
     const repPosition = getVal("representativeposition", "designation", "position", "repposition");
-    const companyName = getVal("companyname", "businessname", "corporatename", "organizationname", "entityname");
-    const dtiSecRegistration = getVal("dtisecregistration", "dtisecno", "dtisec", "secno", "dtino", "registrationno", "registrationnumber");
-    const applicantTypeVal = getVal("applicanttype", "entitytype", "classification");
+    const companyName = getVal(
+      "businessname",
+      "companyname",
+      "registeredbusinesscompanyname",
+      "corporatename",
+      "organizationname",
+      "entityname"
+    );
+    const dtiSecRegistration = getVal(
+      "dtisecno",
+      "dtisecregistration",
+      "dtisec",
+      "secno",
+      "dtino",
+      "registrationno",
+      "registrationnumber"
+    );
+
+    // Split full name if only Applicant Name was provided on an individual service
+    let firstName = rawFirstName;
+    let resolvedLastName = lastName;
+    let resolvedMiddleName = middleName;
+    if (!isCorporateService && firstName && !resolvedLastName && firstName.includes(" ")) {
+      const parts = firstName.trim().split(/\s+/);
+      if (parts.length === 2) {
+        firstName = parts[0] || "";
+        resolvedLastName = parts[1] || "";
+      } else if (parts.length >= 3) {
+        firstName = parts[0] || "";
+        if (!resolvedMiddleName) {
+          resolvedMiddleName = parts.slice(1, -1).join(" ");
+        }
+        resolvedLastName = parts[parts.length - 1] || "";
+      }
+    }
 
     const addressParts = [street, barangay, city, province, zipCode].filter(Boolean);
-    const address = addressParts.length > 0 ? addressParts.join(", ") : getVal("address", "physicaladdress");
+    const address =
+      addressParts.length > 0 ? addressParts.join(", ") : getVal("address", "physicaladdress");
 
     const remarks: string[] = [];
 
-    // Strict validation for standard dropdown fields (unless overridden by Form Builder dropdown)
+    // Suffix normalization & validation
+    let suffix = "";
+    if (rawSuffix.trim().length > 0 && rawSuffix.trim().toLowerCase() !== "none") {
+      const sNorm = rawSuffix.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matchedSuffix = SUFFIX_DROPDOWN_OPTIONS.find(
+        (opt) => opt.toLowerCase().replace(/[^a-z0-9]/g, "") === sNorm
+      );
+      if (matchedSuffix !== undefined) {
+        suffix = matchedSuffix;
+      } else {
+        remarks.push(
+          `Invalid Suffix "${rawSuffix}". Must be one of: ${SUFFIX_DROPDOWN_OPTIONS.join(", ")}.`
+        );
+        suffix = rawSuffix.trim();
+      }
+    }
+
+    // Region normalization & validation
+    let region = rawRegion.trim();
+    if (region.length > 0) {
+      const rNorm = region.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matchedRegion = PHILIPPINE_REGION_OPTIONS.find((opt) => {
+        const optNorm = opt.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return optNorm === rNorm || optNorm.includes(rNorm) || rNorm.includes(optNorm);
+      });
+      if (matchedRegion !== undefined) {
+        region = matchedRegion;
+      } else {
+        remarks.push(
+          `Invalid Region "${rawRegion}". Please select a valid region from the dropdown list.`
+        );
+      }
+    }
+
+    // Sex validation
     const rawSex = getVal("sex", "gender");
     let sex = "Male";
     if (rawSex.length > 0) {
@@ -308,57 +726,98 @@ export function parseSpreadsheetContent(
         sex = "Male";
       } else if (sLower === "female" || sLower === "f") {
         sex = "Female";
-      } else if (hasCustomSexDropdown) {
-        sex = rawSex.trim();
-      } else {
+      } else if (customSexOptions && customSexOptions.some((o) => o.toLowerCase() === sLower)) {
+        const matched = customSexOptions.find((o) => o.toLowerCase() === sLower);
+        sex = matched || rawSex.trim();
+      } else if (!isCorporateService) {
         remarks.push(`Invalid Sex "${rawSex}". Must strictly be either "Male" or "Female".`);
         sex = rawSex;
       }
     }
 
-    const isExamService = (service.code || "").toUpperCase() === "NTC_1_01" ||
+    // Civil Status validation
+    const rawCivilStatus = getVal("civilstatus", "maritalstatus");
+    const allowedCivilStatuses =
+      customCivilStatusOptions && customCivilStatusOptions.length > 0
+        ? customCivilStatusOptions
+        : ["Single", "Married", "Widowed", "Separated"];
+    let civilStatus = "Single";
+    if (rawCivilStatus.length > 0) {
+      const csNorm = rawCivilStatus.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matchedCs = allowedCivilStatuses.find(
+        (cs) => cs.toLowerCase().replace(/[^a-z0-9]/g, "") === csNorm
+      );
+      if (matchedCs !== undefined) {
+        civilStatus = matchedCs;
+      } else if (!isCorporateService) {
+        remarks.push(
+          `Invalid Civil Status "${rawCivilStatus}". Must be one of: ${allowedCivilStatuses.join(", ")}.`
+        );
+        civilStatus = rawCivilStatus.trim();
+      }
+    }
+
+    const isExamService =
+      (service.code || "").toUpperCase() === "NTC_1_01" ||
       (service.title || "").toUpperCase().includes("EXAM") ||
-      (service.title || "").toUpperCase().includes("RADIO OPERATOR");
+      (service.title || "").toUpperCase().includes("RADIO OPERATOR EXAM");
 
     const validExamineeTypes = ["First Taker", "Retaker", "Upgrade", "Removal"];
     const rawExamineeType = getVal("examineetype", "takertype", "applicantcategory");
     let examineeType = "First Taker";
     if (rawExamineeType.length > 0) {
       const normExaminee = rawExamineeType.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const matchedExaminee = validExamineeTypes.find((t) => t.toLowerCase().replace(/[^a-z0-9]/g, "") === normExaminee);
+      const matchedExaminee = validExamineeTypes.find(
+        (t) => t.toLowerCase().replace(/[^a-z0-9]/g, "") === normExaminee
+      );
       if (matchedExaminee !== undefined) {
         examineeType = matchedExaminee;
-      } else if (hasCustomExamineeDropdown) {
+      } else {
         examineeType = rawExamineeType.trim();
-      } else if (isExamService) {
-        remarks.push(`Invalid Examinee Type "${rawExamineeType}". Must strictly be one of: ${validExamineeTypes.join(", ")}.`);
-        examineeType = rawExamineeType;
       }
     }
 
-    const isComp = applicantTypeVal.toLowerCase().includes("comp") || applicantTypeVal.toLowerCase().includes("org") || Boolean(companyName);
+    const isComp = isCorporateService;
 
-    const validEntityTypes = [
-      "Corporation",
-      "Single Proprietorship",
-      "Partnership",
-      "Government",
-      "Cooperative",
-      "Association",
-      "Non-Profit",
-    ];
+    const validEntityTypes =
+      customEntityTypeOptions && customEntityTypeOptions.length > 0
+        ? customEntityTypeOptions
+        : [
+            "Corporation",
+            "Single Proprietorship",
+            "Partnership",
+            "Government",
+            "Cooperative",
+            "Association",
+            "Non-Profit",
+            "Others",
+          ];
     const rawEntityType = getVal("entitytype", "businesstype", "companytype");
-    if (rawEntityType.length > 0 && isComp && !hasCustomEntityDropdown) {
+    if (rawEntityType.length > 0 && isComp) {
       const normEntity = rawEntityType.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const matchedEntity = validEntityTypes.find((t) => t.toLowerCase().replace(/[^a-z0-9]/g, "") === normEntity);
+      const matchedEntity = validEntityTypes.find(
+        (t) => t.toLowerCase().replace(/[^a-z0-9]/g, "") === normEntity
+      );
       if (matchedEntity === undefined) {
-        remarks.push(`Invalid Entity Type "${rawEntityType}". Must strictly match one of: ${validEntityTypes.join(", ")}.`);
+        remarks.push(
+          `Invalid Entity Type "${rawEntityType}". Must strictly match one of: ${validEntityTypes.join(", ")}.`
+        );
       }
     }
 
-    if (!firstName && !lastName) {
-      remarks.push("Name or Business Name is missing.");
+    if (isComp) {
+      if (!companyName && !firstName) {
+        remarks.push("Business / Company Name is required.");
+      }
+    } else {
+      if (!firstName && !resolvedLastName) {
+        remarks.push("First Name and Last Name are required.");
+      } else {
+        if (!firstName) remarks.push("First Name is required.");
+        if (!resolvedLastName) remarks.push("Last Name is required.");
+      }
     }
+
     if (!email) {
       remarks.push("Email address is required.");
     } else if (!email.includes("@")) {
@@ -369,45 +828,26 @@ export function parseSpreadsheetContent(
     }
 
     if (isExamService) {
-      if (!lastName) remarks.push("Last Name is required.");
-      if (!firstName) remarks.push("First Name is required.");
       if (!province) remarks.push("Province is required.");
-      if (!city) remarks.push("City is required.");
+      if (!city) remarks.push("City / Municipality is required.");
       if (!barangay) remarks.push("Barangay is required.");
       if (!street && !address) remarks.push("Street address is required.");
-      if (!zipCode) remarks.push("Zip Code is required.");
-      if (!schoolName) remarks.push("School Name is required.");
-      if (!courseDegree) remarks.push("Course/Degree is required.");
+      if (!schoolName) remarks.push("School / University Attended is required.");
+      if (!courseDegree) remarks.push("Course / Degree Program is required.");
       if (!yearGraduated) remarks.push("Year Graduated is required.");
     }
 
-    const displayName = `${firstName} ${lastName}`.trim() || `Row ${i} Applicant`;
+    const displayName = isComp
+      ? companyName || firstName || `Row ${i} Company`
+      : [firstName, resolvedMiddleName, resolvedLastName, suffix].filter(Boolean).join(" ") ||
+        `Row ${i} Applicant`;
 
-    // Parse date components
-    let birthMonth = "January";
-    let birthDay = "1";
-    let birthYear = "2000";
-
-    if (birthDate) {
-      const parts = birthDate.split(/[-/]/);
-      if (parts.length === 3) {
-        if (parts[0] && parts[0].length === 4) {
-          birthYear = parts[0] || "2000";
-          const mIdx = parseInt(parts[1] || "1", 10) - 1;
-          const monthsArr = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-          ];
-          birthMonth = monthsArr[mIdx] || "January";
-          birthDay = String(parseInt(parts[2] || "1", 10));
-        }
-      }
-    }
+    const { birthYear, birthMonth, birthDay, isoDate } = parseFlexibleBirthDate(rawBirthDate);
 
     const appObj: GeneralApplicantData = {
       ...initialGeneralApplicant(i),
       applicantType: isComp ? "company" : "individual",
-      companyName: companyName || (isComp ? (firstName || displayName) : ""),
+      companyName: isComp ? companyName || firstName || displayName : "",
       representativeFirstName: repFirstName,
       representativeMiddleName: repMiddleName,
       representativeLastName: repLastName,
@@ -415,19 +855,20 @@ export function parseSpreadsheetContent(
       representativeName: repName,
       representativePosition: repPosition,
       dtiSecRegistration: dtiSecRegistration,
-      firstName: firstName || displayName,
-      middleName: middleName,
-      lastName: lastName,
-      suffix: suffix,
+      firstName: isComp ? "" : firstName,
+      middleName: isComp ? "" : resolvedMiddleName,
+      lastName: isComp ? "" : resolvedLastName,
+      suffix: isComp ? "" : suffix,
       email: email,
       contactNo: contactNo,
       sex: sex,
+      civilStatus: civilStatus,
       nationality: nationality,
       region: region,
       province: province,
       city: city,
       barangay: barangay,
-      street: street,
+      street: street || address,
       zipCode: zipCode,
       schoolName: schoolName,
       courseDegree: courseDegree,
@@ -436,10 +877,11 @@ export function parseSpreadsheetContent(
       examType: examType,
       examineeType: examineeType,
       selectedOption: selectedOption,
-      address: address,
+      address: address || street,
       birthMonth,
       birthDay,
       birthYear,
+      birthDate: isoDate,
       notes: notes,
     };
 
@@ -473,13 +915,13 @@ export function parseSpreadsheetContent(
 
     const rowContext: FormEvaluationContext = {
       ...effectiveContext,
-      applicantType: evaluationContext?.applicantType || (isComp ? "company" : "individual"),
+      applicantType: isComp ? "company" : "individual",
       formValues: rowFormValues,
     };
 
-    // Extract dynamic fields configured in the Form Builder while strictly enforcing form conditions
     const dynamicFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
 
+    // 1. Parse non-repeater Form Builder fields
     for (const colIdx of colOrder) {
       const candidates = rawMappingsByCol.get(colIdx);
       if (!candidates || candidates.length === 0) continue;
@@ -491,73 +933,35 @@ export function parseSpreadsheetContent(
         isFieldRowVisible(c.field, c.section, rowContext)
       );
 
-      // If no candidate field in this column has its visibility condition met on this row:
       if (visibleCandidates.length === 0) {
-        if (cellVal.length > 0) {
-          // Even if hidden, if the user supplied a value in a dropdown column, check if it matches any candidate option
-          const allOptions: Array<{ label: string; value: string }> = [];
-          for (const c of candidates) {
-            for (const opt of parseOptions(c.field)) {
-              allOptions.push(opt);
-            }
-          }
-          if (allOptions.length > 0) {
-            const normCell = cellVal.toLowerCase().replace(/[^a-z0-9]/g, "");
-            const matchedOpt = allOptions.find((opt) => {
-              const optLabel = typeof opt.label === "string" ? opt.label.trim() : "";
-              const optValue = typeof opt.value === "string" ? opt.value.trim() : "";
-              return (
-                normCell === optLabel.toLowerCase().replace(/[^a-z0-9]/g, "") ||
-                normCell === optValue.toLowerCase().replace(/[^a-z0-9]/g, "") ||
-                cellVal.toLowerCase() === optLabel.toLowerCase() ||
-                cellVal.toLowerCase() === optValue.toLowerCase()
-              );
-            });
-            if (matchedOpt === undefined) {
-              const fallbackLabel =
-                typeof candidates[0]?.field.label === "string" && candidates[0].field.label.trim().length > 0
-                  ? candidates[0].field.label.trim()
-                  : candidates[0]?.normalizedLabel || "Field";
-              const allowedLabels = Array.from(
-                new Set(
-                  allOptions
-                    .map((o) => (typeof o.label === "string" && o.label.length > 0 ? o.label : o.value))
-                    .filter(Boolean)
-                )
-              ).join(", ");
-              remarks.push(
-                `Invalid value "${cellVal}" for "${fallbackLabel}". Must strictly match one of the allowed dropdown options: ${allowedLabels}.`
-              );
-            }
-          }
-        }
-        // Do not require or populate fields whose visibility condition is false for this row
         continue;
       }
 
-      // Prefer a candidate with explicit dependency rules if multiple are visible
       const activeMapping =
-        visibleCandidates.find((c) => extractFieldDependencyRules(c.field, c.section).length > 0) ||
-        visibleCandidates[0];
+        visibleCandidates.find(
+          (c) => extractFieldDependencyRules(c.field, c.section).length > 0
+        ) || visibleCandidates[0];
       if (!activeMapping) continue;
 
       const fieldId =
-        typeof activeMapping.field.fieldId === "string" && activeMapping.field.fieldId.trim().length > 0
+        typeof activeMapping.field.fieldId === "string" &&
+        activeMapping.field.fieldId.trim().length > 0
           ? activeMapping.field.fieldId.trim()
-          : typeof activeMapping.field.id === "string" && activeMapping.field.id.trim().length > 0
+          : typeof activeMapping.field.id === "string" &&
+            activeMapping.field.id.trim().length > 0
           ? activeMapping.field.id.trim()
           : `field-${activeMapping.normalizedLabel}`;
 
       const fieldLabel =
-        typeof activeMapping.field.label === "string" && activeMapping.field.label.trim().length > 0
+        typeof activeMapping.field.label === "string" &&
+        activeMapping.field.label.trim().length > 0
           ? activeMapping.field.label.trim()
           : activeMapping.normalizedLabel;
 
       if (cellVal.length > 0) {
-        // Collect options from visible candidates for this row
         const fieldOptions: Array<{ label: string; value: string }> = [];
         for (const vc of visibleCandidates) {
-          for (const opt of parseOptions(vc.field)) {
+          for (const opt of resolveEffectiveFieldOptions(vc.field, rowContext, rowFormValues)) {
             const exists = fieldOptions.some(
               (existing) => existing.label === opt.label && existing.value === opt.value
             );
@@ -568,39 +972,71 @@ export function parseSpreadsheetContent(
         }
 
         if (fieldOptions.length > 0) {
-          const normCell = cellVal.toLowerCase().replace(/[^a-z0-9]/g, "");
-          const matchedOpt = fieldOptions.find((opt) => {
-            const optLabel = typeof opt.label === "string" ? opt.label.trim() : "";
-            const optValue = typeof opt.value === "string" ? opt.value.trim() : "";
-            const normOptLabel = optLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
-            const normOptVal = optValue.toLowerCase().replace(/[^a-z0-9]/g, "");
-            return (
-              normCell === normOptLabel ||
-              normCell === normOptVal ||
-              cellVal.toLowerCase() === optLabel.toLowerCase() ||
-              cellVal.toLowerCase() === optValue.toLowerCase()
-            );
-          });
-
-          if (matchedOpt !== undefined) {
-            cellVal =
-              typeof matchedOpt.label === "string" && matchedOpt.label.trim().length > 0
-                ? matchedOpt.label.trim()
-                : typeof matchedOpt.value === "string"
-                ? matchedOpt.value.trim()
-                : cellVal;
-            // Update rowFormValues with canonical option label so downstream dependent fields match accurately
-            rowFormValues[fieldId] = cellVal;
-            rowFormValues[fieldLabel] = cellVal;
-            rowFormValues[fieldLabel.toLowerCase()] = cellVal;
+          if (isMultiSelectCheckboxField(activeMapping.field)) {
+            // Multi-select checkbox group (e.g. Intended Use, VAS Services, Nature of Complaint)
+            const parts = cellVal
+              .split(/[;,]/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            const normalizedSelected: string[] = [];
+            for (const part of parts) {
+              const normPart = part.toLowerCase().replace(/[^a-z0-9]/g, "");
+              const matchedOpt = fieldOptions.find((opt) => {
+                const oLbl = (opt.label || "").trim();
+                const oVal = (opt.value || "").trim();
+                return (
+                  normPart === oLbl.toLowerCase().replace(/[^a-z0-9]/g, "") ||
+                  normPart === oVal.toLowerCase().replace(/[^a-z0-9]/g, "") ||
+                  part.toLowerCase().startsWith("storage at") ||
+                  part.toLowerCase().startsWith("others")
+                );
+              });
+              if (matchedOpt) {
+                normalizedSelected.push(
+                  part.toLowerCase().startsWith("storage at:") ||
+                    part.toLowerCase().startsWith("others:")
+                    ? part
+                    : matchedOpt.label || matchedOpt.value
+                );
+              } else {
+                normalizedSelected.push(part);
+              }
+            }
+            cellVal = normalizedSelected.join(", ");
           } else {
-            const allowedLabels = fieldOptions
-              .map((o) => (typeof o.label === "string" && o.label.length > 0 ? o.label : o.value))
-              .filter(Boolean)
-              .join(", ");
-            remarks.push(
-              `Invalid value "${cellVal}" for "${fieldLabel}". Must strictly match one of the allowed dropdown options: ${allowedLabels}.`
-            );
+            const normCell = cellVal.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const matchedOpt = fieldOptions.find((opt) => {
+              const optLabel = typeof opt.label === "string" ? opt.label.trim() : "";
+              const optValue = typeof opt.value === "string" ? opt.value.trim() : "";
+              const normOptLabel = optLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+              const normOptVal = optValue.toLowerCase().replace(/[^a-z0-9]/g, "");
+              return (
+                normCell === normOptLabel ||
+                normCell === normOptVal ||
+                cellVal.toLowerCase() === optLabel.toLowerCase() ||
+                cellVal.toLowerCase() === optValue.toLowerCase()
+              );
+            });
+
+            if (matchedOpt !== undefined) {
+              cellVal =
+                typeof matchedOpt.value === "string" && matchedOpt.value.trim().length > 0
+                  ? matchedOpt.value.trim()
+                  : typeof matchedOpt.label === "string" && matchedOpt.label.trim().length > 0
+                  ? matchedOpt.label.trim()
+                  : cellVal;
+              rowFormValues[fieldId] = cellVal;
+              rowFormValues[fieldLabel] = cellVal;
+              rowFormValues[fieldLabel.toLowerCase()] = cellVal;
+            } else {
+              const allowedLabels = fieldOptions
+                .map((o) => (typeof o.label === "string" && o.label.length > 0 ? o.label : o.value))
+                .filter(Boolean)
+                .join(", ");
+              remarks.push(
+                `Invalid value "${cellVal}" for "${fieldLabel}". Must strictly match one of the allowed options: ${allowedLabels}.`
+              );
+            }
           }
         }
 
@@ -612,11 +1048,7 @@ export function parseSpreadsheetContent(
 
         // Bidirectional sync with standard applicant properties
         const lblLower = fieldLabel.toLowerCase();
-        if (lblLower === "sex" || lblLower === "gender") {
-          appObj.sex = cellVal;
-        } else if (lblLower.includes("examinee type")) {
-          appObj.examineeType = cellVal;
-        } else if (lblLower.includes("school") || lblLower.includes("university")) {
+        if (lblLower.includes("school") || lblLower.includes("university")) {
           appObj.schoolName = cellVal;
         } else if (lblLower.includes("course") || lblLower.includes("degree")) {
           appObj.courseDegree = cellVal;
@@ -624,8 +1056,6 @@ export function parseSpreadsheetContent(
           appObj.yearGraduated = cellVal;
         } else if (lblLower.includes("special order") || lblLower.includes("so no")) {
           appObj.specialOrderNo = cellVal;
-        } else if (lblLower.includes("company name") || lblLower.includes("business name")) {
-          appObj.companyName = cellVal;
         }
       }
 
@@ -635,22 +1065,160 @@ export function parseSpreadsheetContent(
       }
     }
 
+    // 2. Parse Repeater Form Builder fields from their expanded sub-columns
+    for (const rep of repeaterFields) {
+      if (!isFieldRowVisible(rep.field, rep.section, rowContext)) {
+        continue;
+      }
+
+      const fieldId =
+        typeof rep.field.fieldId === "string" && rep.field.fieldId.trim().length > 0
+          ? rep.field.fieldId.trim()
+          : typeof rep.field.id === "string" && rep.field.id.trim().length > 0
+          ? rep.field.id.trim()
+          : `repeater-${normalizeHeaderKey(rep.field.label || "")}`;
+      const fieldLabel = (rep.field.label || "Particulars").trim();
+
+      if (rep.subColumns.length > 0) {
+        const repeaterRowObj: Record<string, string> = {
+          _id: `row-${i}-1`,
+        };
+        let eqSerial = "";
+        let eqFrequency = "";
+        let hasAnySubVal = false;
+
+        for (const { subCol, colIndex } of rep.subColumns) {
+          const rawSubVal = cols[colIndex];
+          let subVal = typeof rawSubVal === "string" ? rawSubVal.trim() : "";
+
+          if (subVal.length > 0) {
+            hasAnySubVal = true;
+
+            if (subCol.options && subCol.options.length > 0) {
+              const normSub = subVal.toLowerCase().replace(/[^a-z0-9]/g, "");
+              const matchedOpt = subCol.options.find(
+                (o) =>
+                  (o.label || "").toLowerCase().replace(/[^a-z0-9]/g, "") === normSub ||
+                  (o.value || "").toLowerCase().replace(/[^a-z0-9]/g, "") === normSub
+              );
+              if (matchedOpt) {
+                subVal = matchedOpt.value || matchedOpt.label || subVal;
+              } else {
+                const allowed = subCol.options.map((o) => o.label || o.value).join(", ");
+                remarks.push(
+                  `Invalid value "${subVal}" for "${subCol.label}". Allowed options: ${allowed}.`
+                );
+              }
+            }
+          } else if (rep.field.isRequired && subCol.required) {
+            remarks.push(`${subCol.label} is required.`);
+          }
+
+          if (subCol.type === "equipments_serial") {
+            eqSerial = subVal;
+            repeaterRowObj.serialNumber = subVal;
+          } else if (subCol.type === "equipments_frequency") {
+            eqFrequency = subVal;
+            repeaterRowObj.frequency = subVal;
+            repeaterRowObj.frequencyRange = subVal;
+          } else if (subCol.type === "serials") {
+            const serialParts = subVal
+              .split(/[;,]/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            const serialEntries =
+              serialParts.length > 0
+                ? serialParts.map((s, sIdx) => ({ id: `serial-${i}-${sIdx}`, serialNumber: s }))
+                : [{ id: `serial-${i}-0`, serialNumber: "" }];
+            const serializedSerials = JSON.stringify(serialEntries);
+            repeaterRowObj[subCol.subKey] = serializedSerials;
+            repeaterRowObj.equipmentSerials = serializedSerials;
+            repeaterRowObj.serialNumbers = serializedSerials;
+            repeaterRowObj.serialNumber = serialParts.join(", ");
+          } else {
+            repeaterRowObj[subCol.subKey] = subVal;
+            if (subCol.subKey === "deviceType") {
+              repeaterRowObj.typeOfEquipmentDevice = subVal;
+            } else if (subCol.subKey === "makeTypeModel") {
+              repeaterRowObj.nameTypeModel = subVal;
+            } else if (subCol.subKey === "stationClass") {
+              repeaterRowObj.classOfStation = subVal;
+            } else if (subCol.subKey === "classOfStation") {
+              repeaterRowObj.stationClass = subVal;
+            }
+          }
+        }
+
+        if (
+          rep.subColumns.some(
+            (sc) =>
+              sc.subCol.type === "equipments_serial" ||
+              sc.subCol.type === "equipments_frequency"
+          )
+        ) {
+          const serialList = eqSerial
+            .split(/[;,]/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const freqList = eqFrequency
+            .split(/[;,]/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const maxUnits = Math.max(serialList.length, freqList.length, 1);
+          const units = Array.from({ length: maxUnits }, (_, uIdx) => ({
+            id: `eq-${i}-${uIdx + 1}`,
+            serialNumber: serialList[uIdx] || serialList[0] || "",
+            frequency: freqList[uIdx] || freqList[0] || "",
+          }));
+          repeaterRowObj.equipments = JSON.stringify(units);
+        }
+
+        if (hasAnySubVal) {
+          dynamicFieldValues.push({
+            fieldId,
+            fieldLabel,
+            value: JSON.stringify([repeaterRowObj]),
+          });
+        }
+      } else if (rep.directColIndex !== -1) {
+        const rawDirect = (cols[rep.directColIndex] || "").trim();
+        if (rawDirect.length > 0) {
+          dynamicFieldValues.push({
+            fieldId,
+            fieldLabel,
+            value: rawDirect,
+          });
+        } else if (rep.field.isRequired) {
+          remarks.push(`${fieldLabel} is required.`);
+        }
+      }
+    }
+
     // Pre-fill educational fields into dynamicFieldValues if parsed from standard columns and not already added
-    if (appObj.schoolName && !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("school"))) {
+    if (
+      appObj.schoolName &&
+      !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("school"))
+    ) {
       dynamicFieldValues.push({
         fieldId: "fd000000-0000-0000-0000-000000000061",
         fieldLabel: "School / University Attended",
         value: appObj.schoolName,
       });
     }
-    if (appObj.courseDegree && !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("course"))) {
+    if (
+      appObj.courseDegree &&
+      !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("course"))
+    ) {
       dynamicFieldValues.push({
         fieldId: "fd000000-0000-0000-0000-000000000062",
         fieldLabel: "Course / Degree Program",
         value: appObj.courseDegree,
       });
     }
-    if (appObj.yearGraduated && !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("graduated"))) {
+    if (
+      appObj.yearGraduated &&
+      !dynamicFieldValues.some((fv) => fv.fieldLabel.toLowerCase().includes("graduated"))
+    ) {
       dynamicFieldValues.push({
         fieldId: "fd000000-0000-0000-0000-000000000063",
         fieldLabel: "Year Graduated",
@@ -666,7 +1234,12 @@ export function parseSpreadsheetContent(
       appObj.radioCertData.email = email;
       appObj.radioCertData.contactNo = contactNo;
       appObj.radioCertData.address = address;
-      appObj.radioCertData.appType = (appType.toUpperCase() === "RENEWAL" ? "RENEWAL" : appType.toUpperCase() === "MODIFICATION" ? "MODIFICATION" : "NEW");
+      appObj.radioCertData.appType =
+        appType.toUpperCase() === "RENEWAL"
+          ? "RENEWAL"
+          : appType.toUpperCase() === "MODIFICATION"
+          ? "MODIFICATION"
+          : "NEW";
       appObj.radioCertData.years = years;
     }
 
@@ -677,20 +1250,33 @@ export function parseSpreadsheetContent(
       appObj.deviceRegData.address = address;
       const regType = getVal("registrationtype", "regtype", "dealerornondealer");
       if (regType) {
-        appObj.deviceRegData.registrationType = regType.toLowerCase().includes("non") ? "Non-Dealers" : "Dealers";
+        appObj.deviceRegData.registrationType = regType.toLowerCase().includes("non")
+          ? "Non-Dealers"
+          : "Dealers";
       }
-      const invNo = getVal("invoicenumber", "invoiceno", "commercialinvoiceno", "commercialinvoicenumber", "invoice");
+      const invNo = getVal(
+        "invoicenumber",
+        "invoiceno",
+        "commercialinvoiceno",
+        "commercialinvoicenumber",
+        "invoice"
+      );
       if (invNo) {
         appObj.deviceRegData.invoiceNo = invNo;
       }
       const serialsStr = getVal("equipmentserialnumbers", "serialnumbers", "serials");
       if (serialsStr) {
-        const serialsList = serialsStr.split(/[;,]/).map((s) => s.trim()).filter((s) => s.length > 0);
+        const serialsList = serialsStr
+          .split(/[;,]/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
         if (serialsList.length > 0 && appObj.deviceRegData?.particulars?.[0]) {
-          appObj.deviceRegData.particulars[0].equipmentSerials = serialsList.map((sn, sIdx) => ({
-            id: `s-${i}-${sIdx}`,
-            serialNumber: sn,
-          }));
+          appObj.deviceRegData.particulars[0].equipmentSerials = serialsList.map(
+            (sn, sIdx) => ({
+              id: `s-${i}-${sIdx}`,
+              serialNumber: sn,
+            })
+          );
         }
       }
     }
@@ -722,15 +1308,35 @@ export function parseSpreadsheetContent(
       if (cpcnNo) {
         appObj.vasData.serviceNo = cpcnNo;
       }
-      const cpcnExp = getVal("cpcnpacanodateofexpiry", "cpcnpacanoateofexpiry", "cpcnexpirydate", "cpcndateofexpiry", "cpcndate");
+      const cpcnExp = getVal(
+        "cpcnpacanodateofexpiry",
+        "cpcnpacanoateofexpiry",
+        "cpcnexpirydate",
+        "cpcndateofexpiry",
+        "cpcndate"
+      );
       if (cpcnExp) {
         appObj.vasData.cpcnPaCaDateOfExpiry = cpcnExp;
       }
-      const corNo = getVal("corvasno", "existingcorvasno", "corno", "vasno", "certificateno", "certificatenumber");
+      const corNo = getVal(
+        "corvasno",
+        "existingcorvasno",
+        "corno",
+        "vasno",
+        "certificateno",
+        "certificatenumber"
+      );
       if (corNo) {
         appObj.vasData.certificateNumber = corNo;
       }
-      const corExp = getVal("corvasnodateofexpiry", "corvasexpirydate", "corvasdateofexpiry", "vasexpirydate", "expirydate", "dateofexpiry");
+      const corExp = getVal(
+        "corvasnodateofexpiry",
+        "corvasexpirydate",
+        "corvasdateofexpiry",
+        "vasexpirydate",
+        "expirydate",
+        "dateofexpiry"
+      );
       if (corExp) {
         appObj.vasData.expiryDate = corExp;
       }
@@ -741,7 +1347,10 @@ export function parseSpreadsheetContent(
       }
       const vasSvcs = getVal("valueaddedservices", "valueaddedservice", "services");
       if (vasSvcs) {
-        appObj.vasData.valueAddedServices = vasSvcs.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+        appObj.vasData.valueAddedServices = vasSvcs
+          .split(/[;,]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
       }
     }
 

@@ -40,6 +40,8 @@ interface SingleApplicantSectionProps {
     courseDegree?: string | null;
     yearGraduated?: string | null;
     specialOrderNo?: string | null;
+    signatureUrl?: string | null;
+    eSignature?: string | null;
   } | null;
   primaryName: string;
   formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }>;

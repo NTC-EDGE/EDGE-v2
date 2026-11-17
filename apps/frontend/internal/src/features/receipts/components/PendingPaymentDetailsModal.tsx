@@ -280,10 +280,23 @@ export function PendingPaymentDetailsModal({
             {activeTab === 'overview' && (
               <View style={styles.tabContent}>
                 {/* Service Info Box */}
-                <View style={[styles.infoCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.infoCard,
+                    {
+                      backgroundColor: colors.cardBg,
+                      borderColor: colors.border,
+                      borderLeftColor: colors.brand.primary,
+                    },
+                  ]}
+                >
                   <View style={styles.infoCardHeader}>
-                    <Lucide name="award" size={16} color={colors.brand.primary} />
-                    <Text style={[styles.infoCardTitle, { color: colors.text }]}>Service Applied</Text>
+                    <View style={[styles.sectionIconBadge, { backgroundColor: '#EFF6FF' }]}>
+                      <Lucide name="award" size={16} color={colors.brand.primary} />
+                    </View>
+                    <Text style={[styles.infoCardTitle, { color: colors.brand.primary }]}>
+                      1. SERVICE APPLIED
+                    </Text>
                   </View>
                   <View style={styles.infoGrid}>
                     <View style={styles.infoCol}>
@@ -302,10 +315,23 @@ export function PendingPaymentDetailsModal({
                 </View>
 
                 {/* Applicant Info Box */}
-                <View style={[styles.infoCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.infoCard,
+                    {
+                      backgroundColor: colors.cardBg,
+                      borderColor: colors.border,
+                      borderLeftColor: '#0284C7',
+                    },
+                  ]}
+                >
                   <View style={styles.infoCardHeader}>
-                    <Lucide name="user" size={16} color={colors.brand.primary} />
-                    <Text style={[styles.infoCardTitle, { color: colors.text }]}>Applicant Information</Text>
+                    <View style={[styles.sectionIconBadge, { backgroundColor: '#E0F2FE' }]}>
+                      <Lucide name="user" size={16} color="#0284C7" />
+                    </View>
+                    <Text style={[styles.infoCardTitle, { color: '#0284C7' }]}>
+                      2. APPLICANT INFORMATION
+                    </Text>
                   </View>
                   <View style={styles.infoGrid}>
                     <View style={styles.infoCol}>
@@ -338,10 +364,23 @@ export function PendingPaymentDetailsModal({
 
                 {/* Assigned Officers */}
                 {app !== null && (
-                  <View style={[styles.infoCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                  <View
+                    style={[
+                      styles.infoCard,
+                      {
+                        backgroundColor: colors.cardBg,
+                        borderColor: colors.border,
+                        borderLeftColor: '#4F46E5',
+                      },
+                    ]}
+                  >
                     <View style={styles.infoCardHeader}>
-                      <Lucide name="users" size={16} color={colors.brand.primary} />
-                      <Text style={[styles.infoCardTitle, { color: colors.text }]}>Workflow Processing Staff</Text>
+                      <View style={[styles.sectionIconBadge, { backgroundColor: '#EEF2FF' }]}>
+                        <Lucide name="users" size={16} color="#4F46E5" />
+                      </View>
+                      <Text style={[styles.infoCardTitle, { color: '#4F46E5' }]}>
+                        3. WORKFLOW PROCESSING STAFF
+                      </Text>
                     </View>
                     <View style={styles.infoGrid}>
                       <View style={styles.infoCol}>
@@ -372,24 +411,33 @@ export function PendingPaymentDetailsModal({
             {activeTab === 'billing' && (
               <View style={styles.tabContent}>
                 {/* Billing Summary Banner */}
-                <View style={[styles.billingHero, { backgroundColor: colors.neutral[50], borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.billingHero,
+                    {
+                      backgroundColor: '#ECFDF5',
+                      borderColor: '#6EE7B7',
+                      borderLeftColor: '#059669',
+                    },
+                  ]}
+                >
                   <View style={styles.billingHeroRow}>
                     <View style={styles.billingHeroItem}>
-                      <Text style={[styles.billingHeroLabel, { color: colors.textMuted }]}>TOTAL AMOUNT DUE</Text>
-                      <Text style={[styles.billingHeroValue, { color: colors.semantic.successText }]}>
+                      <Text style={[styles.billingHeroLabel, { color: '#065F46' }]}>TOTAL AMOUNT DUE</Text>
+                      <Text style={[styles.billingHeroValue, { color: '#065F46' }]}>
                         ₱{(payment.amountDue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Text>
                     </View>
 
                     <View style={styles.billingHeroItem}>
-                      <Text style={[styles.billingHeroLabel, { color: colors.textMuted }]}>AMOUNT RECEIVED</Text>
+                      <Text style={[styles.billingHeroLabel, { color: '#065F46' }]}>AMOUNT RECEIVED</Text>
                       <Text style={[styles.billingHeroValue, { color: colors.text }]}>
                         ₱{(payment.amountReceived ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Text>
                     </View>
 
                     <View style={styles.billingHeroItem}>
-                      <Text style={[styles.billingHeroLabel, { color: colors.textMuted }]}>REMAINING BALANCE</Text>
+                      <Text style={[styles.billingHeroLabel, { color: '#065F46' }]}>REMAINING BALANCE</Text>
                       <Text
                         style={[
                           styles.billingHeroValue,
@@ -397,7 +445,7 @@ export function PendingPaymentDetailsModal({
                             color:
                               (payment.remainingBalance ?? payment.amountDue) > 0
                                 ? colors.semantic.warningText
-                                : colors.semantic.successText,
+                                : '#065F46',
                           },
                         ]}
                       >
@@ -406,25 +454,54 @@ export function PendingPaymentDetailsModal({
                     </View>
                   </View>
 
-                  <View style={[styles.billingDocLinks, { borderTopColor: colors.border }]}>
+                  <View style={[styles.billingDocLinks, { borderTopColor: '#A7F3D0' }]}>
                     <TouchableOpacity
                       onPress={handleOpenPrintOp}
-                      style={[styles.docLinkBtn, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+                      style={[styles.docLinkBtn, { backgroundColor: colors.cardBg, borderColor: '#6EE7B7' }]}
                     >
-                      <Lucide name="printer" size={14} color={colors.brand.primary} />
-                      <Text style={[styles.docLinkText, { color: colors.brand.primary }]}>Print Official OP Document</Text>
+                      <Lucide name="printer" size={14} color="#059669" />
+                      <Text style={[styles.docLinkText, { color: '#059669' }]}>Print Official OP Document</Text>
                     </TouchableOpacity>
-                    <Text style={[styles.docRefText, { color: colors.textMuted }]}>
+                    <Text style={[styles.docRefText, { color: '#065F46', fontWeight: '600' }]}>
                       SOA Ref: {payment.soaNumber || 'N/A'} • OP: {payment.opNumber}
                     </Text>
                   </View>
                 </View>
 
                 {/* Particulars Table */}
-                <View style={[styles.infoCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                  <View style={styles.infoCardHeader}>
-                    <Lucide name="list" size={16} color={colors.brand.primary} />
-                    <Text style={[styles.infoCardTitle, { color: colors.text }]}>Particulars & Fee Computation</Text>
+                <View
+                  style={[
+                    styles.infoCard,
+                    {
+                      backgroundColor: colors.cardBg,
+                      borderColor: colors.border,
+                      borderLeftColor: '#059669',
+                    },
+                  ]}
+                >
+                  <View style={[styles.infoCardHeader, { justifyContent: 'space-between' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={[styles.sectionIconBadge, { backgroundColor: '#ECFDF5' }]}>
+                        <Lucide name="credit-card" size={16} color="#059669" />
+                      </View>
+                      <Text style={[styles.infoCardTitle, { color: '#059669' }]}>
+                        1. PARTICULARS & FEE COMPUTATION
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 999,
+                        backgroundColor: '#ECFDF5',
+                        borderWidth: 1,
+                        borderColor: '#6EE7B7',
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#065F46' }}>
+                        {payment.lineItems?.length ?? 0} {(payment.lineItems?.length ?? 0) === 1 ? 'Fee' : 'Fees'} • ₱{(payment.amountDue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
                   </View>
 
                   <View style={styles.particularsTable}>
@@ -435,15 +512,36 @@ export function PendingPaymentDetailsModal({
                     </View>
 
                     {payment.lineItems && payment.lineItems.length > 0 ? (
-                      payment.lineItems.map((item, idx) => (
-                        <View key={idx} style={[styles.tableRow, { borderBottomColor: colors.border }]}>
-                          <Text style={[styles.tdCode, { color: colors.brand.primary }]}>{item.feeCode}</Text>
-                          <Text style={[styles.tdDesc, { color: colors.text }]}>{item.description}</Text>
-                          <Text style={[styles.tdAmt, { color: colors.text }]}>
-                            ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </Text>
-                        </View>
-                      ))
+                      payment.lineItems.map((item, idx) => {
+                        const upperCode = (item.feeCode || '').toUpperCase();
+                        const isDst = upperCode === 'DST' || (item.description || '').toUpperCase().includes('DOCUMENTARY STAMP');
+                        const isSurcharge = upperCode === 'SUR' || upperCode.includes('SUR') || (item.description || '').toUpperCase().includes('SURCHARGE');
+                        const rowAccent = isSurcharge
+                          ? '#DC2626'
+                          : isDst
+                            ? '#059669'
+                            : colors.brand.primary;
+
+                        return (
+                          <View
+                            key={idx}
+                            style={[
+                              styles.tableRow,
+                              {
+                                borderBottomColor: colors.border,
+                                borderLeftWidth: 4,
+                                borderLeftColor: rowAccent,
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.tdCode, { color: rowAccent }]}>{item.feeCode}</Text>
+                            <Text style={[styles.tdDesc, { color: colors.text, fontWeight: '600' }]}>{item.description}</Text>
+                            <Text style={[styles.tdAmt, { color: '#065F46', fontWeight: '800' }]}>
+                              ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Text>
+                          </View>
+                        );
+                      })
                     ) : (
                       <View style={styles.emptyTableBox}>
                         <Text style={[styles.emptyTableText, { color: colors.textMuted }]}>
@@ -455,10 +553,23 @@ export function PendingPaymentDetailsModal({
                 </View>
 
                 {/* Client Preferred Payment & Uploaded Proof */}
-                <View style={[styles.infoCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.infoCard,
+                    {
+                      backgroundColor: colors.cardBg,
+                      borderColor: colors.border,
+                      borderLeftColor: '#6D28D9',
+                    },
+                  ]}
+                >
                   <View style={styles.infoCardHeader}>
-                    <Lucide name="check-square" size={16} color={colors.brand.primary} />
-                    <Text style={[styles.infoCardTitle, { color: colors.text }]}>Client Submitted Payment & Proof</Text>
+                    <View style={[styles.sectionIconBadge, { backgroundColor: '#F5F3FF' }]}>
+                      <Lucide name="check-square" size={16} color="#6D28D9" />
+                    </View>
+                    <Text style={[styles.infoCardTitle, { color: '#6D28D9' }]}>
+                      2. CLIENT SUBMITTED PAYMENT & PROOF
+                    </Text>
                   </View>
 
                   {breakdown !== null ? (
@@ -555,10 +666,23 @@ export function PendingPaymentDetailsModal({
             {activeTab === 'particulars' && (
               <View style={styles.tabContent}>
                 {/* Form Fields / Radio Specifications */}
-                <View style={[styles.infoCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.infoCard,
+                    {
+                      backgroundColor: colors.cardBg,
+                      borderColor: colors.border,
+                      borderLeftColor: colors.brand.primary,
+                    },
+                  ]}
+                >
                   <View style={styles.infoCardHeader}>
-                    <Lucide name="sliders" size={16} color={colors.brand.primary} />
-                    <Text style={[styles.infoCardTitle, { color: colors.text }]}>Service Specifications & Particulars</Text>
+                    <View style={[styles.sectionIconBadge, { backgroundColor: '#EFF6FF' }]}>
+                      <Lucide name="sliders" size={16} color={colors.brand.primary} />
+                    </View>
+                    <Text style={[styles.infoCardTitle, { color: colors.brand.primary }]}>
+                      1. SERVICE SPECIFICATIONS & PARTICULARS
+                    </Text>
                   </View>
 
                   {primaryApplicant?.formFieldValues && primaryApplicant.formFieldValues.length > 0 ? (
@@ -585,10 +709,23 @@ export function PendingPaymentDetailsModal({
 
                 {/* Issued Statutory Documents (if pre-configured) */}
                 {app?.issuedDocumentDetails && app.issuedDocumentDetails.length > 0 && (
-                  <View style={[styles.infoCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                  <View
+                    style={[
+                      styles.infoCard,
+                      {
+                        backgroundColor: colors.cardBg,
+                        borderColor: colors.border,
+                        borderLeftColor: '#D97706',
+                      },
+                    ]}
+                  >
                     <View style={styles.infoCardHeader}>
-                      <Lucide name="shield" size={16} color={colors.brand.primary} />
-                      <Text style={[styles.infoCardTitle, { color: colors.text }]}>Configured Document Particulars</Text>
+                      <View style={[styles.sectionIconBadge, { backgroundColor: '#FEF3C7' }]}>
+                        <Lucide name="shield" size={16} color="#D97706" />
+                      </View>
+                      <Text style={[styles.infoCardTitle, { color: '#B45309' }]}>
+                        2. CONFIGURED DOCUMENT PARTICULARS
+                      </Text>
                     </View>
                     {app.issuedDocumentDetails.map((doc, dIdx) => (
                       <View key={dIdx} style={[styles.docDetailBox, { borderColor: colors.border, backgroundColor: colors.neutral[50] }]}>
@@ -623,10 +760,23 @@ export function PendingPaymentDetailsModal({
             {/* TAB 4: AUDIT TIMELINE */}
             {activeTab === 'timeline' && (
               <View style={styles.tabContent}>
-                <View style={[styles.infoCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.infoCard,
+                    {
+                      backgroundColor: colors.cardBg,
+                      borderColor: colors.border,
+                      borderLeftColor: '#4F46E5',
+                    },
+                  ]}
+                >
                   <View style={styles.infoCardHeader}>
-                    <Lucide name="git-commit" size={16} color={colors.brand.primary} />
-                    <Text style={[styles.infoCardTitle, { color: colors.text }]}>Application Audit Trail & Timeline</Text>
+                    <View style={[styles.sectionIconBadge, { backgroundColor: '#EEF2FF' }]}>
+                      <Lucide name="git-commit" size={16} color="#4F46E5" />
+                    </View>
+                    <Text style={[styles.infoCardTitle, { color: '#4F46E5' }]}>
+                      APPLICATION AUDIT TRAIL & TIMELINE
+                    </Text>
                   </View>
 
                   {app?.histories && app.histories.length > 0 ? (
@@ -844,6 +994,7 @@ const styles = StyleSheet.create({
   infoCard: {
     borderRadius: 10,
     borderWidth: 1,
+    borderLeftWidth: 4,
     padding: 14,
     gap: 12,
   },
@@ -852,9 +1003,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  sectionIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   infoCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   infoGrid: {
     flexDirection: 'row',
@@ -891,6 +1050,7 @@ const styles = StyleSheet.create({
   billingHero: {
     borderRadius: 10,
     borderWidth: 1,
+    borderLeftWidth: 5,
     padding: 14,
     gap: 12,
   },
@@ -1009,6 +1169,8 @@ const styles = StyleSheet.create({
   paymentItemBox: {
     borderRadius: 8,
     borderWidth: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: '#6D28D9',
     padding: 10,
     gap: 4,
   },

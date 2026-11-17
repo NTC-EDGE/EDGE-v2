@@ -102,6 +102,7 @@ public class IssuedDocumentModel
     public string? OriginalEvaluatorName { get; set; }
 
     // Applicant ID Photo (1" x 1")
+    public Guid? ApplicantPhotoStoredFileId { get; set; }
     public string? ApplicantPhotoUrl { get; set; }
     public byte[]? ApplicantPhotoBytes { get; set; }
 }

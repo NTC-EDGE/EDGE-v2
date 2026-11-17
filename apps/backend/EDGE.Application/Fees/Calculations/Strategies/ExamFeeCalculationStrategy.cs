@@ -32,21 +32,25 @@ public class ExamFeeCalculationStrategy : IFeeCalculationStrategy
         var appType = request.ApplicationType.SafeTrim();
         var element = request.Element.SafeTrim();
 
-        // Examination Fee (FEEEXAM = EXAMFEE)
+        // Examination Fee (FEEEXAM = EXAMFEE) — Uses validity years only if explicitly provided from Form Builder (request.ValidityYears > 0)
+        var units = Math.Max(1, request.NoOfUnits);
+        var valYears = request.ValidityYears > 0 ? request.ValidityYears : 0;
+        var yearMultiplier = valYears > 0 ? valYears : 1;
         decimal examRate = FeeConstants.Amounts.DefaultExamRate;
+        decimal examAmount = examRate * yearMultiplier * units;
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: string.IsNullOrWhiteSpace(element) ? "Examination Fee" : $"Examination Fee ({element})",
             ItemCode: FeeConstants.Codes.Exam,
             Description: "Radio Operator Examination Fee",
-            ValidityYears: 1,
-            NoOfUnits: 1,
+            ValidityYears: valYears,
+            NoOfUnits: units,
             FeeRate: examRate,
-            Amount: examRate
+            Amount: examAmount
         ));
 
-        var subTotal = examRate;
+        var subTotal = examAmount;
         var taxAmount = 0m;
-        var totalAmount = examRate;
+        var totalAmount = examAmount;
 
         return new FeeCalculationResultDto(
             Activity: activity,

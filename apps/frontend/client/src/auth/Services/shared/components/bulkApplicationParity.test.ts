@@ -3,6 +3,7 @@ import { describe, it, expect } from "bun:test";
 import { initialGeneralApplicant, GeneralApplicantData } from "../types/generalApplicantTypes";
 import { serializeCertificateApplicant } from "../../certificates/helpers/payloadSerializer";
 import { isGeneralApplicantComplete } from "../helpers/applicantValidationHelper";
+import { getApplicantDisplayName, isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
 import { NTCService } from "../../data/servicesData";
 
 describe("Bulk vs Single Application Parity", () => {
@@ -176,5 +177,37 @@ describe("Bulk vs Single Application Parity", () => {
 
     expect(completedCount).toBe(1);
     expect(completedCount === cohort.length).toBe(false);
+  });
+
+  it("does not display company name or representative name as first applicant in bulk list when form is not yet filled out", () => {
+    const unfilledIndividualBulkApp: GeneralApplicantData = {
+      ...initialGeneralApplicant(1),
+      applicantType: "individual",
+      companyName: "Sponsoring Maritime Academy Inc.",
+      representativeName: "Juan Dela Cruz",
+      representativeFirstName: "Juan",
+      representativeLastName: "Dela Cruz",
+      selectedVariantId: "var-exam-new",
+      selectedVariantName: "Admission Slip for Radio Operator Examination (NEW)",
+    };
+
+    const isIndiv = isServiceVariantIndividual(
+      dummyService,
+      [{ id: "var-exam-new", isIndividual: true }],
+      unfilledIndividualBulkApp.selectedVariantId,
+      unfilledIndividualBulkApp.selectedVariantName
+    );
+
+    expect(isIndiv).toBe(true);
+    expect(getApplicantDisplayName(unfilledIndividualBulkApp, 1, { isIndividualApplication: isIndiv })).toBe("Applicant");
+    expect(isGeneralApplicantComplete(unfilledIndividualBulkApp, dummyService, [])).toBe(false);
+
+    // Even if applicantType was still "company" from Step 2 Liaison toggle before Step 3 effect ran:
+    const preEffectBulkApp: GeneralApplicantData = {
+      ...unfilledIndividualBulkApp,
+      applicantType: "company",
+    };
+    expect(getApplicantDisplayName(preEffectBulkApp, 1, { isIndividualApplication: isIndiv })).toBe("Applicant");
+    expect(isGeneralApplicantComplete(preEffectBulkApp, dummyService, [])).toBe(false);
   });
 });

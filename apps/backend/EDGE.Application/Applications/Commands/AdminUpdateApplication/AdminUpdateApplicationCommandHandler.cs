@@ -111,14 +111,30 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
             var primaryAppApplicant = app.ApplicationApplicants.FirstOrDefault();
             var primaryApplicant = primaryAppApplicant?.Applicant;
 
-            // Process ContactDetails, BasicInfo, Address on Primary Applicant's ApplicantDetail
-            if (primaryApplicant != null && (request.ContactDetails != null || request.BasicInfo != null || request.Address != null))
+            // Process ContactDetails, BasicInfo, Address, or Applicant on Primary Applicant's ApplicantDetail
+            if (primaryApplicant != null && (request.ContactDetails != null || request.BasicInfo != null || request.Address != null || !string.IsNullOrWhiteSpace(request.Applicant)))
             {
                 if (primaryApplicant.ApplicantDetail == null)
                 {
                     primaryApplicant.ApplicantDetail = new ApplicantDetail { Id = Guid.NewGuid() };
+                    primaryApplicant.ApplicantDetailId = primaryApplicant.ApplicantDetail.Id;
                 }
                 var detail = primaryApplicant.ApplicantDetail;
+
+                if (request.BasicInfo == null && !string.IsNullOrWhiteSpace(request.Applicant))
+                {
+                    var nameParts = request.Applicant.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (nameParts.Length > 0)
+                    {
+                        var newFirst = nameParts[0];
+                        var newLast = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : string.Empty;
+                        if (newFirst != detail.FirstName || newLast != detail.LastName)
+                        {
+                            detail.FirstName = newFirst;
+                            detail.LastName = newLast;
+                        }
+                    }
+                }
 
                 if (request.ContactDetails != null)
                 {
@@ -203,6 +219,22 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
 
                 if (request.Address != null)
                 {
+                    var streetVal = request.Address.StreetAddress ?? request.Address.Address;
+                    if (streetVal != null && streetVal != detail.Address)
+                    {
+                        await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                        {
+                            ApplicationId = app.Id,
+                            Category = "Address Details",
+                            FieldName = "Address",
+                            OldValue = detail.Address ?? string.Empty,
+                            NewValue = streetVal,
+                            CorrectedByStaff = staffName,
+                            CorrectedAt = DateTime.UtcNow
+                        }, cancellationToken);
+                        detail.Address = streetVal;
+                    }
+
                     if (request.Address.ZipCode != null && request.Address.ZipCode != detail.ZipCode)
                     {
                         await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail

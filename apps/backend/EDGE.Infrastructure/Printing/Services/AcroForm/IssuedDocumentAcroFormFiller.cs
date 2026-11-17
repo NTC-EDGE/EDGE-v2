@@ -6,10 +6,12 @@ using iText.Barcodes;
 using iText.Forms;
 using iText.Forms.Fields;
 using iText.Kernel.Colors;
+using iText.Kernel.Font;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas;
+using iText.IO.Font.Constants;
 using iText.IO.Image;
-using iText.Layout.Element;
+using SkiaSharp;
 
 namespace EDGE.Infrastructure.Printing.Services.AcroForm;
 
@@ -143,14 +145,21 @@ public static class IssuedDocumentAcroFormFiller
                 SetField(form, "ORDate", model.OrDate ?? dateStr);
                 SetField(form, "ORBy", model.OrBy ?? "Special Collecting Officer");
 
-                // 12. Vector QR Code Placement
-                StampQrCode(pdfDoc, form, model);
+                // 12. Extract coordinates for QR Code and 1x1 Photo before flattening button widgets
+                var (qrPage, qrRect) = ExtractWidgetLocation(pdfDoc, form, "QRCode");
+                var (photoPage, photoRect) = ExtractWidgetLocation(pdfDoc, form, "ApplicantPhoto", "Photo", "Picture");
 
-                // 13. Applicant Photo Placement (1" x 1")
-                StampApplicantPhoto(pdfDoc, form, model);
+                // Remove button placeholder widgets so FlattenFields does not paint opaque white backgrounds or placeholder icons over the header
+                RemoveButtonPlaceholders(form, "QRCode", "ApplicantPhoto", "Photo", "Picture", "DirectorSignature", "EvaluatorSignature", "CommissionerSignature", "Signature");
 
                 // Flatten all form fields to bake values into the statutory template
                 form.FlattenFields();
+
+                // 13. Stamp Vector QR Code on top layer after flattening
+                StampQrCode(pdfDoc, qrPage, qrRect, model);
+
+                // 14. Stamp Applicant 1" x 1" Photo (or clean 1x1 frame) on top layer after flattening
+                StampApplicantPhoto(pdfDoc, photoPage, photoRect, model);
             }
         }
 
@@ -171,75 +180,220 @@ public static class IssuedDocumentAcroFormFiller
         }
     }
 
-    private static void StampQrCode(PdfDocument pdfDoc, PdfAcroForm form, IssuedDocumentModel model)
+    private static (PdfPage Page, iText.Kernel.Geom.Rectangle? Rect) ExtractWidgetLocation(
+        PdfDocument pdfDoc,
+        PdfAcroForm form,
+        params string[] fieldNames)
     {
-        if (string.IsNullOrWhiteSpace(model.QrVerificationCode)) return;
-
-        var qrField = form.GetField("QRCode");
-        if (qrField == null) return;
-
-        var widgets = qrField.GetWidgets();
-        if (widgets == null || widgets.Count == 0) return;
-
-        try
+        PdfPage fallbackPage = pdfDoc.GetPage(1);
+        foreach (var name in fieldNames)
         {
-            var widget = widgets[0];
-            var page = widget.GetPage();
-            if (page == null) page = pdfDoc.GetPage(1);
+            var field = form.GetField(name);
+            if (field == null) continue;
 
-            var rect = widget.GetRectangle().ToRectangle();
-            if (rect.GetWidth() > 5 && rect.GetHeight() > 5)
-            {
-                var qr = new BarcodeQRCode(model.QrVerificationCode);
-                var formXObject = qr.CreateFormXObject(ColorConstants.BLACK, pdfDoc);
-                var canvas = new PdfCanvas(page);
-                canvas.AddXObjectFittedIntoRectangle(formXObject, rect);
-            }
-        }
-        catch
-        {
-            // Fail gracefully if widget rectangle is invalid
-        }
-    }
-
-    private static void StampApplicantPhoto(PdfDocument pdfDoc, PdfAcroForm form, IssuedDocumentModel model)
-    {
-        if (model.ApplicantPhotoBytes == null || model.ApplicantPhotoBytes.Length == 0) return;
-
-        var photoField = form.GetField("ApplicantPhoto") ?? form.GetField("Photo") ?? form.GetField("Picture");
-        iText.Kernel.Geom.Rectangle? rect = null;
-        PdfPage page = pdfDoc.GetPage(1);
-
-        if (photoField != null)
-        {
-            var widgets = photoField.GetWidgets();
+            var widgets = field.GetWidgets();
             if (widgets != null && widgets.Count > 0)
             {
                 var widget = widgets[0];
-                if (widget.GetPage() != null) page = widget.GetPage();
-                rect = widget.GetRectangle().ToRectangle();
+                var page = widget.GetPage() ?? fallbackPage;
+                var rect = widget.GetRectangle()?.ToRectangle();
+                if (rect != null && rect.GetWidth() > 5 && rect.GetHeight() > 5)
+                {
+                    return (page, rect);
+                }
             }
         }
 
-        if (rect == null && model.DocumentType == "Admission Slip")
-        {
-            // Standard NTC 1-01 Admission Slip photo coordinates (points): X: 541.0, Y: 649.0, W: 63.0, H: 76.0
-            rect = new iText.Kernel.Geom.Rectangle(541.0f, 649.0f, 63.0f, 76.0f);
-        }
+        return (fallbackPage, null);
+    }
 
-        if (rect != null)
+    private static void RemoveButtonPlaceholders(PdfAcroForm form, params string[] fieldNames)
+    {
+        foreach (var name in fieldNames)
         {
             try
             {
-                var imageData = ImageDataFactory.Create(model.ApplicantPhotoBytes);
-                var image = new Image(imageData);
-                var canvas = new PdfCanvas(page);
-                canvas.AddXObjectFittedIntoRectangle(image.GetXObject(), rect);
+                if (form.GetField(name) != null)
+                {
+                    form.RemoveField(name);
+                }
             }
             catch
             {
-                // Graceful fallback if image decoding fails
+                // Ignore if field cannot be removed
             }
+        }
+    }
+
+    private static void StampQrCode(
+        PdfDocument pdfDoc,
+        PdfPage page,
+        iText.Kernel.Geom.Rectangle? rect,
+        IssuedDocumentModel model)
+    {
+        if (rect == null && model.DocumentType.Equals("Admission Slip", StringComparison.OrdinalIgnoreCase))
+        {
+            // Standard Service-1-Admission-Slip.pdf top-right header QR box coordinates
+            rect = new iText.Kernel.Geom.Rectangle(697.998f, 471.851f, 107.687f, 102.519f);
+        }
+
+        if (rect == null || rect.GetWidth() <= 5 || rect.GetHeight() <= 5) return;
+
+        var qrValue = !string.IsNullOrWhiteSpace(model.QrVerificationCode)
+            ? model.QrVerificationCode.Trim()
+            : $"NTC-VERIFY-{model.FormNumber ?? model.LicenseNumber ?? model.ReferenceNumber ?? "OFFICIAL"}";
+
+        try
+        {
+            var canvas = new PdfCanvas(page.NewContentStreamAfter(), page.GetResources(), pdfDoc);
+            canvas.SaveState();
+
+            // Clean white background + subtle frame border so underlying placeholder never bleeds through
+            canvas.SetFillColor(ColorConstants.WHITE);
+            canvas.SetStrokeColor(new DeviceRgb(148, 163, 184));
+            canvas.SetLineWidth(0.75f);
+            canvas.Rectangle(rect);
+            canvas.FillStroke();
+
+            var qr = new BarcodeQRCode(qrValue);
+            var formXObject = qr.CreateFormXObject(ColorConstants.BLACK, pdfDoc);
+
+            const float pad = 3.0f;
+            var innerRect = new iText.Kernel.Geom.Rectangle(
+                rect.GetX() + pad,
+                rect.GetY() + pad,
+                Math.Max(10f, rect.GetWidth() - (pad * 2f)),
+                Math.Max(10f, rect.GetHeight() - (pad * 2f)));
+
+            canvas.AddXObjectFittedIntoRectangle(formXObject, innerRect);
+            canvas.RestoreState();
+        }
+        catch
+        {
+            // Fail gracefully if QR rendering fails
+        }
+    }
+
+    private static void StampApplicantPhoto(
+        PdfDocument pdfDoc,
+        PdfPage page,
+        iText.Kernel.Geom.Rectangle? rect,
+        IssuedDocumentModel model)
+    {
+        if (rect == null && model.DocumentType.Equals("Admission Slip", StringComparison.OrdinalIgnoreCase))
+        {
+            // Standard Service-1-Admission-Slip.pdf top-left header 1x1 Photo box coordinates
+            rect = new iText.Kernel.Geom.Rectangle(43.328f, 473.966f, 104.606f, 100.988f);
+        }
+
+        if (rect == null || rect.GetWidth() <= 5 || rect.GetHeight() <= 5) return;
+
+        try
+        {
+            var canvas = new PdfCanvas(page.NewContentStreamAfter(), page.GetResources(), pdfDoc);
+            canvas.SaveState();
+
+            // Clean white background + border frame for the 1x1 photo box
+            canvas.SetFillColor(ColorConstants.WHITE);
+            canvas.SetStrokeColor(new DeviceRgb(148, 163, 184));
+            canvas.SetLineWidth(0.75f);
+            canvas.Rectangle(rect);
+            canvas.FillStroke();
+
+            bool imageDrawn = false;
+            if (model.ApplicantPhotoBytes != null && model.ApplicantPhotoBytes.Length > 0)
+            {
+                try
+                {
+                    var imageData = CreateImageDataWithFallback(model.ApplicantPhotoBytes);
+                    if (imageData != null)
+                    {
+                        const float pad = 1.5f;
+                        var innerRect = new iText.Kernel.Geom.Rectangle(
+                            rect.GetX() + pad,
+                            rect.GetY() + pad,
+                            Math.Max(10f, rect.GetWidth() - (pad * 2f)),
+                            Math.Max(10f, rect.GetHeight() - (pad * 2f)));
+
+                        canvas.AddImageFittedIntoRectangle(imageData, innerRect, false);
+                        imageDrawn = true;
+                    }
+                }
+                catch
+                {
+                    imageDrawn = false;
+                }
+            }
+
+            if (!imageDrawn)
+            {
+                // Draw a clean 1" x 1" ID Picture frame with silhouette and label when no photo bytes are uploaded yet
+                float cx = rect.GetX() + (rect.GetWidth() / 2f);
+                float cy = rect.GetY() + (rect.GetHeight() / 2f);
+                float headRadius = Math.Min(rect.GetWidth(), rect.GetHeight()) * 0.14f;
+
+                canvas.SetStrokeColor(new DeviceRgb(148, 163, 184));
+                canvas.SetFillColor(new DeviceRgb(241, 245, 249));
+                canvas.SetLineWidth(1.0f);
+
+                // Head circle
+                canvas.Circle(cx, cy + (headRadius * 0.9f), headRadius);
+                canvas.FillStroke();
+
+                // Shoulders / bust rounded shape
+                float bustW = headRadius * 3.1f;
+                float bustH = headRadius * 1.6f;
+                canvas.RoundRectangle(cx - (bustW / 2f), cy - (headRadius * 1.45f), bustW, bustH, headRadius * 0.65f);
+                canvas.FillStroke();
+
+                // "1x1 ID PHOTO" label at bottom of the box
+                var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+                string label = "1x1 ID PHOTO";
+                float fontSize = 7.5f;
+                float textWidth = font.GetWidth(label, fontSize);
+                canvas.BeginText();
+                canvas.SetFontAndSize(font, fontSize);
+                canvas.SetFillColor(new DeviceRgb(100, 116, 139));
+                canvas.MoveText(cx - (textWidth / 2f), rect.GetY() + 8f);
+                canvas.ShowText(label);
+                canvas.EndText();
+            }
+
+            canvas.RestoreState();
+        }
+        catch
+        {
+            // Graceful fallback
+        }
+    }
+
+    private static ImageData? CreateImageDataWithFallback(byte[] rawBytes)
+    {
+        try
+        {
+            return ImageDataFactory.Create(rawBytes);
+        }
+        catch
+        {
+            // Fallback for WebP or other formats not natively supported by iText ImageDataFactory
+            try
+            {
+                using var bitmap = SKBitmap.Decode(rawBytes);
+                if (bitmap != null)
+                {
+                    using var image = SKImage.FromBitmap(bitmap);
+                    using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+                    if (encoded != null)
+                    {
+                        return ImageDataFactory.Create(encoded.ToArray());
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore if SkiaSharp also cannot decode
+            }
+            return null;
         }
     }
 }

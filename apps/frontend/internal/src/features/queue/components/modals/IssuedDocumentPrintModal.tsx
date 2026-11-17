@@ -23,7 +23,12 @@ import {
   TYPOGRAPHY,
   toast,
 } from '@edge/ui';
-import { applicationService, storageService, ApplicantRequirementItemDto } from '@edge/api';
+import {
+  applicationService,
+  storageService,
+  ApplicantRequirementItemDto,
+  resolveEffectiveTenantId,
+} from '@edge/api';
 import { useAuthContext } from '../../../auth/context/AuthContext';
 import { ApplicationData } from '../../../../types/application';
 import {
@@ -135,8 +140,37 @@ export function IssuedDocumentPrintModal({
     return eligibleTemplates[0] ?? findMatchingTemplate(app);
   }, [eligibleTemplates, app]);
 
-  // Primary active print target mode: Defaults to real cloud PDF template preview
   const [activeTarget, setActiveTarget] = useState<IssuedPrintTargetMode>('pdf');
+  const [selectedApplicantId, setSelectedApplicantId] = useState<string>('ALL');
+
+  const applicantsList = app.applicantsList ?? [];
+  const isBulkApp =
+    app.applicationType === 'BULK' ||
+    app.mode === 'Bulk' ||
+    applicantsList.length > 1;
+  const selectedApplicant = useMemo(
+    () => (selectedApplicantId !== 'ALL' ? applicantsList.find((a) => a.id === selectedApplicantId) : undefined),
+    [applicantsList, selectedApplicantId]
+  );
+  const effectiveApplicantId = selectedApplicant?.id;
+  const effectiveApp = useMemo<ApplicationData>(() => {
+    if (!selectedApplicant) return app;
+    return {
+      ...app,
+      applicant: selectedApplicant.name || app.applicant,
+      basicInfo: selectedApplicant.basicInfo ?? app.basicInfo,
+      address: {
+        streetAddress: selectedApplicant.streetAddress || selectedApplicant.address || app.address?.streetAddress || '',
+        address: selectedApplicant.address || selectedApplicant.streetAddress || app.address?.address || '',
+        barangay: selectedApplicant.barangay || app.address?.barangay || '',
+        city: selectedApplicant.city || app.address?.city || '',
+        province: selectedApplicant.province || app.address?.province || '',
+        region: selectedApplicant.region || app.address?.region || '',
+        zipCode: selectedApplicant.zipCode || app.address?.zipCode || '',
+      },
+      applicantsList: [selectedApplicant],
+    };
+  }, [app, selectedApplicant]);
 
   // Printing Configurations
   const [outputMode, setOutputMode] = useState<PrintOutputMode>(
@@ -185,6 +219,7 @@ export function IssuedDocumentPrintModal({
             issueDate: initialOptions?.issueDate,
             expiryDate: initialOptions?.expiryDate,
             documentType: initialOptions?.issuedDocumentType,
+            applicantId: effectiveApplicantId,
           });
 
           if (!active) return;
@@ -224,91 +259,204 @@ export function IssuedDocumentPrintModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [visible, app.id, activeTarget, initialOptions, reloadKey]);
+  }, [visible, app.id, activeTarget, initialOptions, effectiveApplicantId, reloadKey]);
 
-  // Applicant 1x1 Photo URL for accountable form / admission slip
+  // Applicant 1x1 Photo URL(s) for accountable form / admission slip
   const [applicantPhotoUrl, setApplicantPhotoUrl] = useState<string | null>(
     initialOptions?.applicantPhotoUrl ?? null
+  );
+  const [applicantPhotosById, setApplicantPhotosById] = useState<Record<string, string>>(
+    initialOptions?.applicantPhotosById ?? {}
   );
 
   // Auto-detect applicant 1x1 photo from application requirements or query API
   useEffect(() => {
     let active = true;
 
-    // 1. Check pre-loaded requirements on app
-    if (app.requirements && app.requirements.length > 0) {
-      const match = app.requirements.find((r) => {
-        const lbl = (r.label || '').toLowerCase();
-        const fname = (r.filename || '').toLowerCase();
-        return (
-          lbl.includes('1x1') ||
-          lbl.includes('photo') ||
-          lbl.includes('picture') ||
-          fname.includes('1x1') ||
-          fname.includes('photo')
-        );
+    const blobToDataUrl = (blob: Blob): Promise<string> =>
+      new Promise((resolve) => {
+        if (typeof FileReader !== 'undefined') {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (typeof reader.result === 'string' && reader.result.length > 0) {
+              resolve(reader.result);
+            } else if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+              resolve(URL.createObjectURL(blob));
+            } else {
+              resolve('');
+            }
+          };
+          reader.onerror = () => {
+            if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+              resolve(URL.createObjectURL(blob));
+            } else {
+              resolve('');
+            }
+          };
+          reader.readAsDataURL(blob);
+          return;
+        }
+        if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+          resolve(URL.createObjectURL(blob));
+        } else {
+          resolve('');
+        }
       });
-      if (match?.thumbnailUri || match?.url) {
-        setApplicantPhotoUrl(match.thumbnailUri || match.url || null);
-        return;
+
+    const resolveUrlToRenderableSrc = async (rawUrl: string): Promise<string> => {
+      if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return rawUrl;
+      try {
+        const [blobData, blobErr] = await storageService.downloadFileByUrl(rawUrl);
+        if (blobErr === null && blobData instanceof Blob && blobData.size > 0) {
+          const dataUrl = await blobToDataUrl(blobData);
+          if (dataUrl) return dataUrl;
+        }
+      } catch {
+        // fallback to rawUrl
       }
-    }
+      return rawUrl;
+    };
 
-    // 2. Otherwise fetch from applicant requirements API if modal is visible
-    if (visible && app?.id) {
-      const activeApplicantId = app.applicantsList?.[0]?.id ?? app.id;
-      const loadReqs = async () => {
-        try {
-          const [res, err] = await applicationService.getApplicantRequirements(
-            app.id,
-            activeApplicantId
+    const loadPhotos = async () => {
+      // 1. Check pre-loaded requirements on app (for single applications)
+      if (!isBulkApp && app.requirements && app.requirements.length > 0) {
+        const match = app.requirements.find((r) => {
+          const lbl = (r.label || '').toLowerCase();
+          const fname = (r.filename || '').toLowerCase();
+          return (
+            lbl.includes('1x1') ||
+            lbl.includes('2x2') ||
+            lbl.includes('photo') ||
+            lbl.includes('picture') ||
+            fname.includes('1x1') ||
+            fname.includes('photo')
           );
-          if (!active) return;
-          if (err === null && res?.data && Array.isArray(res.data)) {
-            const photoItem = res.data.find((item: ApplicantRequirementItemDto) => {
-              const name = (item.requirementName || '').toLowerCase();
-              return (
-                name.includes('1x1') ||
-                name.includes('photo') ||
-                name.includes('picture') ||
-                name.includes('id pic') ||
-                item.requirementId === '70000000-0000-0000-0000-000000000003' ||
-                item.requirementId === '70000000-0000-0000-0000-000000000033'
-              );
-            });
+        });
+        const candidateUri = match?.thumbnailUri || match?.url;
+        if (candidateUri) {
+          const resolved = await resolveUrlToRenderableSrc(candidateUri);
+          if (active && resolved) {
+            setApplicantPhotoUrl(resolved);
+          }
+        }
+      }
 
-            if (photoItem) {
-              if (
-                typeof photoItem.storedFileId === 'string' &&
-                photoItem.storedFileId.trim() !== '' &&
-                photoItem.storedFileId !== 'null'
-              ) {
-                const downloadUrl = storageService.getFileDownloadUrl(
-                  photoItem.storedFileId,
-                  app.tenantId
+      // 2. Fetch from applicant requirements API for all applicants in the application
+      if (visible && app?.id) {
+        const targetApplicantIds =
+          applicantsList.length > 0
+            ? applicantsList.map((a) => a.id).filter((id): id is string => Boolean(id))
+            : [app.id];
+
+        const nextMap: Record<string, string> = {};
+
+        for (const targetAppId of targetApplicantIds) {
+          try {
+            const [res, err] = await applicationService.getApplicantRequirements(
+              app.id,
+              targetAppId
+            );
+            if (!active) return;
+            if (err === null && res?.data && Array.isArray(res.data)) {
+              const hasUploadedFile = (item: ApplicantRequirementItemDto): boolean =>
+                (typeof item.storedFileId === 'string' &&
+                  item.storedFileId.trim() !== '' &&
+                  item.storedFileId !== 'null') ||
+                (typeof item.url === 'string' && item.url.trim() !== '' && item.url !== 'null');
+
+              const isPhotoReqItem = (item: ApplicantRequirementItemDto): boolean => {
+                const name = (item.requirementName || '').toLowerCase();
+                const fileName = (item.fileName || '').toLowerCase();
+                return (
+                  name.includes('1x1') ||
+                  name.includes('2x2') ||
+                  name.includes('photo') ||
+                  name.includes('picture') ||
+                  name.includes('id pic') ||
+                  fileName.includes('1x1') ||
+                  fileName.includes('photo') ||
+                  item.requirementId === '70000000-0000-0000-0000-000000000503' ||
+                  item.requirementId === '70000000-0000-0000-0000-000000000003' ||
+                  item.requirementId === '70000000-0000-0000-0000-000000000033'
                 );
-                setApplicantPhotoUrl(downloadUrl);
-              } else if (
-                typeof photoItem.url === 'string' &&
-                photoItem.url.trim() !== '' &&
-                photoItem.url !== 'null'
-              ) {
-                setApplicantPhotoUrl(photoItem.url.trim());
+              };
+
+              const isImageAttachmentItem = (item: ApplicantRequirementItemDto): boolean => {
+                const ct = (item.contentType || '').toLowerCase();
+                if (ct.startsWith('image/')) return true;
+                const fn = (item.fileName || item.url || '').toLowerCase();
+                return (
+                  fn.endsWith('.jpg') ||
+                  fn.endsWith('.jpeg') ||
+                  fn.endsWith('.png') ||
+                  fn.endsWith('.webp') ||
+                  fn.endsWith('.bmp') ||
+                  fn.endsWith('.gif')
+                );
+              };
+
+              const uploadedItems = res.data.filter(hasUploadedFile);
+              const photoItem =
+                uploadedItems.find(isPhotoReqItem) ??
+                uploadedItems[uploadedItems.length - 1 && uploadedItems.findIndex(isImageAttachmentItem) >= 0 ? uploadedItems.findIndex(isImageAttachmentItem) : -1] ??
+                res.data.find(isPhotoReqItem);
+
+              if (photoItem) {
+                const effectiveTenant =
+                  resolveEffectiveTenantId(app.tenantId, app.address?.region) ||
+                  app.tenantId ||
+                  undefined;
+                let rawDownloadUrl = '';
+                if (
+                  typeof photoItem.url === 'string' &&
+                  photoItem.url.trim() !== '' &&
+                  photoItem.url !== 'null'
+                ) {
+                  rawDownloadUrl = photoItem.url.trim();
+                } else if (
+                  typeof photoItem.storedFileId === 'string' &&
+                  photoItem.storedFileId.trim() !== '' &&
+                  photoItem.storedFileId !== 'null'
+                ) {
+                  rawDownloadUrl = storageService.getFileDownloadUrl(
+                    photoItem.storedFileId,
+                    effectiveTenant
+                  );
+                }
+
+                if (rawDownloadUrl) {
+                  const renderable = await resolveUrlToRenderableSrc(rawDownloadUrl);
+                  if (!active) return;
+                  if (renderable) {
+                    nextMap[targetAppId] = renderable;
+                  }
+                }
               }
             }
+          } catch {
+            // Graceful fallback if requirements fetch fails for an applicant
           }
-        } catch {
-          // Graceful fallback if requirements fetch fails
         }
-      };
 
-      void loadReqs();
-    }
+        if (active && Object.keys(nextMap).length > 0) {
+          setApplicantPhotosById((prev) => ({ ...prev, ...nextMap }));
+          const firstResolved =
+            (effectiveApplicantId && nextMap[effectiveApplicantId]) ||
+            Object.values(nextMap)[0] ||
+            null;
+          if (firstResolved) {
+            setApplicantPhotoUrl(firstResolved);
+          }
+        }
+      }
+    };
+
+    void loadPhotos();
 
     return () => {
       active = false;
     };
-  }, [visible, app.id, app.requirements, app.applicantsList, app.tenantId]);
+  }, [visible, app.id, app.requirements, applicantsList, app.tenantId, isBulkApp, effectiveApplicantId]);
 
   // Load workstation saved preferences for this specific report/template and user
   useEffect(() => {
@@ -353,7 +501,11 @@ export function IssuedDocumentPrintModal({
     signatoryName: initialOptions?.signatoryName || app.issuingOfficer || app.evaluatingOfficer || 'REGIONAL DIRECTOR',
     signatoryTitle: 'Regional Director / Authorized Officer',
     remarks: initialOptions?.remarks || app.note || 'Standard statutory authorization',
-    applicantPhotoUrl: applicantPhotoUrl || initialOptions?.applicantPhotoUrl,
+    applicantPhotoUrl:
+      (effectiveApplicantId && applicantPhotosById[effectiveApplicantId]) ||
+      applicantPhotoUrl ||
+      initialOptions?.applicantPhotoUrl,
+    applicantPhotosById,
     qrCodeValue: initialOptions?.qrCodeValue || `NTC-VERIFY-${app.referenceNumber || app.applicationNumber || app.id.slice(0, 8).toUpperCase()}`,
   }), [
     paperSize,
@@ -366,7 +518,9 @@ export function IssuedDocumentPrintModal({
     offsetYmm,
     showGhostWatermark,
     activeTemplate.id,
+    effectiveApplicantId,
     applicantPhotoUrl,
+    applicantPhotosById,
     initialOptions,
     app,
   ]);
@@ -374,11 +528,11 @@ export function IssuedDocumentPrintModal({
   // Accountable Form Overlay HTML
   const accountableOverlayHtml = useMemo(() => {
     try {
-      return generateAccountableFormOverlayHtml(app, currentPrintOptions, activeTemplate);
+      return generateAccountableFormOverlayHtml(effectiveApp, currentPrintOptions, activeTemplate);
     } catch {
       return '';
     }
-  }, [app, currentPrintOptions, activeTemplate]);
+  }, [effectiveApp, currentPrintOptions, activeTemplate]);
 
   // Alignment test sheet HTML
   const alignmentTestHtml = useMemo(() => {
@@ -398,6 +552,7 @@ export function IssuedDocumentPrintModal({
           issueDate: initialOptions?.issueDate,
           expiryDate: initialOptions?.expiryDate,
           documentType: initialOptions?.issuedDocumentType,
+          applicantId: effectiveApplicantId,
         });
 
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -412,7 +567,7 @@ export function IssuedDocumentPrintModal({
         console.warn('Direct blob fetch failed, falling back to direct URL open:', err);
       }
 
-      const url = applicationService.getIssuedDocumentPrintUrl(app.id);
+      const url = applicationService.getIssuedDocumentPrintUrl(app.id, effectiveApplicantId);
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWindow = window.open(url, '_blank');
         if (printWindow !== null) {
@@ -421,7 +576,7 @@ export function IssuedDocumentPrintModal({
         return;
       }
     } else if (activeTarget === 'accountable') {
-      const html = generateAccountableFormOverlayHtml(app, currentPrintOptions, activeTemplate);
+      const html = generateAccountableFormOverlayHtml(effectiveApp, currentPrintOptions, activeTemplate);
       openDocumentPrintWindow(html);
     } else {
       const html = generateAlignmentTestSheetHtml(currentPrintOptions, activeTemplate);
@@ -437,6 +592,7 @@ export function IssuedDocumentPrintModal({
         issueDate: initialOptions?.issueDate,
         expiryDate: initialOptions?.expiryDate,
         documentType: initialOptions?.issuedDocumentType,
+        applicantId: effectiveApplicantId,
       });
 
       if (
@@ -802,6 +958,109 @@ export function IssuedDocumentPrintModal({
               </Text>
             </View>
           </View>
+
+          {/* Bulk Applicants Selector Bar */}
+          {isBulkApp && applicantsList.length > 1 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+                paddingHorizontal: SPACING[16],
+                paddingVertical: 8,
+                backgroundColor: isDark ? colors.neutral[800] : colors.brand[50],
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? colors.neutral[700] : colors.brand[200],
+                borderLeftWidth: 4,
+                borderLeftColor: isDark ? '#818cf8' : '#4f46e5',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: isDark ? colors.brand[300] : colors.brand[800],
+                }}
+              >
+                APPLICANTS ({applicantsList.length}):
+              </Text>
+              <TouchableOpacity
+                onPress={() => setSelectedApplicantId('ALL')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  backgroundColor:
+                    selectedApplicantId === 'ALL'
+                      ? (isDark ? colors.brand[600] : colors.brand[700])
+                      : (isDark ? colors.neutral[800] : '#FFFFFF'),
+                  borderWidth: 1,
+                  borderColor:
+                    selectedApplicantId === 'ALL'
+                      ? (isDark ? colors.brand[400] : colors.brand[700])
+                      : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                }}
+              >
+                <Lucide
+                  name="layers"
+                  size={11}
+                  color={selectedApplicantId === 'ALL' ? '#FFFFFF' : (isDark ? colors.neutral[400] : '#64748B')}
+                />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: selectedApplicantId === 'ALL' ? '700' : '500',
+                    color: selectedApplicantId === 'ALL' ? '#FFFFFF' : (isDark ? colors.neutral[200] : '#334155'),
+                  }}
+                >
+                  All ({applicantsList.length} Forms)
+                </Text>
+              </TouchableOpacity>
+              {applicantsList.map((appItem, idx) => {
+                const isSelected = selectedApplicantId === appItem.id;
+                return (
+                  <TouchableOpacity
+                    key={appItem.id || `print-app-${idx}`}
+                    onPress={() => setSelectedApplicantId(appItem.id)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      backgroundColor: isSelected
+                        ? (isDark ? colors.brand[600] : colors.brand[700])
+                        : (isDark ? colors.neutral[800] : '#FFFFFF'),
+                      borderWidth: 1,
+                      borderColor: isSelected
+                        ? (isDark ? colors.brand[400] : colors.brand[700])
+                        : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                    }}
+                  >
+                    <Lucide
+                      name="user"
+                      size={11}
+                      color={isSelected ? '#FFFFFF' : (isDark ? colors.neutral[400] : '#64748B')}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: isSelected ? '700' : '500',
+                        color: isSelected ? '#FFFFFF' : (isDark ? colors.neutral[200] : '#334155'),
+                      }}
+                    >
+                      {appItem.name || `Applicant #${idx + 1}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {/* Animated Progress Bar during PDF generation from Cloud */}
           {activeTarget === 'pdf' && isLoadingPdf && (

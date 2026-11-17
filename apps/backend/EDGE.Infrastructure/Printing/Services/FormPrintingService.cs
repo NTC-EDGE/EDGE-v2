@@ -32,6 +32,7 @@ public interface IFormPrintingService
     byte[] PrintOrderOfPayment(OrderOfPaymentModel? model = null);
     byte[] PrintStatementOfAccount(StatementOfAccountModel? model = null);
     byte[] PrintIssuedDocument(IssuedDocumentModel? model = null);
+    byte[] PrintIssuedDocuments(IReadOnlyList<IssuedDocumentModel> models);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -517,6 +518,33 @@ public class FormPrintingService : IFormPrintingService
         }
 
         return new IssuedDocumentReport(model).GeneratePdf();
+    }
+
+    public byte[] PrintIssuedDocuments(IReadOnlyList<IssuedDocumentModel> models)
+    {
+        if (models == null || models.Count == 0)
+        {
+            return PrintIssuedDocument(null);
+        }
+        if (models.Count == 1)
+        {
+            return PrintIssuedDocument(models[0]);
+        }
+
+        using var outStream = new MemoryStream();
+        using (var writer = new iText.Kernel.Pdf.PdfWriter(outStream))
+        using (var mergedPdf = new iText.Kernel.Pdf.PdfDocument(writer))
+        {
+            foreach (var model in models)
+            {
+                var pageBytes = PrintIssuedDocument(model);
+                using var pageStream = new MemoryStream(pageBytes);
+                using var reader = new iText.Kernel.Pdf.PdfReader(pageStream);
+                using var srcPdf = new iText.Kernel.Pdf.PdfDocument(reader);
+                srcPdf.CopyPagesTo(1, srcPdf.GetNumberOfPages(), mergedPdf);
+            }
+        }
+        return outStream.ToArray();
     }
 
     private static byte[]? LoadLocalOrEmbeddedTemplate(string templateFileName)

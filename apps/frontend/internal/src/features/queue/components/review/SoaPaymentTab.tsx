@@ -18,10 +18,12 @@ export function SoaPaymentTab({
   const hasSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
   const hasPayment = app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0;
 
-  const hasIncompleteApplicants = app.applicantsList?.some((a: ApplicantItem) => a.status === 'Incomplete') ?? false;
+  const eligibleApplicantsCount = app.applicantsList && app.applicantsList.length > 0
+    ? app.applicantsList.filter((a: ApplicantItem) => a.status !== 'Incomplete' && a.status !== 'ForEndorsement').length
+    : 1;
   const isEvaluationReady =
     (app.status === 'Evaluating' || app.status === 'Approved' || app.status === 'Returned') &&
-    !hasIncompleteApplicants;
+    eligibleApplicantsCount > 0;
 
   const canGenerateSoa = isEditable && isEvaluationReady;
 

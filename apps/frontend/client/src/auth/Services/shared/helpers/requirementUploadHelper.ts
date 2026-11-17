@@ -76,7 +76,37 @@ export const resolveFileFromUpload = async (
 
   if (!uri || uri.trim() === "") return null;
 
-  // 2. Fetch from URI (blob:, data:, file:, http:, etc.)
+  // 2. Direct in-memory decoding for data: URIs (survives page reloads without network fetch)
+  if (uri.startsWith("data:") && typeof atob === "function") {
+    try {
+      const commaIdx = uri.indexOf(",");
+      if (commaIdx !== -1) {
+        const header = uri.slice(5, commaIdx);
+        const dataPart = uri.slice(commaIdx + 1);
+        const isBase64 = header.includes(";base64");
+        const headerMime = header.split(";")[0]?.trim() || "";
+        const mimeType = explicitType || headerMime || fallbackMime;
+        const binaryStr = isBase64 ? atob(dataPart) : decodeURIComponent(dataPart);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: mimeType });
+        if (typeof File !== "undefined") {
+          try {
+            return new File([blob], name, { type: mimeType });
+          } catch {
+            return blob;
+          }
+        }
+        return blob;
+      }
+    } catch (dataErr) {
+      console.warn("[requirementUploadHelper] Fallback to fetch for data URI:", dataErr);
+    }
+  }
+
+  // 3. Fetch from URI (blob:, data:, file:, http:, etc.)
   try {
     const res = await fetch(uri);
     if (!res.ok) {

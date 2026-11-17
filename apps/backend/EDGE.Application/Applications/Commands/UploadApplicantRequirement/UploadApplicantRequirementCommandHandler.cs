@@ -77,8 +77,13 @@ public class UploadApplicantRequirementCommandHandler
             }
             else
             {
-                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken);
+                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken)
+                             ?? await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
                 if (dbUser != null && app.UserId.HasValue && app.UserId.Value == dbUser.Id)
+                {
+                    isOwner = true;
+                }
+                else if (app.Status == EDGE.Domain.Enums.ApplicationStatus.Draft && !app.UserId.HasValue)
                 {
                     isOwner = true;
                 }

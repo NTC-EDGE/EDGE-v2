@@ -109,6 +109,10 @@ export interface ApplicantItem {
   province: string;
   region?: string;
   zipCode: string;
+  dob?: string;
+  sex?: string;
+  civilStatus?: string;
+  nationality?: string;
   schoolAttended?: string;
   courseTaken?: string;
   yearGraduated?: string;
@@ -127,6 +131,13 @@ export interface ApplicantItem {
     civilStatus?: string;
     employmentStatus: string;
     occupation: string;
+  };
+  company?: {
+    name: string;
+    registrationNumber?: string;
+    address?: string;
+    contactNumber?: string;
+    email?: string;
   };
   companyDetails?: {
     name: string;
@@ -160,6 +171,46 @@ export interface ApplicationServiceItem {
   elements?: string;
   applicationType?: string;
   submissionId?: string;
+}
+
+export interface SoaRecordSummary {
+  id: string;
+  applicantId?: string;
+  soaNumber: string;
+  status: string;
+  issuedToType: ApplicantType;
+  issuedToName: string;
+  issuedToAddress?: string;
+  totalAmount: number;
+  dueDate: string;
+  createdAt?: string;
+  preparedByName?: string;
+  preparedByTitle?: string;
+  approvedByName?: string;
+  approvedByTitle?: string;
+  remarks?: string;
+  soaNoteId?: string;
+  soaNoteText?: string;
+  items: SoaItem[];
+}
+
+export interface OpRecordSummary {
+  id: string;
+  statementOfAccountId: string;
+  applicantId?: string;
+  opNumber: string;
+  status: string;
+  amountDue: number;
+  amountReceived: number;
+  paymentMethod?: string;
+  officialReceiptNumber?: string;
+  orNumbers?: string[];
+  checkNumber?: string;
+  checkName?: string;
+  checkBank?: string;
+  checkDate?: string;
+  paidAt?: string;
+  remarks?: string;
 }
 
 export interface ApplicationData {
@@ -198,6 +249,9 @@ export interface ApplicationData {
   soaApprovedByName?: string;
   soaApprovedByTitle?: string;
   soaNoteId?: string;
+  soaBillingMode?: 'BULK' | 'INDIVIDUAL';
+  soasList?: SoaRecordSummary[];
+  opsList?: OpRecordSummary[];
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';
@@ -213,6 +267,7 @@ export interface ApplicationData {
   serviceName?: string;
   serviceCategory?: string;
   serviceVariantName?: string;
+  serviceVariantType?: string;
   element?: string;
   elements?: string;
   office?: string;

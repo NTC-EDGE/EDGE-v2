@@ -30,6 +30,7 @@ import {
   mutateApplications,
   useNextAvailableOrNumber,
   PendingPaymentDto,
+  BulkPaymentOpItemDto,
   OfficialReceiptDto,
   parsePaymentBreakdown,
 } from "@edge/api";
@@ -214,8 +215,9 @@ export function ApplicationReviewScreenContent({
     const effectiveRemarks = itemApp.payment?.remarks || itemApp.note || null;
     const parsedBreakdown = parsePaymentBreakdown(effectiveRemarks);
 
+    const selectedApplicant = itemApp.applicantsList?.[selectedApplicantIndex];
     const originalApplicantName =
-      itemApp.applicantsList?.[selectedApplicantIndex]?.name ||
+      selectedApplicant?.name ||
       itemApp.applicant ||
       itemApp.companyDetails?.name ||
       'Applicant';
@@ -226,13 +228,103 @@ export function ApplicationReviewScreenContent({
       itemApp.payment?.checkName ||
       undefined;
 
+    const opsList = itemApp.opsList ?? [];
+    const soasList = itemApp.soasList ?? [];
+    const applicantsList = itemApp.applicantsList ?? [];
+    const isBulkApp =
+      itemApp.mode === 'Bulk' ||
+      itemApp.applicationType === 'BULK' ||
+      opsList.length > 1 ||
+      applicantsList.length > 1;
+
+    let bulkOpItems: BulkPaymentOpItemDto[] | undefined;
+    if (opsList.length > 1) {
+      bulkOpItems = opsList.map((opRec, idx) => {
+        const matchedSoa = soasList.find((s) => s.id === opRec.statementOfAccountId);
+        const targetApplicantId = opRec.applicantId ?? matchedSoa?.applicantId;
+        const matchedApplicant = targetApplicantId
+          ? applicantsList.find((a) => a.id === targetApplicantId)
+          : applicantsList[idx];
+        const opApplicantName =
+          matchedSoa?.issuedToName ||
+          matchedApplicant?.name ||
+          `Applicant #${idx + 1}`;
+        const opLineItems =
+          matchedSoa?.items && matchedSoa.items.length > 0
+            ? matchedSoa.items.map((it) => ({
+                feeCode: it.code || 'FEE',
+                description: it.particular,
+                amount: it.amount,
+              }))
+            : lineItems;
+        const rem = Math.max(0, (opRec.amountDue || 0) - (opRec.amountReceived || 0));
+
+        return {
+          orderOfPaymentId: opRec.id,
+          statementOfAccountId: opRec.statementOfAccountId,
+          applicantId: targetApplicantId,
+          opNumber: opRec.opNumber || `OP-${idx + 1}`,
+          soaNumber: matchedSoa?.soaNumber || `SOA-${refOrId}`,
+          applicantName: opApplicantName,
+          amountDue: opRec.amountDue || 0,
+          amountReceived: opRec.amountReceived || 0,
+          remainingBalance: rem,
+          status: opRec.status || 'Billed',
+          officialReceiptNumber: opRec.officialReceiptNumber,
+          lineItems: opLineItems,
+        };
+      });
+    } else if (isBulkApp && applicantsList.length > 1) {
+      const count = applicantsList.length;
+      const primaryOpId = itemApp.payment?.orderOfPaymentId || opsList[0]?.id || itemApp.id;
+      const primaryOpNumber = itemApp.payment?.opNumber || opsList[0]?.opNumber || `OP-${refOrId}`;
+      const totalDue = itemApp.totalAmountDue || itemApp.payment?.amountReceived || 0;
+      const perApplicantDue = Math.round((totalDue / count) * 100) / 100;
+
+      bulkOpItems = applicantsList.map((appEntry, idx) => {
+        const entryDue =
+          idx === count - 1
+            ? Math.max(0, Math.round((totalDue - perApplicantDue * (count - 1)) * 100) / 100)
+            : perApplicantDue;
+        const entryLineItems = lineItems.map((li) => ({
+          feeCode: li.feeCode,
+          description: `${li.description} (${appEntry.name})`,
+          amount: Math.round((li.amount / count) * 100) / 100,
+        }));
+        const isWholeOpPaid = opsList[0]?.status === 'Paid';
+
+        return {
+          orderOfPaymentId: primaryOpId,
+          statementOfAccountId: itemApp.statementOfAccountId || itemApp.id,
+          applicantId: appEntry.id,
+          opNumber: `${primaryOpNumber} (#${idx + 1})`,
+          soaNumber: itemApp.soaNumber || `SOA-${refOrId}`,
+          applicantName: appEntry.name || `Applicant #${idx + 1}`,
+          amountDue: entryDue,
+          amountReceived: isWholeOpPaid ? entryDue : 0,
+          remainingBalance: isWholeOpPaid ? 0 : entryDue,
+          status: isWholeOpPaid ? 'Paid' : 'Billed',
+          officialReceiptNumber: isWholeOpPaid ? opsList[0]?.officialReceiptNumber : undefined,
+          lineItems: entryLineItems,
+        };
+      });
+    }
+
+    const matchedSelectedOp =
+      opsList.length > 1 && selectedApplicant
+        ? opsList.find((o) => {
+            const matchedSoa = soasList.find((s) => s.id === o.statementOfAccountId);
+            return (o.applicantId ?? matchedSoa?.applicantId) === selectedApplicant.id && o.status !== 'Paid';
+          }) ?? opsList.find((o) => o.status !== 'Paid')
+        : undefined;
+
     return {
-      orderOfPaymentId: itemApp.payment?.orderOfPaymentId || itemApp.id,
+      orderOfPaymentId: matchedSelectedOp?.id || itemApp.payment?.orderOfPaymentId || itemApp.id,
       applicationId: itemApp.id,
-      statementOfAccountId: itemApp.id,
+      statementOfAccountId: matchedSelectedOp?.statementOfAccountId || itemApp.id,
       tenantId: itemApp.tenantId || user?.tenantId || '',
-      opNumber: itemApp.payment?.opNumber || `OP-${refOrId}`,
-      soaNumber: `SOA-${refOrId}`,
+      opNumber: matchedSelectedOp?.opNumber || itemApp.payment?.opNumber || `OP-${refOrId}`,
+      soaNumber: itemApp.soaNumber || `SOA-${refOrId}`,
       applicationNumber: itemApp.applicationNumber || '',
       referenceNumber: itemApp.referenceNumber || '',
       applicantName: originalApplicantName,
@@ -248,6 +340,8 @@ export function ApplicationReviewScreenContent({
       checkNumber: itemApp.payment?.checkNumber || undefined,
       checkBank: itemApp.payment?.checkBank || undefined,
       checkDate: itemApp.payment?.checkDate || undefined,
+      isBulkApplication: isBulkApp,
+      bulkOpItems,
     };
   }, [selectedApplication, user?.tenantId, selectedApplicantIndex]);
 
@@ -668,28 +762,45 @@ export function ApplicationReviewScreenContent({
     onClose();
   };
 
-  /** Cashier → issues official receipt via IssueReceiptModal; backend advances to ForIssuance */
+  /** Cashier → issues official receipt via IssueReceiptModal; backend advances to ForIssuance when all OPs are paid */
   const handleCashierReceiptSuccess = async (receipt?: OfficialReceiptDto) => {
     setShowCashier(false);
-    toast.success('Official Receipt issued successfully. Application forwarded for document issuance.');
-    if (receipt && receipt.officialReceiptNumber) {
-      updateApplication(app.id, {
-        status: 'ForIssuance',
-        cashierOfficer: officerName,
-        payment: {
-          ...app.payment,
-          orNumber: receipt.officialReceiptNumber,
-          amountReceived: receipt.amount > 0 ? receipt.amount : app.payment.amountReceived,
-          method: receipt.paymentMethod === 'Check' ? 'check' : 'cash',
-          checkNumber: receipt.checkNumber ?? '',
-          checkName: receipt.checkBank ?? '',
-          paidAt: receipt.issuedAt,
-        },
-      });
-    }
+    const unpaidOpsBefore = (app.opsList ?? []).filter((o) => o.status !== 'Paid');
+    const unpaidBulkItemsBefore = (pendingPaymentPayload?.bulkOpItems ?? []).filter((i) => i.status !== 'Paid');
+    const totalUnpaidFromOps = unpaidOpsBefore.reduce(
+      (sum, o) => sum + Math.max(0, (o.amountDue || 0) - (o.amountReceived || 0)),
+      0
+    );
+    const totalUnpaidFromBulkItems = unpaidBulkItemsBefore.reduce(
+      (sum, i) => sum + Math.max(0, i.remainingBalance || i.amountDue || 0),
+      0
+    );
+    const fallbackUnpaid = Math.max(0, (app.totalAmountDue || 0) - (app.payment?.amountReceived || 0));
+    const totalUnpaidAmount =
+      totalUnpaidFromOps > 0
+        ? totalUnpaidFromOps
+        : totalUnpaidFromBulkItems > 0
+          ? totalUnpaidFromBulkItems
+          : fallbackUnpaid;
+
+    const isPartialBulkPayment =
+      receipt !== undefined &&
+      receipt.amount > 0 &&
+      totalUnpaidAmount > 0 &&
+      receipt.amount < totalUnpaidAmount - 0.01;
+
     await mutateApplications(app.id);
     await mutateNextOr();
     await refetch();
+
+    if (isPartialBulkPayment) {
+      toast.success(
+        `Official Receipt #${receipt?.officialReceiptNumber || ''} issued. Remaining Orders of Payment are still open for collection.`
+      );
+      return;
+    }
+
+    toast.success('Official Receipt issued successfully. Application forwarded for document issuance.');
     onClose();
   };
 
@@ -855,10 +966,16 @@ export function ApplicationReviewScreenContent({
 
   // ── Contextual action bar state ─────────────────────────────────────────────
   const isBulkApp = (app.mode || '').toUpperCase() === 'BULK' || (app.applicantsList && app.applicantsList.length > 1);
-  const uncompletedApplicantsCount = app.applicantsList?.filter(a => !a.status || a.status === 'Incomplete').length ?? 0;
+  const uncompletedApplicantsCount = app.applicantsList?.filter(a => a.status === 'Incomplete').length ?? 0;
   const endorsementApplicantsCount = app.applicantsList?.filter(a => a.status === 'ForEndorsement').length ?? 0;
+  const eligibleApplicantsCount = app.applicantsList && app.applicantsList.length > 0
+    ? app.applicantsList.filter(a => a.status !== 'Incomplete' && a.status !== 'ForEndorsement').length
+    : 1;
   const hasIncompleteApplicants = isBulkApp
     ? uncompletedApplicantsCount > 0 || endorsementApplicantsCount > 0
+    : false;
+  const allApplicantsIncomplete = isBulkApp
+    ? eligibleApplicantsCount === 0
     : false;
 
   /** Start evaluation button for Submitted applications */
@@ -1268,7 +1385,7 @@ export function ApplicationReviewScreenContent({
         canEndorse={canEndorseAction}
         canRelease={canReleaseApplication}
         isApproveDisabled={
-          (showForwardBtn && hasIncompleteApplicants)
+          (showForwardBtn && (!hasSoa ? allApplicantsIncomplete : hasIncompleteApplicants))
         }
         isReturnDisabled={isReturnDisabled}
         approveLabel={approveButtonLabel}

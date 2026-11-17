@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using EDGE.Application.Common.Helpers;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
@@ -70,37 +71,36 @@ public static class StatementOfAccountPrintMapper
         var primaryVariant = app?.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
         var primaryService = app?.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
         var variantDesc = (primaryVariant?.Description ?? primaryVariant?.Type.ToString() ?? "").ToLowerInvariant();
-        var serviceName = (primaryService?.Name ?? "").ToLowerInvariant();
 
-        if (variantDesc.Contains("renew") || serviceName.Contains("renew"))
+        if (primaryVariant?.Type == ServiceVariantType.Renewal || app?.RenewedFromApplicationId != null || Regex.IsMatch(variantDesc, @"\b(renew|renewal|rn)\b", RegexOptions.IgnoreCase))
         {
             model.IsRen = true;
         }
-        else if (variantDesc.Contains("mod") || serviceName.Contains("mod"))
+        else if (primaryVariant?.Type == ServiceVariantType.Modification || primaryVariant?.Type == ServiceVariantType.Upgrade || Regex.IsMatch(variantDesc, @"\b(mod|modification|upgrade|amend|amendment)\b", RegexOptions.IgnoreCase))
         {
             model.IsMod = true;
         }
-        else if (variantDesc.Contains("dup") || serviceName.Contains("dup"))
+        else if (Regex.IsMatch(variantDesc, @"\b(dup|duplicate|replacement|lost)\b", RegexOptions.IgnoreCase))
         {
             model.IsDup = true;
         }
-        else if (variantDesc.Contains("cv") || serviceName.Contains("cv"))
+        else if (Regex.IsMatch(variantDesc, @"\bcv\b", RegexOptions.IgnoreCase) || variantDesc.Contains("change of vehicle"))
         {
             model.IsCv = true;
         }
-        else if (variantDesc.Contains("roc") || serviceName.Contains("roc"))
+        else if (Regex.IsMatch(variantDesc, @"\broc\b", RegexOptions.IgnoreCase) || variantDesc.Contains("radio operator certificate"))
         {
             model.IsRoc = true;
         }
-        else if (variantDesc.Contains("co") || serviceName.Contains("co"))
+        else if (Regex.IsMatch(variantDesc, @"\bco\b", RegexOptions.IgnoreCase) || variantDesc.Contains("change of ownership"))
         {
             model.IsCo = true;
         }
-        else if (variantDesc.Contains("ma") || serviceName.Contains("ma"))
+        else if (Regex.IsMatch(variantDesc, @"\bma\b", RegexOptions.IgnoreCase) || variantDesc.Contains("mobile amateur"))
         {
             model.IsMa = true;
         }
-        else if (variantDesc.Contains("ms") || serviceName.Contains("ms"))
+        else if (Regex.IsMatch(variantDesc, @"\bms\b", RegexOptions.IgnoreCase) || variantDesc.Contains("mobile station"))
         {
             model.IsMs = true;
         }
@@ -121,13 +121,29 @@ public static class StatementOfAccountPrintMapper
         {
             model.Particular1PeriodCovered = $"{firstItemWithPeriod.PeriodOfCoverageStart.Value:MM/dd/yyyy} to {firstItemWithPeriod.PeriodOfCoverageEnd.Value:MM/dd/yyyy}";
         }
+        else if (soa?.LineItems.Any(li => li.ValidityYears > 0) == true)
+        {
+            var maxYears = soa.LineItems.Max(li => li.ValidityYears);
+            model.Particular1PeriodCovered = $"{creationDate:MM/dd/yyyy} to {creationDate.AddYears(maxYears):MM/dd/yyyy}";
+        }
         else
         {
-            model.Particular1PeriodCovered = $"{creationDate:MM/dd/yyyy} to {creationDate.AddYears(1):MM/dd/yyyy}";
+            model.Particular1PeriodCovered = string.Empty;
         }
 
         // 6. Line Items mapping to grid items
-        var lineItemsToMap = soa?.LineItems?.ToList();
+        var lineItemsToMap = soa?.LineItems?
+            .GroupBy(li =>
+            {
+                var part = li.Particular ?? string.Empty;
+                var canonical = EDGE.Domain.Constants.FeeConstants.Codes.NormalizeCanonicalCode(li.ItemCode, part);
+                var isOthers = part.StartsWith("Others", StringComparison.OrdinalIgnoreCase);
+                return !isOthers && canonical != "FEE"
+                    ? canonical
+                    : $"{canonical}::{part}";
+            }, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
         if ((lineItemsToMap == null || lineItemsToMap.Count == 0) && activeOp != null && activeOp.AmountDue > 0)
         {
             // Synthesize line item from Order of Payment reference

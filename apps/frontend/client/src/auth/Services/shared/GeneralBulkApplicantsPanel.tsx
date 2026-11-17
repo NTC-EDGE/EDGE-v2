@@ -1,16 +1,16 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Text,
   View,
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   Platform,
   ActivityIndicator,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { useToast } from "../../../shared/components/Toast";
+import { useApi } from "../../../shared/hooks/useApi";
 import {
   GeneralApplicantData,
   isGeneralApplicantComplete,
@@ -19,18 +19,27 @@ import {
   ServiceVariantElementInfo,
 } from "./hooks/useGeneralServiceWizard";
 export { isGeneralApplicantComplete };
-import { getApplicantDisplayName } from "./helpers/applicantDisplayHelper";
+import { getApplicantDisplayName, isServiceVariantIndividual } from "./helpers/applicantDisplayHelper";
 import { NTCService } from "../data/servicesData";
 import { styles } from "./GeneralBulkApplicantsPanel.styles";
 import { GeneralDeleteApplicantModal } from "./components/GeneralDeleteApplicantModal";
 import {
   getSpreadsheetTemplateForService,
-  generateCsvContent,
-  downloadCsvFile,
+  downloadTemplateFile,
+  readPickedSpreadsheetText,
   parseSpreadsheetContent,
+  CsvParseResult,
+  BulkImportConfirmModal,
+  BulkImportMode,
+  hasManualApplicantEntries,
+  getManualEntriesCount,
 } from "./spreadsheet";
 import { useServiceForm } from "./hooks/useServiceForm";
 import { FormEvaluationContext } from "../../../shared/components/dynamic-form/dynamicFormUtils";
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
 
 interface GeneralBulkApplicantsPanelProps {
   applicants: GeneralApplicantData[];
@@ -42,7 +51,7 @@ interface GeneralBulkApplicantsPanelProps {
   onRemoveApplicant: (idx: number) => void;
   onRemoveApplicants?: (indices: number[]) => void;
   onAddApplicant: () => void;
-  onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
+  onApplicantsImported?: (applicants: GeneralApplicantData[], mode?: BulkImportMode) => void;
   onSubmitAll?: () => void;
   service: NTCService;
   variantRequirements?: Array<ServiceRequirementItem | string>;
@@ -82,34 +91,236 @@ export function GeneralBulkApplicantsPanel({
     indicesToDelete: [],
   });
   const [importLoading, setImportLoading] = useState(false);
+  const [pendingImportResult, setPendingImportResult] = useState<CsvParseResult | null>(null);
+  const [fetchedVariants, setFetchedVariants] = useState<ServiceVariantInfo[]>([]);
+  const [fetchedElements, setFetchedElements] = useState<ServiceVariantElementInfo[]>([]);
+  const [fetchedRequirements, setFetchedRequirements] = useState<Array<ServiceRequirementItem | string>>([]);
   const toast = useToast();
+  const api = useApi();
 
-  const completeCount = applicants.filter((app) => isGeneralApplicantComplete(app, service, variantRequirements)).length;
-  const pendingCount = applicants.length - completeCount;
+  useEffect(() => {
+    let active = true;
+    if (variants.length > 0 || !service?.id) return;
+    api
+      .get<unknown>(`/api/v2/services/${service.id}/variants`)
+      .then((res) => {
+        if (!active || !res) return;
+        let list: ServiceVariantInfo[] = [];
+        if (Array.isArray(res)) {
+          list = res.filter(isRecord).map((v) => ({
+            ...v,
+            id: String(v.id || ""),
+            name: typeof v.name === "string" ? v.name : undefined,
+            type: typeof v.type === "string" ? v.type : undefined,
+            description: typeof v.description === "string" ? v.description : undefined,
+          }));
+        } else if (isRecord(res)) {
+          const rawArr = Array.isArray(res.data)
+            ? res.data
+            : Array.isArray(res.items)
+            ? res.items
+            : [];
+          list = rawArr.filter(isRecord).map((v) => ({
+            ...v,
+            id: String(v.id || ""),
+            name: typeof v.name === "string" ? v.name : undefined,
+            type: typeof v.type === "string" ? v.type : undefined,
+            description: typeof v.description === "string" ? v.description : undefined,
+          }));
+        }
+        setFetchedVariants(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [service?.id, variants.length]);
+
+  const effectiveVariants = variants.length > 0 ? variants : fetchedVariants;
 
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
-  const selectedVariantId = activeApplicant?.selectedVariantId;
-  const currentVariant = variants.find((v) => String(v.id) === String(selectedVariantId));
+  const selectedVariantId =
+    activeApplicant?.selectedVariantId ||
+    (effectiveVariants[0] ? effectiveVariants[0].id : undefined);
+  const currentVariant = effectiveVariants.find(
+    (v) => String(v.id) === String(selectedVariantId)
+  );
+
+  useEffect(() => {
+    let active = true;
+    if (!selectedVariantId || !service?.id) return;
+    api
+      .get<unknown>(`/api/v2/services/${service.id}/requirements?variantId=${selectedVariantId}`)
+      .catch(() =>
+        api
+          .get<unknown>(`/api/v2/service-variant-requirements?serviceVariantId=${selectedVariantId}`)
+          .catch(() => null)
+      )
+      .then((reqRes) => {
+        if (!active || !reqRes) return;
+        let rawItems: unknown[] = [];
+        if (Array.isArray(reqRes)) {
+          rawItems = reqRes;
+        } else if (isRecord(reqRes)) {
+          if (Array.isArray(reqRes.data)) rawItems = reqRes.data;
+          else if (Array.isArray(reqRes.items)) rawItems = reqRes.items;
+        }
+        if (rawItems.length > 0) {
+          const list: Array<ServiceRequirementItem | string> = rawItems.map((r) => {
+            if (typeof r === "string") return r;
+            const rObj = isRecord(r) ? r : {};
+            const idStr =
+              typeof rObj.id === "string"
+                ? rObj.id
+                : typeof rObj.requirementId === "string"
+                ? rObj.requirementId
+                : undefined;
+            const nameStr =
+              typeof rObj.name === "string"
+                ? rObj.name
+                : typeof rObj.title === "string"
+                ? rObj.title
+                : typeof rObj.description === "string"
+                ? rObj.description
+                : "Requirement";
+            const descStr = typeof rObj.description === "string" ? rObj.description : undefined;
+            const isReqBool = typeof rObj.isRequired === "boolean" ? rObj.isRequired : true;
+            return {
+              id: idStr,
+              name: nameStr,
+              description: descStr,
+              isRequired: isReqBool,
+            };
+          });
+          setFetchedRequirements(list);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [selectedVariantId, service?.id]);
+
+  const effectiveRequirements =
+    fetchedRequirements.length > 0 ? fetchedRequirements : variantRequirements;
+
+  const completeCount = applicants.filter((app) =>
+    isGeneralApplicantComplete(app, service, effectiveRequirements)
+  ).length;
+  const pendingCount = applicants.length - completeCount;
+
+  useEffect(() => {
+    let active = true;
+    if (variantElements.length > 0 || !selectedVariantId || !service?.id) return;
+    api
+      .get<unknown>(`/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}`)
+      .catch(() =>
+        api
+          .get<unknown>(`/api/v2/services/${service.id}/variants/${selectedVariantId}/elements`)
+          .catch(() => null)
+      )
+      .then((res) => {
+        if (!active || !res) return;
+        let list: ServiceVariantElementInfo[] = [];
+        if (Array.isArray(res)) {
+          list = res.filter(isRecord).map((e) => ({
+            ...e,
+            id: String(e.id || ""),
+            code: typeof e.code === "string" ? e.code : undefined,
+            description: typeof e.description === "string" ? e.description : undefined,
+            name: typeof e.name === "string" ? e.name : undefined,
+          }));
+        } else if (isRecord(res)) {
+          const rawArr = Array.isArray(res.data)
+            ? res.data
+            : Array.isArray(res.items)
+            ? res.items
+            : [];
+          list = rawArr.filter(isRecord).map((e) => ({
+            ...e,
+            id: String(e.id || ""),
+            code: typeof e.code === "string" ? e.code : undefined,
+            description: typeof e.description === "string" ? e.description : undefined,
+            name: typeof e.name === "string" ? e.name : undefined,
+          }));
+        }
+        setFetchedElements(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [selectedVariantId, service?.id, variantElements.length]);
+
+  const effectiveVariantElements =
+    variantElements.length > 0 ? variantElements : fetchedElements;
 
   const { form } = useServiceForm(service?.id, selectedVariantId);
 
+  const isIndividualService = isServiceVariantIndividual(
+    service,
+    effectiveVariants,
+    selectedVariantId,
+    activeApplicant?.selectedVariantName ||
+      currentVariant?.name ||
+      currentVariant?.description
+  );
+
   const evaluationContext = useMemo<FormEvaluationContext>(() => {
     const selectedElementId = activeApplicant?.selectedElementId;
-    const selectedElement = variantElements.find((e) => String(e.id) === String(selectedElementId));
+    const selectedElement = effectiveVariantElements.find(
+      (e) => String(e.id) === String(selectedElementId)
+    );
+    const effectiveVariantName =
+      currentVariant?.name ||
+      (currentVariant?.description && currentVariant?.type
+        ? `${currentVariant.description} (${currentVariant.type})`
+        : currentVariant?.description ||
+          currentVariant?.type ||
+          activeApplicant?.selectedVariantName ||
+          form?.serviceVariantName ||
+          service?.title);
+
+    const elementCodes = selectedElement?.code
+      ? [selectedElement.code]
+      : effectiveVariantElements
+          .map((e) => (typeof e.code === "string" ? e.code : undefined))
+          .filter((c): c is string => Boolean(c));
+
+    const elementNames = selectedElement?.description
+      ? [selectedElement.description]
+      : activeApplicant?.selectedElementTitle
+      ? [activeApplicant.selectedElementTitle]
+      : effectiveVariantElements
+          .map((e) => (typeof e.description === "string" ? e.description : undefined))
+          .filter((d): d is string => Boolean(d));
+
     return {
+      serviceCategory: service?.category,
+      serviceTitle: service?.title,
+      serviceName: form?.serviceName || service?.title,
+      serviceCode: form?.serviceCode || service?.code,
+      applicationType: currentVariant?.type
+        ? String(currentVariant.type)
+        : effectiveVariantName,
       variantId: selectedVariantId || form?.serviceVariantId,
-      variantName: activeApplicant?.selectedVariantName || currentVariant?.name || form?.serviceVariantName || service?.title,
-      variantDescription: currentVariant?.description,
-      variantType: currentVariant?.type,
-      applicantType: activeApplicant?.applicantType,
-      elementCodes: selectedElement?.code ? [selectedElement.code] : undefined,
-      elementNames: selectedElement?.description
-        ? [selectedElement.description]
-        : activeApplicant?.selectedElementTitle
-          ? [activeApplicant.selectedElementTitle]
-          : undefined,
+      variantName: effectiveVariantName,
+      variantDescription:
+        currentVariant?.description || effectiveVariantName || form?.serviceVariantName,
+      variantType: currentVariant?.type ? String(currentVariant.type) : undefined,
+      applicantType: isIndividualService ? "individual" : "company",
+      elementCodes: elementCodes.length > 0 ? elementCodes : undefined,
+      elementNames: elementNames.length > 0 ? elementNames : undefined,
     };
-  }, [activeApplicant, selectedVariantId, currentVariant, variantElements, form, service]);
+  }, [
+    activeApplicant,
+    selectedVariantId,
+    currentVariant,
+    effectiveVariantElements,
+    form,
+    service,
+    isIndividualService,
+  ]);
 
   const templateConfig = useMemo(
     () => getSpreadsheetTemplateForService(service, form, evaluationContext),
@@ -117,9 +328,35 @@ export function GeneralBulkApplicantsPanel({
   );
 
   const handleDownloadTemplate = () => {
-    const csvContent = generateCsvContent(templateConfig);
-    downloadCsvFile(templateConfig.filename, csvContent);
-    toast.success("Template Downloaded", `Downloaded ${templateConfig.filename}.`);
+    downloadTemplateFile(templateConfig);
+    toast.success("Template Downloaded", `Downloaded ${templateConfig.filename} with Excel dropdown validations.`);
+  };
+
+  const finalizeSpreadsheetImport = (parseResult: CsvParseResult, mode: BulkImportMode) => {
+    if ((parseResult.applicants?.length ?? 0) > 0 && onApplicantsImported) {
+      onApplicantsImported(parseResult.applicants, mode);
+    }
+
+    if (parseResult.invalidCount > 0 && parseResult.validCount === 0) {
+      toast.error(
+        "Import Failed",
+        `All ${parseResult.totalRows} row(s) had formatting or validation errors.`
+      );
+    } else if (parseResult.invalidCount > 0) {
+      toast.warning(
+        "Partial Import Completed",
+        mode === "APPEND"
+          ? `Retained existing entries and added ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} invalid row(s) were excluded.`
+          : `Populated ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} invalid row(s) were excluded.`
+      );
+    } else {
+      toast.success(
+        "Spreadsheet Imported",
+        mode === "APPEND"
+          ? `Retained existing manual entries and added ${parseResult.validCount} imported applicant(s) to the cohort.`
+          : `Successfully populated ${parseResult.validCount} applicant entries into the filing cohort.`
+      );
+    }
   };
 
   const handleUploadSpreadsheet = async () => {
@@ -143,38 +380,35 @@ export function GeneralBulkApplicantsPanel({
       const asset = res.assets[0];
       if (!asset) return;
 
-      let fileText = "";
-      if (Platform.OS === "web" && asset?.file && typeof asset.file.text === "function") {
-        fileText = await asset.file.text();
-      } else if (asset?.uri) {
-        const response = await fetch(asset.uri);
-        fileText = await response.text();
-      }
+      const fileText = await readPickedSpreadsheetText(asset);
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, service, form, evaluationContext);
         if (parseResult.totalRows === 0) {
-          toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the template.");
+          toast.error(
+            "No Records Found",
+            "Could not parse applicant rows. Make sure the header columns match the template."
+          );
           return;
         }
 
-        if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
-          onApplicantsImported(parseResult.applicants);
+        if (parseResult.invalidCount > 0 && parseResult.validCount === 0) {
+          toast.error(
+            "Import Failed",
+            `All ${parseResult.totalRows} row(s) had formatting or validation errors.`
+          );
+          return;
         }
 
-        if (parseResult.invalidCount > 0 && parseResult.validCount === 0) {
-          toast.error("Import Failed", `All ${parseResult.totalRows} row(s) had formatting or validation errors.`);
-        } else if (parseResult.invalidCount > 0) {
-          toast.warning(
-            "Partial Import Completed",
-            `Populated ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} invalid row(s) were excluded.`
-          );
-        } else {
-          toast.success(
-            "Spreadsheet Imported",
-            `Successfully populated all ${parseResult.validCount} applicant entries into the filing cohort.`
-          );
+        if (
+          (parseResult.applicants?.length ?? 0) > 0 &&
+          hasManualApplicantEntries(applicants, isIndividualService)
+        ) {
+          setPendingImportResult(parseResult);
+          return;
         }
+
+        finalizeSpreadsheetImport(parseResult, "REPLACE");
       }
     } catch (err) {
       console.error("Failed to upload spreadsheet:", err);
@@ -194,7 +428,7 @@ export function GeneralBulkApplicantsPanel({
 
       if (!matchesSearch) return false;
 
-      const complete = isGeneralApplicantComplete(app, service, variantRequirements);
+      const complete = isGeneralApplicantComplete(app, service, effectiveRequirements);
       if (activeTab === "COMPLETE") return complete;
       if (activeTab === "PENDING") return !complete;
       return true;
@@ -321,7 +555,7 @@ export function GeneralBulkApplicantsPanel({
               <Icon name="upload" size={13} color="#1D4ED8" style={{ marginRight: 5 }} />
             )}
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
-              Import CSV
+              Import Excel/CSV
             </Text>
           </TouchableOpacity>
         </View>
@@ -471,8 +705,16 @@ export function GeneralBulkApplicantsPanel({
           filteredApplicants.map(({ app, originalIdx }) => {
             const isSelected = originalIdx === currentApplicantIndex;
             const isChecked = selectedIndices.has(originalIdx);
-            const isComplete = isGeneralApplicantComplete(app, service, variantRequirements);
-            const fullName = getApplicantDisplayName(app, originalIdx + 1);
+            const isComplete = isGeneralApplicantComplete(app, service, effectiveRequirements);
+            const isIndividualApp = isServiceVariantIndividual(
+              service,
+              effectiveVariants,
+              app.selectedVariantId,
+              app.selectedVariantName
+            );
+            const fullName = getApplicantDisplayName(app, originalIdx + 1, {
+              isIndividualApplication: isIndividualApp,
+            });
 
             return (
               <TouchableOpacity
@@ -560,12 +802,12 @@ export function GeneralBulkApplicantsPanel({
             }}
             activeOpacity={0.8}
           >
-            <Icon name={completeCount === applicants.length && applicants.length > 0 ? "check-circle" : "lock"} size={16} color="#ffffff" />
+            <Icon name={completeCount === applicants.length && applicants.length > 0 ? "eye" : "lock"} size={16} color="#ffffff" />
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
               {applicants.length === 0
-                ? "Add Applicants to Submit (0)"
+                ? "Add Applicants to Preview (0)"
                 : completeCount === applicants.length
-                ? `Submit All ${applicants.length} Applications`
+                ? "Show Preview Applications"
                 : `Complete All Applications to Submit (${completeCount}/${applicants.length})`}
             </Text>
           </TouchableOpacity>
@@ -599,6 +841,25 @@ export function GeneralBulkApplicantsPanel({
         isAll={deleteDialog.isAll}
         onCancel={() => setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] })}
         onConfirm={handleConfirmDelete}
+      />
+
+      <BulkImportConfirmModal
+        visible={pendingImportResult !== null}
+        existingCount={getManualEntriesCount(applicants, isIndividualService)}
+        importedCount={pendingImportResult?.applicants?.length ?? 0}
+        onRetainAndAdd={() => {
+          if (pendingImportResult) {
+            finalizeSpreadsheetImport(pendingImportResult, "APPEND");
+          }
+          setPendingImportResult(null);
+        }}
+        onDisregardAndReplace={() => {
+          if (pendingImportResult) {
+            finalizeSpreadsheetImport(pendingImportResult, "REPLACE");
+          }
+          setPendingImportResult(null);
+        }}
+        onCancel={() => setPendingImportResult(null)}
       />
     </View>
   );

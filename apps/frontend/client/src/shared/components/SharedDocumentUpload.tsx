@@ -166,7 +166,7 @@ export function SharedDocumentUpload({
       if (slotKey) {
         setImageLoadErrors((prev) => ({ ...prev, [slotKey]: false }));
       }
-      if (rawType.startsWith("image/") && typeof FileReader !== "undefined") {
+      if (typeof FileReader !== "undefined") {
         const reader = new FileReader();
         reader.onload = () => {
           const dataUri = typeof reader.result === "string" ? reader.result : fileUri;
@@ -271,7 +271,7 @@ export function SharedDocumentUpload({
         const resolvedName = asset?.name || (rawWebFile && 'name' in rawWebFile && typeof rawWebFile.name === 'string' ? rawWebFile.name : 'document');
         const resolvedType = (typeof asset?.mimeType === 'string' && asset.mimeType) || (rawWebFile?.type ? rawWebFile.type : undefined);
         setImageLoadErrors((prev) => ({ ...prev, [activeSlotKey]: false }));
-        if (rawWebFile && (rawWebFile.type.startsWith("image/") || (resolvedType && resolvedType.startsWith("image/"))) && typeof FileReader !== "undefined") {
+        if (rawWebFile && typeof FileReader !== "undefined") {
           const reader = new FileReader();
           reader.onload = () => {
             const dataUri = typeof reader.result === "string" ? reader.result : (asset?.uri || "");

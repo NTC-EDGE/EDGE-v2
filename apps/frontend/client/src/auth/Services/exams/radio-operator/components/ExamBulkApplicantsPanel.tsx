@@ -329,10 +329,10 @@ export function ExamBulkApplicantsPanel({
             }}
             activeOpacity={0.8}
           >
-            <Icon name={completeCount === applicants.length && applicants.length > 0 ? "check-circle" : "lock"} size={16} color="#ffffff" />
+            <Icon name={completeCount === applicants.length && applicants.length > 0 ? "eye" : "lock"} size={16} color="#ffffff" />
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
               {completeCount === applicants.length && applicants.length > 0
-                ? `Submit All ${applicants.length} Applications`
+                ? "Show Preview Applications"
                 : `Complete All Applications to Submit (${completeCount}/${applicants.length})`}
             </Text>
           </TouchableOpacity>

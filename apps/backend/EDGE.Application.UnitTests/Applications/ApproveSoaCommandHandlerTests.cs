@@ -258,4 +258,92 @@ public class ApproveSoaCommandHandlerTests
         _repositoryMock.Verify(r => r.AddOpAsync(It.IsAny<OrderOfPayment>(), It.IsAny<CancellationToken>()), Times.Never);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_ShouldAssignOpSeriesInAccountantApprovalOrder_SoSoa002CanHaveOp001AndSoa001CanHaveOp002()
+    {
+        // Arrange: SOA 0001 and SOA 0002 both endorsed to Accountant (no OP number assigned yet).
+        // Accountant approves SOA 0002 first, then SOA 0001 second.
+        var tenantId = Guid.NewGuid();
+        var app1Id = Guid.NewGuid();
+        var app2Id = Guid.NewGuid();
+        var soa1Id = Guid.NewGuid();
+        var soa2Id = Guid.NewGuid();
+
+        var soa1 = new StatementOfAccount
+        {
+            Id = soa1Id,
+            ApplicationId = app1Id,
+            SoaNumber = "61-2026-11-0001",
+            Status = SoaStatus.ForOrderOfPayment,
+            TotalAmount = 500m
+        };
+        var app1 = new Domain.Entities.Application
+        {
+            Id = app1Id,
+            TenantId = tenantId,
+            Status = ApplicationStatus.ForAccountant,
+            StatementsOfAccount = new List<StatementOfAccount> { soa1 },
+            OrdersOfPayment = new List<OrderOfPayment>()
+        };
+        soa1.Application = app1;
+
+        var soa2 = new StatementOfAccount
+        {
+            Id = soa2Id,
+            ApplicationId = app2Id,
+            SoaNumber = "61-2026-11-0002",
+            Status = SoaStatus.ForOrderOfPayment,
+            TotalAmount = 750m
+        };
+        var app2 = new Domain.Entities.Application
+        {
+            Id = app2Id,
+            TenantId = tenantId,
+            Status = ApplicationStatus.ForAccountant,
+            StatementsOfAccount = new List<StatementOfAccount> { soa2 },
+            OrdersOfPayment = new List<OrderOfPayment>()
+        };
+        soa2.Application = app2;
+
+        _repositoryMock.Setup(r => r.GetSoaByIdAsync(soa1Id, It.IsAny<CancellationToken>())).ReturnsAsync(soa1);
+        _repositoryMock.Setup(r => r.GetSoaByIdAsync(soa2Id, It.IsAny<CancellationToken>())).ReturnsAsync(soa2);
+        _repositoryMock.Setup(r => r.GetByIdWithDetailsAsync(app1Id, It.IsAny<CancellationToken>())).ReturnsAsync(app1);
+        _repositoryMock.Setup(r => r.GetByIdWithDetailsAsync(app2Id, It.IsAny<CancellationToken>())).ReturnsAsync(app2);
+
+        var seriesCounter = 0;
+        var numberingMock = new Mock<INumberingSeriesService>();
+        numberingMock
+            .Setup(n => n.GenerateOpNumberAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => $"61-2026-11-{++seriesCounter:D4}");
+
+        var addedOps = new List<OrderOfPayment>();
+        _repositoryMock
+            .Setup(r => r.AddOpAsync(It.IsAny<OrderOfPayment>(), It.IsAny<CancellationToken>()))
+            .Callback<OrderOfPayment, CancellationToken>((op, _) => addedOps.Add(op))
+            .Returns(Task.CompletedTask);
+
+        var handlerWithNumbering = new ApproveSoaCommandHandler(
+            _repositoryMock.Object,
+            _unitOfWorkMock.Object,
+            _currentUserServiceMock.Object,
+            _userRepositoryMock.Object,
+            numberingMock.Object);
+
+        // Act 1: Accountant approves SOA 0002 first
+        var res2 = await handlerWithNumbering.Handle(new ApproveSoaCommand(SoaId: soa2Id), CancellationToken.None);
+        // Act 2: Accountant approves SOA 0001 second
+        var res1 = await handlerWithNumbering.Handle(new ApproveSoaCommand(SoaId: soa1Id), CancellationToken.None);
+
+        // Assert
+        res2.Succeeded.Should().BeTrue();
+        res1.Succeeded.Should().BeTrue();
+        addedOps.Should().HaveCount(2);
+
+        var opForSoa2 = addedOps.Single(o => o.StatementOfAccountId == soa2Id);
+        var opForSoa1 = addedOps.Single(o => o.StatementOfAccountId == soa1Id);
+
+        opForSoa2.OpNumber.Should().Be("61-2026-11-0001");
+        opForSoa1.OpNumber.Should().Be("61-2026-11-0002");
+    }
 }

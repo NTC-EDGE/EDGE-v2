@@ -23,7 +23,8 @@ import {
   resolvePreviewApplicationType,
   resolvePreviewElements,
 } from '../../../../shared/formPreview';
-import { extractApplicantFullName } from './applicationDetailsHelpers';
+import { extractApplicantFullName, resolveBirthDate, resolveCivilStatus } from './applicationDetailsHelpers';
+import { RawApplicantDetails } from './applicationDetailsTypes';
 
 import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
 
@@ -286,70 +287,85 @@ export function BulkApplicantsSection({
 
         {/* Right Column: Full Unified Application Preview Summary */}
         <View style={styles.bulkRightContent}>
-          {activeApplicant ? (
-            <SingleApplicantSection
-              app={app}
-              singleApplicant={{
-                applicantName: extractApplicantFullName(app, activeApplicant.details, activeApplicant),
-                sex: activeApplicant.sex || activeApplicant.details?.sex || 'Male',
-                nationality: activeApplicant.nationality || activeApplicant.details?.nationality || 'Filipino',
-                streetAddress: activeApplicant.streetAddress || activeApplicant.details?.streetAddress || activeApplicant.details?.address || 'N/A',
-                barangay: activeApplicant.barangay || activeApplicant.details?.barangay || '',
-                cityMunicipality: activeApplicant.cityMunicipality || activeApplicant.details?.cityMunicipality || 'N/A',
-                province: activeApplicant.province || activeApplicant.details?.province || 'N/A',
-                region: activeApplicant.region || activeApplicant.details?.region || 'N/A',
-                zipCode: activeApplicant.zipCode || activeApplicant.details?.zipCode || '',
-                mobileNumber: activeApplicant.mobileNumber || activeApplicant.details?.mobileNumber || activeApplicant.details?.contactNumber || 'N/A',
-                email: activeApplicant.email || activeApplicant.details?.email || activeApplicant.details?.emailAddress || 'N/A',
-                examineeType: activeApplicant.applicationType || activeApplicant.details?.examineeType || 'New',
-                birthDate: activeApplicant.birthDate || activeApplicant.details?.birthDate || null,
-                civilStatus: activeApplicant.civilStatus || activeApplicant.details?.civilStatus || null,
-                companyName: activeApplicant.companyName || activeApplicant.details?.companyName || null,
-                representativeName: activeApplicant.representativeName || activeApplicant.details?.representativeName || null,
-                notes: activeApplicant.notes || activeApplicant.details?.notes || null,
-                schoolAttended: activeApplicant.schoolAttended || activeApplicant.details?.schoolAttended || activeApplicant.schoolName || activeApplicant.details?.schoolName || null,
-                schoolName: activeApplicant.schoolName || activeApplicant.details?.schoolName || activeApplicant.schoolAttended || activeApplicant.details?.schoolAttended || null,
-                courseTaken: activeApplicant.courseTaken || activeApplicant.details?.courseTaken || activeApplicant.courseDegree || activeApplicant.details?.courseDegree || null,
-                courseDegree: activeApplicant.courseDegree || activeApplicant.details?.courseDegree || activeApplicant.courseTaken || activeApplicant.details?.courseTaken || null,
-                yearGraduated: activeApplicant.yearGraduated || activeApplicant.details?.yearGraduated || null,
-                specialOrderNo: activeApplicant.specialOrderNo || activeApplicant.details?.specialOrderNo || null,
-              }}
-              primaryName={extractApplicantFullName(app, activeApplicant.details, activeApplicant)}
-              formFieldValues={selectedApplicantFormFields}
-              isExamService={isExamService}
-              scheduleSummaryText={
-                activeApplicant.schedule
-                  ? `${activeApplicant.schedule.date} • ${activeApplicant.schedule.time} (${activeApplicant.schedule.venue})`
-                  : scheduleSummaryText
-              }
-              variantLabel={resolvePreviewVariant({
-                serviceVariantName: activeApplicant.serviceVariantName || activeApplicant.applicationType || variantLabel,
-                variant: app.variant,
-                element: activeApplicant.element || app.element,
-                examineeType: activeApplicant.details?.examineeType,
-                formFieldValues: selectedApplicantFormFields,
-                fallback: variantLabel,
-              })}
-              applicationType={resolvePreviewApplicationType({
-                applicationType: activeApplicant.applicationType,
-                examineeType: activeApplicant.details?.examineeType,
-                element: activeApplicant.element || app.element,
-                formFieldValues: selectedApplicantFormFields,
-              })}
-              elements={resolvePreviewElements({
-                element: activeApplicant.element || app.element,
-                formFieldValues: selectedApplicantFormFields,
-              })}
-              isDesktop={isDesktop}
-              docs={selectedApplicantDocs}
-              onPreviewFile={onPreviewFile}
-              onPreviewDoc={onPreviewDoc}
-              onPreviewCustomDoc={onPreviewCustomDoc}
-              onDownloadDoc={onDownloadDoc}
-              previewLoadingId={previewLoadingId}
-              setPreviewLoadingId={setPreviewLoadingId}
-            />
-          ) : (
+          {activeApplicant ? (() => {
+            const activeDetails = (activeApplicant.details || activeApplicant) as RawApplicantDetails;
+            const findSelectedField = (predicate: (l: string, id: string) => boolean) =>
+              selectedApplicantFormFields.find((fv) =>
+                predicate((fv.fieldLabel || '').toLowerCase(), (fv.fieldId || '').toLowerCase())
+              )?.value;
+
+            const resolvedApplicantType =
+              activeApplicant.applicantType ||
+              (activeApplicant.applicationType?.toLowerCase() === 'company' ? 'Company' : 'Individual');
+
+            return (
+              <SingleApplicantSection
+                app={app}
+                singleApplicant={{
+                  applicantName: extractApplicantFullName(app, activeApplicant.details, activeApplicant),
+                  applicantType: resolvedApplicantType,
+                  sex: activeApplicant.sex || activeApplicant.details?.sex || findSelectedField((l) => l === 'sex' || l === 'gender' || l.includes('sex / gender')) || 'Male',
+                  nationality: activeApplicant.nationality || activeApplicant.details?.nationality || findSelectedField((l) => l.includes('nationality') || l.includes('citizenship')) || 'Filipino',
+                  streetAddress: activeApplicant.streetAddress || activeApplicant.details?.streetAddress || activeApplicant.details?.address || findSelectedField((l) => (l.includes('street') || l === 'address') && !l.includes('email') && !l.includes('station') && !l.includes('seller')) || 'N/A',
+                  barangay: activeApplicant.barangay || activeApplicant.details?.barangay || findSelectedField((l) => l.includes('barangay')) || '',
+                  cityMunicipality: activeApplicant.cityMunicipality || activeApplicant.details?.cityMunicipality || findSelectedField((l) => l.includes('city') || l.includes('municipality')) || 'N/A',
+                  province: activeApplicant.province || activeApplicant.details?.province || findSelectedField((l) => l.includes('province')) || 'N/A',
+                  region: activeApplicant.region || activeApplicant.details?.region || findSelectedField((l) => l.includes('region')) || 'N/A',
+                  zipCode: activeApplicant.zipCode || activeApplicant.details?.zipCode || findSelectedField((l) => l.includes('zip') || l.includes('postal')) || '',
+                  mobileNumber: activeApplicant.mobileNumber || activeApplicant.details?.mobileNumber || activeApplicant.details?.contactNumber || findSelectedField((l) => l.includes('contact') || l.includes('mobile') || l.includes('phone')) || 'N/A',
+                  email: activeApplicant.email || activeApplicant.details?.email || activeApplicant.details?.emailAddress || findSelectedField((l) => l.includes('email')) || 'N/A',
+                  examineeType: activeApplicant.applicationType || activeApplicant.details?.examineeType || 'New',
+                  birthDate: activeApplicant.birthDate || resolveBirthDate(activeDetails, selectedApplicantFormFields) || null,
+                  civilStatus: activeApplicant.civilStatus || resolveCivilStatus(activeDetails, selectedApplicantFormFields) || null,
+                  companyName: activeApplicant.companyName || activeApplicant.details?.companyName || app.companyName || null,
+                  representativeName: activeApplicant.representativeName || activeApplicant.details?.representativeName || app.representativeName || null,
+                  notes: activeApplicant.notes || activeApplicant.details?.notes || null,
+                  schoolAttended: activeApplicant.schoolAttended || activeApplicant.details?.schoolAttended || activeApplicant.schoolName || activeApplicant.details?.schoolName || findSelectedField((l) => l.includes('school') || l.includes('university')) || null,
+                  schoolName: activeApplicant.schoolName || activeApplicant.details?.schoolName || activeApplicant.schoolAttended || activeApplicant.details?.schoolAttended || findSelectedField((l) => l.includes('school') || l.includes('university')) || null,
+                  courseTaken: activeApplicant.courseTaken || activeApplicant.details?.courseTaken || activeApplicant.courseDegree || activeApplicant.details?.courseDegree || findSelectedField((l) => l.includes('course') || l.includes('degree') || l.includes('program')) || null,
+                  courseDegree: activeApplicant.courseDegree || activeApplicant.details?.courseDegree || activeApplicant.courseTaken || activeApplicant.details?.courseTaken || findSelectedField((l) => l.includes('course') || l.includes('degree') || l.includes('program')) || null,
+                  yearGraduated: activeApplicant.yearGraduated || activeApplicant.details?.yearGraduated || findSelectedField((l) => l.includes('graduat')) || null,
+                  specialOrderNo: activeApplicant.specialOrderNo || activeApplicant.details?.specialOrderNo || findSelectedField((l) => l.includes('special order') || l.includes('so number')) || null,
+                  signatureUrl: activeApplicant.signatureUrl || activeApplicant.eSignature || activeApplicant.details?.signatureUrl || activeApplicant.details?.eSignature || findSelectedField((l) => l.includes('signature')) || null,
+                  eSignature: activeApplicant.eSignature || activeApplicant.signatureUrl || activeApplicant.details?.eSignature || activeApplicant.details?.signatureUrl || findSelectedField((l) => l.includes('signature')) || null,
+                }}
+                primaryName={extractApplicantFullName(app, activeApplicant.details, activeApplicant)}
+                formFieldValues={selectedApplicantFormFields}
+                isExamService={isExamService}
+                scheduleSummaryText={
+                  activeApplicant.schedule
+                    ? `${activeApplicant.schedule.date} • ${activeApplicant.schedule.time} (${activeApplicant.schedule.venue})`
+                    : scheduleSummaryText
+                }
+                variantLabel={resolvePreviewVariant({
+                  serviceVariantName: activeApplicant.serviceVariantName || activeApplicant.applicationType || variantLabel,
+                  variant: app.variant,
+                  element: activeApplicant.element || app.element,
+                  examineeType: activeApplicant.details?.examineeType,
+                  formFieldValues: selectedApplicantFormFields,
+                  fallback: variantLabel,
+                })}
+                applicationType={resolvePreviewApplicationType({
+                  applicationType: activeApplicant.applicationType,
+                  examineeType: activeApplicant.details?.examineeType,
+                  element: activeApplicant.element || app.element,
+                  formFieldValues: selectedApplicantFormFields,
+                })}
+                elements={resolvePreviewElements({
+                  element: activeApplicant.element || app.element,
+                  formFieldValues: selectedApplicantFormFields,
+                })}
+                isDesktop={isDesktop}
+                docs={selectedApplicantDocs}
+                onPreviewFile={onPreviewFile}
+                onPreviewDoc={onPreviewDoc}
+                onPreviewCustomDoc={onPreviewCustomDoc}
+                onDownloadDoc={onDownloadDoc}
+                previewLoadingId={previewLoadingId}
+                setPreviewLoadingId={setPreviewLoadingId}
+              />
+            );
+          })() : (
             <View style={styles.emptyTableState}>
               <Icon name="user" size={32} color="#94A3B8" />
               <Text style={[styles.emptyTableText, { marginTop: 8 }]}>

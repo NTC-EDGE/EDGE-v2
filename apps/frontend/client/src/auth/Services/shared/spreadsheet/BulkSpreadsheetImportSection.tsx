@@ -6,11 +6,18 @@ import { useToast } from "../../../../shared/components/Toast";
 import { COLORS, TYPOGRAPHY, RADIUS, SHADOWS } from "../../../../shared/theme/tokens";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
-import { getSpreadsheetTemplateForService, generateCsvContent } from "./spreadsheetTemplates";
-import { downloadCsvFile } from "./fileDownloadHelper";
+import { getSpreadsheetTemplateForService } from "./spreadsheetTemplates";
+import { downloadTemplateFile, readPickedSpreadsheetText } from "./fileDownloadHelper";
 import { parseSpreadsheetContent, CsvParseResult } from "./csvParser";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { isServiceVariantIndividual } from "../helpers/applicantDisplayHelper";
+import {
+  BulkImportConfirmModal,
+  BulkImportMode,
+  hasManualApplicantEntries,
+  getManualEntriesCount,
+} from "./BulkImportConfirmModal";
 
 interface BulkSpreadsheetImportSectionProps {
   service: NTCService;
@@ -22,7 +29,8 @@ interface BulkSpreadsheetImportSectionProps {
   setIsFileUploaded: (val: boolean) => void;
   uploadedFileName: string;
   setUploadedFileName: (name: string) => void;
-  onApplicantsImported: (applicants: GeneralApplicantData[]) => void;
+  applicants?: GeneralApplicantData[];
+  onApplicantsImported: (applicants: GeneralApplicantData[], mode?: BulkImportMode) => void;
   selectedVariantId?: string;
   selectedVariantName?: string;
   applicantType?: "individual" | "company";
@@ -38,6 +46,7 @@ export function BulkSpreadsheetImportSection({
   setIsFileUploaded,
   uploadedFileName,
   setUploadedFileName,
+  applicants = [],
   onApplicantsImported,
   selectedVariantId,
   selectedVariantName,
@@ -45,16 +54,27 @@ export function BulkSpreadsheetImportSection({
 }: BulkSpreadsheetImportSectionProps) {
   const [loading, setLoading] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [confirmModeModalOpen, setConfirmModeModalOpen] = useState(false);
   const [parseResult, setParseResult] = useState<CsvParseResult | null>(null);
 
   const { form } = useServiceForm(service?.id, selectedVariantId);
+  const isIndividualService = isServiceVariantIndividual(
+    service,
+    undefined,
+    selectedVariantId || form?.serviceVariantId,
+    selectedVariantName || form?.serviceVariantName
+  );
   const evaluationContext = useMemo<FormEvaluationContext>(
     () => ({
+      serviceCategory: service?.category,
+      serviceTitle: service?.title,
+      serviceName: form?.serviceName || service?.title,
+      serviceCode: form?.serviceCode || service?.code,
       variantId: selectedVariantId || form?.serviceVariantId,
       variantName: selectedVariantName || form?.serviceVariantName || service?.title,
-      applicantType,
+      applicantType: isIndividualService ? "individual" : (applicantType || "company"),
     }),
-    [selectedVariantId, selectedVariantName, applicantType, form, service]
+    [selectedVariantId, selectedVariantName, applicantType, isIndividualService, form, service]
   );
   const templateConfig = useMemo(
     () => getSpreadsheetTemplateForService(service, form, evaluationContext),
@@ -64,9 +84,8 @@ export function BulkSpreadsheetImportSection({
 
   // ── Download Template Handler ───────────────────────────────────────────────
   const handleDownloadTemplate = () => {
-    const csvData = generateCsvContent(templateConfig);
-    downloadCsvFile(templateConfig.filename, csvData);
-    toast.success("Template Downloaded", `Downloaded ${templateConfig.filename}.`);
+    downloadTemplateFile(templateConfig);
+    toast.success("Template Downloaded", `Downloaded ${templateConfig.filename} with Excel dropdown validations.`);
   };
 
   // ── File Pick & Parse Handler ───────────────────────────────────────────────
@@ -96,18 +115,12 @@ export function BulkSpreadsheetImportSection({
         return;
       }
 
-      setUploadedFileName(asset?.name || "uploaded_spreadsheet.csv");
+      setUploadedFileName(asset?.name || "uploaded_spreadsheet.xlsx");
 
-      let fileText = "";
-      if (Platform.OS === "web" && asset?.file && typeof asset.file.text === "function") {
-        fileText = await asset.file.text();
-      } else if (asset?.uri) {
-        const response = await fetch(asset.uri);
-        fileText = await response.text();
-      }
+      const fileText = await readPickedSpreadsheetText(asset);
 
       if (!fileText || fileText.trim().length === 0) {
-        toast.error("Empty File", "The selected file is empty. Please upload a valid CSV file with applicant data.");
+        toast.error("Empty File", "The selected file is empty. Please upload a valid Excel (.xlsx) or CSV file with applicant data.");
         setLoading(false);
         return;
       }
@@ -138,26 +151,42 @@ export function BulkSpreadsheetImportSection({
     }
   };
 
+  const finalizeImport = (mode: BulkImportMode) => {
+    if (!parseResult || (parseResult.applicants?.length ?? 0) === 0) return;
+    onApplicantsImported(parseResult.applicants, mode);
+    setConfirmModeModalOpen(false);
+    setPreviewModalOpen(false);
+
+    if (parseResult.invalidCount > 0) {
+      toast.warning(
+        "Partial Import Completed",
+        mode === "APPEND"
+          ? `Retained existing entries and added ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} row(s) had errors and were skipped.`
+          : `Successfully populated ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} row(s) had errors and were skipped.`
+      );
+    } else {
+      toast.success(
+        "Import Successful",
+        mode === "APPEND"
+          ? `Retained existing manual entries and added ${parseResult.validCount} imported applicant(s) into the filing cohort.`
+          : `Successfully populated all ${parseResult.validCount} applicant entries into the filing cohort.`
+      );
+    }
+  };
+
   const handleApplyApplicants = () => {
     if (!parseResult || (parseResult.applicants?.length ?? 0) === 0) {
       toast.error("Cannot Import", "There are no valid applicant entries to import into the filing cohort.");
       return;
     }
 
-    onApplicantsImported(parseResult.applicants);
-    setPreviewModalOpen(false);
-
-    if (parseResult.invalidCount > 0) {
-      toast.warning(
-        "Partial Import Completed",
-        `Successfully populated ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} row(s) had errors and were skipped.`
-      );
-    } else {
-      toast.success(
-        "Import Successful",
-        `Successfully populated all ${parseResult.validCount} applicant entries into the filing cohort.`
-      );
+    if (hasManualApplicantEntries(applicants, isIndividualService)) {
+      setPreviewModalOpen(false);
+      setConfirmModeModalOpen(true);
+      return;
     }
+
+    finalizeImport("REPLACE");
   };
 
   return (
@@ -271,7 +300,7 @@ export function BulkSpreadsheetImportSection({
           <View style={styles.bulkActionRow}>
             <TouchableOpacity onPress={handleDownloadTemplate} style={styles.downloadBtn}>
               <Icon name="download" size={16} color="#ffffff" style={{ marginRight: 8 }} />
-              <Text style={styles.downloadBtnText}>Download Template Spreadsheet (.csv)</Text>
+              <Text style={styles.downloadBtnText}>Download Template Spreadsheet (.xlsx)</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={handlePickSpreadsheet} disabled={loading} style={styles.uploadBtn}>
@@ -453,6 +482,15 @@ export function BulkSpreadsheetImportSection({
           </View>
         </View>
       </Modal>
+
+      <BulkImportConfirmModal
+        visible={confirmModeModalOpen}
+        existingCount={getManualEntriesCount(applicants, isIndividualService)}
+        importedCount={parseResult?.applicants?.length ?? 0}
+        onRetainAndAdd={() => finalizeImport("APPEND")}
+        onDisregardAndReplace={() => finalizeImport("REPLACE")}
+        onCancel={() => setConfirmModeModalOpen(false)}
+      />
     </View>
   );
 }

@@ -38,8 +38,15 @@ export function FormSignatureInput({
   const isMobile = width < 640;
   const isBulkMode = isBulk || appMode === "BULK";
   const { user: clerkUser } = useUser();
+  const isPlaceholderApplicantName =
+    !applicantName ||
+    applicantName.trim().toLowerCase() === "applicant" ||
+    applicantName.trim().toLowerCase() === "representative" ||
+    /^applicant\s*#\d+$/i.test(applicantName.trim()) ||
+    /^draft\s+applicant/i.test(applicantName.trim());
+  const effectiveApplicantName = isPlaceholderApplicantName ? "" : applicantName.trim();
   const [activeTab, setActiveTab] = useState<"draw" | "type" | "upload">(isBulkMode ? "upload" : "draw");
-  const [typedName, setTypedName] = useState(applicantName || (isBulkMode ? "" : clerkUser?.fullName || ""));
+  const [typedName, setTypedName] = useState(effectiveApplicantName || (isBulkMode ? "" : clerkUser?.fullName || ""));
   const [hasDrawnStrokes, setHasDrawnStrokes] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -96,12 +103,14 @@ export function FormSignatureInput({
 
   // Sync typed name when applicantName or clerkUser updates
   useEffect(() => {
-    if (applicantName) {
-      setTypedName(applicantName);
-    } else if (!isBulkMode && clerkUser?.fullName) {
+    if (effectiveApplicantName) {
+      setTypedName(effectiveApplicantName);
+    } else if (isBulkMode) {
+      setTypedName("");
+    } else if (clerkUser?.fullName) {
       setTypedName(clerkUser.fullName);
     }
-  }, [applicantName, clerkUser?.fullName, isBulkMode]);
+  }, [effectiveApplicantName, clerkUser?.fullName, isBulkMode]);
 
   // Web Canvas Ref
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -590,10 +599,10 @@ export function FormSignatureInput({
                   onChangeText={setTypedName}
                   placeholderTextColor="#94A3B8"
                 />
-                {applicantName && (
+                {Boolean(effectiveApplicantName) && (
                   <TouchableOpacity
                     style={styles.prefillButton}
-                    onPress={() => setTypedName(applicantName)}
+                    onPress={() => setTypedName(effectiveApplicantName)}
                   >
                     <Text style={styles.prefillButtonText}>Use Name</Text>
                   </TouchableOpacity>

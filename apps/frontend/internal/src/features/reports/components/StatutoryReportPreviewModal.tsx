@@ -18,6 +18,7 @@ import {
   SPACING,
   RADIUS,
   TYPOGRAPHY,
+  DatePickerInput,
 } from '@edge/ui';
 import { StatutoryReportMetadata } from '../types/statutoryReports';
 import { ApplicationSummaryDto, TenantTransactionDto, FeedbackDto } from '@edge/api';
@@ -222,24 +223,24 @@ export function StatutoryReportPreviewModal({
             <View style={styles.datePickerRow}>
               <View style={styles.dateField}>
                 <Text style={[styles.dateLabel, { color: colors.textMuted }]}>FROM:</Text>
-                <TextInput
-                  style={[styles.dateInput, { color: colors.text, borderColor: colors.border, backgroundColor: isDark ? colors.neutral[800] : '#FFFFFF' }]}
-                  value={localStartDate}
-                  onChangeText={setLocalStartDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                />
+                <View style={{ minWidth: 160 }}>
+                  <DatePickerInput
+                    value={localStartDate}
+                    onChangeText={setLocalStartDate}
+                    placeholder="YYYY-MM-DD"
+                  />
+                </View>
               </View>
 
               <View style={styles.dateField}>
                 <Text style={[styles.dateLabel, { color: colors.textMuted }]}>TO:</Text>
-                <TextInput
-                  style={[styles.dateInput, { color: colors.text, borderColor: colors.border, backgroundColor: isDark ? colors.neutral[800] : '#FFFFFF' }]}
-                  value={localEndDate}
-                  onChangeText={setLocalEndDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                />
+                <View style={{ minWidth: 160 }}>
+                  <DatePickerInput
+                    value={localEndDate}
+                    onChangeText={setLocalEndDate}
+                    placeholder="YYYY-MM-DD"
+                  />
+                </View>
               </View>
 
               <Button

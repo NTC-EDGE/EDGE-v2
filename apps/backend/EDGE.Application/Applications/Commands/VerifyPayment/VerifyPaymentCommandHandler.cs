@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -59,15 +60,25 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
         if (op.Application != null)
         {
             var prevAppStatus = op.Application.Status;
-            op.Application.Status = ApplicationStatus.ForIssuance;
+            var activeSiblingOps = op.Application.OrdersOfPayment?
+                .Where(o => o.Status != OpStatus.Returned)
+                .ToList();
+            var allAppOpsPaid = activeSiblingOps == null ||
+                                activeSiblingOps.Count == 0 ||
+                                activeSiblingOps.All(o => o.Id == op.Id || o.Status == OpStatus.Paid);
+
+            var nextAppStatus = allAppOpsPaid ? ApplicationStatus.ForIssuance : ApplicationStatus.PendingPayment;
+            op.Application.Status = nextAppStatus;
 
             await _repository.AddApplicationHistoryAsync(new ApplicationHistory
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = op.ApplicationId,
-                Action = $"Payment verified. OR: {request.OfficialReceiptNumber}. Forwarded for Document & License Issuance.",
+                Action = allAppOpsPaid
+                    ? $"Payment verified. OR: {request.OfficialReceiptNumber}. Forwarded for Document & License Issuance."
+                    : $"Payment verified for OP #{op.OpNumber}. OR: {request.OfficialReceiptNumber}. Remaining Order(s) of Payment pending.",
                 FromStatus = prevAppStatus,
-                ToStatus = ApplicationStatus.ForIssuance,
+                ToStatus = nextAppStatus,
                 PerformedByUserId = validUserId,
                 StaffName = userContext.StaffName,
                 StaffRole = userContext.StaffRole,

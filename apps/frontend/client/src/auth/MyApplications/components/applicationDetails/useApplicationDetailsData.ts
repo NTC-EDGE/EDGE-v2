@@ -252,6 +252,30 @@ export function useApplicationDetailsData(initialApp: Application) {
 
     const isCompany = rawAppType.toLowerCase() === 'company';
 
+    const resolvedSignature =
+      details?.eSignature ||
+      details?.signatureUrl ||
+      first?.eSignature ||
+      first?.signatureUrl ||
+      findField((l) => l.includes('signature')) ||
+      null;
+
+    const resolvedCompName =
+      details?.companyName ||
+      first?.companyName ||
+      app.companyName ||
+      (app.company as { name?: string })?.name ||
+      (app.Company as { Name?: string })?.Name ||
+      findField((l) => l.includes('company name') || l.includes('business name') || l.includes('corporate name')) ||
+      null;
+
+    const resolvedRepName =
+      details?.representativeName ||
+      first?.representativeName ||
+      (app.representativeName as string) ||
+      findField((l) => l.includes('representative')) ||
+      null;
+
     return {
       applicantName,
       applicantType: isCompany ? 'Company' : 'Individual',
@@ -268,8 +292,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       examineeType: details?.examineeType || first?.applicationType || first?.applicantType || app.element || app.examineeType || 'New',
       birthDate: resolveBirthDate(details, rawFormFields),
       civilStatus: resolveCivilStatus(details, rawFormFields),
-      companyName: isCompany ? (details?.companyName || app.companyName || (app.company as { name?: string })?.name || (app.Company as { Name?: string })?.Name || null) : null,
-      representativeName: isCompany ? (details?.representativeName || (app.representativeName as string) || findField((l) => l.includes('representative')) || null) : null,
+      companyName: isCompany || Boolean(resolvedCompName) ? resolvedCompName : null,
+      representativeName: isCompany || Boolean(resolvedCompName) ? resolvedRepName : null,
       notes: details?.notes || app.remarks || null,
       schoolAttended: resolvedSchool,
       schoolName: resolvedSchool,
@@ -277,6 +301,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       courseDegree: resolvedCourse,
       yearGraduated: resolvedYearGrad,
       specialOrderNo: resolvedSpecialOrderNo,
+      signatureUrl: resolvedSignature,
+      eSignature: resolvedSignature,
     };
   }, [app]);
 
@@ -351,25 +377,81 @@ export function useApplicationDetailsData(initialApp: Application) {
 
   const appApplicants = useMemo<BulkApplicant[]>(() => {
     const rawApplicants = app.applicants || app.Applicants || [];
-    return rawApplicants.map((ap: BulkApplicant) => ({
-      id: ap.id || '',
-      name: extractApplicantFullName(app, ap.details || ap, ap),
-      applicationType: ap.applicationType || ap.applicantType || 'Individual',
-      status: ap.status || 'PENDING',
-      includedInSOA: ap.includedInSOA !== undefined ? ap.includedInSOA : (ap.includedInSoa !== undefined ? ap.includedInSoa : false),
-      sex: ap.sex || ap.details?.sex,
-      nationality: ap.nationality || ap.details?.nationality,
-      streetAddress: ap.streetAddress || ap.details?.address,
-      barangay: ap.barangay || ap.details?.barangay,
-      cityMunicipality: ap.cityMunicipality || ap.details?.cityMunicipality,
-      province: ap.province || ap.details?.province,
-      region: ap.region || ap.details?.region,
-      zipCode: ap.zipCode || ap.details?.zipCode,
-      mobileNumber: ap.mobileNumber || ap.contactNumber || ap.details?.contactNumber,
-      email: ap.email || ap.emailAddress || ap.details?.emailAddress,
-      schedule: ap.schedule || undefined,
-    }));
-  }, [isBulk ? app.applicants : null, app.Applicants]);
+    return rawApplicants.map((ap: BulkApplicant) => {
+      const details = (ap.details || ap) as RawApplicantDetails;
+      const apFormFields = ap.formFieldValues || ap.details?.formFieldValues || [];
+      const findApField = (predicate: (l: string, id: string) => boolean) =>
+        apFormFields.find((fv) => predicate((fv.fieldLabel || '').toLowerCase(), (fv.fieldId || '').toLowerCase()))?.value;
+
+      const resolvedBirth = ap.birthDate || resolveBirthDate(details, apFormFields) || undefined;
+      const resolvedCivil = ap.civilStatus || resolveCivilStatus(details, apFormFields) || undefined;
+      const resolvedSchool =
+        ap.schoolAttended ||
+        ap.schoolName ||
+        details?.schoolAttended ||
+        details?.schoolName ||
+        findApField((l) => l.includes('school') || l.includes('university')) ||
+        undefined;
+      const resolvedCourse =
+        ap.courseTaken ||
+        ap.courseDegree ||
+        details?.courseTaken ||
+        details?.courseDegree ||
+        findApField((l) => l.includes('course') || l.includes('degree') || l.includes('program')) ||
+        undefined;
+      const resolvedYearGrad =
+        ap.yearGraduated ||
+        details?.yearGraduated ||
+        findApField((l) => l.includes('graduat')) ||
+        undefined;
+      const resolvedSoNo =
+        ap.specialOrderNo ||
+        details?.specialOrderNo ||
+        findApField((l) => l.includes('special order') || l.includes('so number')) ||
+        undefined;
+      const resolvedSig =
+        ap.eSignature ||
+        ap.signatureUrl ||
+        details?.eSignature ||
+        details?.signatureUrl ||
+        findApField((l) => l.includes('signature')) ||
+        undefined;
+
+      return {
+        ...ap,
+        id: ap.id || '',
+        name: extractApplicantFullName(app, ap.details || ap, ap),
+        applicantType: ap.applicantType || (ap.applicationType?.toLowerCase() === 'company' ? 'Company' : 'Individual'),
+        applicationType: ap.applicationType || ap.applicantType || 'Individual',
+        status: ap.status || 'PENDING',
+        includedInSOA: ap.includedInSOA !== undefined ? ap.includedInSOA : (ap.includedInSoa !== undefined ? ap.includedInSoa : false),
+        sex: ap.sex || ap.details?.sex || (findApField((l) => l === 'sex' || l === 'gender' || l.includes('sex / gender')) as 'Male' | 'Female' | undefined),
+        nationality: ap.nationality || ap.details?.nationality || findApField((l) => l.includes('nationality') || l.includes('citizenship')),
+        streetAddress: ap.streetAddress || ap.details?.streetAddress || ap.details?.address || findApField((l) => (l.includes('street') || l === 'address') && !l.includes('email') && !l.includes('station') && !l.includes('seller')),
+        barangay: ap.barangay || ap.details?.barangay || findApField((l) => l.includes('barangay')),
+        cityMunicipality: ap.cityMunicipality || ap.details?.cityMunicipality || findApField((l) => l.includes('city') || l.includes('municipality')),
+        province: ap.province || ap.details?.province || findApField((l) => l.includes('province')),
+        region: ap.region || ap.details?.region || findApField((l) => l.includes('region')),
+        zipCode: ap.zipCode || ap.details?.zipCode || findApField((l) => l.includes('zip') || l.includes('postal')),
+        mobileNumber: ap.mobileNumber || ap.contactNumber || ap.details?.contactNumber || ap.details?.mobileNumber || findApField((l) => l.includes('contact') || l.includes('mobile') || l.includes('phone')),
+        email: ap.email || ap.emailAddress || ap.details?.emailAddress || ap.details?.email || findApField((l) => l.includes('email')),
+        birthDate: resolvedBirth,
+        civilStatus: resolvedCivil,
+        companyName: ap.companyName || ap.details?.companyName || app.companyName,
+        representativeName: ap.representativeName || ap.details?.representativeName || app.representativeName,
+        notes: ap.notes || ap.details?.notes,
+        schoolAttended: resolvedSchool,
+        schoolName: resolvedSchool,
+        courseTaken: resolvedCourse,
+        courseDegree: resolvedCourse,
+        yearGraduated: resolvedYearGrad,
+        specialOrderNo: resolvedSoNo,
+        eSignature: resolvedSig,
+        signatureUrl: resolvedSig,
+        schedule: ap.schedule || undefined,
+      };
+    });
+  }, [isBulk ? app.applicants : null, app.Applicants, app]);
 
   const totalSubmitted = isBulk ? appApplicants.length : 0;
   const approvedCount = isBulk ? appApplicants.filter((a) => normalizeStatus(a.status) === 'APPROVED').length : 0;
