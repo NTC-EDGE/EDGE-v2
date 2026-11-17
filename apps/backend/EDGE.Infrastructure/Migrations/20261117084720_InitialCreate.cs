@@ -106,6 +106,7 @@ namespace EDGE.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
                     SenderName = table.Column<string>(type: "text", nullable: false),
                     SenderEmail = table.Column<string>(type: "text", nullable: false),
                     Subject = table.Column<string>(type: "text", nullable: false),
@@ -216,7 +217,7 @@ namespace EDGE.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    Description = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -397,6 +398,72 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "AgencyBankAccounts",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BankName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    AccountName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    AccountNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Branch = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    FundCluster = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    Remarks = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AgencyBankAccounts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AgencyBankAccounts_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Conversations",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    AvatarUrl = table.Column<string>(type: "text", nullable: true),
+                    Type = table.Column<string>(type: "text", nullable: false),
+                    Scope = table.Column<string>(type: "text", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsArchived = table.Column<bool>(type: "boolean", nullable: false),
+                    LastMessageAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    LastMessagePreview = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Conversations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Conversations_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Roles",
                 schema: "public",
                 columns: table => new
@@ -463,6 +530,35 @@ namespace EDGE.Infrastructure.Migrations
                         principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SoaNotes",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    Notes = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SoaNotes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SoaNotes_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -580,34 +676,6 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Forms",
-                schema: "public",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ServiceId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Version = table.Column<string>(type: "text", nullable: false),
-                    CategorySelectionRequired = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<string>(type: "text", nullable: true),
-                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Forms", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Forms_Services_ServiceId",
-                        column: x => x.ServiceId,
-                        principalSchema: "public",
-                        principalTable: "Services",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Schedules",
                 schema: "public",
                 columns: table => new
@@ -618,6 +686,8 @@ namespace EDGE.Infrastructure.Migrations
                     Venue = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    StartTime = table.Column<string>(type: "text", nullable: true),
+                    EndTime = table.Column<string>(type: "text", nullable: true),
                     StartApplication = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     EndApplication = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     IsPublished = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
@@ -645,6 +715,35 @@ namespace EDGE.Infrastructure.Migrations
                         column: x => x.TenantId,
                         principalSchema: "public",
                         principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ServiceFormulas",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ServiceId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FormulaExpression = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ServiceFormulas", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ServiceFormulas_Services_ServiceId",
+                        column: x => x.ServiceId,
+                        principalSchema: "public",
+                        principalTable: "Services",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -686,6 +785,7 @@ namespace EDGE.Infrastructure.Migrations
                     ServiceId = table.Column<Guid>(type: "uuid", nullable: false),
                     Type = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: true),
+                    IsIndividual = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -738,15 +838,19 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "FormSections",
+                name: "Forms",
                 schema: "public",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    FormId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Key = table.Column<string>(type: "text", nullable: false),
-                    Title = table.Column<string>(type: "text", nullable: false),
-                    OrderIndex = table.Column<int>(type: "integer", nullable: false),
+                    ServiceId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Key = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false, defaultValue: ""),
+                    ServiceVariantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    BaseFormId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Name = table.Column<string>(type: "character varying(250)", maxLength: 250, nullable: true),
+                    Version = table.Column<string>(type: "text", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
+                    CategorySelectionRequired = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -756,18 +860,32 @@ namespace EDGE.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_FormSections", x => x.Id);
+                    table.PrimaryKey("PK_Forms", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_FormSections_Forms_FormId",
-                        column: x => x.FormId,
+                        name: "FK_Forms_Forms_BaseFormId",
+                        column: x => x.BaseFormId,
                         principalSchema: "public",
                         principalTable: "Forms",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Forms_ServiceVariants_ServiceVariantId",
+                        column: x => x.ServiceVariantId,
+                        principalSchema: "public",
+                        principalTable: "ServiceVariants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Forms_Services_ServiceId",
+                        column: x => x.ServiceId,
+                        principalSchema: "public",
+                        principalTable: "Services",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Notes",
+                name: "ServiceNotes",
                 schema: "public",
                 columns: table => new
                 {
@@ -784,16 +902,16 @@ namespace EDGE.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Notes", x => x.Id);
+                    table.PrimaryKey("PK_ServiceNotes", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Notes_ServiceVariants_ServiceVariantId",
+                        name: "FK_ServiceNotes_ServiceVariants_ServiceVariantId",
                         column: x => x.ServiceVariantId,
                         principalSchema: "public",
                         principalTable: "ServiceVariants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Notes_Services_ServiceId",
+                        name: "FK_ServiceNotes_Services_ServiceId",
                         column: x => x.ServiceId,
                         principalSchema: "public",
                         principalTable: "Services",
@@ -811,6 +929,7 @@ namespace EDGE.Infrastructure.Migrations
                     ElementId = table.Column<Guid>(type: "uuid", nullable: false),
                     FeeId = table.Column<Guid>(type: "uuid", nullable: false),
                     Amount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -837,6 +956,44 @@ namespace EDGE.Infrastructure.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_ServiceVariantElementFees_ServiceVariants_ServiceVariantId",
+                        column: x => x.ServiceVariantId,
+                        principalSchema: "public",
+                        principalTable: "ServiceVariants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ServiceVariantElementFormulas",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ServiceVariantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ElementId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FormulaExpression = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    ApplyLateRenewalSurcharge = table.Column<bool>(type: "boolean", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ServiceVariantElementFormulas", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ServiceVariantElementFormulas_Elements_ElementId",
+                        column: x => x.ElementId,
+                        principalSchema: "public",
+                        principalTable: "Elements",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ServiceVariantElementFormulas_ServiceVariants_ServiceVarian~",
                         column: x => x.ServiceVariantId,
                         principalSchema: "public",
                         principalTable: "ServiceVariants",
@@ -881,6 +1038,7 @@ namespace EDGE.Infrastructure.Migrations
                     ServiceVariantId = table.Column<Guid>(type: "uuid", nullable: false),
                     FeeId = table.Column<Guid>(type: "uuid", nullable: false),
                     Amount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -908,14 +1066,44 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ServiceVariantFormulas",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ServiceVariantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FormulaExpression = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    ApplyLateRenewalSurcharge = table.Column<bool>(type: "boolean", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ServiceVariantFormulas", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ServiceVariantFormulas_ServiceVariants_ServiceVariantId",
+                        column: x => x.ServiceVariantId,
+                        principalSchema: "public",
+                        principalTable: "ServiceVariants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ServiceVariantRequirements",
                 schema: "public",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
                     RequirementId = table.Column<Guid>(type: "uuid", nullable: false),
                     ServiceVariantId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ContextKey = table.Column<string>(type: "text", nullable: true),
                     IsRequired = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
@@ -941,6 +1129,13 @@ namespace EDGE.Infrastructure.Migrations
                         principalTable: "ServiceVariants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ServiceVariantRequirements_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1000,8 +1195,8 @@ namespace EDGE.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    AuthUserId = table.Column<string>(type: "text", nullable: false),
-                    Email = table.Column<string>(type: "text", nullable: false),
+                    AuthUserId = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     FirstName = table.Column<string>(type: "text", nullable: false),
                     LastName = table.Column<string>(type: "text", nullable: false),
                     AccountType = table.Column<string>(type: "text", nullable: false),
@@ -1045,32 +1240,30 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "SectionFields",
+                name: "FormSections",
                 schema: "public",
                 columns: table => new
                 {
-                    FormSectionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    FieldId = table.Column<Guid>(type: "uuid", nullable: false),
-                    IsRequired = table.Column<bool>(type: "boolean", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    FormId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Key = table.Column<string>(type: "text", nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false),
                     OrderIndex = table.Column<int>(type: "integer", nullable: false),
-                    VisibilityCondition = table.Column<string>(type: "text", nullable: true),
-                    Id = table.Column<Guid>(type: "uuid", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SectionFields", x => new { x.FormSectionId, x.FieldId });
+                    table.PrimaryKey("PK_FormSections", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SectionFields_Fields_FieldId",
-                        column: x => x.FieldId,
+                        name: "FK_FormSections_Forms_FormId",
+                        column: x => x.FormId,
                         principalSchema: "public",
-                        principalTable: "Fields",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_SectionFields_FormSections_FormSectionId",
-                        column: x => x.FormSectionId,
-                        principalSchema: "public",
-                        principalTable: "FormSections",
+                        principalTable: "Forms",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1210,6 +1403,7 @@ namespace EDGE.Infrastructure.Migrations
                     ApplicationNumber = table.Column<string>(type: "text", nullable: true),
                     ReferenceNumber = table.Column<string>(type: "text", nullable: true),
                     Status = table.Column<string>(type: "text", nullable: false),
+                    Intent = table.Column<string>(type: "text", nullable: false),
                     SubmissionMode = table.Column<string>(type: "text", nullable: false),
                     DataEntryMethod = table.Column<string>(type: "text", nullable: true),
                     Remarks = table.Column<string>(type: "text", nullable: true),
@@ -1217,6 +1411,11 @@ namespace EDGE.Infrastructure.Migrations
                     IsGuest = table.Column<bool>(type: "boolean", nullable: false),
                     IsPinned = table.Column<bool>(type: "boolean", nullable: false),
                     IsArchived = table.Column<bool>(type: "boolean", nullable: false),
+                    RenewedFromApplicationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    AssessedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ConvertedToRegularAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    AssessmentVersion = table.Column<int>(type: "integer", nullable: false),
+                    AssessmentRemarks = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -1227,6 +1426,13 @@ namespace EDGE.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Applications", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Applications_Applications_RenewedFromApplicationId",
+                        column: x => x.RenewedFromApplicationId,
+                        principalSchema: "public",
+                        principalTable: "Applications",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Applications_Regions_RegionId",
                         column: x => x.RegionId,
@@ -1255,6 +1461,337 @@ namespace EDGE.Infrastructure.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BankDeposits",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DepositSlipNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    BankAccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DepositDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    TotalAmount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    CashAmount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    CheckAmount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    DepositedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    VerifiedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    DepositSlipAttachmentId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Remarks = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BankDeposits", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BankDeposits_AgencyBankAccounts_BankAccountId",
+                        column: x => x.BankAccountId,
+                        principalSchema: "public",
+                        principalTable: "AgencyBankAccounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_BankDeposits_StoredFiles_DepositSlipAttachmentId",
+                        column: x => x.DepositSlipAttachmentId,
+                        principalSchema: "public",
+                        principalTable: "StoredFiles",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_BankDeposits_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_BankDeposits_Users_DepositedByUserId",
+                        column: x => x.DepositedByUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_BankDeposits_Users_VerifiedByUserId",
+                        column: x => x.VerifiedByUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ChatMessages",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ConversationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SenderId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SenderTenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Content = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<string>(type: "text", nullable: false),
+                    ReplyToMessageId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsEdited = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatMessages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChatMessages_ChatMessages_ReplyToMessageId",
+                        column: x => x.ReplyToMessageId,
+                        principalSchema: "public",
+                        principalTable: "ChatMessages",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ChatMessages_Conversations_ConversationId",
+                        column: x => x.ConversationId,
+                        principalSchema: "public",
+                        principalTable: "Conversations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ChatMessages_Tenants_SenderTenantId",
+                        column: x => x.SenderTenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ChatMessages_Users_SenderId",
+                        column: x => x.SenderId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ConversationParticipants",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ConversationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Role = table.Column<string>(type: "text", nullable: false),
+                    IsMuted = table.Column<bool>(type: "boolean", nullable: false),
+                    LastReadAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    LastReadMessageId = table.Column<Guid>(type: "uuid", nullable: true),
+                    HasLeft = table.Column<bool>(type: "boolean", nullable: false),
+                    LeftAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ConversationParticipants", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ConversationParticipants_Conversations_ConversationId",
+                        column: x => x.ConversationId,
+                        principalSchema: "public",
+                        principalTable: "Conversations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ConversationParticipants_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ConversationParticipants_Users_UserId",
+                        column: x => x.UserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Meetings",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    MeetingCode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    PasscodeHash = table.Column<string>(type: "text", nullable: true),
+                    Scope = table.Column<string>(type: "text", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    HostUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    LinkedConversationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ScheduledStartTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ScheduledEndTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    ActualStartTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    ActualEndTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    AllowExternalGuests = table.Column<bool>(type: "boolean", nullable: false),
+                    IsRecordingEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Meetings", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Meetings_Conversations_LinkedConversationId",
+                        column: x => x.LinkedConversationId,
+                        principalSchema: "public",
+                        principalTable: "Conversations",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Meetings_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Meetings_Users_HostUserId",
+                        column: x => x.HostUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OrBooklets",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BookletNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Prefix = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    StartNumber = table.Column<long>(type: "bigint", nullable: false),
+                    EndNumber = table.Column<long>(type: "bigint", nullable: false),
+                    CurrentNumber = table.Column<long>(type: "bigint", nullable: false),
+                    TotalCount = table.Column<int>(type: "integer", nullable: false),
+                    IssuedCount = table.Column<int>(type: "integer", nullable: false),
+                    AssignedUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    ReceivedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Remarks = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrBooklets", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrBooklets_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_OrBooklets_Users_AssignedUserId",
+                        column: x => x.AssignedUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserNotifications",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Type = table.Column<string>(type: "text", nullable: false),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Body = table.Column<string>(type: "text", nullable: false),
+                    ActionUrl = table.Column<string>(type: "text", nullable: true),
+                    IsRead = table.Column<bool>(type: "boolean", nullable: false),
+                    ReadAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    ReferenceId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserNotifications", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserNotifications_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_UserNotifications_Users_UserId",
+                        column: x => x.UserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SectionFields",
+                schema: "public",
+                columns: table => new
+                {
+                    FormSectionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FieldId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsRequired = table.Column<bool>(type: "boolean", nullable: false),
+                    OrderIndex = table.Column<int>(type: "integer", nullable: false),
+                    VisibilityCondition = table.Column<string>(type: "text", nullable: true),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SectionFields", x => new { x.FormSectionId, x.FieldId });
+                    table.ForeignKey(
+                        name: "FK_SectionFields_Fields_FieldId",
+                        column: x => x.FieldId,
+                        principalSchema: "public",
+                        principalTable: "Fields",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SectionFields_FormSections_FormSectionId",
+                        column: x => x.FormSectionId,
+                        principalSchema: "public",
+                        principalTable: "FormSections",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -1481,6 +2018,57 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "IssuedDocumentDetails",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ApplicationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ApplicantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    DocumentType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    FormNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    LicenseNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    CallSign = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    StationClass = table.Column<string>(type: "text", nullable: true),
+                    FrequencyBand = table.Column<string>(type: "text", nullable: true),
+                    IssueDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ExpiryDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    OriginalEvaluatorUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    OriginalEvaluatorName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    IssuedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IssuedByStaffName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    IsAlternateIssuer = table.Column<bool>(type: "boolean", nullable: false),
+                    OfficialReceiptNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    QrVerificationCode = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    DocumentFileUrl = table.Column<string>(type: "text", nullable: true),
+                    Remarks = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IssuedDocumentDetails", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_IssuedDocumentDetails_Applicants_ApplicantId",
+                        column: x => x.ApplicantId,
+                        principalSchema: "public",
+                        principalTable: "Applicants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_IssuedDocumentDetails_Applications_ApplicationId",
+                        column: x => x.ApplicationId,
+                        principalSchema: "public",
+                        principalTable: "Applications",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "StatementsOfAccount",
                 schema: "public",
                 columns: table => new
@@ -1499,6 +2087,7 @@ namespace EDGE.Infrastructure.Migrations
                     ApprovedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
                     ApprovedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Remarks = table.Column<string>(type: "text", nullable: true),
+                    SoaNoteId = table.Column<Guid>(type: "uuid", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -1520,6 +2109,232 @@ namespace EDGE.Infrastructure.Migrations
                         column: x => x.ApplicationId,
                         principalSchema: "public",
                         principalTable: "Applications",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_StatementsOfAccount_SoaNotes_SoaNoteId",
+                        column: x => x.SoaNoteId,
+                        principalSchema: "public",
+                        principalTable: "SoaNotes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MessageAttachments",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ChatMessageId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FileName = table.Column<string>(type: "text", nullable: false),
+                    FileExtension = table.Column<string>(type: "text", nullable: false),
+                    MimeType = table.Column<string>(type: "text", nullable: false),
+                    FileSizeBytes = table.Column<long>(type: "bigint", nullable: false),
+                    StoragePath = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageAttachments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MessageAttachments_ChatMessages_ChatMessageId",
+                        column: x => x.ChatMessageId,
+                        principalSchema: "public",
+                        principalTable: "ChatMessages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MessageReadReceipts",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ChatMessageId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ReadAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageReadReceipts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MessageReadReceipts_ChatMessages_ChatMessageId",
+                        column: x => x.ChatMessageId,
+                        principalSchema: "public",
+                        principalTable: "ChatMessages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MessageReadReceipts_Users_UserId",
+                        column: x => x.UserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MeetingActions",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    MeetingId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ActorUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TargetUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ActionType = table.Column<string>(type: "text", nullable: false),
+                    ActionPayload = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MeetingActions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MeetingActions_Meetings_MeetingId",
+                        column: x => x.MeetingId,
+                        principalSchema: "public",
+                        principalTable: "Meetings",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MeetingActions_Users_ActorUserId",
+                        column: x => x.ActorUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MeetingActions_Users_TargetUserId",
+                        column: x => x.TargetUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MeetingParticipants",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    MeetingId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Role = table.Column<string>(type: "text", nullable: false),
+                    IsHandRaised = table.Column<bool>(type: "boolean", nullable: false),
+                    HandRaiseQueuePosition = table.Column<int>(type: "integer", nullable: true),
+                    HandRaisedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    IsMutedByHost = table.Column<bool>(type: "boolean", nullable: false),
+                    IsSpotlighted = table.Column<bool>(type: "boolean", nullable: false),
+                    JoinedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    LeftAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MeetingParticipants", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MeetingParticipants_Meetings_MeetingId",
+                        column: x => x.MeetingId,
+                        principalSchema: "public",
+                        principalTable: "Meetings",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MeetingParticipants_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_MeetingParticipants_Users_UserId",
+                        column: x => x.UserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MeetingPolls",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    MeetingId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Question = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    OptionsJson = table.Column<string>(type: "text", nullable: false),
+                    IsClosed = table.Column<bool>(type: "boolean", nullable: false),
+                    IsAnonymous = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MeetingPolls", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MeetingPolls_Meetings_MeetingId",
+                        column: x => x.MeetingId,
+                        principalSchema: "public",
+                        principalTable: "Meetings",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OrBookletCashiers",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BookletId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CashierUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsPrimary = table.Column<bool>(type: "boolean", nullable: false),
+                    AssignedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrBookletCashiers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrBookletCashiers_OrBooklets_BookletId",
+                        column: x => x.BookletId,
+                        principalSchema: "public",
+                        principalTable: "OrBooklets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_OrBookletCashiers_Users_CashierUserId",
+                        column: x => x.CashierUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1659,6 +2474,127 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "MeetingPollVotes",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    MeetingPollId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SelectedOptionIndex = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MeetingPollVotes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MeetingPollVotes_MeetingPolls_MeetingPollId",
+                        column: x => x.MeetingPollId,
+                        principalSchema: "public",
+                        principalTable: "MeetingPolls",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MeetingPollVotes_Users_UserId",
+                        column: x => x.UserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OfficialReceipts",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    OfficialReceiptNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    BookletId = table.Column<Guid>(type: "uuid", nullable: true),
+                    OrderOfPaymentId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ApplicationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    PayorName = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
+                    PayorAddress = table.Column<string>(type: "text", nullable: true),
+                    Amount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    PaymentMethod = table.Column<string>(type: "text", nullable: false),
+                    CheckNumber = table.Column<string>(type: "text", nullable: true),
+                    CheckBank = table.Column<string>(type: "text", nullable: true),
+                    CheckDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    DepositId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    IssuedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IssuedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CancelledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CancelledByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CancellationReason = table.Column<string>(type: "text", nullable: true),
+                    Remarks = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OfficialReceipts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OfficialReceipts_Applications_ApplicationId",
+                        column: x => x.ApplicationId,
+                        principalSchema: "public",
+                        principalTable: "Applications",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_OfficialReceipts_BankDeposits_DepositId",
+                        column: x => x.DepositId,
+                        principalSchema: "public",
+                        principalTable: "BankDeposits",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_OfficialReceipts_OrBooklets_BookletId",
+                        column: x => x.BookletId,
+                        principalSchema: "public",
+                        principalTable: "OrBooklets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_OfficialReceipts_OrdersOfPayment_OrderOfPaymentId",
+                        column: x => x.OrderOfPaymentId,
+                        principalSchema: "public",
+                        principalTable: "OrdersOfPayment",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_OfficialReceipts_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_OfficialReceipts_Users_CancelledByUserId",
+                        column: x => x.CancelledByUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_OfficialReceipts_Users_IssuedByUserId",
+                        column: x => x.IssuedByUserId,
+                        principalSchema: "public",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "OpHistories",
                 schema: "public",
                 columns: table => new
@@ -1683,6 +2619,29 @@ namespace EDGE.Infrastructure.Migrations
                         column: x => x.OrderOfPaymentId,
                         principalSchema: "public",
                         principalTable: "OrdersOfPayment",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OfficialReceiptLineItems",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    OfficialReceiptId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FeeCode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Amount = table.Column<decimal>(type: "numeric(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OfficialReceiptLineItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OfficialReceiptLineItems_OfficialReceipts_OfficialReceiptId",
+                        column: x => x.OfficialReceiptId,
+                        principalSchema: "public",
+                        principalTable: "OfficialReceipts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1796,6 +2755,12 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_AgencyBankAccounts_TenantId_AccountNumber",
+                schema: "public",
+                table: "AgencyBankAccounts",
+                columns: new[] { "TenantId", "AccountNumber" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ApplicantDetails_BarangayId",
                 schema: "public",
                 table: "ApplicantDetails",
@@ -1892,10 +2857,22 @@ namespace EDGE.Infrastructure.Migrations
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Applications_ReferenceNumber",
+                schema: "public",
+                table: "Applications",
+                column: "ReferenceNumber");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Applications_RegionId",
                 schema: "public",
                 table: "Applications",
                 column: "RegionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Applications_RenewedFromApplicationId",
+                schema: "public",
+                table: "Applications",
+                column: "RenewedFromApplicationId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Applications_ScheduleId",
@@ -1904,10 +2881,28 @@ namespace EDGE.Infrastructure.Migrations
                 column: "ScheduleId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Applications_Status",
+                schema: "public",
+                table: "Applications",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Applications_TenantId",
                 schema: "public",
                 table: "Applications",
                 column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Applications_TenantId_CreatedAt",
+                schema: "public",
+                table: "Applications",
+                columns: new[] { "TenantId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Applications_TenantId_Status",
+                schema: "public",
+                table: "Applications",
+                columns: new[] { "TenantId", "Status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Applications_UserId",
@@ -1928,6 +2923,36 @@ namespace EDGE.Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_BankDeposits_BankAccountId",
+                schema: "public",
+                table: "BankDeposits",
+                column: "BankAccountId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankDeposits_DepositedByUserId",
+                schema: "public",
+                table: "BankDeposits",
+                column: "DepositedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankDeposits_DepositSlipAttachmentId",
+                schema: "public",
+                table: "BankDeposits",
+                column: "DepositSlipAttachmentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankDeposits_TenantId_DepositDate",
+                schema: "public",
+                table: "BankDeposits",
+                columns: new[] { "TenantId", "DepositDate" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankDeposits_VerifiedByUserId",
+                schema: "public",
+                table: "BankDeposits",
+                column: "VerifiedByUserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Barangays_Code",
                 schema: "public",
                 table: "Barangays",
@@ -1941,10 +2966,64 @@ namespace EDGE.Infrastructure.Migrations
                 column: "MunicipalityId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ChatMessages_ConversationId_CreatedAt",
+                schema: "public",
+                table: "ChatMessages",
+                columns: new[] { "ConversationId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatMessages_ReplyToMessageId",
+                schema: "public",
+                table: "ChatMessages",
+                column: "ReplyToMessageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatMessages_SenderId",
+                schema: "public",
+                table: "ChatMessages",
+                column: "SenderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatMessages_SenderTenantId",
+                schema: "public",
+                table: "ChatMessages",
+                column: "SenderTenantId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CompanyDetails_BarangayId",
                 schema: "public",
                 table: "CompanyDetails",
                 column: "BarangayId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ConversationParticipants_ConversationId_UserId",
+                schema: "public",
+                table: "ConversationParticipants",
+                columns: new[] { "ConversationId", "UserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ConversationParticipants_LastReadAt",
+                schema: "public",
+                table: "ConversationParticipants",
+                column: "LastReadAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ConversationParticipants_TenantId",
+                schema: "public",
+                table: "ConversationParticipants",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ConversationParticipants_UserId_HasLeft_IsDeleted",
+                schema: "public",
+                table: "ConversationParticipants",
+                columns: new[] { "UserId", "HasLeft", "IsDeleted" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Conversations_TenantId",
+                schema: "public",
+                table: "Conversations",
+                column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CorrectionAuditTrails_ApplicationId",
@@ -1964,6 +3043,24 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public",
                 table: "ExaminationSchedules",
                 column: "ServiceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Feedbacks_CreatedAt",
+                schema: "public",
+                table: "Feedbacks",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Feedbacks_Status",
+                schema: "public",
+                table: "Feedbacks",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Feedbacks_TenantId_CreatedAt",
+                schema: "public",
+                table: "Feedbacks",
+                columns: new[] { "TenantId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Fees_Code",
@@ -1998,16 +3095,46 @@ namespace EDGE.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_FieldOffices_TenantId_Name",
+                schema: "public",
+                table: "FieldOffices",
+                columns: new[] { "TenantId", "Name" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FieldOffices_TenantId_RegionId",
+                schema: "public",
+                table: "FieldOffices",
+                columns: new[] { "TenantId", "RegionId" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_FormFieldValues_FieldId",
                 schema: "public",
                 table: "FormFieldValues",
                 column: "FieldId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Forms_BaseFormId",
+                schema: "public",
+                table: "Forms",
+                column: "BaseFormId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Forms_Key",
+                schema: "public",
+                table: "Forms",
+                column: "Key");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Forms_ServiceId",
                 schema: "public",
                 table: "Forms",
                 column: "ServiceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Forms_ServiceVariantId",
+                schema: "public",
+                table: "Forms",
+                column: "ServiceVariantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FormSections_FormId_Key",
@@ -2036,6 +3163,145 @@ namespace EDGE.Infrastructure.Migrations
                 column: "FormId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_IssuedDocumentDetails_ApplicantId",
+                schema: "public",
+                table: "IssuedDocumentDetails",
+                column: "ApplicantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IssuedDocumentDetails_ApplicationId",
+                schema: "public",
+                table: "IssuedDocumentDetails",
+                column: "ApplicationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IssuedDocumentDetails_CallSign",
+                schema: "public",
+                table: "IssuedDocumentDetails",
+                column: "CallSign");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IssuedDocumentDetails_FormNumber",
+                schema: "public",
+                table: "IssuedDocumentDetails",
+                column: "FormNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IssuedDocumentDetails_LicenseNumber",
+                schema: "public",
+                table: "IssuedDocumentDetails",
+                column: "LicenseNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IssuedDocumentDetails_OfficialReceiptNumber",
+                schema: "public",
+                table: "IssuedDocumentDetails",
+                column: "OfficialReceiptNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingActions_ActorUserId",
+                schema: "public",
+                table: "MeetingActions",
+                column: "ActorUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingActions_MeetingId_CreatedAt",
+                schema: "public",
+                table: "MeetingActions",
+                columns: new[] { "MeetingId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingActions_TargetUserId",
+                schema: "public",
+                table: "MeetingActions",
+                column: "TargetUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingParticipants_MeetingId_IsHandRaised",
+                schema: "public",
+                table: "MeetingParticipants",
+                columns: new[] { "MeetingId", "IsHandRaised" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingParticipants_MeetingId_UserId",
+                schema: "public",
+                table: "MeetingParticipants",
+                columns: new[] { "MeetingId", "UserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingParticipants_TenantId",
+                schema: "public",
+                table: "MeetingParticipants",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingParticipants_UserId_MeetingId_IsDeleted",
+                schema: "public",
+                table: "MeetingParticipants",
+                columns: new[] { "UserId", "MeetingId", "IsDeleted" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingPolls_MeetingId",
+                schema: "public",
+                table: "MeetingPolls",
+                column: "MeetingId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingPollVotes_MeetingPollId_UserId",
+                schema: "public",
+                table: "MeetingPollVotes",
+                columns: new[] { "MeetingPollId", "UserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MeetingPollVotes_UserId",
+                schema: "public",
+                table: "MeetingPollVotes",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Meetings_HostUserId_ScheduledStartTime_IsDeleted",
+                schema: "public",
+                table: "Meetings",
+                columns: new[] { "HostUserId", "ScheduledStartTime", "IsDeleted" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Meetings_LinkedConversationId",
+                schema: "public",
+                table: "Meetings",
+                column: "LinkedConversationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Meetings_MeetingCode",
+                schema: "public",
+                table: "Meetings",
+                column: "MeetingCode",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Meetings_TenantId",
+                schema: "public",
+                table: "Meetings",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageAttachments_ChatMessageId",
+                schema: "public",
+                table: "MessageAttachments",
+                column: "ChatMessageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageReadReceipts_ChatMessageId",
+                schema: "public",
+                table: "MessageReadReceipts",
+                column: "ChatMessageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageReadReceipts_UserId",
+                schema: "public",
+                table: "MessageReadReceipts",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Municipalities_Code",
                 schema: "public",
                 table: "Municipalities",
@@ -2049,16 +3315,58 @@ namespace EDGE.Infrastructure.Migrations
                 column: "ProvinceId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Notes_ServiceId",
+                name: "IX_OfficialReceiptLineItems_OfficialReceiptId",
                 schema: "public",
-                table: "Notes",
-                column: "ServiceId");
+                table: "OfficialReceiptLineItems",
+                column: "OfficialReceiptId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Notes_ServiceVariantId",
+                name: "IX_OfficialReceipts_ApplicationId",
                 schema: "public",
-                table: "Notes",
-                column: "ServiceVariantId");
+                table: "OfficialReceipts",
+                column: "ApplicationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OfficialReceipts_BookletId",
+                schema: "public",
+                table: "OfficialReceipts",
+                column: "BookletId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OfficialReceipts_CancelledByUserId",
+                schema: "public",
+                table: "OfficialReceipts",
+                column: "CancelledByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OfficialReceipts_DepositId",
+                schema: "public",
+                table: "OfficialReceipts",
+                column: "DepositId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OfficialReceipts_IssuedByUserId",
+                schema: "public",
+                table: "OfficialReceipts",
+                column: "IssuedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OfficialReceipts_OrderOfPaymentId",
+                schema: "public",
+                table: "OfficialReceipts",
+                column: "OrderOfPaymentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OfficialReceipts_TenantId_OfficialReceiptNumber",
+                schema: "public",
+                table: "OfficialReceipts",
+                columns: new[] { "TenantId", "OfficialReceiptNumber" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OfficialReceipts_TenantId_Status_IssuedAt",
+                schema: "public",
+                table: "OfficialReceipts",
+                columns: new[] { "TenantId", "Status", "IssuedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_OpHistories_OrderOfPaymentId",
@@ -2067,16 +3375,47 @@ namespace EDGE.Infrastructure.Migrations
                 column: "OrderOfPaymentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_OrdersOfPayment_ApplicationId",
+                name: "IX_OrBookletCashiers_BookletId_CashierUserId",
                 schema: "public",
-                table: "OrdersOfPayment",
-                column: "ApplicationId");
+                table: "OrBookletCashiers",
+                columns: new[] { "BookletId", "CashierUserId" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_OrdersOfPayment_StatementOfAccountId",
+                name: "IX_OrBookletCashiers_CashierUserId",
+                schema: "public",
+                table: "OrBookletCashiers",
+                column: "CashierUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrBooklets_AssignedUserId",
+                schema: "public",
+                table: "OrBooklets",
+                column: "AssignedUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrBooklets_TenantId_BookletNumber",
+                schema: "public",
+                table: "OrBooklets",
+                columns: new[] { "TenantId", "BookletNumber" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrBooklets_TenantId_Status",
+                schema: "public",
+                table: "OrBooklets",
+                columns: new[] { "TenantId", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrdersOfPayment_ApplicationId_CreatedAt",
                 schema: "public",
                 table: "OrdersOfPayment",
-                column: "StatementOfAccountId");
+                columns: new[] { "ApplicationId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrdersOfPayment_StatementOfAccountId_CreatedAt",
+                schema: "public",
+                table: "OrdersOfPayment",
+                columns: new[] { "StatementOfAccountId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Provinces_Code",
@@ -2106,10 +3445,16 @@ namespace EDGE.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Roles_TenantId",
+                name: "IX_Roles_TenantId_Key",
                 schema: "public",
                 table: "Roles",
-                column: "TenantId");
+                columns: new[] { "TenantId", "Key" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Roles_TenantId_Name",
+                schema: "public",
+                table: "Roles",
+                columns: new[] { "TenantId", "Name" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Schedules_ServiceId",
@@ -2161,10 +3506,28 @@ namespace EDGE.Infrastructure.Migrations
                 column: "ServiceVariantId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ServiceFormulas_ServiceId",
+                schema: "public",
+                table: "ServiceFormulas",
+                column: "ServiceId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ServiceInformations_ServiceId",
                 schema: "public",
                 table: "ServiceInformations",
                 column: "ServiceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceNotes_ServiceId",
+                schema: "public",
+                table: "ServiceNotes",
+                column: "ServiceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceNotes_ServiceVariantId",
+                schema: "public",
+                table: "ServiceNotes",
+                column: "ServiceVariantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Services_Code",
@@ -2204,6 +3567,18 @@ namespace EDGE.Infrastructure.Migrations
                 column: "ServiceVariantId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ServiceVariantElementFormulas_ElementId",
+                schema: "public",
+                table: "ServiceVariantElementFormulas",
+                column: "ElementId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceVariantElementFormulas_ServiceVariantId",
+                schema: "public",
+                table: "ServiceVariantElementFormulas",
+                column: "ServiceVariantId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ServiceVariantElements_ServiceVariantId",
                 schema: "public",
                 table: "ServiceVariantElements",
@@ -2222,6 +3597,12 @@ namespace EDGE.Infrastructure.Migrations
                 column: "ServiceVariantId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ServiceVariantFormulas_ServiceVariantId",
+                schema: "public",
+                table: "ServiceVariantFormulas",
+                column: "ServiceVariantId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ServiceVariantRequirements_RequirementId",
                 schema: "public",
                 table: "ServiceVariantRequirements",
@@ -2232,6 +3613,12 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public",
                 table: "ServiceVariantRequirements",
                 column: "ServiceVariantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceVariantRequirements_TenantId",
+                schema: "public",
+                table: "ServiceVariantRequirements",
+                column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ServiceVariants_ServiceId",
@@ -2252,16 +3639,40 @@ namespace EDGE.Infrastructure.Migrations
                 column: "StatementOfAccountId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SoaNotes_Code",
+                schema: "public",
+                table: "SoaNotes",
+                column: "Code");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SoaNotes_TenantId",
+                schema: "public",
+                table: "SoaNotes",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SoaNotes_TenantId_Code",
+                schema: "public",
+                table: "SoaNotes",
+                columns: new[] { "TenantId", "Code" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_StatementsOfAccount_ApplicantId",
                 schema: "public",
                 table: "StatementsOfAccount",
                 column: "ApplicantId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_StatementsOfAccount_ApplicationId",
+                name: "IX_StatementsOfAccount_ApplicationId_CreatedAt",
                 schema: "public",
                 table: "StatementsOfAccount",
-                column: "ApplicationId");
+                columns: new[] { "ApplicationId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_StatementsOfAccount_SoaNoteId",
+                schema: "public",
+                table: "StatementsOfAccount",
+                column: "SoaNoteId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_StoredFiles_Category",
@@ -2295,6 +3706,18 @@ namespace EDGE.Infrastructure.Migrations
                 column: "RoleId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_TenantMembers_TenantId_FieldOfficeId",
+                schema: "public",
+                table: "TenantMembers",
+                columns: new[] { "TenantId", "FieldOfficeId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TenantMembers_TenantId_RoleId",
+                schema: "public",
+                table: "TenantMembers",
+                columns: new[] { "TenantId", "RoleId" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TenantMembers_TenantId_UserId",
                 schema: "public",
                 table: "TenantMembers",
@@ -2314,10 +3737,53 @@ namespace EDGE.Infrastructure.Migrations
                 column: "RegionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserNotifications_TenantId",
+                schema: "public",
+                table: "UserNotifications",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserNotifications_UserId",
+                schema: "public",
+                table: "UserNotifications",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserNotifications_UserId_CreatedAt",
+                schema: "public",
+                table: "UserNotifications",
+                columns: new[] { "UserId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserNotifications_UserId_IsRead",
+                schema: "public",
+                table: "UserNotifications",
+                columns: new[] { "UserId", "IsRead" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserNotifications_UserId_IsRead_CreatedAt",
+                schema: "public",
+                table: "UserNotifications",
+                columns: new[] { "UserId", "IsRead", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_AuthUserId",
+                schema: "public",
+                table: "Users",
+                column: "AuthUserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_CompanyDetailId",
                 schema: "public",
                 table: "Users",
                 column: "CompanyDetailId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Email",
+                schema: "public",
+                table: "Users",
+                column: "Email",
+                unique: true);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_FieldOffices_TenantMembers_OfficerInChargeId",
@@ -2334,16 +3800,6 @@ namespace EDGE.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_CompanyDetails_Barangays_BarangayId",
-                schema: "public",
-                table: "CompanyDetails");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_Users_CompanyDetails_CompanyDetailId",
-                schema: "public",
-                table: "Users");
-
-            migrationBuilder.DropForeignKey(
                 name: "FK_FieldOffices_Tenants_TenantId",
                 schema: "public",
                 table: "FieldOffices");
@@ -2357,6 +3813,16 @@ namespace EDGE.Infrastructure.Migrations
                 name: "FK_TenantMembers_Tenants_TenantId",
                 schema: "public",
                 table: "TenantMembers");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_CompanyDetails_Barangays_BarangayId",
+                schema: "public",
+                table: "CompanyDetails");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_Users_CompanyDetails_CompanyDetailId",
+                schema: "public",
+                table: "Users");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_TenantMembers_Users_UserId",
@@ -2408,6 +3874,10 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "ConversationParticipants",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "CorrectionAuditTrails",
                 schema: "public");
 
@@ -2428,7 +3898,27 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
-                name: "Notes",
+                name: "IssuedDocumentDetails",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "MeetingActions",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "MeetingParticipants",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "MeetingPollVotes",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "MessageAttachments",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "MessageReadReceipts",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2436,7 +3926,15 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "OfficialReceiptLineItems",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "OpHistories",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "OrBookletCashiers",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2452,7 +3950,15 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "ServiceFormulas",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "ServiceInformations",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "ServiceNotes",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2460,7 +3966,15 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "ServiceVariantElementFormulas",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "ServiceVariantFees",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "ServiceVariantFormulas",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2484,11 +3998,11 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
-                name: "ServiceVariantRequirements",
+                name: "UserNotifications",
                 schema: "public");
 
             migrationBuilder.DropTable(
-                name: "StoredFiles",
+                name: "ServiceVariantRequirements",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2496,7 +4010,15 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
-                name: "OrdersOfPayment",
+                name: "MeetingPolls",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "ChatMessages",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "OfficialReceipts",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2524,11 +4046,39 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
-                name: "StatementsOfAccount",
+                name: "Meetings",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "BankDeposits",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "OrBooklets",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "OrdersOfPayment",
                 schema: "public");
 
             migrationBuilder.DropTable(
                 name: "Forms",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "Conversations",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "AgencyBankAccounts",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "StoredFiles",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "StatementsOfAccount",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2537,6 +4087,10 @@ namespace EDGE.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Applications",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "SoaNotes",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2560,6 +4114,10 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "Tenants",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "Barangays",
                 schema: "public");
 
@@ -2569,10 +4127,6 @@ namespace EDGE.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "CompanyDetails",
-                schema: "public");
-
-            migrationBuilder.DropTable(
-                name: "Tenants",
                 schema: "public");
 
             migrationBuilder.DropTable(

@@ -440,6 +440,14 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany()
                   .HasForeignKey(d => d.UserId)
                   .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Service)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<EDGE.Domain.Entities.Application>(entity =>
@@ -476,18 +484,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany()
                   .HasForeignKey(e => e.ScheduleId)
                   .OnDelete(DeleteBehavior.SetNull);
-        });
-
-        modelBuilder.Entity<Applicant>(entity =>
-        {
-            entity.HasOne(e => e.Service)
-                  .WithMany()
-                  .HasForeignKey(e => e.ServiceId)
-                  .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(e => e.ServiceVariant)
-                  .WithMany()
-                  .HasForeignKey(e => e.ServiceVariantId)
-                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ApplicationApplicant>(entity =>
@@ -826,6 +822,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasIndex(e => e.FormNumber);
             entity.HasIndex(e => e.LicenseNumber);
             entity.HasIndex(e => e.CallSign);
+            entity.HasIndex(e => e.OfficialReceiptNumber);
 
             entity.HasOne(e => e.Application)
                   .WithMany(a => a.IssuedDocumentDetails)
@@ -1082,25 +1079,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasOne(e => e.Tenant)
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)
-                  .OnDelete(DeleteBehavior.SetNull);
-        });
-
-        modelBuilder.Entity<IssuedDocumentDetail>(entity =>
-        {
-            entity.HasIndex(e => e.ApplicationId);
-            entity.HasIndex(e => e.FormNumber);
-            entity.HasIndex(e => e.LicenseNumber);
-            entity.HasIndex(e => e.CallSign);
-            entity.HasIndex(e => e.OfficialReceiptNumber);
-
-            entity.HasOne(e => e.Application)
-                  .WithMany(a => a.IssuedDocumentDetails)
-                  .HasForeignKey(e => e.ApplicationId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.Applicant)
-                  .WithMany()
-                  .HasForeignKey(e => e.ApplicantId)
                   .OnDelete(DeleteBehavior.SetNull);
         });
     }
