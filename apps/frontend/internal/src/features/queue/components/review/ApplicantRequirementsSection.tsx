@@ -39,10 +39,39 @@ export function ApplicantRequirementsSection({
     setIsLoading(true);
     const [res] = await applicationService.getApplicantRequirements(app.id, activeApplicant.id);
     setIsLoading(false);
-    if (res?.data) {
-      setRequirements(res.data);
+    if (res?.data && res.data.length > 0) {
+      const merged = res.data.map((r) => {
+        if ((!r.storedFileId || r.storedFileId === '') && (!r.url || r.url === '') && Array.isArray(app.requirements)) {
+          const matchInApp = app.requirements.find(
+            (ar) =>
+              (typeof ar.label === 'string' && typeof r.requirementName === 'string' && ar.label.toLowerCase() === r.requirementName.toLowerCase()) ||
+              (typeof ar.filename === 'string' && typeof r.fileName === 'string' && ar.filename.toLowerCase() === r.fileName.toLowerCase()) ||
+              (typeof ar.url === 'string' && typeof r.url === 'string' && ar.url === r.url)
+          );
+          if (matchInApp && typeof matchInApp.url === 'string' && matchInApp.url.trim() !== '') {
+            return {
+              ...r,
+              url: matchInApp.url,
+              fileName: matchInApp.filename || r.fileName,
+            };
+          }
+        }
+        return r;
+      });
+      setRequirements(merged);
+    } else if (Array.isArray(app.requirements) && app.requirements.length > 0) {
+      const fallbackList: ApplicantRequirementItemDto[] = app.requirements.map((ar, idx) => ({
+        requirementId: `fallback-req-${idx}`,
+        requirementName: ar.label || ar.filename || `Requirement Document ${idx + 1}`,
+        description: ar.note || '',
+        isRequired: true,
+        fileName: ar.filename || 'Attached Document',
+        url: ar.url,
+        isApproved: false,
+      }));
+      setRequirements(fallbackList);
     }
-  }, [app?.id, activeApplicant?.id]);
+  }, [app?.id, activeApplicant?.id, app.requirements]);
 
   useEffect(() => {
     fetchRequirements();

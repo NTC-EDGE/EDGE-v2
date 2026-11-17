@@ -50,6 +50,9 @@ export function useApplicationDetailsData(initialApp: Application) {
                   applicantIdSet.add(ap.id.trim());
                 }
               }
+              if (applicantIdSet.size === 0 && typeof initialApp.id === 'string' && initialApp.id.trim() !== '') {
+                applicantIdSet.add(initialApp.id.trim());
+              }
 
               const fetchedReqs: RawRequirement[] = [];
               for (const aid of applicantIdSet) {
@@ -115,8 +118,39 @@ export function useApplicationDetailsData(initialApp: Application) {
               }
 
               if (fetchedReqs.length > 0) {
-                mapped.requirements = fetchedReqs;
-                mapped.documents = fetchedReqs;
+                // Merge with any existing requirements from mapped.requirements or payload.requirements
+                const existingDocs = Array.isArray(mapped.requirements) ? mapped.requirements : [];
+                const mergedReqs: RawRequirement[] = [...fetchedReqs];
+
+                for (const existingDoc of existingDocs) {
+                  const hasExistingFile = Boolean(
+                    (existingDoc.url && existingDoc.url.trim() !== '' && existingDoc.url.toLowerCase() !== 'none' && existingDoc.url.toLowerCase() !== 'null') ||
+                    (existingDoc.storedFileId && existingDoc.storedFileId.trim() !== '' && existingDoc.storedFileId.toLowerCase() !== 'none' && existingDoc.storedFileId.toLowerCase() !== 'null')
+                  );
+                  if (!hasExistingFile) continue;
+
+                  // Check if this existing doc already matches an item in fetchedReqs
+                  const matched = mergedReqs.find((r) =>
+                    (r.id && existingDoc.id && r.id === existingDoc.id) ||
+                    (r.storedFileId && existingDoc.storedFileId && r.storedFileId === existingDoc.storedFileId) ||
+                    (r.requirementId && existingDoc.requirementId && r.requirementId === existingDoc.requirementId) ||
+                    (r.serviceVariantRequirementId && existingDoc.serviceVariantRequirementId && r.serviceVariantRequirementId === existingDoc.serviceVariantRequirementId) ||
+                    (r.name && existingDoc.name && r.name.toLowerCase() === existingDoc.name.toLowerCase())
+                  );
+
+                  if (matched) {
+                    if (!matched.storedFileId && existingDoc.storedFileId) matched.storedFileId = existingDoc.storedFileId;
+                    if (!matched.url && existingDoc.url) matched.url = existingDoc.url;
+                    if (!matched.fileName && existingDoc.fileName) matched.fileName = existingDoc.fileName;
+                    if (!matched.fileSizeBytes && existingDoc.fileSizeBytes) matched.fileSizeBytes = existingDoc.fileSizeBytes;
+                    if (!matched.contentType && existingDoc.contentType) matched.contentType = existingDoc.contentType;
+                  } else {
+                    mergedReqs.push(existingDoc);
+                  }
+                }
+
+                mapped.requirements = mergedReqs;
+                mapped.documents = mergedReqs;
               }
 
               if (isMounted) {

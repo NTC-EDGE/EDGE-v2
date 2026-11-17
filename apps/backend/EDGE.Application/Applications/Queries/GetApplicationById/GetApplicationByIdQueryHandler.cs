@@ -229,6 +229,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 Id = r.Id,
                 ApplicantId = r.ApplicantId,
                 RequirementId = r.RequirementId,
+                RequirementName = r.Requirement?.Name ?? r.ServiceVariantRequirement?.Requirement?.Name ?? (!string.IsNullOrEmpty(r.Url) ? Path.GetFileName(r.Url) : "Document Requirement"),
                 ServiceVariantRequirementId = r.ServiceVariantRequirementId,
                 StoredFileId = r.StoredFileId,
                 FileName = r.StoredFile?.FileName ?? (!string.IsNullOrEmpty(r.Url) ? Path.GetFileName(r.Url) : null),

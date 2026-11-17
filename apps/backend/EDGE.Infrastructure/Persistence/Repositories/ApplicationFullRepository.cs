@@ -1740,9 +1740,29 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
     public async Task<List<ApplicationRequirement>> GetApplicantRequirementsAsync(Guid applicationId, Guid applicantId, CancellationToken cancellationToken = default)
     {
-        return await _context.ApplicationRequirements
+        var list = await _context.ApplicationRequirements
+            .Include(r => r.StoredFile)
+            .Include(r => r.Requirement)
+            .Include(r => r.ServiceVariantRequirement)
             .Where(r => r.ApplicationId == applicationId && r.ApplicantId == applicantId)
             .ToListAsync(cancellationToken);
+
+        if (list.Count == 0)
+        {
+            var fallback = await _context.ApplicationRequirements
+                .Include(r => r.StoredFile)
+                .Include(r => r.Requirement)
+                .Include(r => r.ServiceVariantRequirement)
+                .Where(r => r.ApplicationId == applicationId && (r.ApplicantId == applicationId || r.ApplicantId == Guid.Empty))
+                .ToListAsync(cancellationToken);
+
+            if (fallback.Count > 0)
+            {
+                return fallback;
+            }
+        }
+
+        return list;
     }
 
     public async Task AddApplicationStatusHistoryAsync(ApplicationStatusHistory statusHistory, CancellationToken cancellationToken = default)
