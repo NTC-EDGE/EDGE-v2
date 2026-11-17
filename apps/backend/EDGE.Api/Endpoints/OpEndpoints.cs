@@ -77,6 +77,9 @@ public static class OpEndpoints
         IAgencyBankAccountRepository? bankAccountRepository = null,
         IOfficialReceiptRepository? receiptRepository = null,
         string? orNumber = null,
+        Guid? opId = null,
+        Guid? soaId = null,
+        Guid? applicantId = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -86,15 +89,39 @@ public static class OpEndpoints
             return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
         }
 
-        // Prioritize paid Order of Payment if one exists
-        var paidOp = app.OrdersOfPayment
-            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
-            .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
+        var activeSoas = app.StatementsOfAccount.Where(s => !s.IsDeleted).OrderByDescending(s => s.CreatedAt).ToList();
+        OrderOfPayment? op = null;
+        StatementOfAccount? soa = null;
 
-        var op = paidOp ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
-        var soa = op != null
-            ? (app.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId) ?? app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault())
-            : app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+        if (opId.HasValue && opId.Value != Guid.Empty)
+        {
+            op = app.OrdersOfPayment.FirstOrDefault(o => o.Id == opId.Value);
+            soa = op != null ? activeSoas.FirstOrDefault(s => s.Id == op.StatementOfAccountId) : null;
+        }
+        else if (soaId.HasValue && soaId.Value != Guid.Empty)
+        {
+            soa = activeSoas.FirstOrDefault(s => s.Id == soaId.Value);
+            op = app.OrdersOfPayment.OrderByDescending(o => o.PaidAt ?? o.CreatedAt).FirstOrDefault(o => o.StatementOfAccountId == soaId.Value);
+        }
+        else if (applicantId.HasValue && applicantId.Value != Guid.Empty)
+        {
+            soa = activeSoas.FirstOrDefault(s => s.ApplicantId == applicantId.Value);
+            if (soa != null)
+            {
+                op = app.OrdersOfPayment.OrderByDescending(o => o.PaidAt ?? o.CreatedAt).FirstOrDefault(o => o.StatementOfAccountId == soa.Id);
+            }
+        }
+        else
+        {
+            var paidOp = app.OrdersOfPayment
+                .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
+
+            op = paidOp ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+            soa = op != null
+                ? (activeSoas.FirstOrDefault(s => s.Id == op.StatementOfAccountId) ?? activeSoas.FirstOrDefault())
+                : activeSoas.FirstOrDefault();
+        }
 
         if (op == null)
         {
@@ -105,7 +132,7 @@ public static class OpEndpoints
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
                     StatementOfAccountId = soa?.Id ?? Guid.Empty,
-                    OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{app.ReferenceNumber ?? Guid.NewGuid().ToString()[..6].ToUpper()}",
+                    OpNumber = "PENDING APPROVAL",
                     AmountDue = soa?.TotalAmount ?? 0,
                     Status = OpStatus.Billed,
                     CreatedAt = DateTime.UtcNow
@@ -132,19 +159,16 @@ public static class OpEndpoints
                 }
             }
 
-            if (op != null)
+            var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+            if (opReceipts.Count > 0)
             {
-                var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
-                if (opReceipts.Count > 0)
-                {
-                    matchingReceipts.AddRange(opReceipts);
-                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
-                }
+                matchingReceipts.AddRange(opReceipts);
+                receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
             }
 
             var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
             var appReceipts = receipts
-                .Where(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id))
+                .Where(r => r.ApplicationId == app.Id || r.OrderOfPaymentId == op.Id)
                 .ToList();
             if (appReceipts.Count > 0)
             {
@@ -222,14 +246,11 @@ public static class OpEndpoints
                 }
             }
 
-            if (op != null)
+            var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+            if (opReceipts.Count > 0)
             {
-                var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
-                if (opReceipts.Count > 0)
-                {
-                    matchingReceipts.AddRange(opReceipts);
-                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
-                }
+                matchingReceipts.AddRange(opReceipts);
+                receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
             }
 
             if (app != null)

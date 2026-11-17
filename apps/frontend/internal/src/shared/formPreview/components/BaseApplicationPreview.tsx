@@ -268,8 +268,10 @@ export function BaseApplicationPreview({
     schoolAttendedVal || courseTakenVal || yearGraduatedVal || specialOrderNoVal
   );
 
+  const hasFormBuilderSchema = Boolean(form?.sections && form.sections.length > 0);
+
   const examEducationFields = useMemo(() => {
-    if (!isExam) return [];
+    if (!isExam || hasFormBuilderSchema) return [];
     const fromRemaining = remainingFields.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
     if (fromRemaining.length > 0) return fromRemaining;
 
@@ -310,6 +312,7 @@ export function BaseApplicationPreview({
     return fallbackEdu;
   }, [
     isExam,
+    hasFormBuilderSchema,
     remainingFields,
     dynamicSectionsToRender,
     schoolAttendedVal,
@@ -319,9 +322,9 @@ export function BaseApplicationPreview({
   ]);
 
   const examAssistanceFields = useMemo(() => {
-    if (!isExam) return [];
+    if (!isExam || hasFormBuilderSchema) return [];
     return remainingFields.filter((f) => isExamAssistanceField(f.fieldLabel, f.fieldId));
-  }, [isExam, remainingFields]);
+  }, [isExam, hasFormBuilderSchema, remainingFields]);
 
   const nonExamRemainingFields = useMemo(() => {
     if (isExam) return [];

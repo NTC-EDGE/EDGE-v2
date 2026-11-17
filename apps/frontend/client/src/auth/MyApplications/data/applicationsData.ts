@@ -999,6 +999,7 @@ export interface ApiApplicationDto {
   }>;
   ordersOfPayment?: Array<{
     id?: string;
+    statementOfAccountId?: string;
     opNumber?: string;
     status?: string;
     amountDue?: number;
@@ -1010,6 +1011,7 @@ export interface ApiApplicationDto {
   }>;
   OrdersOfPayment?: Array<{
     id?: string;
+    statementOfAccountId?: string;
     opNumber?: string;
     status?: string;
     amountDue?: number;
@@ -1156,6 +1158,12 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       lbl.includes('corporate name')
     );
 
+    const fvRepNameCandidate = findApFv((lbl, id) =>
+      id === 'fd000000-0000-0000-0000-000000000082' ||
+      lbl.includes('representative name') ||
+      lbl.includes('authorized representative')
+    );
+
     const appType = ap.applicantType || 'Individual';
     const isIndividualAp = appType.toLowerCase() === 'individual';
     const appStatus = normalizeApplicationStatus(rawStatus);
@@ -1169,24 +1177,37 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     const repName =
       apDetails.representativeName ||
       ap.representativeName ||
+      fvRepNameCandidate ||
       (!isIndividualAp ? (filingUser?.name || undefined) : undefined);
 
+    const rawCandLower = typeof rawCandidate === 'string' ? rawCandidate.trim().toLowerCase() : '';
+    const repLower = typeof repName === 'string' ? repName.trim().toLowerCase() : '';
+    const filingLower = typeof filingUser?.name === 'string' ? filingUser.name.trim().toLowerCase() : '';
+    const isRawCandidateRep =
+      rawCandLower.length > 0 &&
+      ((repLower.length > 0 && rawCandLower === repLower) ||
+       (isBulk && filingLower.length > 0 && rawCandLower === filingLower && (Boolean(combinedFromFv) || Boolean(fvIndivNameCandidate) || Boolean(fvCorpNameCandidate))));
+
     const name =
-      isValidCandidate(rawCandidate)
-        ? formatProperName(rawCandidate)
-        : isValidCandidate(combinedFromFv)
-          ? formatProperName(combinedFromFv)
-          : isValidCandidate(fvIndivNameCandidate)
-            ? formatProperName(fvIndivNameCandidate)
-            : !isIndividualAp && isValidCandidate(fvCorpNameCandidate)
-              ? formatProperName(fvCorpNameCandidate)
-              : !isIndividualAp && isValidCandidate(compName)
-                ? formatProperName(compName)
-                : !isIndividualAp && isValidCandidate(repName)
-                  ? formatProperName(repName)
-                  : isBulk
-                    ? `Applicant #${idx + 1}`
-                    : formatProperName(filingUser?.name) || formatProperName(compName) || formatProperName(repName) || 'Applicant';
+      !isIndividualAp && isRawCandidateRep && isValidCandidate(fvCorpNameCandidate)
+        ? formatProperName(fvCorpNameCandidate)
+        : !isIndividualAp && isRawCandidateRep && isValidCandidate(compName)
+          ? formatProperName(compName)
+          : isValidCandidate(rawCandidate) && !isRawCandidateRep
+            ? formatProperName(rawCandidate)
+            : isValidCandidate(combinedFromFv)
+              ? formatProperName(combinedFromFv)
+              : isValidCandidate(fvIndivNameCandidate)
+                ? formatProperName(fvIndivNameCandidate)
+                : !isIndividualAp && isValidCandidate(fvCorpNameCandidate)
+                  ? formatProperName(fvCorpNameCandidate)
+                  : !isIndividualAp && isValidCandidate(compName)
+                    ? formatProperName(compName)
+                    : isValidCandidate(rawCandidate)
+                      ? formatProperName(rawCandidate)
+                      : isBulk
+                        ? `Applicant #${idx + 1}`
+                        : formatProperName(filingUser?.name) || formatProperName(compName) || 'Applicant';
 
     const birthDate =
       apDetails.birthDate ||
@@ -1366,25 +1387,52 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   }
 
   const rawSoas = (dto.statementsOfAccount || dto.StatementsOfAccount || []);
-  const rawOps = (dto.ordersOfPayment || dto.OrdersOfPayment || []);
+  const rawOps = (dto.ordersOfPayment || dto.OrdersOfPayment || []).filter(
+    (o) => (o.status || '').toLowerCase() !== 'returned'
+  );
   const sortedSoas = [...rawSoas].sort((a, b) => {
     const timeA = 'createdAt' in a && typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
     const timeB = 'createdAt' in b && typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
     return timeB - timeA;
   });
+  const getOpPriority = (st?: string): number => {
+    const lower = (st || '').toLowerCase();
+    if (lower === 'billed' || lower === 'active') return 0;
+    if (lower === 'processing') return 1;
+    if (lower === 'paid') return 2;
+    return 3;
+  };
   const sortedOps = [...rawOps].sort((a, b) => {
+    const prioDiff = getOpPriority(a.status) - getOpPriority(b.status);
+    if (prioDiff !== 0) return prioDiff;
     const timeA = 'createdAt' in a && typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
     const timeB = 'createdAt' in b && typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
-    return timeB - timeA;
+    return timeA - timeB;
   });
-  const primarySoaDto = sortedSoas.length > 0 ? sortedSoas[0] : undefined;
   const primaryOpDto = sortedOps.length > 0 ? sortedOps[0] : undefined;
+  const primarySoaDto =
+    (primaryOpDto?.statementOfAccountId
+      ? sortedSoas.find((s) => s.id === primaryOpDto.statementOfAccountId)
+      : undefined) ?? (sortedSoas.length > 0 ? sortedSoas[0] : undefined);
 
-  const resolvedOrNumber =
-    dto.officialReceiptNumber ||
-    dto.OfficialReceiptNumber ||
-    primaryOpDto?.officialReceiptNumber ||
-    undefined;
+  const hasUnpaidOpsInList = sortedOps.some((o) => {
+    const st = (o.status || '').toLowerCase();
+    return st === 'billed' || st === 'active' || st === 'processing';
+  });
+  const rawOpStatusLower = (dto.opStatus || dto.OpStatus || '').toLowerCase();
+  const hasUnpaidSummaryOp = rawOpStatusLower === 'billed' || rawOpStatusLower === 'active' || rawOpStatusLower === 'processing';
+  const hasAnyUnpaidOp = sortedOps.length > 0 ? hasUnpaidOpsInList : hasUnpaidSummaryOp;
+
+  if (hasAnyUnpaidOp && status === 'FOR_APPROVAL') {
+    status = 'READY_FOR_PAYMENT';
+  }
+
+  const resolvedOrNumber = hasAnyUnpaidOp
+    ? undefined
+    : (dto.officialReceiptNumber ||
+       dto.OfficialReceiptNumber ||
+       primaryOpDto?.officialReceiptNumber ||
+       undefined);
 
   const hasOr = Boolean(resolvedOrNumber && resolvedOrNumber.trim().length > 0);
 
@@ -1477,7 +1525,10 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
         amountDue: typeof primaryOpDto.amountDue === 'number' ? primaryOpDto.amountDue : 0,
         amountReceived: typeof primaryOpDto.amountReceived === 'number' ? primaryOpDto.amountReceived : (resolvedAmountPaid ?? 0),
         paymentMethod: primaryOpDto.paymentMethod || dto.paymentMethod || dto.PaymentMethod,
-        officialReceiptNumber: primaryOpDto.officialReceiptNumber || resolvedOrNumber,
+        officialReceiptNumber:
+          (primaryOpDto.status || '').toLowerCase() === 'paid' && !hasAnyUnpaidOp
+            ? (primaryOpDto.officialReceiptNumber || resolvedOrNumber)
+            : undefined,
         paidAt: primaryOpDto.paidAt || resolvedPaidAt,
         remarks: primaryOpDto.remarks || dto.paymentRemarks || dto.remarks,
       }

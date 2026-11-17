@@ -32,7 +32,8 @@ public record IssueOfficialReceiptCommand(
     List<CreateReceiptLineItemInput>? LineItems = null,
     bool AllowPartialPayment = false,
     DateTime? IssueDate = null,
-    string? DateChangeReason = null
+    string? DateChangeReason = null,
+    List<Guid>? OrderOfPaymentIds = null
 ) : IRequest<ApiResponse<OfficialReceiptDto>>;
 
 public class IssueOfficialReceiptCommandValidator : AbstractValidator<IssueOfficialReceiptCommand>
@@ -180,22 +181,25 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         Guid? validUserId,
         CancellationToken cancellationToken)
     {
-        if (!request.OrderOfPaymentId.HasValue)
+        var primaryOpId = request.OrderOfPaymentId
+                          ?? (request.OrderOfPaymentIds != null && request.OrderOfPaymentIds.Count > 0 ? request.OrderOfPaymentIds[0] : (Guid?)null);
+
+        if (!primaryOpId.HasValue)
         {
             return (null, null, null, null);
         }
 
-        var op = await _appRepository.GetOpByIdAsync(request.OrderOfPaymentId.Value, cancellationToken);
+        var op = await _appRepository.GetOpByIdAsync(primaryOpId.Value, cancellationToken);
         Guid? applicationId = null;
         string? appNumber = null;
 
         if (op == null)
         {
-            var appWithDetails = await _appRepository.GetByIdWithDetailsAsync(request.OrderOfPaymentId.Value, cancellationToken);
+            var appWithDetails = await _appRepository.GetByIdWithDetailsAsync(primaryOpId.Value, cancellationToken);
             if (appWithDetails == null)
             {
-                _logger.LogWarning("Failed to issue official receipt. Order of Payment / Application '{OrderOfPaymentId}' not found for Tenant '{TenantId}'. Performed by Cashier: '{CashierId}' ({CashierName}).", request.OrderOfPaymentId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
-                return (null, null, null, $"Order of Payment / Application '{request.OrderOfPaymentId}' not found.");
+                _logger.LogWarning("Failed to issue official receipt. Order of Payment / Application '{OrderOfPaymentId}' not found for Tenant '{TenantId}'. Performed by Cashier: '{CashierId}' ({CashierName}).", primaryOpId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+                return (null, null, null, $"Order of Payment / Application '{primaryOpId}' not found.");
             }
 
             op = appWithDetails.OrdersOfPayment
@@ -214,6 +218,155 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             }
         }
 
+        var app = op.ApplicationId != Guid.Empty
+            ? (await _appRepository.GetByIdWithDetailsAsync(op.ApplicationId, cancellationToken) ?? op.Application ?? await _appRepository.GetByIdAsync(op.ApplicationId, cancellationToken))
+            : op.Application;
+
+        var hasUnpaidAppOps = op.Status == OpStatus.Billed || op.Status == OpStatus.Processing ||
+                              (app?.OrdersOfPayment?.Any(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing) == true);
+        if (app != null && app.Status != ApplicationStatus.PendingPayment &&
+            !(app.Status == ApplicationStatus.ForIssuance && hasUnpaidAppOps))
+        {
+            return (null, null, null, $"Cannot issue Official Receipt: The application is currently in '{app.Status}' status. Payment can only be accepted when the application is in 'PendingPayment' status.");
+        }
+
+        var requestedOpIds = request.OrderOfPaymentIds != null && request.OrderOfPaymentIds.Count > 1
+            ? request.OrderOfPaymentIds.Where(id => id != Guid.Empty).Distinct().ToList()
+            : new List<Guid>();
+
+        var isBulkMultiOpIssuance = requestedOpIds.Count > 1;
+        if (isBulkMultiOpIssuance && app != null)
+        {
+            var targetOps = app.OrdersOfPayment
+                .Where(o => requestedOpIds.Contains(o.Id) && (o.Status == OpStatus.Billed || o.Status == OpStatus.Processing))
+                .OrderBy(o => o.CreatedAt)
+                .ToList();
+
+            if (targetOps.Count == 0)
+            {
+                return (null, null, null, "Cannot issue Official Receipt: All selected Orders of Payment are already paid or returned.");
+            }
+
+            var totalRemainingDue = targetOps.Sum(o => Math.Max(0m, o.AmountDue - o.AmountReceived));
+            if (!request.AllowPartialPayment && request.Amount < totalRemainingDue)
+            {
+                return (null, null, null, FormattableString.Invariant($"Cannot issue Official Receipt: Received amount ({request.Amount:N2}) is less than the total required amount due ({totalRemainingDue:N2}) for the selected Orders of Payment."));
+            }
+
+            foreach (var targetOp in targetOps)
+            {
+                var prevTargetStatus = targetOp.Status;
+                targetOp.AmountReceived = targetOp.AmountDue;
+                targetOp.Status = OpStatus.Paid;
+                targetOp.VerifiedByCashierId = validUserId;
+                targetOp.PaidAt = DateTime.UtcNow;
+                targetOp.PaymentMethod = request.PaymentMethod;
+
+                var orList = (targetOp.OfficialReceiptNumber ?? string.Empty)
+                    .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .ToList();
+                if (!orList.Contains(orNumber))
+                {
+                    orList.Add(orNumber);
+                }
+                targetOp.OfficialReceiptNumber = string.Join(", ", orList);
+
+                if (!string.IsNullOrWhiteSpace(request.PayorName))
+                {
+                    targetOp.CheckName = request.PayorName.Trim();
+                }
+                if (request.PaymentMethod == PaymentMethod.Check)
+                {
+                    targetOp.CheckNumber = request.CheckNumber;
+                    targetOp.CheckBank = request.CheckBank;
+                    targetOp.CheckDate = request.CheckDate;
+                }
+
+                UpdateOpRemarksWithIssuedOr(targetOp, orNumber, request.PaymentMethod, targetOp.AmountDue, request.CheckNumber);
+
+                await _appRepository.AddOpHistoryAsync(new OpHistory
+                {
+                    Id = Guid.NewGuid(),
+                    OrderOfPaymentId = targetOp.Id,
+                    Action = FormattableString.Invariant($"Bulk payment completed and Official Receipt issued: {orNumber} ({request.PaymentMethod}: ₱{targetOp.AmountDue:N2} of ₱{request.Amount:N2} total)."),
+                    FromStatus = prevTargetStatus,
+                    ToStatus = OpStatus.Paid,
+                    PerformedByUserId = validUserId,
+                    StaffName = cashierContext.StaffName,
+                    StaffRole = cashierContext.StaffRole,
+                    OfficialReceiptNumber = orNumber,
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+            }
+
+            var targetIdSet = targetOps.Select(t => t.Id).ToHashSet();
+            if (targetIdSet.Contains(op.Id))
+            {
+                op.Status = OpStatus.Paid;
+                op.AmountReceived = op.AmountDue;
+                op.OfficialReceiptNumber = targetOps.First(t => t.Id == op.Id).OfficialReceiptNumber;
+            }
+
+            var activeAppOps = app.OrdersOfPayment.Where(o => o.Status != OpStatus.Returned).ToList();
+            var allOpsPaid = activeAppOps.All(o => o.Status == OpStatus.Paid || targetIdSet.Contains(o.Id));
+
+            applicationId = app.Id;
+            appNumber = app.ApplicationNumber;
+
+            if (allOpsPaid)
+            {
+                var allOrs = activeAppOps
+                    .SelectMany(o => (o.OfficialReceiptNumber ?? string.Empty).Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                    .Select(s => s.Trim())
+                    .Distinct()
+                    .ToList();
+                if (!allOrs.Contains(orNumber))
+                {
+                    allOrs.Add(orNumber);
+                }
+                var combinedOrStr = string.Join(", ", allOrs);
+
+                var prevAppStatus = app.Status;
+                app.Status = ApplicationStatus.ForIssuance;
+                app.Remarks = $"Bulk payment verified via Official Receipt #{combinedOrStr} covering {targetOps.Count} Orders of Payment. Forwarded for Document & License Issuance.";
+                await _appRepository.UpdateAsync(app, cancellationToken);
+
+                await _appRepository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    Status = ApplicationStatus.ForIssuance,
+                    Remarks = $"Bulk payment completed under Official Receipt #{combinedOrStr}. Forwarded for Document Issuance.",
+                    Timestamp = DateTime.UtcNow,
+                    UserId = validUserId
+                }, cancellationToken);
+
+                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    Action = FormattableString.Invariant($"Bulk payment verified via OR #{orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}) covering {targetOps.Count} OPs."),
+                    FromStatus = prevAppStatus,
+                    ToStatus = ApplicationStatus.ForIssuance,
+                    PerformedByUserId = validUserId,
+                    StaffName = cashierContext.StaffName,
+                    StaffRole = cashierContext.StaffRole,
+                    Remarks = request.Remarks ?? FormattableString.Invariant($"Bulk payment received via {request.PaymentMethod}. Official Receipt #{orNumber} issued."),
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+            }
+            else
+            {
+                var remainingCount = activeAppOps.Count(o => o.Status != OpStatus.Paid && !targetIdSet.Contains(o.Id));
+                app.Status = ApplicationStatus.PendingPayment;
+                app.Remarks = FormattableString.Invariant($"Official Receipt #{orNumber} issued for {targetOps.Count} Orders of Payment (₱{request.Amount:N2}). {remainingCount} Order(s) of Payment remaining.");
+                await _appRepository.UpdateAsync(app, cancellationToken);
+            }
+
+            return (op, applicationId, appNumber, null);
+        }
+
         if (op.Status == OpStatus.Paid)
         {
             return (null, null, null, $"Cannot issue Official Receipt: Order of Payment '{op.OpNumber}' is already paid under Official Receipt #{op.OfficialReceiptNumber}.");
@@ -222,12 +375,6 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         if (op.Status == OpStatus.Returned)
         {
             return (null, null, null, $"Cannot issue Official Receipt: Order of Payment '{op.OpNumber}' was returned and cannot accept payment.");
-        }
-
-        var app = op.Application ?? (op.ApplicationId != Guid.Empty ? await _appRepository.GetByIdAsync(op.ApplicationId, cancellationToken) : null);
-        if (app != null && app.Status != ApplicationStatus.PendingPayment)
-        {
-            return (null, null, null, $"Cannot issue Official Receipt: The application is currently in '{app.Status}' status. Payment can only be accepted when the application is in 'PendingPayment' status.");
         }
 
         var existingReceipts = await _receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
@@ -300,34 +447,83 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
 
             if (app != null)
             {
-                var prevAppStatus = app.Status;
-                app.Status = ApplicationStatus.ForIssuance;
-                app.Remarks = $"Payment verified via Official Receipt #{op.OfficialReceiptNumber}. Forwarded for Document & License Issuance.";
-                await _appRepository.UpdateAsync(app, cancellationToken);
+                var activeSiblingOps = app.OrdersOfPayment?
+                    .Where(o => o.Status != OpStatus.Returned)
+                    .ToList() ?? new List<OrderOfPayment>();
+                var activeSoas = app.StatementsOfAccount?
+                    .Where(s => !s.IsDeleted && s.Status != SoaStatus.Returned)
+                    .ToList() ?? new List<StatementOfAccount>();
+                var allSoasHavePaidOp = activeSoas.Count <= 1 || activeSoas.All(s =>
+                    activeSiblingOps.Any(o => o.StatementOfAccountId == s.Id && (o.Id == op.Id || o.Status == OpStatus.Paid)));
 
-                await _appRepository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
-                {
-                    Id = Guid.NewGuid(),
-                    ApplicationId = app.Id,
-                    Status = ApplicationStatus.ForIssuance,
-                    Remarks = $"Payment completed under Official Receipt #{op.OfficialReceiptNumber}. Forwarded for Document Issuance.",
-                    Timestamp = DateTime.UtcNow,
-                    UserId = validUserId
-                }, cancellationToken);
+                var allAppOpsPaid = (activeSiblingOps.Count == 0 || activeSiblingOps.All(o => o.Id == op.Id || o.Status == OpStatus.Paid))
+                                    && allSoasHavePaidOp;
 
-                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                if (allAppOpsPaid)
                 {
-                    Id = Guid.NewGuid(),
-                    ApplicationId = app.Id,
-                    Action = FormattableString.Invariant($"Payment verified via OR #{orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). Total paid under: {op.OfficialReceiptNumber}."),
-                    FromStatus = prevAppStatus,
-                    ToStatus = ApplicationStatus.ForIssuance,
-                    PerformedByUserId = validUserId,
-                    StaffName = cashierContext.StaffName,
-                    StaffRole = cashierContext.StaffRole,
-                    Remarks = request.Remarks ?? FormattableString.Invariant($"Payment received via {request.PaymentMethod}. Official Receipt #{orNumber} issued."),
-                    Timestamp = DateTime.UtcNow
-                }, cancellationToken);
+                    var allOrNumbers = activeSiblingOps
+                        .SelectMany(o => ((o.Id == op.Id ? op.OfficialReceiptNumber : o.OfficialReceiptNumber) ?? string.Empty)
+                            .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                        .Select(s => s.Trim())
+                        .Distinct()
+                        .ToList();
+                    if (!allOrNumbers.Contains(orNumber))
+                    {
+                        allOrNumbers.Add(orNumber);
+                    }
+                    var combinedOrDisplay = string.Join(", ", allOrNumbers);
+
+                    var prevAppStatus = app.Status;
+                    app.Status = ApplicationStatus.ForIssuance;
+                    app.Remarks = $"Payment verified via Official Receipt #{combinedOrDisplay}. Forwarded for Document & License Issuance.";
+                    await _appRepository.UpdateAsync(app, cancellationToken);
+
+                    await _appRepository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = app.Id,
+                        Status = ApplicationStatus.ForIssuance,
+                        Remarks = $"Payment completed under Official Receipt #{combinedOrDisplay}. Forwarded for Document Issuance.",
+                        Timestamp = DateTime.UtcNow,
+                        UserId = validUserId
+                    }, cancellationToken);
+
+                    await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = app.Id,
+                        Action = FormattableString.Invariant($"Payment verified via OR #{orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). Total paid under: {combinedOrDisplay}."),
+                        FromStatus = prevAppStatus,
+                        ToStatus = ApplicationStatus.ForIssuance,
+                        PerformedByUserId = validUserId,
+                        StaffName = cashierContext.StaffName,
+                        StaffRole = cashierContext.StaffRole,
+                        Remarks = request.Remarks ?? FormattableString.Invariant($"Payment received via {request.PaymentMethod}. Official Receipt #{orNumber} issued."),
+                        Timestamp = DateTime.UtcNow
+                    }, cancellationToken);
+                }
+                else
+                {
+                    var prevAppStatus = app.Status;
+                    app.Status = ApplicationStatus.PendingPayment;
+                    var remainingOpsCount = activeSiblingOps.Count(o => o.Id != op.Id && o.Status != OpStatus.Paid);
+                    app.Remarks = FormattableString.Invariant($"Official Receipt #{orNumber} issued for OP #{op.OpNumber} (₱{request.Amount:N2}). {remainingOpsCount} Order(s) of Payment remaining for payment.");
+                    await _appRepository.UpdateAsync(app, cancellationToken);
+
+                    await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = app.Id,
+                        Action = FormattableString.Invariant($"Official Receipt #{orNumber} issued for OP #{op.OpNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). {remainingOpsCount} OP(s) remaining."),
+                        FromStatus = prevAppStatus,
+                        ToStatus = ApplicationStatus.PendingPayment,
+                        PerformedByUserId = validUserId,
+                        StaffName = cashierContext.StaffName,
+                        StaffRole = cashierContext.StaffRole,
+                        Remarks = request.Remarks,
+                        Timestamp = DateTime.UtcNow
+                    }, cancellationToken);
+                }
             }
         }
         else
@@ -351,6 +547,8 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
 
             if (app != null)
             {
+                var prevAppStatus = app.Status;
+                app.Status = ApplicationStatus.PendingPayment;
                 app.Remarks = FormattableString.Invariant($"Partial Official Receipt #{orNumber} issued for ₱{request.Amount:N2} ({request.PaymentMethod}). Remaining balance: ₱{remainingBalance:N2}.");
                 await _appRepository.UpdateAsync(app, cancellationToken);
 
@@ -359,8 +557,8 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
                     Action = FormattableString.Invariant($"Partial payment of ₱{request.Amount:N2} ({request.PaymentMethod}) accepted via OR #{orNumber}. Remaining balance: ₱{remainingBalance:N2}."),
-                    FromStatus = app.Status,
-                    ToStatus = app.Status,
+                    FromStatus = prevAppStatus,
+                    ToStatus = ApplicationStatus.PendingPayment,
                     PerformedByUserId = validUserId,
                     StaffName = cashierContext.StaffName,
                     StaffRole = cashierContext.StaffRole,

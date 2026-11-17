@@ -53,8 +53,10 @@ export function serializePaymentBreakdown(breakdown: PaymentBreakdown): string {
     }
 
     if (item.mode === 'Online') {
+      const gatewayMatch = item.remarks ? item.remarks.replace(/^Gateway:\s*/i, '').trim() : '';
+      const gatewayInfo = gatewayMatch && gatewayMatch.toLowerCase() !== 'online' ? ` - ${gatewayMatch}` : '';
       const refInfo = item.referenceNumber ? ` (Ref: ${item.referenceNumber})` : '';
-      return `Online${refInfo}: ${formattedAmount}${issuedTag}`;
+      return `Online${gatewayInfo}${refInfo}: ${formattedAmount}${issuedTag}`;
     }
 
     return `Cash: ${formattedAmount}${issuedTag}`;
@@ -162,7 +164,7 @@ export function parsePaymentBreakdown(remarks?: string | null): PaymentBreakdown
       }
     }
 
-    const onlineMatch = remarks.match(/Online(?:\s*\(Ref:\s*([^)]+)\))?:\s*₱?([0-9,.]+)/i);
+    const onlineMatch = remarks.match(/Online(?:\s*-\s*[^(:]+)?(?:\s*\(Ref:\s*([^)]+)\))?:\s*₱?([0-9,.]+)/i);
     if (onlineMatch) {
       const parsedAmt = parseFloat((onlineMatch[2] ?? '0').replace(/,/g, ''));
       if (parsedAmt > 0) {

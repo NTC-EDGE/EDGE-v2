@@ -41,6 +41,169 @@ public static class FeeConstants
         public const string LicenseFee = "LF";
         public const string ConstructionPermit = "CPF";
         public const string SpectrumUsage = "SUF";
+
+        /// <summary>
+        /// Normalizes any fee code or fee name (including legacy or synonymous codes such as
+        /// FILING_FEE, INSP_FEE, LIC, LIC_RIGHTS_FEE, PERMIT, PERMIT_ISSUE_FEE, POSS_PERMIT,
+        /// EXAM_REG_FEE, SURCHARGE_LATE_FEE) to its single canonical statutory code so that
+        /// identical fees with different codes are never treated as separate fees.
+        /// </summary>
+        public static string NormalizeCanonicalCode(string? rawCode, string? rawName = null)
+        {
+            var code = (rawCode ?? string.Empty).Trim().ToUpperInvariant();
+            switch (code)
+            {
+                case "FF":
+                case "FILING_FEE":
+                case "BULK_FILING_FEE":
+                case "FILING":
+                    return FilingFee;
+
+                case "AF":
+                case "APP_FEE":
+                case "APPLICATION_FEE":
+                    return ApplicationFee;
+
+                case "IF":
+                case "INSP_FEE":
+                case "INSPECTION_FEE":
+                    return InspectionFee;
+
+                case "LF":
+                case "LIC":
+                case "LIC_RIGHTS_FEE":
+                case "LICENSE_FEE":
+                    return LicenseFee;
+
+                case "PF":
+                case "PERMIT":
+                case "PERMIT_ISSUE_FEE":
+                case "PERMIT_FEE":
+                    return PermitFee;
+
+                case "POS":
+                case "POSS_PERMIT":
+                case "POSSESS_PERMIT":
+                case "POSSESS_FEE":
+                    return Possess;
+
+                case "PUR":
+                case "PURCHASE_PERMIT":
+                case "PURCHASE_FEE":
+                    return Purchase;
+
+                case "STF":
+                case "SELL_TRANSFER":
+                case "SELL_TRANSFER_FEE":
+                    return SellTransfer;
+
+                case "EXAM":
+                case "EXAM_REG_FEE":
+                case "EXAM_FEE":
+                case "EXAMFEE":
+                    return Exam;
+
+                case "SUR":
+                case "SURCHARGE":
+                case "SURCHARGE_LATE_FEE":
+                    return Surcharge;
+
+                case "DST":
+                case "DOC_STAMP_TAX":
+                case "DST_FEE":
+                    return Dst;
+
+                case "MOD":
+                case "MOD_FEE":
+                case "MODIFICATION_FEE":
+                    return Modification;
+
+                case "ROC":
+                case "ROC_FEE":
+                    return Roc;
+
+                case "SEM":
+                case "SEMINAR_FEE":
+                    return Seminar;
+
+                case "REG":
+                case "REG_FEE":
+                case "REGISTRATION_FEE":
+                    return Registration;
+
+                case "DUP":
+                case "DUP_FEE":
+                case "DUPLICATE_FEE":
+                    return Duplicate;
+
+                case "CPF":
+                case "CONST_PERMIT_FEE":
+                case "CPF_FEE":
+                    return ConstructionPermit;
+
+                case "SUF":
+                case "SPECTRUM_FEE":
+                case "SUF_FEE":
+                    return SpectrumUsage;
+
+                case "PTR":
+                case "TRANSPORT_FEE":
+                    return PermitToTransport;
+
+                case "DEMO":
+                case "DEMO_FEE":
+                    return Demo;
+
+                case "SP":
+                case "SPECIAL_PERMIT":
+                case "SPECIAL_PERMIT_FEE":
+                    return SpecialPermit;
+
+                case "ACCRED":
+                case "ACCREDITATION_FEE":
+                    return Accreditation;
+
+                case "REQ_FEE":
+                case "REQUEST_FEE":
+                    return Request;
+            }
+
+            if (!string.IsNullOrWhiteSpace(rawName))
+            {
+                var name = rawName.Trim();
+                if (name.Contains("Exam", System.StringComparison.OrdinalIgnoreCase)) return Exam;
+                if (name.Equals("Filing Fee", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("Filling Fee", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Filing & Application Processing", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Filing & Processing", System.StringComparison.OrdinalIgnoreCase)) return FilingFee;
+                if (name.Equals("Application Fee", System.StringComparison.OrdinalIgnoreCase)) return ApplicationFee;
+                if (name.Equals("Inspection Fee", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Technical Site Inspection", System.StringComparison.OrdinalIgnoreCase)) return InspectionFee;
+                if (name.Equals("License Fee", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("Radio Station License", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Spectrum & License Rights", System.StringComparison.OrdinalIgnoreCase)) return LicenseFee;
+                if (name.Equals("Permit Fee", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Permit & Certificate Issuance", System.StringComparison.OrdinalIgnoreCase)) return PermitFee;
+                if (name.Equals("Possess Permit Fee", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("Permit to Possess/Storage", System.StringComparison.OrdinalIgnoreCase)) return Possess;
+                if (name.Equals("Purchase Permit Fee", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("Permit to Purchase", System.StringComparison.OrdinalIgnoreCase)) return Purchase;
+                if (name.Equals("Sell/Transfer Permit Fee", System.StringComparison.OrdinalIgnoreCase)) return SellTransfer;
+                if (name.Contains("Documentary Stamp Tax", System.StringComparison.OrdinalIgnoreCase)) return Dst;
+                if (name.Equals("Modification Fee", System.StringComparison.OrdinalIgnoreCase)) return Modification;
+                if (name.Contains("Radio Operator Certificate", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Radio Operator's Cert", System.StringComparison.OrdinalIgnoreCase)) return Roc;
+                if (name.Equals("Seminar Fee", System.StringComparison.OrdinalIgnoreCase)) return Seminar;
+                if (name.Equals("Registration Fee", System.StringComparison.OrdinalIgnoreCase)) return Registration;
+                if (name.Equals("Duplicate Copy Fee", System.StringComparison.OrdinalIgnoreCase)) return Duplicate;
+                if (name.Equals("Construction Permit Fee", System.StringComparison.OrdinalIgnoreCase)) return ConstructionPermit;
+                if (name.Contains("Spectrum User", System.StringComparison.OrdinalIgnoreCase)) return SpectrumUsage;
+                if (name.Contains("Surcharge", System.StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Fines/Penalties", System.StringComparison.OrdinalIgnoreCase)) return Surcharge;
+            }
+
+            return string.IsNullOrEmpty(code) ? "FEE" : code;
+        }
     }
 
     /// <summary>
@@ -115,6 +278,122 @@ public static class FeeConstants
         public static bool HasDst(string? formula) =>
             !string.IsNullOrWhiteSpace(formula) &&
             formula.Contains(VarDst, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Determines whether a specific fee code is multiplied by years (YR / YEARS) according to the formula.
+        /// One-time administrative/exam fees (EXAM, FF, AF, SEM, MOD, DUP, FC, SC, PUR, POS, STF, CPF, PTR, DEMO, DST, SUR)
+        /// never multiply by years unless explicitly attached to a (YR) factor in the formula.
+        /// </summary>
+        public static bool FeeUsesYears(
+            string? formula,
+            string? feeCode,
+            string? feeName = null,
+            bool formExplicitlyAsksForYears = false)
+        {
+            var canonical = Codes.NormalizeCanonicalCode(feeCode, feeName);
+
+            if (canonical == Codes.Dst || canonical == Codes.Surcharge)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(formula))
+            {
+                var rhs = formula.Contains('=') ? formula.Split('=', 2)[1] : formula;
+
+                if (HasYears(formula))
+                {
+                    if (rhs.Contains(PlaceholderYears, StringComparison.OrdinalIgnoreCase) ||
+                        rhs.Contains(PlaceholderYr, StringComparison.OrdinalIgnoreCase) ||
+                        rhs.Contains(VarRate, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+
+                    var candidateTokens = canonical switch
+                    {
+                        Codes.LicenseFee => new[] { "LF", "LIC" },
+                        Codes.PermitFee => new[] { "PF", "PERMIT" },
+                        Codes.Possess => new[] { "POS", "POSS_PERMIT" },
+                        Codes.Exam => new[] { "EXAM", "EXAMFEE" },
+                        _ => new[] { canonical }
+                    };
+
+                    var terms = rhs.Split('+', StringSplitOptions.RemoveEmptyEntries);
+                    var foundTokenInFormula = false;
+                    foreach (var term in terms)
+                    {
+                        foreach (var token in candidateTokens)
+                        {
+                            if (!string.IsNullOrWhiteSpace(token) && term.Contains(token, StringComparison.OrdinalIgnoreCase))
+                            {
+                                foundTokenInFormula = true;
+                                if (HasYears(term))
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (foundTokenInFormula)
+                    {
+                        return false;
+                    }
+                }
+                else if (formExplicitlyAsksForYears)
+                {
+                    // If the Form Builder explicitly asks for "No. of Years" on a service whose formula
+                    // did not originally include (YR), apply the years multiplier to primary fees
+                    // (excluding administrative filing/application/seminar fees).
+                    return canonical != Codes.FilingFee &&
+                           canonical != Codes.ApplicationFee &&
+                           canonical != Codes.Seminar;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            if (formExplicitlyAsksForYears &&
+                canonical != Codes.FilingFee &&
+                canonical != Codes.ApplicationFee &&
+                canonical != Codes.Seminar)
+            {
+                return true;
+            }
+
+            switch (canonical)
+            {
+                case Codes.Exam:
+                case Codes.FilingFee:
+                case Codes.ApplicationFee:
+                case Codes.Seminar:
+                case Codes.Modification:
+                case Codes.Duplicate:
+                case Codes.FirstCopy:
+                case Codes.SucceedingCopies:
+                case Codes.Purchase:
+                case Codes.Possess:
+                case Codes.SellTransfer:
+                case Codes.ConstructionPermit:
+                case Codes.PermitToTransport:
+                case Codes.Demo:
+                case Codes.Request:
+                    return false;
+            }
+
+            return canonical == Codes.Roc ||
+                   canonical == Codes.LicenseFee ||
+                   canonical == Codes.PermitFee ||
+                   canonical == Codes.InspectionFee ||
+                   canonical == Codes.SpectrumUsage ||
+                   canonical == Codes.Accreditation ||
+                   canonical == Codes.AnnualRegistration1 ||
+                   canonical == Codes.AnnualRegistration2 ||
+                   HasYears(formula);
+        }
     }
 
     public static class Amounts

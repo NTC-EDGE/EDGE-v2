@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Icon } from '@edge/ui';
 import { ModeOfPayment } from './paymentSubmissionTypes';
 import { styles } from './paymentSubmissionStyles';
 
@@ -10,6 +11,7 @@ interface PaymentModeSelectorProps {
 
 interface ModeConfig {
   mode: ModeOfPayment;
+  icon: 'globe' | 'file-text' | 'dollar-sign' | 'layers';
   title: string;
   subtitle: string;
   badge?: string;
@@ -17,34 +19,28 @@ interface ModeConfig {
 
 const MODES: ModeConfig[] = [
   {
-    mode: 'LandBank',
-    title: 'LandBank Link.BizPortal',
-    subtitle: 'Pay via LandBank e-Payment Gateway with automated receipt generation',
-  },
-  {
-    mode: 'GCashMaya',
-    title: 'GCash / Maya (E-Wallet)',
-    subtitle: 'Upload proof of payment and transaction reference number',
-  },
-  {
-    mode: 'BankTransfer',
-    title: 'Direct Bank Transfer / Deposit',
-    subtitle: 'Transfer directly to NTC Designated Account via Pesonet / InstaPay',
-  },
-  {
-    mode: 'CashierOTC',
-    title: 'Cashier Over-the-Counter (Cash)',
-    subtitle: 'Pay cash in-person at NTC Regional Office Cashier',
+    mode: 'Online',
+    icon: 'globe',
+    title: 'Online / E-Payment (LandBank, GCash, Maya, Bank Transfer)',
+    subtitle: 'Enter transaction reference / e-receipt number and upload payment confirmation proof',
   },
   {
     mode: 'Check',
-    title: 'Check Payment (Manager’s / Corporate)',
-    subtitle: 'Submit Check details (Check #, Drawee Bank, Date) payable to NTC',
+    icon: 'file-text',
+    title: 'Check Payment (Manager’s / Corporate Check)',
+    subtitle: 'Provide Check Number, Drawee Bank, Check Date, and check photo / scanned proof',
+  },
+  {
+    mode: 'CashierOTC',
+    icon: 'dollar-sign',
+    title: 'Cashier Over-the-Counter (Walk-In Cash)',
+    subtitle: 'Pay cash in-person at the NTC Regional Office Cashier using your Order of Payment',
   },
   {
     mode: 'Combination',
-    title: 'Combination / Split Payment (Check + Cash + Online)',
-    subtitle: 'Split fees across multiple payment methods (e.g., Check portion + Cash portion)',
+    icon: 'layers',
+    title: 'Combination / Split Payment',
+    subtitle: 'Split total amount across multiple payment methods (Cash, Check, and/or Online)',
     badge: 'Flexible',
   },
 ];
@@ -63,6 +59,9 @@ export function PaymentModeSelector({ selectedMode, onSelectMode }: PaymentModeS
           >
             <View style={[styles.modeRadio, isSelected && styles.modeRadioSelected]}>
               {isSelected && <View style={styles.modeRadioInner} />}
+            </View>
+            <View style={[styles.modeIconBadge, isSelected && styles.modeIconBadgeSelected]}>
+              <Icon name={item.icon} size={15} color={isSelected ? '#1D4ED8' : '#64748B'} />
             </View>
             <View style={styles.modeInfo}>
               <View style={styles.modeTitleRow}>
@@ -83,3 +82,4 @@ export function PaymentModeSelector({ selectedMode, onSelectMode }: PaymentModeS
     </View>
   );
 }
+

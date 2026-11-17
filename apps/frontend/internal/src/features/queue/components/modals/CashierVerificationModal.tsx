@@ -69,12 +69,12 @@ export function CashierVerificationModal({
 
           {/* Fields */}
           <View style={styles.fields}>
-            <View style={styles.fieldGroup}>
+            <View style={[styles.fieldGroup, { borderLeftColor: COLORS.brand.primary }]}>
               <Text style={styles.label}>
-                OR Number <Text style={styles.required}>*</Text>
+                1. Official Receipt (OR) Number <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.inputWrapper}>
-                <Lucide name="hash" size={15} color={COLORS.neutral[400]} />
+                <Lucide name="hash" size={15} color={COLORS.brand.primary} />
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. OR-884920-2026"
@@ -86,12 +86,12 @@ export function CashierVerificationModal({
               </View>
             </View>
 
-            <View style={styles.fieldGroup}>
+            <View style={[styles.fieldGroup, { borderLeftColor: '#0284C7' }]}>
               <Text style={styles.label}>
-                Check Number <Text style={styles.required}>*</Text>
+                2. Check Number <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.inputWrapper}>
-                <Lucide name="file-text" size={15} color={COLORS.neutral[400]} />
+                <Lucide name="file-text" size={15} color="#0284C7" />
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. CHK-00912384"
@@ -103,12 +103,12 @@ export function CashierVerificationModal({
               </View>
             </View>
 
-            <View style={styles.fieldGroup}>
+            <View style={[styles.fieldGroup, { borderLeftColor: '#059669' }]}>
               <Text style={styles.label}>
-                Check Name <Text style={styles.required}>*</Text>
+                3. Drawee Bank / Check Name <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.inputWrapper}>
-                <Lucide name="user" size={15} color={COLORS.neutral[400]} />
+                <Lucide name="user" size={15} color="#059669" />
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Metrobank"
@@ -207,6 +207,12 @@ const styles = StyleSheet.create({
   },
   fieldGroup: {
     gap: SPACING[8],
+    padding: SPACING[12],
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderColor: COLORS.neutral[200],
+    backgroundColor: COLORS.neutral[50],
   },
   label: {
     fontFamily: TYPOGRAPHY.fonts.primary,

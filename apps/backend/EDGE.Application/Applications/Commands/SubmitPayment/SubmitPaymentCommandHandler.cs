@@ -45,23 +45,32 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
             return ApiResponse<bool>.Fail("Application not found.");
         }
 
-        if (app.Status != ApplicationStatus.PendingPayment)
+        if (app.Status != ApplicationStatus.PendingPayment &&
+            !(app.Status == ApplicationStatus.ForIssuance && app.OrdersOfPayment.Any(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing)))
         {
             _logger.LogWarning("SubmitPayment failed. Application '{ApplicationId}' status is '{Status}', expected 'PendingPayment'.", request.ApplicationId, app.Status);
             return ApiResponse<bool>.Fail($"Application is currently '{app.Status}'. Payment can only be submitted when in 'PendingPayment' status.");
         }
 
+        if (app.Status == ApplicationStatus.ForIssuance)
+        {
+            app.Status = ApplicationStatus.PendingPayment;
+        }
+
         OrderOfPayment? op = null;
         if (request.OrderOfPaymentId.HasValue)
         {
-            op = app.OrdersOfPayment.FirstOrDefault(o => o.Id == request.OrderOfPaymentId.Value);
+            op = app.OrdersOfPayment.FirstOrDefault(o => o.Id == request.OrderOfPaymentId.Value && o.Status != OpStatus.Paid && o.Status != OpStatus.Returned);
         }
 
         if (op == null)
         {
             op = app.OrdersOfPayment
-                .OrderByDescending(o => o.CreatedAt)
-                .FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing);
+                .OrderBy(o => o.CreatedAt)
+                .FirstOrDefault(o => o.Status == OpStatus.Billed)
+                ?? app.OrdersOfPayment
+                    .OrderBy(o => o.CreatedAt)
+                    .FirstOrDefault(o => o.Status == OpStatus.Processing);
         }
 
         if (op == null)

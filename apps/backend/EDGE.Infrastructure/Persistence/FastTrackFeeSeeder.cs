@@ -17,7 +17,7 @@ public static class FastTrackFeeSeeder
     {
         try
         {
-            // 1. Seed or update Master Fees
+            // 1. Seed or update Master Fees ( strictly 1 canonical code per distinct statutory fee )
             var masterFees = new List<(string Code, string Name, string Description)>
             {
                 (FeeConstants.Codes.Roc, "Radio Operator Certificate Fee", "Statutory base certificate annual fee"),
@@ -32,9 +32,6 @@ public static class FastTrackFeeSeeder
                 (FeeConstants.Codes.FirstCopy, "First Copy Fee", "Certified True Copy - First Copy authentication fee"),
                 (FeeConstants.Codes.SucceedingCopies, "Succeeding Copies Fee", "Certified True Copy - Succeeding page/copy fee"),
                 (FeeConstants.Codes.Duplicate, "Duplicate Copy Fee", "Duplicate copy re-issuance fee"),
-                (FeeConstants.Codes.PossessPermit, "Possess Permit Fee", "Amateur Lifetime Possess Permit Fee"),
-                (FeeConstants.Codes.License, "License Fee", "Radio Station / Dealer License Annual Fee"),
-                (FeeConstants.Codes.Permit, "Permit Fee", "Permit to Purchase / Possess / Import Fee"),
                 (FeeConstants.Codes.Exam, "Examination Fee", "Radio Operator Examination Admission Fee"),
                 (FeeConstants.Codes.Accreditation, "Accreditation Fee", "Service Center / Testing Center Annual Accreditation Fee"),
                 (FeeConstants.Codes.Request, "Request / Administrative Processing Fee", "Special request and administrative filing fee"),
@@ -48,7 +45,8 @@ public static class FastTrackFeeSeeder
                 (FeeConstants.Codes.SpecialPermit, "Special Permit Fee", "Amateur vanity or special event permit fee"),
                 (FeeConstants.Codes.LicenseFee, "License Fee", "Statutory station license fee"),
                 (FeeConstants.Codes.ConstructionPermit, "Construction Permit Fee", "Radio station construction permit fee"),
-                (FeeConstants.Codes.SpectrumUsage, "Spectrum User Fee", "Statutory spectrum user fee")
+                (FeeConstants.Codes.SpectrumUsage, "Spectrum User Fee", "Statutory spectrum user fee"),
+                (FeeConstants.Codes.Surcharge, "Late Renewal Surcharge", "Statutory surcharge penalty for late renewal applications")
             };
 
             var existingFees = await context.Fees.IgnoreQueryFilters().ToListAsync();
@@ -68,6 +66,7 @@ public static class FastTrackFeeSeeder
                         IsActive = true
                     };
                     context.Fees.Add(fee);
+                    existingFees.Add(fee);
                 }
                 else
                 {
@@ -83,6 +82,14 @@ public static class FastTrackFeeSeeder
                 feeMap[code] = fee;
             }
 
+            // Alias legacy code constants to their single canonical master Fee entity
+            if (feeMap.TryGetValue(FeeConstants.Codes.Possess, out var canonicalPos))
+                feeMap[FeeConstants.Codes.PossessPermit] = canonicalPos;
+            if (feeMap.TryGetValue(FeeConstants.Codes.LicenseFee, out var canonicalLf))
+                feeMap[FeeConstants.Codes.License] = canonicalLf;
+            if (feeMap.TryGetValue(FeeConstants.Codes.PermitFee, out var canonicalPf))
+                feeMap[FeeConstants.Codes.Permit] = canonicalPf;
+
             try
             {
                 await context.SaveChangesAsync();
@@ -95,48 +102,79 @@ public static class FastTrackFeeSeeder
                 {
                     feeMap[f.Code] = f;
                 }
+                if (feeMap.TryGetValue(FeeConstants.Codes.Possess, out var pos))
+                    feeMap[FeeConstants.Codes.PossessPermit] = pos;
+                if (feeMap.TryGetValue(FeeConstants.Codes.LicenseFee, out var lf))
+                    feeMap[FeeConstants.Codes.License] = lf;
+                if (feeMap.TryGetValue(FeeConstants.Codes.PermitFee, out var pf))
+                    feeMap[FeeConstants.Codes.Permit] = pf;
             }
 
-            // 1.1 Self-heal: Clean up legacy duplicate exam fees (e.g. EXAM_REG_FEE)
-            var legacyExamFees = existingFees
-                .Where(f => f.Code.Equals("EXAM_REG_FEE", StringComparison.OrdinalIgnoreCase) ||
-                            (f.Id == Guid.Parse("f0000000-0000-0000-0000-000000000005") && !f.Code.Equals(FeeConstants.Codes.Exam, StringComparison.OrdinalIgnoreCase)))
+            // 1.1 Self-heal: Reconcile all legacy or duplicate fee entities (e.g. FILING_FEE -> FF, INSP_FEE -> IF,
+            // LIC_RIGHTS_FEE / LIC -> LF, PERMIT_ISSUE_FEE / PERMIT -> PF, POSS_PERMIT -> POS, EXAM_REG_FEE -> EXAM, SURCHARGE_LATE_FEE -> SUR)
+            var canonicalFeeIds = masterFees
+                .Select(m => feeMap.TryGetValue(m.Code, out var f) ? f.Id : Guid.Empty)
+                .Where(id => id != Guid.Empty)
+                .ToHashSet();
+
+            var duplicateOrLegacyFees = existingFees
+                .Where(f => !canonicalFeeIds.Contains(f.Id))
                 .ToList();
 
-            if (legacyExamFees.Count > 0)
+            if (duplicateOrLegacyFees.Count > 0)
             {
-                feeMap.TryGetValue(FeeConstants.Codes.Exam, out var canonicalExamFee);
-                canonicalExamFee ??= existingFees.FirstOrDefault(f => f.Code.Equals(FeeConstants.Codes.Exam, StringComparison.OrdinalIgnoreCase));
+                var allVarFees = await context.ServiceVariantFees.IgnoreQueryFilters().ToListAsync();
+                var allElemFees = await context.ServiceVariantElementFees.IgnoreQueryFilters().ToListAsync();
+                var allSvcFees = await context.ServiceFees.IgnoreQueryFilters().ToListAsync();
 
-                foreach (var legacyFee in legacyExamFees)
+                foreach (var legacyFee in duplicateOrLegacyFees)
                 {
-                    if (canonicalExamFee != null && canonicalExamFee.Id != legacyFee.Id)
+                    var canonicalCode = FeeConstants.Codes.NormalizeCanonicalCode(legacyFee.Code, legacyFee.Name);
+                    feeMap.TryGetValue(canonicalCode, out var targetCanonicalFee);
+
+                    var linkedVarFees = allVarFees.Where(vf => vf.FeeId == legacyFee.Id).ToList();
+                    foreach (var vf in linkedVarFees)
                     {
-                        var linkedVariantFees = await context.ServiceVariantFees.IgnoreQueryFilters()
-                            .Where(vf => vf.FeeId == legacyFee.Id).ToListAsync();
-                        foreach (var vf in linkedVariantFees)
+                        if (targetCanonicalFee != null &&
+                            !allVarFees.Any(x => x.Id != vf.Id && x.ServiceVariantId == vf.ServiceVariantId && x.FeeId == targetCanonicalFee.Id))
                         {
-                            vf.FeeId = canonicalExamFee.Id;
+                            vf.FeeId = targetCanonicalFee.Id;
                         }
-
-                        var linkedElementFees = await context.ServiceVariantElementFees.IgnoreQueryFilters()
-                            .Where(ef => ef.FeeId == legacyFee.Id).ToListAsync();
-                        foreach (var ef in linkedElementFees)
+                        else
                         {
-                            ef.FeeId = canonicalExamFee.Id;
-                        }
-
-                        var linkedServiceFees = await context.ServiceFees.IgnoreQueryFilters()
-                            .Where(sf => sf.FeeId == legacyFee.Id).ToListAsync();
-                        foreach (var sf in linkedServiceFees)
-                        {
-                            sf.FeeId = canonicalExamFee.Id;
+                            context.ServiceVariantFees.Remove(vf);
+                            allVarFees.Remove(vf);
                         }
                     }
 
-                    context.Fees.Remove(legacyFee);
-                    existingFees.Remove(legacyFee);
-                    logger?.LogInformation("Cleaned up legacy exam fee with code '{Code}' ({Id}).", legacyFee.Code, legacyFee.Id);
+                    var linkedElemFees = allElemFees.Where(ef => ef.FeeId == legacyFee.Id).ToList();
+                    foreach (var ef in linkedElemFees)
+                    {
+                        if (targetCanonicalFee != null &&
+                            !allElemFees.Any(x => x.Id != ef.Id && x.ServiceVariantId == ef.ServiceVariantId && x.ElementId == ef.ElementId && x.FeeId == targetCanonicalFee.Id))
+                        {
+                            ef.FeeId = targetCanonicalFee.Id;
+                        }
+                        else
+                        {
+                            context.ServiceVariantElementFees.Remove(ef);
+                            allElemFees.Remove(ef);
+                        }
+                    }
+
+                    var linkedSvcFees = allSvcFees.Where(sf => sf.FeeId == legacyFee.Id).ToList();
+                    foreach (var sf in linkedSvcFees)
+                    {
+                        context.ServiceFees.Remove(sf);
+                        allSvcFees.Remove(sf);
+                    }
+
+                    if (targetCanonicalFee != null)
+                    {
+                        context.Fees.Remove(legacyFee);
+                        existingFees.Remove(legacyFee);
+                        logger?.LogInformation("Consolidated duplicate/legacy fee '{Code}' ({Name}) into canonical '{CanonicalCode}'.", legacyFee.Code, legacyFee.Name, canonicalCode);
+                    }
                 }
 
                 try
@@ -145,7 +183,7 @@ public static class FastTrackFeeSeeder
                 }
                 catch (DbUpdateException ex)
                 {
-                    logger?.LogWarning(ex, "Failed to persist removal of legacy exam fee records.");
+                    logger?.LogWarning(ex, "Failed to persist removal of legacy/duplicate fee records.");
                 }
             }
 
@@ -551,17 +589,23 @@ public static class FastTrackFeeSeeder
                 if (!allVariantsInDb.Contains(variantId) || !feeMap.TryGetValue(feeCode, out var fee))
                     continue;
 
-                var existingRecord = existingVariantFees.FirstOrDefault(vf => vf.ServiceVariantId == variantId && vf.FeeId == fee.Id);
+                var matchingRecords = existingVariantFees
+                    .Where(vf => vf.ServiceVariantId == variantId && vf.FeeId == fee.Id)
+                    .ToList();
+
+                var existingRecord = matchingRecords.FirstOrDefault();
                 if (existingRecord == null)
                 {
-                    context.ServiceVariantFees.Add(new ServiceVariantFee
+                    var created = new ServiceVariantFee
                     {
                         Id = Guid.NewGuid(),
                         ServiceVariantId = variantId,
                         FeeId = fee.Id,
                         Amount = amount,
                         IsActive = true
-                    });
+                    };
+                    context.ServiceVariantFees.Add(created);
+                    existingVariantFees.Add(created);
                 }
                 else
                 {
@@ -572,6 +616,88 @@ public static class FastTrackFeeSeeder
                         existingRecord.IsDeleted = false;
                         existingRecord.IsDeletedBy = string.Empty;
                     }
+
+                    if (matchingRecords.Count > 1)
+                    {
+                        foreach (var dup in matchingRecords.Skip(1))
+                        {
+                            context.ServiceVariantFees.Remove(dup);
+                            existingVariantFees.Remove(dup);
+                        }
+                    }
+                }
+            }
+
+            // Self-heal: Remove any duplicate (ServiceVariantId, FeeId) rows across all ServiceVariantFees
+            var duplicateVariantFeeGroups = existingVariantFees
+                .GroupBy(vf => new { vf.ServiceVariantId, vf.FeeId })
+                .Where(g => g.Count() > 1)
+                .ToList();
+            foreach (var dupGroup in duplicateVariantFeeGroups)
+            {
+                var ordered = dupGroup.OrderBy(vf => vf.IsDeleted).ThenByDescending(vf => vf.IsActive).ToList();
+                foreach (var dup in ordered.Skip(1))
+                {
+                    context.ServiceVariantFees.Remove(dup);
+                }
+            }
+
+            // Self-heal: Remove any ServiceFees that duplicate fees already defined on that service's variants,
+            // or duplicate (ServiceId, FeeId) rows, preventing ServiceFee + ServiceVariantFee from double-charging any fee.
+            var variantServiceLookup = await context.ServiceVariants.IgnoreQueryFilters()
+                .Select(v => new { v.Id, v.ServiceId })
+                .ToDictionaryAsync(v => v.Id, v => v.ServiceId);
+
+            var serviceFeePairsFromVariants = existingVariantFees
+                .Where(vf => !vf.IsDeleted && variantServiceLookup.ContainsKey(vf.ServiceVariantId))
+                .Select(vf => (ServiceId: variantServiceLookup[vf.ServiceVariantId], vf.FeeId))
+                .ToHashSet();
+
+            var allServiceFees = await context.ServiceFees.IgnoreQueryFilters().ToListAsync();
+            var seenServiceFeePairs = new HashSet<(Guid ServiceId, Guid FeeId)>();
+            foreach (var sf in allServiceFees.OrderBy(x => x.IsDeleted).ThenByDescending(x => x.IsActive))
+            {
+                if (sf.ServiceId == ExamsCategorySeederData.Svc101Id ||
+                    serviceFeePairsFromVariants.Contains((sf.ServiceId, sf.FeeId)) ||
+                    !seenServiceFeePairs.Add((sf.ServiceId, sf.FeeId)))
+                {
+                    context.ServiceFees.Remove(sf);
+                }
+            }
+
+            // Self-heal: Remove any duplicate fee line items (same canonical code) and normalize non-year fee ValidityYears = 0 on existing StatementsOfAccount
+            var allActiveSoas = await context.StatementsOfAccount.IgnoreQueryFilters()
+                .Include(s => s.LineItems)
+                .Where(s => !s.IsDeleted && s.LineItems.Count > 0)
+                .ToListAsync();
+            foreach (var targetSoa in allActiveSoas)
+            {
+                var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var itemsRemoved = false;
+                foreach (var li in targetSoa.LineItems.OrderBy(x => x.Id).ToList())
+                {
+                    var part = li.Particular ?? string.Empty;
+                    var canonical = FeeConstants.Codes.NormalizeCanonicalCode(li.ItemCode, part);
+                    var isOthers = part.StartsWith("Others", StringComparison.OrdinalIgnoreCase);
+                    var key = !isOthers && canonical != "FEE" ? canonical : $"{canonical}::{part}";
+                    if (!seenKeys.Add(key))
+                    {
+                        context.Remove(li);
+                        targetSoa.LineItems.Remove(li);
+                        itemsRemoved = true;
+                        continue;
+                    }
+
+                    if (!FeeConstants.FormulaTokens.FeeUsesYears(null, canonical, part) && li.ValidityYears > 0)
+                    {
+                        li.ValidityYears = 0;
+                        li.PeriodOfCoverageStart = null;
+                        li.PeriodOfCoverageEnd = null;
+                    }
+                }
+                if (itemsRemoved)
+                {
+                    targetSoa.TotalAmount = targetSoa.LineItems.Sum(li => li.Amount);
                 }
             }
 
@@ -1023,6 +1149,31 @@ public static class FastTrackFeeSeeder
                     existingEf.Description = formula;
                     existingEf.ApplyLateRenewalSurcharge = applySur;
                     existingEf.IsActive = true;
+                }
+            }
+
+            // 6. Seed ServiceFormula for Exam Service (NTC 1-01) so service-level formula lookup always resolves FEEEXAM = EXAMFEE
+            var examServiceExists = await context.Services.IgnoreQueryFilters().AnyAsync(s => s.Id == ExamsCategorySeederData.Svc101Id);
+            if (examServiceExists)
+            {
+                var existingExamSvcFormula = await context.ServiceFormulas.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(sf => sf.ServiceId == ExamsCategorySeederData.Svc101Id);
+                if (existingExamSvcFormula == null)
+                {
+                    context.ServiceFormulas.Add(new ServiceFormula
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceId = ExamsCategorySeederData.Svc101Id,
+                        FormulaExpression = FeeConstants.Formulas.ExamStandard,
+                        Description = FeeConstants.Formulas.ExamStandard,
+                        IsActive = true
+                    });
+                }
+                else
+                {
+                    existingExamSvcFormula.FormulaExpression = FeeConstants.Formulas.ExamStandard;
+                    existingExamSvcFormula.Description = FeeConstants.Formulas.ExamStandard;
+                    existingExamSvcFormula.IsActive = true;
                 }
             }
 

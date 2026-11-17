@@ -18,16 +18,29 @@ public class CreateFeeCommandHandler : IRequestHandler<CreateFeeCommand, FeeDto>
 
     public async Task<FeeDto> Handle(CreateFeeCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _feeRepository.GetByCodeAsync(request.Code, cancellationToken);
+        var canonicalCode = EDGE.Domain.Constants.FeeConstants.Codes.NormalizeCanonicalCode(request.Code, request.Name);
+        var normalizedCode = canonicalCode != "FEE" ? canonicalCode : request.Code.Trim().ToUpperInvariant();
+        var normalizedName = request.Name.Trim();
+
+        var existing = await _feeRepository.GetByCodeAsync(normalizedCode, cancellationToken)
+                       ?? await _feeRepository.GetByCodeAsync(request.Code.Trim(), cancellationToken);
         if (existing != null)
         {
-            throw new InvalidOperationException($"Fee with code '{request.Code}' already exists.");
+            throw new InvalidOperationException($"Fee with code '{normalizedCode}' already exists.");
+        }
+
+        var allFees = await _feeRepository.GetAllAsync(null, cancellationToken);
+        if (allFees.Any(f =>
+            string.Equals(f.Name.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(EDGE.Domain.Constants.FeeConstants.Codes.NormalizeCanonicalCode(f.Code, f.Name), normalizedCode, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"A fee representing '{normalizedName}' ({normalizedCode}) already exists.");
         }
 
         var fee = new Fee
         {
-            Code = request.Code.Trim().ToUpperInvariant(),
-            Name = request.Name.Trim(),
+            Code = normalizedCode,
+            Name = normalizedName,
             Description = request.Description?.Trim(),
             IsActive = true
         };

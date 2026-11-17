@@ -173,6 +173,46 @@ export interface ApplicationServiceItem {
   submissionId?: string;
 }
 
+export interface SoaRecordSummary {
+  id: string;
+  applicantId?: string;
+  soaNumber: string;
+  status: string;
+  issuedToType: ApplicantType;
+  issuedToName: string;
+  issuedToAddress?: string;
+  totalAmount: number;
+  dueDate: string;
+  createdAt?: string;
+  preparedByName?: string;
+  preparedByTitle?: string;
+  approvedByName?: string;
+  approvedByTitle?: string;
+  remarks?: string;
+  soaNoteId?: string;
+  soaNoteText?: string;
+  items: SoaItem[];
+}
+
+export interface OpRecordSummary {
+  id: string;
+  statementOfAccountId: string;
+  applicantId?: string;
+  opNumber: string;
+  status: string;
+  amountDue: number;
+  amountReceived: number;
+  paymentMethod?: string;
+  officialReceiptNumber?: string;
+  orNumbers?: string[];
+  checkNumber?: string;
+  checkName?: string;
+  checkBank?: string;
+  checkDate?: string;
+  paidAt?: string;
+  remarks?: string;
+}
+
 export interface ApplicationData {
   id: string;
   tenantId?: string;
@@ -209,6 +249,9 @@ export interface ApplicationData {
   soaApprovedByName?: string;
   soaApprovedByTitle?: string;
   soaNoteId?: string;
+  soaBillingMode?: 'BULK' | 'INDIVIDUAL';
+  soasList?: SoaRecordSummary[];
+  opsList?: OpRecordSummary[];
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';

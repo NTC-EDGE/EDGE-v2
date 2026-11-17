@@ -104,10 +104,12 @@ export function serializeCertificateApplicant(
     }
   });
 
-  // Also include all standard system field GUIDs from FIELD_GUID_MAP
-  Object.values(FIELD_GUID_MAP).forEach((guid) => {
-    validFieldIdSet.add(guid.toLowerCase().trim());
-  });
+  // Only fallback to global FIELD_GUID_MAP when no explicit Form Builder schema fields are provided
+  if (validFieldIdSet.size === 0) {
+    Object.values(FIELD_GUID_MAP).forEach((guid) => {
+      validFieldIdSet.add(guid.toLowerCase().trim());
+    });
+  }
 
   const finalFieldValues: FormFieldValuePayload[] = [];
   const processedFieldIds = new Set<string>();
@@ -172,18 +174,10 @@ export function serializeCertificateApplicant(
   }
 
   const isComp = (app.applicantType || "").toLowerCase() === "company";
-  const effectiveFirstName = isComp
-    ? app.representativeFirstName || finalFirstName || ""
-    : finalFirstName || "";
-  const effectiveMiddleName = isComp
-    ? app.representativeMiddleName || app.middleName
-    : app.middleName;
-  const effectiveLastName = isComp
-    ? app.representativeLastName || finalLastName || ""
-    : finalLastName || "";
-  const effectiveSuffix = isComp
-    ? app.representativeSuffix || app.suffix
-    : app.suffix;
+  const effectiveFirstName = finalFirstName || (isComp ? app.representativeFirstName || "" : "");
+  const effectiveMiddleName = app.middleName || (isComp ? app.representativeMiddleName : undefined);
+  const effectiveLastName = finalLastName || (isComp ? app.representativeLastName || "" : "");
+  const effectiveSuffix = app.suffix || (isComp ? app.representativeSuffix : undefined);
 
   const emailVal = app.email?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('email'))?.value?.trim() || "";
   const contactVal = app.contactNo?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('contact') || (fv.fieldLabel || '').toLowerCase().includes('mobile'))?.value?.trim() || "";

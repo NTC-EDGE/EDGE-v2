@@ -2,6 +2,8 @@ import { ApplicationDto, ApplicationSummaryDto, ApplicationActivityDto, extractO
 import {
   ApplicationData,
   ApplicationCategory,
+  SoaRecordSummary,
+  OpRecordSummary,
 } from '../../../types/application';
 import {
   parseApplicationCategory,
@@ -273,16 +275,33 @@ export function mapApplicationDtoToUI(
         .trim()
     : primaryApplicantName;
 
+  const primaryRepNameFromFv = findPrimaryFv((lbl, id) =>
+    id === 'fd000000-0000-0000-0000-000000000082' ||
+    lbl.includes('representative name') ||
+    lbl.includes('authorized representative')
+  );
+  const primaryFullNameLower = typeof primaryFullName === 'string' ? primaryFullName.trim().toLowerCase() : '';
+  const primaryRepLower = typeof primaryRepNameFromFv === 'string' ? primaryRepNameFromFv.trim().toLowerCase() : '';
+  const filingUserLower = typeof rawFilingUser?.name === 'string' ? rawFilingUser.name.trim().toLowerCase() : '';
+  const isPrimaryFullNameRepresentative =
+    primaryFullNameLower.length > 0 &&
+    ((primaryRepLower.length > 0 && primaryFullNameLower === primaryRepLower) ||
+     (isCompanySubmission && filingUserLower.length > 0 && primaryFullNameLower === filingUserLower));
+
   const applicantName =
-    isValidName(primaryFullName)
-      ? formatProperName(primaryFullName)
-      : isCompanySubmission && isValidName(companyDetails?.name)
-        ? formatProperName(companyDetails.name)
-        : isValidName(rawFilingUser?.name)
-          ? formatProperName(rawFilingUser.name)
-          : isValidName(companyObj?.name)
-            ? formatProperName(companyObj.name)
-            : formatProperName(companyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
+    isCompanySubmission && isValidName(companyDetails?.name) && (isPrimaryFullNameRepresentative || !isValidName(primaryFullName))
+      ? formatProperName(companyDetails.name)
+      : isValidName(primaryFullName) && !isPrimaryFullNameRepresentative
+        ? formatProperName(primaryFullName)
+        : isValidName(companyDetails?.name)
+          ? formatProperName(companyDetails.name)
+          : isValidName(primaryFullName)
+            ? formatProperName(primaryFullName)
+            : isValidName(companyObj?.name)
+              ? formatProperName(companyObj.name)
+              : isValidName(rawFilingUser?.name)
+                ? formatProperName(rawFilingUser.name)
+                : 'Applicant';
 
   const rawPrimaryAddress = primaryDetail?.address ?? rawFilingUser?.company?.address ?? '';
   const parsedPrimaryAddr = parseAddressSegments(rawPrimaryAddress);
@@ -423,22 +442,41 @@ export function mapApplicationDtoToUI(
       lbl.includes('corporate name')
     );
 
+    const fvRepNameCandidate = findFv((lbl, id) =>
+      id === 'fd000000-0000-0000-0000-000000000082' ||
+      lbl.includes('representative name') ||
+      lbl.includes('authorized representative')
+    );
+
+    const nameCandLower = typeof nameCandidate === 'string' ? nameCandidate.trim().toLowerCase() : '';
+    const itemRepLower = typeof fvRepNameCandidate === 'string' ? fvRepNameCandidate.trim().toLowerCase() : '';
+    const isNameCandidateRep =
+      nameCandLower.length > 0 &&
+      ((itemRepLower.length > 0 && nameCandLower === itemRepLower) ||
+       (isBulkDto && filingUserLower.length > 0 && nameCandLower === filingUserLower && (Boolean(combinedFromFv) || Boolean(fvIndivNameCandidate) || Boolean(fvCorpNameCandidate))));
+
     const resolvedName =
-      isValidName(nameCandidate)
-        ? formatProperName(nameCandidate)
-        : isValidName(combinedFromFv)
-          ? formatProperName(combinedFromFv)
-          : isValidName(fvIndivNameCandidate)
-            ? formatProperName(fvIndivNameCandidate)
-            : !isIndividualItem && isValidName(fvCorpNameCandidate)
-              ? formatProperName(fvCorpNameCandidate)
-              : !isIndividualItem && isValidName(itemCompanyDetails?.name)
-                ? formatProperName(itemCompanyDetails.name)
-                : !isBulkDto && isValidName(rawFilingUser?.name)
-                  ? formatProperName(rawFilingUser.name)
-                  : isBulkDto
-                    ? `Applicant #${idx + 1}`
-                    : formatProperName(itemCompanyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
+      !isIndividualItem && isNameCandidateRep && isValidName(fvCorpNameCandidate)
+        ? formatProperName(fvCorpNameCandidate)
+        : !isIndividualItem && isNameCandidateRep && isValidName(itemCompanyDetails?.name)
+          ? formatProperName(itemCompanyDetails.name)
+          : isValidName(nameCandidate) && !isNameCandidateRep
+            ? formatProperName(nameCandidate)
+            : isValidName(combinedFromFv)
+              ? formatProperName(combinedFromFv)
+              : isValidName(fvIndivNameCandidate)
+                ? formatProperName(fvIndivNameCandidate)
+                : !isIndividualItem && isValidName(fvCorpNameCandidate)
+                  ? formatProperName(fvCorpNameCandidate)
+                  : !isIndividualItem && isValidName(itemCompanyDetails?.name)
+                    ? formatProperName(itemCompanyDetails.name)
+                    : isValidName(nameCandidate)
+                      ? formatProperName(nameCandidate)
+                      : !isBulkDto && isValidName(rawFilingUser?.name)
+                        ? formatProperName(rawFilingUser.name)
+                        : isBulkDto
+                          ? `Applicant #${idx + 1}`
+                          : formatProperName(itemCompanyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
 
     const rawAdFirst = isValidName(ad?.firstName) ? ad.firstName.trim() : '';
     const rawAdMiddle = ad?.middleName ? ad.middleName.trim() : '';
@@ -502,9 +540,15 @@ export function mapApplicationDtoToUI(
     const itemNat = (ad?.nationality && ad.nationality.trim().length > 0 ? ad.nationality.trim() : '') || (natFromFv ? natFromFv.trim() : '') || (idx === 0 ? natPrimary : '') || 'Filipino';
     const itemCivil = (idx === 0 ? findLatestTrail('CivilStatus') : undefined) || (ad?.civilStatus && ad.civilStatus.trim().length > 0 ? ad.civilStatus.trim() : '') || (civilFromFv ? civilFromFv.trim() : '') || (idx === 0 ? civilPrimary : '') || '';
 
+    const hasEvalRemarks = Boolean(
+      typeof appItem.evaluationRemarks === 'string' && appItem.evaluationRemarks.trim().length > 0
+    );
+
     let itemStatus: 'Complete' | 'Incomplete' | 'ForEndorsement' = 'Complete';
-    if (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement') {
-      itemStatus = appItem.status;
+    if (appItem.status === 'ForEndorsement') {
+      itemStatus = 'ForEndorsement';
+    } else if (appItem.status === 'Incomplete' && hasEvalRemarks) {
+      itemStatus = 'Incomplete';
     }
 
     const elementFromFv = findFv((lbl) => lbl.includes('element') || lbl.includes('station class'));
@@ -611,7 +655,14 @@ export function mapApplicationDtoToUI(
     };
   });
 
-  const feStatus = mapBEStatusToFE(dto.status);
+  const rawFeStatus = mapBEStatusToFE(dto.status);
+  const hasUnpaidOpInDto =
+    ('ordersOfPayment' in dto &&
+      Array.isArray(dto.ordersOfPayment) &&
+      dto.ordersOfPayment.some((o) => o.status === 'Billed' || o.status === 'Processing')) ||
+    ('opStatus' in dto && (dto.opStatus === 'Billed' || dto.opStatus === 'Processing'));
+  const feStatus =
+    rawFeStatus === 'ForIssuance' && hasUnpaidOpInDto ? 'PendingPayment' : rawFeStatus;
 
   const isBulk =
     dto.submissionMode === 'Bulk' ||
@@ -658,7 +709,7 @@ export function mapApplicationDtoToUI(
   const sortedHistories = [...histories].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   const reversedHistories = [...sortedHistories].reverse();
 
-  const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
+  const sortedSoas = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
     ? [...dto.statementsOfAccount].sort((a, b) => {
         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -668,8 +719,89 @@ export function mapApplicationDtoToUI(
         const hTimeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
         const hTimeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
         return hTimeB - hTimeA;
-      })[0]
-    : undefined;
+      })
+    : [];
+
+  const activeSoa = sortedSoas[0];
+
+  const hasIndividualSoas = sortedSoas.some((s) => Boolean(s.applicantId));
+  const soaBillingMode: 'BULK' | 'INDIVIDUAL' = isBulk && hasIndividualSoas ? 'INDIVIDUAL' : 'BULK';
+
+  const deduplicatedSoasMap = new Map<string, (typeof sortedSoas)[number]>();
+  for (const s of sortedSoas) {
+    if (soaBillingMode === 'INDIVIDUAL' && !s.applicantId) continue;
+    if (soaBillingMode === 'BULK' && s.applicantId && isBulk) continue;
+    const key = s.applicantId || '__bulk__';
+    if (!deduplicatedSoasMap.has(key)) {
+      deduplicatedSoasMap.set(key, s);
+    }
+  }
+
+  const deduplicateSoaLineItems = (rawItems: (typeof sortedSoas)[number]['lineItems'] | undefined) => {
+    if (!rawItems || rawItems.length === 0) return [];
+    const seen = new Set<string>();
+    return rawItems.filter((item) => {
+      const code = (item.itemCode || '').trim().toUpperCase();
+      const part = (item.particular || '').trim().toLowerCase();
+      let canonical = code;
+      if (code === 'FF' || code === 'FILING_FEE' || code === 'BULK_FILING_FEE' || part === 'filing fee' || part === 'filling fee') canonical = 'FF';
+      else if (code === 'AF' || code === 'APP_FEE' || code === 'APPLICATION_FEE' || part === 'application fee') canonical = 'AF';
+      else if (code === 'IF' || code === 'INSP_FEE' || code === 'INSPECTION_FEE' || part === 'inspection fee') canonical = 'IF';
+      else if (code === 'LF' || code === 'LIC' || code === 'LIC_RIGHTS_FEE' || code === 'LICENSE_FEE' || part === 'license fee') canonical = 'LF';
+      else if (code === 'PF' || code === 'PERMIT' || code === 'PERMIT_ISSUE_FEE' || code === 'PERMIT_FEE' || part === 'permit fee') canonical = 'PF';
+      else if (code === 'POS' || code === 'POSS_PERMIT' || code === 'POSSESS_PERMIT' || part === 'possess permit fee') canonical = 'POS';
+      else if (code === 'PUR' || code === 'PURCHASE_PERMIT' || part === 'purchase permit fee') canonical = 'PUR';
+      else if (code === 'STF' || code === 'SELL_TRANSFER' || part === 'sell/transfer permit fee') canonical = 'STF';
+      else if (code === 'EXAM' || code === 'EXAM_REG_FEE' || code === 'EXAM_FEE' || code === 'EXAMFEE' || part.includes('examination fee') || part.includes('exam fee')) canonical = 'EXAM';
+      else if (code === 'SUR' || code === 'SURCHARGE' || code === 'SURCHARGE_LATE_FEE' || part.includes('surcharge')) canonical = 'SUR';
+      else if (code === 'DST' || code === 'DOC_STAMP_TAX' || part.includes('documentary stamp tax')) canonical = 'DST';
+      else if (code === 'MOD' || code === 'MOD_FEE' || part === 'modification fee') canonical = 'MOD';
+
+      const key = !part.startsWith('others') && canonical.length > 0 && !canonical.includes('-')
+        ? canonical
+        : `${canonical}::${part}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const soasList: SoaRecordSummary[] = Array.from(deduplicatedSoasMap.values()).map((s) => {
+    const dedupedItems = deduplicateSoaLineItems(s.lineItems).map((item) => ({
+      particular: item.particular,
+      validityYears: typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 0,
+      percentage: 0,
+      noOfUnits: item.noOfUnits || 1,
+      fees: item.feeRate,
+      amount: item.amount,
+      code: item.itemCode,
+    }));
+    const computedTotal = dedupedItems.length > 0
+      ? dedupedItems.reduce((sum, li) => sum + (li.amount || 0), 0)
+      : s.totalAmount;
+    return {
+      id: s.id,
+      applicantId: s.applicantId,
+      soaNumber: s.soaNumber,
+      status: s.status,
+      issuedToType: s.issuedToType === 'Company' ? 'Company' : 'Individual',
+      issuedToName: s.issuedToName,
+      issuedToAddress: s.issuedToAddress,
+      totalAmount: computedTotal,
+      dueDate: s.dueDate
+        ? (s.dueDate.includes('T') ? (s.dueDate.split('T')[0] ?? '') : s.dueDate)
+        : '',
+      createdAt: s.createdAt,
+      preparedByName: s.preparedByName,
+      preparedByTitle: s.preparedByTitle,
+      approvedByName: s.approvedByName,
+      approvedByTitle: s.approvedByTitle,
+      remarks: s.remarks,
+      soaNoteId: s.soaNoteId,
+      soaNoteText: s.soaNoteText,
+      items: dedupedItems,
+    };
+  });
 
   const hasAccountantClaim = hasExplicitAccountantClaim(histories);
   const hasCashierClaim = hasExplicitCashierClaim(histories);
@@ -721,20 +853,60 @@ export function mapApplicationDtoToUI(
     hasCashierClaim
   );
 
-  const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
-    ? [...dto.ordersOfPayment].sort((a, b) => {
-        const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
-        const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
-        if (hasOrA && !hasOrB) return -1;
-        if (!hasOrA && hasOrB) return 1;
+  const rawOrdersOfPayment =
+    'ordersOfPayment' in dto && Array.isArray(dto.ordersOfPayment)
+      ? dto.ordersOfPayment.filter((o) => o.status !== 'Returned')
+      : [];
 
-        const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
-        const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
-        const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
-        const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
-        return timeB - timeA;
-      })[0]
-    : undefined;
+  const sortedOpsForActive = [...rawOrdersOfPayment].sort((a, b) => {
+    if (feStatus === 'PendingPayment' || hasUnpaidOpInDto) {
+      const unpaidA = a.status === 'Billed' || a.status === 'Processing';
+      const unpaidB = b.status === 'Billed' || b.status === 'Processing';
+      if (unpaidA && !unpaidB) return -1;
+      if (!unpaidA && unpaidB) return 1;
+      if (a.status === 'Processing' && b.status === 'Billed') return -1;
+      if (a.status === 'Billed' && b.status === 'Processing') return 1;
+    } else {
+      const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
+      const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
+      if (hasOrA && !hasOrB) return -1;
+      if (!hasOrA && hasOrB) return 1;
+    }
+
+    const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+    const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+    const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
+    const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
+    return timeB - timeA;
+  });
+
+  const activeOp = sortedOpsForActive[0];
+
+  const activeSoaIds = new Set(soasList.map((s) => s.id));
+  const filteredOps = rawOrdersOfPayment.filter((op) => activeSoaIds.size === 0 || activeSoaIds.has(op.statementOfAccountId));
+  const opsSource = filteredOps.length > 0 ? filteredOps : rawOrdersOfPayment;
+
+  const opsList: OpRecordSummary[] = opsSource.map((op) => {
+    const matchedSoa = soasList.find((s) => s.id === op.statementOfAccountId);
+    return {
+      id: op.id,
+      statementOfAccountId: op.statementOfAccountId,
+      applicantId: matchedSoa?.applicantId,
+      opNumber: op.opNumber,
+      status: op.status,
+      amountDue: op.amountDue,
+      amountReceived: op.amountReceived,
+      paymentMethod: op.paymentMethod,
+      officialReceiptNumber: op.officialReceiptNumber,
+      orNumbers: op.orNumbers,
+      checkNumber: op.checkNumber,
+      checkName: op.checkName,
+      checkBank: op.checkBank,
+      checkDate: op.checkDate ? (op.checkDate.split('T')[0] ?? '') : undefined,
+      paidAt: op.paidAt,
+      remarks: op.remarks,
+    };
+  });
 
   const directOrNumber = 'officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string'
     ? dto.officialReceiptNumber
@@ -763,7 +935,9 @@ export function mapApplicationDtoToUI(
     permitTitle: resolvedServiceName,
     category: resolvedCategory,
     status: feStatus,
-    queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role, {
+    queueTab:
+      (hasUnpaidOpInDto && dto.queueTab === 'issuance' ? undefined : parseBackendQueueTab(dto.queueTab)) ??
+      deriveQueueTab(feStatus, role, {
       hasSoa: Boolean(activeSoa || (dto.statementsOfAccount && dto.statementsOfAccount.length > 0)),
       hasOp: Boolean(dto.ordersOfPayment && dto.ordersOfPayment.length > 0),
       hasAccountantHistory: histories.some((h) => {
@@ -866,6 +1040,9 @@ export function mapApplicationDtoToUI(
       : (activeSoa?.soaNoteText ?? undefined),
     soaNoteId: activeSoa?.soaNoteId ?? undefined,
     soaNoteText: activeSoa?.soaNoteText ?? undefined,
+    soaBillingMode,
+    soasList,
+    opsList,
     endorsedTo: endorsementState.endorsedTo,
     endorsedBy: endorsementState.endorsedBy,
     isBeingViewed: false,
@@ -915,16 +1092,18 @@ export function mapApplicationDtoToUI(
     },
     requirements: [],
     forms: [],
-    soaItems: activeSoa?.lineItems?.map((item) => ({
+    soaItems: deduplicateSoaLineItems(activeSoa?.lineItems).map((item) => ({
       particular: item.particular,
-      validityYears: item.validityYears || 1,
+      validityYears: typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 0,
       percentage: 0,
       noOfUnits: item.noOfUnits || 1,
       fees: item.feeRate,
       amount: item.amount,
       code: item.itemCode,
-    })) ?? [],
-    totalAmountDue: activeSoa?.totalAmount ?? (('totalAmountDue' in dto && typeof dto.totalAmountDue === 'number') ? dto.totalAmountDue : 0),
+    })),
+    totalAmountDue: soaBillingMode === 'INDIVIDUAL' && soasList.length > 0
+      ? soasList.reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+      : (soasList[0]?.totalAmount ?? activeSoa?.totalAmount ?? (('totalAmountDue' in dto && typeof dto.totalAmountDue === 'number') ? dto.totalAmountDue : 0)),
     dueDate: activeSoa?.dueDate
       ? (activeSoa.dueDate.includes('T') ? (activeSoa.dueDate.split('T')[0] ?? '') : activeSoa.dueDate)
       : '',

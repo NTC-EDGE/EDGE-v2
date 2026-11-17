@@ -143,6 +143,8 @@ public static class SoaEndpoints
         IOfficialReceiptRepository? receiptRepository = null,
         ISoaNoteRepository? soaNoteRepository = null,
         string? orNumber = null,
+        Guid? soaId = null,
+        Guid? applicantId = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -152,14 +154,22 @@ public static class SoaEndpoints
             return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
         }
 
-        var soa = app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+        var activeSoas = app.StatementsOfAccount.Where(s => !s.IsDeleted).OrderByDescending(s => s.CreatedAt).ToList();
+        var soa = (soaId.HasValue && soaId.Value != Guid.Empty)
+            ? activeSoas.FirstOrDefault(s => s.Id == soaId.Value)
+            : (applicantId.HasValue && applicantId.Value != Guid.Empty)
+                ? activeSoas.FirstOrDefault(s => s.ApplicantId == applicantId.Value)
+                : activeSoas.FirstOrDefault();
 
-        // Prioritize paid Order of Payment if one exists
+        // Prioritize paid Order of Payment linked to this SOA if one exists
         var paidOp = app.OrdersOfPayment
+            .Where(o => soa == null || o.StatementOfAccountId == soa.Id)
             .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
             .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
 
-        var op = paidOp ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+        var op = paidOp
+            ?? (soa != null ? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.StatementOfAccountId == soa.Id) : null)
+            ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
 
         // If no direct SOA found on application, check if linked via Order of Payment
         if (soa == null && op != null && op.StatementOfAccountId != Guid.Empty)

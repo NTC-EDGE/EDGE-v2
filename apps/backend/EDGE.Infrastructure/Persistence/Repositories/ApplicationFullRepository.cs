@@ -84,6 +84,13 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     .ThenInclude(app => app!.FormSubmission)
                         .ThenInclude(fs => fs!.FieldValues)
                             .ThenInclude(fv => fv!.Field)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.FormSubmission)
+                        .ThenInclude(fs => fs!.Form)
+                            .ThenInclude(f => f!.Sections)
+                                .ThenInclude(s => s.SectionFields)
+                                    .ThenInclude(sf => sf.Field)
             .Include(a => a.ApplicationRequirements)
                 .ThenInclude(ar => ar.StoredFile)
             .Include(a => a.ApplicationRequirements)
@@ -93,6 +100,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(a => a.FormSubmissions)
                 .ThenInclude(fs => fs.FieldValues)
                     .ThenInclude(fv => fv.Field)
+            .Include(a => a.FormSubmissions)
+                .ThenInclude(fs => fs.Form)
+                    .ThenInclude(f => f!.Sections)
+                        .ThenInclude(s => s.SectionFields)
+                            .ThenInclude(sf => sf.Field)
             .Include(a => a.StatementsOfAccount)
                 .ThenInclude(s => s.LineItems)
             .Include(a => a.StatementsOfAccount)
@@ -435,7 +447,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         ? (Guid?)aa.Applicant.FormSubmission.Id
                         : null,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
-                    Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
+                    Status = aa.Applicant != null
+                        ? (app.Status != ApplicationStatus.Draft && aa.Applicant.Status == ApplicantStatus.Incomplete && string.IsNullOrWhiteSpace(aa.Applicant.EvaluationRemarks)
+                            ? ApplicantStatus.Complete.ToString()
+                            : aa.Applicant.Status.ToString())
+                        : "Incomplete",
                     Name = aa.Applicant != null && aa.Applicant.ApplicantDetail != null
                         ? (aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).Trim()
                         : (aa.Applicant != null && aa.Applicant.CompanyDetail != null ? aa.Applicant.CompanyDetail.Name : "Applicant"),
@@ -768,10 +784,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         OfficialReceiptNumber = d.OfficialReceiptNumber,
                         Remarks = d.Remarks
                     }).ToList(),
-                    OfficialReceiptNumber = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
-                        .Select(o => o.OfficialReceiptNumber)
-                        .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                    OfficialReceiptNumber = app.OrdersOfPayment.Any(o => o.Status == Domain.Enums.OpStatus.Billed || o.Status == Domain.Enums.OpStatus.Processing)
+                        ? null
+                        : app.OrdersOfPayment
+                            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                            .Select(o => o.OfficialReceiptNumber)
+                            .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     SoaNumber = app.StatementsOfAccount
                         .OrderByDescending(s => s.CreatedAt)
                         .Select(s => s.SoaNumber)
@@ -787,47 +805,59 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         .Select(o => o.PaidAt)
                         .FirstOrDefault(),
                     TotalAmountDue = app.StatementsOfAccount
+                        .Where(s => !s.IsDeleted)
+                        .Sum(s => (decimal?)s.TotalAmount) ?? app.StatementsOfAccount
                         .OrderByDescending(s => s.CreatedAt)
                         .Select(s => (decimal?)s.TotalAmount)
                         .FirstOrDefault(),
                     PaymentMethod = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.PaymentMethod != null ? o.PaymentMethod.ToString() : null)
                         .FirstOrDefault(),
                     CheckNumber = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckNumber)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     CheckName = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckName)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     CheckBank = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckBank)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     CheckDate = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckDate)
                         .FirstOrDefault(d => d != null),
                     PayorName = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.CheckName)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     PaymentRemarks = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.Remarks)
                         .FirstOrDefault(r => !string.IsNullOrEmpty(r)),
                     OrderOfPaymentId = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenBy(o => o.CreatedAt)
                         .Select(o => (Guid?)o.Id)
                         .FirstOrDefault(),
                     OpNumber = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenBy(o => o.CreatedAt)
                         .Select(o => o.OpNumber)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     OpStatus = app.OrdersOfPayment
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .OrderBy(o => o.Status == Domain.Enums.OpStatus.Processing ? 0 : (o.Status == Domain.Enums.OpStatus.Billed ? 1 : 2))
+                        .ThenBy(o => o.CreatedAt)
                         .Select(o => o.Status.ToString())
                         .FirstOrDefault(),
                     Histories = app.Histories.Select(h => new EDGE.Application.Applications.Dtos.ApplicationHistoryDto
@@ -878,7 +908,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                             ? (Guid?)aa.Applicant.FormSubmission.Id
                             : null,
                         ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
-                        Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
+                        Status = aa.Applicant != null
+                            ? (app.Status != ApplicationStatus.Draft && aa.Applicant.Status == ApplicantStatus.Incomplete && string.IsNullOrWhiteSpace(aa.Applicant.EvaluationRemarks)
+                                ? ApplicantStatus.Complete.ToString()
+                                : aa.Applicant.Status.ToString())
+                            : "Incomplete",
                         Name = aa.Applicant != null && aa.Applicant.ApplicantDetail != null
                             ? (aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).Trim()
                             : (aa.Applicant != null && aa.Applicant.CompanyDetail != null ? aa.Applicant.CompanyDetail.Name : "Applicant"),
@@ -1470,7 +1504,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     UserId = aa.Applicant != null ? aa.Applicant.UserId : null,
                     IsGuest = aa.Applicant != null ? aa.Applicant.IsGuest : true,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
-                    Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
+                    Status = aa.Applicant != null
+                        ? (app.Status != ApplicationStatus.Draft && aa.Applicant.Status == ApplicantStatus.Incomplete && string.IsNullOrWhiteSpace(aa.Applicant.EvaluationRemarks)
+                            ? ApplicantStatus.Complete.ToString()
+                            : aa.Applicant.Status.ToString())
+                        : "Incomplete",
                     EvaluationRemarks = aa.Applicant != null ? aa.Applicant.EvaluationRemarks : null,
                     ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
@@ -1540,7 +1578,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                             Value = fv.Value
                         }).ToList()
                 }).ToList(),
-                StatementsOfAccount = app.StatementsOfAccount.Select(s => new EDGE.Application.Applications.Dtos.StatementOfAccountDto
+                StatementsOfAccount = app.StatementsOfAccount.Where(s => !s.IsDeleted).Select(s => new EDGE.Application.Applications.Dtos.StatementOfAccountDto
                 {
                     Id = s.Id,
                     ApplicationId = s.ApplicationId,
@@ -1741,6 +1779,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
     {
         return await _context.OrdersOfPayment
             .Include(o => o.Application)
+                .ThenInclude(a => a.OrdersOfPayment)
+            .Include(o => o.Application)
+                .ThenInclude(a => a.StatementsOfAccount)
             .Include(o => o.StatementOfAccount)
                 .ThenInclude(s => s.LineItems)
             .Include(o => o.Histories)

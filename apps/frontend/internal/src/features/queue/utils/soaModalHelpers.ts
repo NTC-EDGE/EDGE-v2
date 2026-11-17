@@ -67,17 +67,241 @@ export const resolveInitialType = (app?: ApplicationData | null): IssuedToTypeDt
   return app.applicantType === 'Company' ? 'Company' : 'Individual';
 };
 
+const NON_YEAR_CANONICAL_CODES = new Set([
+  'DST',
+  'SUR',
+  'FF',
+  'AF',
+  'SEM',
+]);
+
+export const doesFeeCodeUseYears = (
+  itemCode?: string | null,
+  particular?: string | null,
+  formula?: string | null,
+  formExplicitlyAsksForYears: boolean = false
+): boolean => {
+  const canonical = normalizeCanonicalFeeCode(itemCode, particular);
+  if (NON_YEAR_CANONICAL_CODES.has(canonical)) {
+    return false;
+  }
+  if (formula && formula.trim().length > 0) {
+    const upperFormula = formula.toUpperCase();
+    if (!upperFormula.includes('YR') && !upperFormula.includes('YEARS') && !formExplicitlyAsksForYears) {
+      return false;
+    }
+  }
+  return true;
+};
+
+export const doesApplicationAskForYears = (
+  app?: ApplicationData | null,
+  calculatedFees?: FeeCalculationResultDto | null
+): boolean => {
+  if (!app) return false;
+
+  const isYearsFieldLabel = (label?: string | null, fieldId?: string | null): boolean => {
+    if (fieldId === 'fd000000-0000-0000-0000-000000000201') return true;
+    if (!label) return false;
+    const lower = label.trim().toLowerCase();
+    if (
+      lower.includes('graduat') ||
+      lower.includes('birth') ||
+      lower.includes('experience') ||
+      lower.includes('age') ||
+      lower.includes('school')
+    ) {
+      return false;
+    }
+    return (
+      lower === 'no. of years' ||
+      lower === 'no of years' ||
+      lower === 'no.of years' ||
+      lower === 'number of years' ||
+      lower === 'no. of yrs' ||
+      lower === 'no of yrs' ||
+      lower === 'no. of yr' ||
+      lower === 'no of yr' ||
+      lower === 'validity years' ||
+      lower === 'validity (years)' ||
+      lower === 'years of validity' ||
+      lower === 'years applied' ||
+      lower === 'applied years' ||
+      lower === 'years' ||
+      lower.includes('number of years') ||
+      lower.includes('no. of years') ||
+      lower.includes('no of years') ||
+      lower.includes('no.of years') ||
+      lower.includes('no. of yrs') ||
+      lower.includes('no of yrs') ||
+      lower.includes('validity years') ||
+      lower.includes('years applied')
+    );
+  };
+
+  const hasYearsInAppFields = Boolean(
+    app.formFieldValues?.some((fv) => isYearsFieldLabel(fv.fieldLabel, fv.fieldId)) ||
+    app.applicantsList?.some((a) =>
+      a.formFieldValues?.some((fv) => isYearsFieldLabel(fv.fieldLabel, fv.fieldId))
+    )
+  );
+
+  if (hasYearsInAppFields) {
+    return true;
+  }
+
+  if (calculatedFees?.lineItems && calculatedFees.lineItems.length > 0) {
+    return calculatedFees.lineItems.some((li) => (li.validityYears ?? 0) > 0);
+  }
+
+  return false;
+};
+
 export const calculateLineItemAmount = (
   validityYears?: number | string | null,
   noOfUnits?: number | string | null,
   feeRate?: number | string | null,
-  itemCode?: string | null
+  itemCode?: string | null,
+  particular?: string | null
 ): number => {
-  const y = typeof validityYears === 'number' && !isNaN(validityYears) ? validityYears : Number(validityYears) || 1;
+  const rawY = typeof validityYears === 'number' && !isNaN(validityYears) ? validityYears : Number(validityYears) || 0;
+  const usesYears = rawY > 0 && doesFeeCodeUseYears(itemCode, particular, null, true);
+  const y = usesYears ? rawY : 1;
   const u = typeof noOfUnits === 'number' && !isNaN(noOfUnits) ? noOfUnits : Number(noOfUnits) || 1;
   const r = typeof feeRate === 'number' && !isNaN(feeRate) ? feeRate : Number(feeRate) || 0;
-  const isDst = (itemCode || '').trim().toUpperCase() === 'DST';
+  const isDst = normalizeCanonicalFeeCode(itemCode, particular) === 'DST';
   return isDst ? r : y * u * r;
+};
+
+export const normalizeCanonicalFeeCode = (rawCode?: string | null, rawParticular?: string | null): string => {
+  const code = (rawCode || '').trim().toUpperCase();
+  switch (code) {
+    case 'FF':
+    case 'FILING_FEE':
+    case 'BULK_FILING_FEE':
+    case 'FILING':
+      return 'FF';
+    case 'AF':
+    case 'APP_FEE':
+    case 'APPLICATION_FEE':
+      return 'AF';
+    case 'IF':
+    case 'INSP_FEE':
+    case 'INSPECTION_FEE':
+      return 'IF';
+    case 'LF':
+    case 'LIC':
+    case 'LIC_RIGHTS_FEE':
+    case 'LICENSE_FEE':
+      return 'LF';
+    case 'PF':
+    case 'PERMIT':
+    case 'PERMIT_ISSUE_FEE':
+    case 'PERMIT_FEE':
+      return 'PF';
+    case 'POS':
+    case 'POSS_PERMIT':
+    case 'POSSESS_PERMIT':
+    case 'POSSESS_FEE':
+      return 'POS';
+    case 'PUR':
+    case 'PURCHASE_PERMIT':
+    case 'PURCHASE_FEE':
+      return 'PUR';
+    case 'STF':
+    case 'SELL_TRANSFER':
+    case 'SELL_TRANSFER_FEE':
+      return 'STF';
+    case 'EXAM':
+    case 'EXAM_REG_FEE':
+    case 'EXAM_FEE':
+    case 'EXAMFEE':
+      return 'EXAM';
+    case 'SUR':
+    case 'SURCHARGE':
+    case 'SURCHARGE_LATE_FEE':
+      return 'SUR';
+    case 'DST':
+    case 'DOC_STAMP_TAX':
+    case 'DST_FEE':
+      return 'DST';
+    case 'MOD':
+    case 'MOD_FEE':
+    case 'MODIFICATION_FEE':
+      return 'MOD';
+    case 'ROC':
+    case 'ROC_FEE':
+      return 'ROC';
+    case 'SEM':
+    case 'SEMINAR_FEE':
+      return 'SEM';
+    case 'REG':
+    case 'REG_FEE':
+    case 'REGISTRATION_FEE':
+      return 'REG';
+    case 'DUP':
+    case 'DUP_FEE':
+    case 'DUPLICATE_FEE':
+      return 'DUP';
+    case 'CPF':
+    case 'CONST_PERMIT_FEE':
+    case 'CPF_FEE':
+      return 'CPF';
+    case 'SUF':
+    case 'SPECTRUM_FEE':
+    case 'SUF_FEE':
+      return 'SUF';
+    case 'PTR':
+    case 'TRANSPORT_FEE':
+      return 'PTR';
+    case 'DEMO':
+    case 'DEMO_FEE':
+      return 'DEMO';
+    case 'SP':
+    case 'SPECIAL_PERMIT':
+    case 'SPECIAL_PERMIT_FEE':
+      return 'SP';
+    case 'ACCRED':
+    case 'ACCREDITATION_FEE':
+      return 'ACCRED';
+    case 'REQ_FEE':
+    case 'REQUEST_FEE':
+      return 'REQ_FEE';
+  }
+
+  const part = (rawParticular || '').trim().toLowerCase();
+  if (part.includes('examination fee') || part.includes('exam fee')) return 'EXAM';
+  if (part === 'filing fee' || part === 'filling fee' || part.includes('filing & application processing') || part.includes('filing & processing')) return 'FF';
+  if (part === 'application fee') return 'AF';
+  if (part === 'inspection fee' || part.includes('technical site inspection')) return 'IF';
+  if (part === 'license fee' || part === 'radio station license' || part.includes('spectrum & license rights')) return 'LF';
+  if (part === 'permit fee' || part.includes('permit & certificate issuance')) return 'PF';
+  if (part === 'possess permit fee' || part === 'permit to possess/storage') return 'POS';
+  if (part === 'purchase permit fee' || part === 'permit to purchase') return 'PUR';
+  if (part === 'sell/transfer permit fee') return 'STF';
+  if (part.includes('documentary stamp tax')) return 'DST';
+  if (part === 'modification fee') return 'MOD';
+  if (part.includes('radio operator certificate') || part.includes('radio operator\'s cert')) return 'ROC';
+  if (part === 'seminar fee') return 'SEM';
+  if (part === 'registration fee') return 'REG';
+  if (part === 'duplicate copy fee') return 'DUP';
+  if (part === 'construction permit fee') return 'CPF';
+  if (part.includes('spectrum user')) return 'SUF';
+  if (part.includes('surcharge') || part.includes('fines/penalties')) return 'SUR';
+
+  return code || 'FEE';
+};
+
+export const resolveDedupFeeKey = (code: string, particular: string): string => {
+  const lowerPart = particular.trim().toLowerCase();
+  if (lowerPart.startsWith('others')) {
+    return `OTHERS::${lowerPart}`;
+  }
+  const canonical = normalizeCanonicalFeeCode(code, particular);
+  if (canonical !== 'FEE' && !canonical.includes('-')) {
+    return canonical;
+  }
+  return `${canonical}::${lowerPart}`;
 };
 
 export const mapCalculatedFeesToEditableItems = (
@@ -86,18 +310,29 @@ export const mapCalculatedFeesToEditableItems = (
 ): EditableLineItem[] => {
   if (!items || !Array.isArray(items)) return [];
 
-  return items.map((item, idx) => {
+  const seenKeys = new Set<string>();
+  const result: EditableLineItem[] = [];
+
+  items.forEach((item, idx) => {
     const safeParticular = (item?.particular && typeof item.particular === 'string' && item.particular.trim().length > 0)
       ? item.particular.trim()
       : 'Statutory Fee';
 
-    const safeItemCode = (item?.itemCode && typeof item.itemCode === 'string' && item.itemCode.trim().length > 0)
+    const rawItemCode = (item?.itemCode && typeof item.itemCode === 'string' && item.itemCode.trim().length > 0)
       ? item.itemCode.trim()
       : 'FEE';
+    const canonicalCode = normalizeCanonicalFeeCode(rawItemCode, safeParticular);
+    const safeItemCode = !rawItemCode.includes('-') && canonicalCode !== 'FEE' ? canonicalCode : rawItemCode;
 
-    const safeValidityYears = (typeof item?.validityYears === 'number' && !isNaN(item.validityYears) && item.validityYears > 0)
-      ? item.validityYears
-      : 1;
+    const dedupKey = resolveDedupFeeKey(safeItemCode, safeParticular);
+    if (seenKeys.has(dedupKey)) {
+      return;
+    }
+    seenKeys.add(dedupKey);
+
+    const hasBackendYears = typeof item?.validityYears === 'number' && !isNaN(item.validityYears) && item.validityYears > 0;
+    const usesYears = doesFeeCodeUseYears(safeItemCode, safeParticular, null, hasBackendYears);
+    const safeValidityYears = usesYears && hasBackendYears ? item.validityYears : 0;
 
     const safeNoOfUnits = (typeof item?.noOfUnits === 'number' && !isNaN(item.noOfUnits) && item.noOfUnits > 0)
       ? item.noOfUnits
@@ -109,9 +344,9 @@ export const mapCalculatedFeesToEditableItems = (
 
     const safeAmount = (typeof item?.amount === 'number' && !isNaN(item.amount) && item.amount >= 0)
       ? item.amount
-      : calculateLineItemAmount(safeValidityYears, safeNoOfUnits, safeFeeRate, safeItemCode);
+      : calculateLineItemAmount(safeValidityYears, safeNoOfUnits, safeFeeRate, safeItemCode, safeParticular);
 
-    return {
+    result.push({
       id: `${prefix}-${idx}-${Date.now()}`,
       particular: safeParticular,
       itemCode: safeItemCode,
@@ -122,8 +357,10 @@ export const mapCalculatedFeesToEditableItems = (
       amount: safeAmount,
       isTax: Boolean(item?.isTax),
       isSurcharge: Boolean(item?.isSurcharge),
-    };
+    });
   });
+
+  return result;
 };
 
 export const mapExistingSoaItemsToEditableItems = (
@@ -131,18 +368,29 @@ export const mapExistingSoaItemsToEditableItems = (
 ): EditableLineItem[] => {
   if (!soaItems || !Array.isArray(soaItems)) return [];
 
-  return soaItems.map((item: SoaItem, idx: number) => {
+  const seenKeys = new Set<string>();
+  const result: EditableLineItem[] = [];
+
+  soaItems.forEach((item: SoaItem, idx: number) => {
     const safeParticular = (item?.particular && typeof item.particular === 'string' && item.particular.trim().length > 0)
       ? item.particular.trim()
       : 'Statutory Fee';
 
-    const safeItemCode = (item?.code && typeof item.code === 'string' && item.code.trim().length > 0)
+    const rawItemCode = (item?.code && typeof item.code === 'string' && item.code.trim().length > 0)
       ? item.code.trim()
       : 'FEE';
+    const canonicalCode = normalizeCanonicalFeeCode(rawItemCode, safeParticular);
+    const safeItemCode = !rawItemCode.includes('-') && canonicalCode !== 'FEE' ? canonicalCode : rawItemCode;
 
-    const safeValidityYears = (typeof item?.validityYears === 'number' && !isNaN(item.validityYears) && item.validityYears > 0)
-      ? item.validityYears
-      : 1;
+    const dedupKey = resolveDedupFeeKey(safeItemCode, safeParticular);
+    if (seenKeys.has(dedupKey)) {
+      return;
+    }
+    seenKeys.add(dedupKey);
+
+    const hasBackendYears = typeof item?.validityYears === 'number' && !isNaN(item.validityYears) && item.validityYears > 0;
+    const usesYears = doesFeeCodeUseYears(safeItemCode, safeParticular, null, hasBackendYears);
+    const safeValidityYears = usesYears && hasBackendYears ? item.validityYears : 0;
 
     const safeNoOfUnits = (typeof item?.noOfUnits === 'number' && !isNaN(item.noOfUnits) && item.noOfUnits > 0)
       ? item.noOfUnits
@@ -154,7 +402,7 @@ export const mapExistingSoaItemsToEditableItems = (
 
     const safeAmount = (typeof item?.amount === 'number' && !isNaN(item.amount) && item.amount >= 0)
       ? item.amount
-      : calculateLineItemAmount(safeValidityYears, safeNoOfUnits, safeFeeRate, safeItemCode);
+      : calculateLineItemAmount(safeValidityYears, safeNoOfUnits, safeFeeRate, safeItemCode, safeParticular);
 
     const isTax = safeItemCode.toUpperCase() === 'DST';
     const isSurcharge = safeParticular.toLowerCase().includes('surcharge') || safeItemCode.toUpperCase() === 'SUR';
@@ -163,7 +411,7 @@ export const mapExistingSoaItemsToEditableItems = (
       ? safeParticular.split(':').slice(1).join(':').trim()
       : undefined;
 
-    return {
+    result.push({
       id: `existing-${idx}-${Date.now()}`,
       particular: safeParticular,
       itemCode: safeItemCode,
@@ -174,8 +422,10 @@ export const mapExistingSoaItemsToEditableItems = (
       amount: safeAmount,
       isTax,
       isSurcharge,
-    };
+    });
   });
+
+  return result;
 };
 
 export type SoaParticularCategory =
