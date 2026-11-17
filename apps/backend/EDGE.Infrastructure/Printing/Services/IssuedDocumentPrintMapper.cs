@@ -207,19 +207,131 @@ public static class IssuedDocumentPrintMapper
         var variantDesc = primaryVariant?.Description ?? primaryVariant?.Type.ToString();
         ResolveCategoryAndTemplate(model, serviceCode, serviceName, categoryName, variantDesc, allFieldValues);
 
-        var photoReq = app?.ApplicationRequirements?.FirstOrDefault(r =>
-            (r.Requirement != null && (r.Requirement.Name.Contains("1x1", StringComparison.OrdinalIgnoreCase) ||
-                                       r.Requirement.Name.Contains("photo", StringComparison.OrdinalIgnoreCase) ||
-                                       r.Requirement.Name.Contains("picture", StringComparison.OrdinalIgnoreCase))) ||
-            r.RequirementId == Guid.Parse("70000000-0000-0000-0000-000000000003") ||
-            r.RequirementId == Guid.Parse("70000000-0000-0000-0000-000000000033"));
+        var allAppRequirements = (app?.ApplicationRequirements ?? Enumerable.Empty<ApplicationRequirement>()).ToList();
+        var candidateRequirements = allAppRequirements
+            .Where(r => applicant != null && r.ApplicantId == applicant.Id)
+            .ToList();
+
+        if (candidateRequirements.Count == 0 && !isBulkApp)
+        {
+            candidateRequirements = allAppRequirements;
+        }
+
+        var photoReq = candidateRequirements.FirstOrDefault(r => HasUploadedFile(r) && IsPhotoRequirement(r))
+            ?? (!isBulkApp ? allAppRequirements.FirstOrDefault(r => HasUploadedFile(r) && IsPhotoRequirement(r)) : null)
+            ?? candidateRequirements.LastOrDefault(r => HasUploadedFile(r) && IsImageAttachment(r))
+            ?? (!isBulkApp ? allAppRequirements.LastOrDefault(r => HasUploadedFile(r) && IsImageAttachment(r)) : null)
+            ?? candidateRequirements.FirstOrDefault(IsPhotoRequirement);
 
         if (photoReq != null)
         {
             model.ApplicantPhotoUrl = !string.IsNullOrWhiteSpace(photoReq.Url) ? photoReq.Url : null;
+            model.ApplicantPhotoStoredFileId = photoReq.StoredFileId ?? photoReq.StoredFile?.Id ?? TryParseStoredFileIdFromUrl(photoReq.Url);
+            model.ApplicantPhotoBytes = TryDecodeBase64DataUrl(photoReq.Url);
+        }
+
+        if (model.ApplicantPhotoStoredFileId == null && (model.ApplicantPhotoBytes == null || model.ApplicantPhotoBytes.Length == 0))
+        {
+            var photoFieldVal = FindField(allFieldValues, "1x1", "2x2", "photo", "picture", "id pic")?.Value?.Trim();
+            if (!string.IsNullOrWhiteSpace(photoFieldVal))
+            {
+                model.ApplicantPhotoUrl ??= photoFieldVal;
+                model.ApplicantPhotoStoredFileId = TryParseStoredFileIdFromUrl(photoFieldVal);
+                model.ApplicantPhotoBytes = TryDecodeBase64DataUrl(photoFieldVal);
+            }
         }
 
         return model;
+    }
+
+    private static bool HasUploadedFile(ApplicationRequirement r)
+    {
+        return (r.StoredFileId.HasValue && r.StoredFileId.Value != Guid.Empty) ||
+               r.StoredFile != null ||
+               !string.IsNullOrWhiteSpace(r.Url);
+    }
+
+    private static bool IsImageAttachment(ApplicationRequirement r)
+    {
+        var contentType = r.StoredFile?.ContentType ?? string.Empty;
+        if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var fileName = (r.StoredFile?.FileName ?? r.Url ?? string.Empty).ToLowerInvariant();
+        return fileName.EndsWith(".jpg", StringComparison.Ordinal) ||
+               fileName.EndsWith(".jpeg", StringComparison.Ordinal) ||
+               fileName.EndsWith(".png", StringComparison.Ordinal) ||
+               fileName.EndsWith(".webp", StringComparison.Ordinal) ||
+               fileName.EndsWith(".bmp", StringComparison.Ordinal) ||
+               fileName.EndsWith(".gif", StringComparison.Ordinal);
+    }
+
+    private static bool IsPhotoRequirement(ApplicationRequirement r)
+    {
+        if (r.RequirementId == Guid.Parse("70000000-0000-0000-0000-000000000503") || // Exam 1x1 ID Picture
+            r.RequirementId == Guid.Parse("70000000-0000-0000-0000-000000000003") || // Certificates/Licenses/Permits 1x1 ID Picture
+            r.RequirementId == Guid.Parse("70000000-0000-0000-0000-000000000033"))
+        {
+            return true;
+        }
+
+        var reqName = r.Requirement?.Name ?? string.Empty;
+        var fileName = r.StoredFile?.FileName ?? string.Empty;
+
+        return reqName.Contains("1x1", StringComparison.OrdinalIgnoreCase) ||
+               reqName.Contains("2x2", StringComparison.OrdinalIgnoreCase) ||
+               reqName.Contains("photo", StringComparison.OrdinalIgnoreCase) ||
+               reqName.Contains("picture", StringComparison.OrdinalIgnoreCase) ||
+               reqName.Contains("id pic", StringComparison.OrdinalIgnoreCase) ||
+               fileName.Contains("1x1", StringComparison.OrdinalIgnoreCase) ||
+               fileName.Contains("photo", StringComparison.OrdinalIgnoreCase) ||
+               fileName.Contains("picture", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Guid? TryParseStoredFileIdFromUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        var trimmed = url.Trim();
+        if (Guid.TryParse(trimmed, out var directGuid) && directGuid != Guid.Empty)
+        {
+            return directGuid;
+        }
+
+        const string marker = "/storage/files/";
+        var idx = trimmed.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            var segment = trimmed[(idx + marker.Length)..].Split('?', '#', '/')[0];
+            if (Guid.TryParse(segment, out var parsedGuid) && parsedGuid != Guid.Empty)
+            {
+                return parsedGuid;
+            }
+        }
+
+        return null;
+    }
+
+    private static byte[]? TryDecodeBase64DataUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        const string base64Marker = ";base64,";
+        var idx = trimmed.IndexOf(base64Marker, StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            var b64 = trimmed[(idx + base64Marker.Length)..].Trim();
+            try
+            {
+                return Convert.FromBase64String(b64);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
     }
 
     private static void ResolveCategoryAndTemplate(

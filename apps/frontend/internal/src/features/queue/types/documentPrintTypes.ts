@@ -73,6 +73,7 @@ export interface DocumentPrintOptions {
   signatoryTitle?: string;
   remarks?: string;
   applicantPhotoUrl?: string;
+  applicantPhotosById?: Record<string, string>;
   qrCodeValue?: string;
 }
 
@@ -124,8 +125,8 @@ export const ACCOUNTABLE_FORM_TEMPLATES: AccountableFormTemplate[] = [
       { id: 'orNumber', label: 'Official Receipt No.', topMm: 132, leftMm: 28, widthMm: 45, fontSizePt: 9.5, isMonospace: true },
       { id: 'signatoryName', label: 'Authorized Officer', topMm: 155, leftMm: 28, widthMm: 70, fontSizePt: 10.5, fontWeight: 'bold', textAlign: 'center', uppercase: true },
       { id: 'signatoryTitle', label: 'Designation', topMm: 161, leftMm: 28, widthMm: 70, fontSizePt: 8.5, textAlign: 'center' },
-      { id: 'applicantPhoto', label: '1x1 ID Picture', topMm: 54, leftMm: 160, widthMm: 28, heightMm: 28 },
-      { id: 'qrCode', label: 'Verification QR Code', topMm: 90, leftMm: 160, widthMm: 28, heightMm: 28 },
+      { id: 'applicantPhoto', label: '1x1 ID Picture (Upper Left)', topMm: 14, leftMm: 18, widthMm: 26, heightMm: 26 },
+      { id: 'qrCode', label: 'Admission QR Code (Upper Right)', topMm: 14, leftMm: 170, widthMm: 26, heightMm: 26 },
     ],
   },
   {
@@ -174,6 +175,7 @@ export const ACCOUNTABLE_FORM_TEMPLATES: AccountableFormTemplate[] = [
       { id: 'orNumber', label: 'OR Reference', topMm: 155, leftMm: 140, widthMm: 45, fontSizePt: 9.5, isMonospace: true },
       { id: 'signatoryName', label: 'Regional Director / Officer', topMm: 210, leftMm: 115, widthMm: 75, fontSizePt: 11, fontWeight: 'bold', textAlign: 'center', uppercase: true },
       { id: 'signatoryTitle', label: 'Official Designation', topMm: 216, leftMm: 115, widthMm: 75, fontSizePt: 9, textAlign: 'center' },
+      { id: 'applicantPhoto', label: '1x1 ID Picture (Upper Left)', topMm: 16, leftMm: 18, widthMm: 24, heightMm: 24 },
       { id: 'qrCode', label: 'QR Authenticator (Upper Right)', topMm: 16, leftMm: 172, widthMm: 24, heightMm: 24 },
     ],
   },

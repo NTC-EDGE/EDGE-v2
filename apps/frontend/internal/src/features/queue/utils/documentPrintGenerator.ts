@@ -186,6 +186,8 @@ export function generateStatutoryDocumentHtml(
     ? app.applicantsList
     : [{ id: app.id, name: safeStr(app.applicant, 'Applicant Name'), applicantType: app.applicantType, status: 'Complete' as const }];
 
+  const baseQrCodeVal = options.qrCodeValue || safeStr(app.referenceNumber || app.applicationNumber || app.id, 'NTC-VERIFY');
+
   const pagesHtml = applicants.map((appItem, idx) => {
     const applicantName = safeStr(appItem.name || app.applicant, 'Applicant Name');
     const fullAddress = 'streetAddress' in appItem || 'address' in appItem
@@ -193,7 +195,51 @@ export function generateStatutoryDocumentHtml(
       : defaultAddress;
     const formNum = applicants.length > 1 ? `${baseFormNum}-${String(idx + 1).padStart(2, '0')}` : baseFormNum;
     const licNum = applicants.length > 1 ? `${baseLicNum}-${String(idx + 1).padStart(2, '0')}` : baseLicNum;
+    const itemQrCodeVal = applicants.length > 1 ? `${baseQrCodeVal}-${String(idx + 1).padStart(2, '0')}` : baseQrCodeVal;
+    const itemPhotoSrc = (appItem.id && options.applicantPhotosById?.[appItem.id]) || options.applicantPhotoUrl || '';
     const pageBreakStyle = idx < applicants.length - 1 ? 'page-break-after: always;' : '';
+
+    const headerPhotoHtml = itemPhotoSrc && itemPhotoSrc.trim().length > 0
+      ? `<div class="photo-box"><img src="${itemPhotoSrc}" alt="1x1 ID Picture" style="width: 100%; height: 100%; object-fit: cover; display: block;" /></div>`
+      : `<div class="photo-box photo-box-placeholder">
+           <div style="font-family: Arial, sans-serif; font-size: 7.5pt; font-weight: bold; color: #475569;">1" × 1"</div>
+           <div style="font-family: Arial, sans-serif; font-size: 6pt; color: #94a3b8; margin-top: 1mm;">PHOTO</div>
+         </div>`;
+
+    const headerQrHtml = `
+      <div class="qr-box">
+        <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" style="display: block;">
+          <rect width="100" height="100" fill="#ffffff" />
+          <rect x="5" y="5" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+          <rect x="11" y="11" width="16" height="16" fill="#000000" />
+          <rect x="67" y="5" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+          <rect x="73" y="11" width="16" height="16" fill="#000000" />
+          <rect x="5" y="67" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+          <rect x="11" y="73" width="16" height="16" fill="#000000" />
+          <rect x="40" y="8" width="6" height="6" fill="#000" />
+          <rect x="52" y="8" width="6" height="6" fill="#000" />
+          <rect x="40" y="20" width="6" height="12" fill="#000" />
+          <rect x="52" y="24" width="6" height="6" fill="#000" />
+          <rect x="8" y="40" width="12" height="6" fill="#000" />
+          <rect x="24" y="40" width="6" height="14" fill="#000" />
+          <rect x="36" y="40" width="10" height="10" fill="#000" />
+          <rect x="52" y="38" width="8" height="8" fill="#000" />
+          <rect x="68" y="40" width="8" height="6" fill="#000" />
+          <rect x="82" y="40" width="10" height="6" fill="#000" />
+          <rect x="40" y="56" width="6" height="12" fill="#000" />
+          <rect x="52" y="52" width="10" height="6" fill="#000" />
+          <rect x="68" y="54" width="6" height="10" fill="#000" />
+          <rect x="80" y="54" width="12" height="6" fill="#000" />
+          <rect x="40" y="74" width="12" height="6" fill="#000" />
+          <rect x="58" y="70" width="6" height="12" fill="#000" />
+          <rect x="70" y="68" width="6" height="16" fill="#000" />
+          <rect x="84" y="68" width="8" height="8" fill="#000" />
+          <rect x="52" y="86" width="14" height="6" fill="#000" />
+          <rect x="72" y="86" width="8" height="6" fill="#000" />
+          <rect x="86" y="80" width="6" height="14" fill="#000" />
+        </svg>
+      </div>
+      <div class="qr-sub-text">${itemQrCodeVal}</div>`;
 
     return `
   <div class="page-sheet" style="${pageBreakStyle}">
@@ -208,11 +254,17 @@ export function generateStatutoryDocumentHtml(
       <div class="content-layer">
         <div>
           <div class="header-section">
+            <div class="header-photo-corner">
+              ${headerPhotoHtml}
+            </div>
             <div class="header-text-block">
               <div class="republic-text">Republic of the Philippines</div>
               <div class="dept-text">Department of Information and Communications Technology</div>
               <div class="agency-name">National Telecommunications Commission</div>
               <div class="office-sub">${officeName}</div>
+            </div>
+            <div class="header-qr-corner">
+              ${headerQrHtml}
             </div>
           </div>
 
@@ -366,7 +418,32 @@ export function generateStatutoryDocumentHtml(
     .header-text-block {
       text-align: center;
       flex: 1;
-      padding-right: 25mm;
+      padding: 0 26mm;
+    }
+    .header-photo-corner {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .photo-box {
+      width: 22mm;
+      height: 22mm;
+      border: 1pt solid #1e3a8a;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .photo-box-placeholder {
+      border: 1.2pt dashed #94a3b8;
+      background: #f8fafc;
+      flex-direction: column;
+      padding: 1.5mm;
     }
     .header-qr-corner {
       position: absolute;
@@ -588,6 +665,8 @@ export function generateAccountableFormOverlayHtml(
     ? app.applicantsList
     : [{ id: app.id, name: safeStr(app.applicant, 'Applicant Name'), applicantType: app.applicantType, status: 'Complete' as const }];
 
+  const baseQrCodeVal = options.qrCodeValue || safeStr(app.referenceNumber || app.applicationNumber || app.id, 'NTC-VERIFY');
+
   const sheetsHtml = applicants.map((appItem, idx) => {
     const applicantName = safeStr(appItem.name || app.applicant, 'Applicant Name');
     const fullAddress = 'streetAddress' in appItem || 'address' in appItem
@@ -595,6 +674,8 @@ export function generateAccountableFormOverlayHtml(
       : defaultAddress;
     const formNum = applicants.length > 1 ? `${baseFormNum}-${String(idx + 1).padStart(2, '0')}` : baseFormNum;
     const licNum = applicants.length > 1 ? `${baseLicNum}-${String(idx + 1).padStart(2, '0')}` : baseLicNum;
+    const itemQrCodeVal = applicants.length > 1 ? `${baseQrCodeVal}-${String(idx + 1).padStart(2, '0')}` : baseQrCodeVal;
+    const itemPhotoSrc = (appItem.id && options.applicantPhotosById?.[appItem.id]) || options.applicantPhotoUrl || '';
     const itemDob = ('basicInfo' in appItem && appItem.basicInfo?.dob)
       ? formatDate(appItem.basicInfo.dob)
       : (app.basicInfo?.dob ? formatDate(app.basicInfo.dob) : 'N/A');
@@ -612,7 +693,7 @@ export function generateAccountableFormOverlayHtml(
       examVenue: examVenue,
       examDate: examDate,
       examTime: examTime,
-      applicantPhoto: safeStr(options.applicantPhotoUrl, ''),
+      applicantPhoto: safeStr(itemPhotoSrc, ''),
       frequencyBand: freqBand,
       equipmentDetails: `Make: Standard / Transceiver Power: Compliant`,
       issueDate: issueDateStr,
@@ -640,7 +721,7 @@ export function generateAccountableFormOverlayHtml(
       const fontFam = f.isMonospace ? 'font-family: "Courier New", Courier, monospace;' : 'font-family: Arial, Helvetica, sans-serif;';
 
       if (f.id === 'applicantPhoto' || f.id === 'photo') {
-        const photoSrc = options.applicantPhotoUrl || valuesMap.applicantPhoto || '';
+        const photoSrc = itemPhotoSrc || valuesMap.applicantPhoto || '';
         if (photoSrc && photoSrc.trim().length > 0) {
           return `
             <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} overflow: hidden; border: 1pt solid #cbd5e1; background: #ffffff; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
@@ -657,7 +738,7 @@ export function generateAccountableFormOverlayHtml(
       }
 
       if (f.id === 'qrCode') {
-        const qrCodeVal = options.qrCodeValue || safeStr(app.referenceNumber || app.applicationNumber || app.id, 'NTC-VERIFY');
+        const qrCodeVal = itemQrCodeVal;
         return `
           <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;">
             <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" style="display: block;">
@@ -704,8 +785,20 @@ export function generateAccountableFormOverlayHtml(
       `;
     }).join('\n');
 
+    const ghostHeaderHtml = options.showGhostWatermark !== false
+      ? `
+        <div style="position: absolute; top: ${14 + offsetY}mm; left: ${48 + offsetX}mm; width: 118mm; text-align: center; font-family: Arial, sans-serif; pointer-events: none; opacity: 0.35;">
+          <div style="font-size: 7.5pt; font-weight: bold; color: #334155; text-transform: uppercase;">Republic of the Philippines</div>
+          <div style="font-size: 9.5pt; font-weight: bold; color: #1e3a8a; text-transform: uppercase; margin-top: 0.8mm;">National Telecommunications Commission</div>
+          <div style="font-size: 11pt; font-weight: bold; color: #0f172a; text-transform: uppercase; margin-top: 1.2mm; letter-spacing: 0.6px;">
+            ${activeTemplate.id === 'NTC-FORM-ADMISSION' ? 'NOTICE OF ADMISSION' : activeTemplate.title}
+          </div>
+        </div>
+      `
+      : '';
+
     const pageBreakStyle = idx < applicants.length - 1 ? 'page-break-after: always;' : '';
-    return `<div class="overlay-sheet" style="${pageBreakStyle}">${fieldsHtml}</div>`;
+    return `<div class="overlay-sheet" style="${pageBreakStyle}">${ghostHeaderHtml}${fieldsHtml}</div>`;
   }).join('\n');
 
   return `<!DOCTYPE html>

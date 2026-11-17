@@ -46,6 +46,9 @@ using EDGE.Application.Applications.Commands.UpdateFormSubmissionValues;
 using EDGE.Application.Applications.Commands.IssueApplication;
 using EDGE.Application.Applications.Commands.SubmitPayment;
 using EDGE.Application.Applications.Queries.GenerateNextDocumentNumber;
+using EDGE.Application.Storage.Queries.GetFileDownload;
+using EDGE.Infrastructure.Printing.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 using EDGE.Domain.Enums;
 using EDGE.Domain.Entities;
@@ -1051,12 +1054,45 @@ public static class ApplicationEndpoints
             return doc;
         }
 
+        async Task PopulateApplicantPhotoBytesAsync(IssuedDocumentModel model)
+        {
+            if (model.ApplicantPhotoBytes != null && model.ApplicantPhotoBytes.Length > 0) return;
+            if (!model.ApplicantPhotoStoredFileId.HasValue || model.ApplicantPhotoStoredFileId.Value == Guid.Empty) return;
+
+            var mediator = httpContext?.RequestServices?.GetService<IMediator>();
+            if (mediator == null) return;
+
+            try
+            {
+                var fileRes = await mediator.Send(
+                    new GetFileDownloadQuery(model.ApplicantPhotoStoredFileId.Value, Guid.Empty),
+                    cancellationToken);
+
+                if (fileRes.Succeeded && fileRes.Data?.FileStream != null)
+                {
+                    using var stream = fileRes.Data.FileStream;
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms, cancellationToken);
+                    var bytes = ms.ToArray();
+                    if (bytes.Length > 0)
+                    {
+                        model.ApplicantPhotoBytes = bytes;
+                    }
+                }
+            }
+            catch
+            {
+                // Graceful fallback if stored file cannot be retrieved
+            }
+        }
+
         if (applicantId.HasValue && applicantId.Value != Guid.Empty)
         {
             var matchedIdx = orderedAppApplicants.FindIndex(aa => aa.ApplicantId == applicantId.Value);
             var matchedAa = matchedIdx >= 0 ? orderedAppApplicants[matchedIdx] : orderedAppApplicants.FirstOrDefault();
             var singleDoc = BuildDocForApplicant(matchedAa, matchedIdx >= 0 ? matchedIdx : 0, 1);
             var singleModel = IssuedDocumentPrintMapper.MapToPrintModel(singleDoc, app);
+            await PopulateApplicantPhotoBytesAsync(singleModel);
             var singlePdfBytes = printingService.PrintIssuedDocument(singleModel);
             var singleSafeDocName = $"{singleModel.DocumentType}_{singleModel.LicenseNumber ?? singleModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
 
@@ -1074,6 +1110,10 @@ public static class ApplicationEndpoints
             var models = orderedAppApplicants
                 .Select((aa, idx) => IssuedDocumentPrintMapper.MapToPrintModel(BuildDocForApplicant(aa, idx, orderedAppApplicants.Count), app))
                 .ToList();
+            foreach (var m in models)
+            {
+                await PopulateApplicantPhotoBytesAsync(m);
+            }
             var bulkPdfBytes = printingService.PrintIssuedDocuments(models);
             var firstModel = models[0];
             var bulkSafeDocName = $"{firstModel.DocumentType}_{firstModel.LicenseNumber ?? firstModel.FormNumber ?? id.ToString()}_Bulk.pdf".Replace(" ", "_");
@@ -1089,6 +1129,7 @@ public static class ApplicationEndpoints
 
         var issuedDoc = BuildDocForApplicant(orderedAppApplicants.FirstOrDefault(), 0, 1);
         var printModel = IssuedDocumentPrintMapper.MapToPrintModel(issuedDoc, app);
+        await PopulateApplicantPhotoBytesAsync(printModel);
         var pdfBytes = printingService.PrintIssuedDocument(printModel);
         var safeDocName = $"{printModel.DocumentType}_{printModel.LicenseNumber ?? printModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
 

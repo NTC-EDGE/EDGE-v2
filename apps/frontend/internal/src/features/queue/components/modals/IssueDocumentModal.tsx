@@ -23,7 +23,14 @@ import {
   toast,
   DatePickerInput,
 } from '@edge/ui';
-import { applicationService, IssueApplicationRequest, formatOrDisplay } from '@edge/api';
+import {
+  applicationService,
+  storageService,
+  ApplicantRequirementItemDto,
+  IssueApplicationRequest,
+  formatOrDisplay,
+  resolveEffectiveTenantId,
+} from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
 import { IssuedDocumentPrintModal } from './IssuedDocumentPrintModal';
 import { DocumentPrintOptions } from '../../types/documentPrintTypes';
@@ -120,11 +127,13 @@ export function IssueDocumentModal({
   const [isAlternateIssuer, setIsAlternateIssuer] = useState<boolean>(false);
 
   // Live Preview State
-  const [previewFormat, setPreviewFormat] = useState<'accountable' | 'pdf'>('accountable');
+  const [previewFormat, setPreviewFormat] = useState<'accountable' | 'pdf'>('pdf');
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
   const [reloadKey, setReloadKey] = useState<number>(0);
+  const [applicantPhotoUrl, setApplicantPhotoUrl] = useState<string | null>(null);
+  const [applicantPhotosById, setApplicantPhotosById] = useState<Record<string, string>>({});
 
   const isLicenseCategory =
     app.category === 'Licenses' ||
@@ -223,8 +232,200 @@ export function IssueDocumentModal({
     };
   }, [app, activeApplicant]);
 
+  // Auto-detect applicant 1x1 photo from application requirements or query API
+  useEffect(() => {
+    let active = true;
+
+    const blobToDataUrl = (blob: Blob): Promise<string> =>
+      new Promise((resolve) => {
+        if (typeof FileReader !== 'undefined') {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (typeof reader.result === 'string' && reader.result.length > 0) {
+              resolve(reader.result);
+            } else if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+              resolve(URL.createObjectURL(blob));
+            } else {
+              resolve('');
+            }
+          };
+          reader.onerror = () => {
+            if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+              resolve(URL.createObjectURL(blob));
+            } else {
+              resolve('');
+            }
+          };
+          reader.readAsDataURL(blob);
+          return;
+        }
+        if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+          resolve(URL.createObjectURL(blob));
+        } else {
+          resolve('');
+        }
+      });
+
+    const resolveUrlToRenderableSrc = async (rawUrl: string): Promise<string> => {
+      if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return rawUrl;
+      try {
+        const [blobData, blobErr] = await storageService.downloadFileByUrl(rawUrl);
+        if (blobErr === null && blobData instanceof Blob && blobData.size > 0) {
+          const dataUrl = await blobToDataUrl(blobData);
+          if (dataUrl) return dataUrl;
+        }
+      } catch {
+        // fallback to rawUrl
+      }
+      return rawUrl;
+    };
+
+    const loadPhotos = async () => {
+      if (!isBulkApp && app.requirements && app.requirements.length > 0) {
+        const match = app.requirements.find((r) => {
+          const lbl = (r.label || '').toLowerCase();
+          const fname = (r.filename || '').toLowerCase();
+          return (
+            lbl.includes('1x1') ||
+            lbl.includes('2x2') ||
+            lbl.includes('photo') ||
+            lbl.includes('picture') ||
+            fname.includes('1x1') ||
+            fname.includes('photo')
+          );
+        });
+        const candidateUri = match?.thumbnailUri || match?.url;
+        if (candidateUri) {
+          const resolved = await resolveUrlToRenderableSrc(candidateUri);
+          if (active && resolved) {
+            setApplicantPhotoUrl(resolved);
+          }
+        }
+      }
+
+      if (visible && app?.id) {
+        const targetApplicantIds =
+          applicantsList.length > 0
+            ? applicantsList.map((a) => a.id).filter((id): id is string => Boolean(id))
+            : [app.id];
+
+        const nextMap: Record<string, string> = {};
+
+        for (const targetAppId of targetApplicantIds) {
+          try {
+            const [res, err] = await applicationService.getApplicantRequirements(
+              app.id,
+              targetAppId
+            );
+            if (!active) return;
+            if (err === null && res?.data && Array.isArray(res.data)) {
+              const hasUploadedFile = (item: ApplicantRequirementItemDto): boolean =>
+                (typeof item.storedFileId === 'string' &&
+                  item.storedFileId.trim() !== '' &&
+                  item.storedFileId !== 'null') ||
+                (typeof item.url === 'string' && item.url.trim() !== '' && item.url !== 'null');
+
+              const isPhotoReqItem = (item: ApplicantRequirementItemDto): boolean => {
+                const name = (item.requirementName || '').toLowerCase();
+                const fileName = (item.fileName || '').toLowerCase();
+                return (
+                  name.includes('1x1') ||
+                  name.includes('2x2') ||
+                  name.includes('photo') ||
+                  name.includes('picture') ||
+                  name.includes('id pic') ||
+                  fileName.includes('1x1') ||
+                  fileName.includes('photo') ||
+                  item.requirementId === '70000000-0000-0000-0000-000000000503' ||
+                  item.requirementId === '70000000-0000-0000-0000-000000000003' ||
+                  item.requirementId === '70000000-0000-0000-0000-000000000033'
+                );
+              };
+
+              const isImageAttachmentItem = (item: ApplicantRequirementItemDto): boolean => {
+                const ct = (item.contentType || '').toLowerCase();
+                if (ct.startsWith('image/')) return true;
+                const fn = (item.fileName || item.url || '').toLowerCase();
+                return (
+                  fn.endsWith('.jpg') ||
+                  fn.endsWith('.jpeg') ||
+                  fn.endsWith('.png') ||
+                  fn.endsWith('.webp') ||
+                  fn.endsWith('.bmp') ||
+                  fn.endsWith('.gif')
+                );
+              };
+
+              const uploadedItems = res.data.filter(hasUploadedFile);
+              const photoItem =
+                uploadedItems.find(isPhotoReqItem) ??
+                uploadedItems[uploadedItems.length - 1 && uploadedItems.findIndex(isImageAttachmentItem) >= 0 ? uploadedItems.findIndex(isImageAttachmentItem) : -1] ??
+                res.data.find(isPhotoReqItem);
+
+              if (photoItem) {
+                const effectiveTenant =
+                  resolveEffectiveTenantId(app.tenantId, app.address?.region) ||
+                  app.tenantId ||
+                  undefined;
+                let rawDownloadUrl = '';
+                if (
+                  typeof photoItem.url === 'string' &&
+                  photoItem.url.trim() !== '' &&
+                  photoItem.url !== 'null'
+                ) {
+                  rawDownloadUrl = photoItem.url.trim();
+                } else if (
+                  typeof photoItem.storedFileId === 'string' &&
+                  photoItem.storedFileId.trim() !== '' &&
+                  photoItem.storedFileId !== 'null'
+                ) {
+                  rawDownloadUrl = storageService.getFileDownloadUrl(
+                    photoItem.storedFileId,
+                    effectiveTenant
+                  );
+                }
+
+                if (rawDownloadUrl) {
+                  const renderable = await resolveUrlToRenderableSrc(rawDownloadUrl);
+                  if (!active) return;
+                  if (renderable) {
+                    nextMap[targetAppId] = renderable;
+                  }
+                }
+              }
+            }
+          } catch {
+            // Graceful fallback
+          }
+        }
+
+        if (active && Object.keys(nextMap).length > 0) {
+          setApplicantPhotosById((prev) => ({ ...prev, ...nextMap }));
+          const firstResolved =
+            (activeApplicant?.id && nextMap[activeApplicant.id]) ||
+            Object.values(nextMap)[0] ||
+            null;
+          if (firstResolved) {
+            setApplicantPhotoUrl(firstResolved);
+          }
+        }
+      }
+    };
+
+    void loadPhotos();
+
+    return () => {
+      active = false;
+    };
+  }, [visible, app.id, app.requirements, applicantsList, app.tenantId, isBulkApp, activeApplicant?.id]);
+
   // Active print options for live preview rendering
   const currentPrintOptions: DocumentPrintOptions = useMemo(() => {
+    const activePhoto =
+      (activeApplicant?.id && applicantPhotosById[activeApplicant.id]) ||
+      applicantPhotoUrl ||
+      undefined;
+    const baseQr = `NTC-VERIFY-${formNumber.trim() || app.referenceNumber || app.applicationNumber || app.id.slice(0, 8).toUpperCase()}`;
     return {
       outputMode: previewFormat === 'accountable' ? 'accountable_form' : 'plain_paper',
       paperSize: 'letter',
@@ -240,6 +441,9 @@ export function IssueDocumentModal({
       officialReceiptNumber: effectiveOrNumber,
       signatoryName: currentOfficerName,
       remarks: remarks.trim(),
+      applicantPhotoUrl: activePhoto,
+      applicantPhotosById,
+      qrCodeValue: baseQr,
     };
   }, [
     previewFormat,
@@ -254,6 +458,12 @@ export function IssueDocumentModal({
     effectiveOrNumber,
     currentOfficerName,
     remarks,
+    activeApplicant?.id,
+    applicantPhotoUrl,
+    applicantPhotosById,
+    app.referenceNumber,
+    app.applicationNumber,
+    app.id,
   ]);
 
   const activeTemplate = useMemo(() => {
@@ -1362,9 +1572,12 @@ export function IssueDocumentModal({
             frequencyBand,
             issueDate,
             expiryDate,
-            officialReceiptNumber,
+            officialReceiptNumber: effectiveOrNumber,
             signatoryName: currentOfficerName,
             remarks,
+            applicantPhotoUrl: currentPrintOptions.applicantPhotoUrl,
+            applicantPhotosById,
+            qrCodeValue: currentPrintOptions.qrCodeValue,
           }}
           onClose={() => {
             setShowPrintModal(false);
