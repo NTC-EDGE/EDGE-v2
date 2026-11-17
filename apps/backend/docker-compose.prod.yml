@@ -2,6 +2,20 @@ version: '3.8'
 
 services:
   ntc-edge-api:
+    cpu_shares: 1024
+    memswap_limit: 1024m
+    environment:
+      - DOTNET_GCHeapHardLimit=0x24000000
+      - DOTNET_GCConserveMemory=5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 768M
+          pids: 256
+        reservations:
+          cpus: "0.20"
+          memory: 256M
     networks:
       - edge-network
 
