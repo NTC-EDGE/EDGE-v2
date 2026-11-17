@@ -159,9 +159,9 @@ export function useIssueReceiptForm({
             setLineItems(
               targetOp.lineItems && targetOp.lineItems.length > 0
                 ? targetOp.lineItems.map((li) => ({ feeCode: li.feeCode || 'FEE', description: li.description, amount: li.amount }))
-                : [{ feeCode: 'PAYMENT', description: `Payment for OP #${targetOp.opNumber} (${targetOp.applicantName})`, amount: effectiveDue }]
+                : [{ feeCode: 'PAYMENT', description: `${pendingPayment.serviceName} (${targetOp.applicantName})`, amount: effectiveDue }]
             );
-            setRemarks(`Payment for OP #${targetOp.opNumber} (${targetOp.applicantName}) - App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber}`);
+            setRemarks('');
           }
         } else {
           setBulkOrScope('bulk');
@@ -226,9 +226,7 @@ export function useIssueReceiptForm({
         if (resolvedOnlineRef) {
           setOnlineReference(resolvedOnlineRef);
         }
-        if (items.length <= 1 || new Set(items.map((i) => i.orderOfPaymentId)).size <= 1) {
-          setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
-        }
+        setRemarks('');
       } else {
         if (pendingPayment.paymentMethod === 'Check' || resolvedCheckBank || resolvedCheckNumber) {
           setPaymentMethod('Check');
@@ -241,9 +239,7 @@ export function useIssueReceiptForm({
         } else {
           setPaymentMethod('Cash');
         }
-        if (items.length <= 1 || new Set(items.map((i) => i.orderOfPaymentId)).size <= 1) {
-          setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
-        }
+        setRemarks('');
       }
 
       if (items.length <= 1 || new Set(items.map((i) => i.orderOfPaymentId)).size <= 1) {
@@ -275,7 +271,7 @@ export function useIssueReceiptForm({
   const handleSelectBulkOpItem = (idx: number) => {
     if (!pendingPayment || bulkOpItems.length === 0) return;
     const target = bulkOpItems[idx];
-    if (!target || target.status === 'Paid') return;
+    if (!target) return;
     setSelectedBulkOpIndex(idx);
     setBulkOrScope('per_op');
     setPayorName(target.applicantName || pendingPayment.payorName || pendingPayment.applicantName || '');
@@ -295,14 +291,12 @@ export function useIssueReceiptForm({
       setLineItems([
         {
           feeCode: 'PAYMENT',
-          description: `Payment for OP #${target.opNumber} (${target.applicantName})`,
+          description: `${pendingPayment.serviceName} (${target.applicantName})`,
           amount: effectiveDue,
         },
       ]);
     }
-    setRemarks(
-      `Payment for OP #${target.opNumber} (${target.applicantName}) - App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber}`
-    );
+    setRemarks('');
   };
 
   const handleSelectBulkOrScope = (scope: BulkOrScope) => {
@@ -326,10 +320,7 @@ export function useIssueReceiptForm({
         setLineItems(buildConsolidatedBulkLineItems(targetOps, pendingPayment.serviceName));
       }
 
-      const opLabels = Array.from(new Set(targetOps.map((o) => o.opNumber.replace(/\s*\(#\d+\)\s*$/, '')))).join(', ');
-      setRemarks(
-        `Bulk payment for Order(s) of Payment: ${opLabels} (${targetOps.length} applicants • App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`
-      );
+      setRemarks('');
     } else {
       const firstUnpaid = bulkOpItems.findIndex((i) => i.status !== 'Paid');
       const targetIdx =
@@ -469,10 +460,15 @@ export function useIssueReceiptForm({
       .map((l) => ({ feeCode: l.feeCode.trim() || 'FEE', description: l.description.trim(), amount: l.amount }));
 
     const effectiveTenantId = pendingPayment?.tenantId && pendingPayment.tenantId.length > 0 ? pendingPayment.tenantId : tenantId;
-    const finalRemarks = remarks.trim()
-      ? (paymentMethod === 'Online' && onlineReference.trim() && !remarks.includes(onlineReference.trim())
-          ? `${remarks.trim()} (Online Ref: ${onlineReference.trim()})`
-          : remarks.trim())
+    const selectedBulkItem = hasBulkOpOptions && bulkOrScope === 'per_op' ? bulkOpItems[selectedBulkOpIndex] : undefined;
+    const autoSlotRemark = selectedBulkItem
+      ? `Payment for OP #${selectedBulkItem.opNumber} (${selectedBulkItem.applicantName})`
+      : null;
+    const baseRemark = remarks.trim() || autoSlotRemark;
+    const finalRemarks = baseRemark
+      ? (paymentMethod === 'Online' && onlineReference.trim() && !baseRemark.includes(onlineReference.trim())
+          ? `${baseRemark} (Online Ref: ${onlineReference.trim()})`
+          : baseRemark)
       : (paymentMethod === 'Online' && onlineReference.trim() ? `Online Ref: ${onlineReference.trim()}` : null);
 
     let targetOrderOfPaymentId = pendingPayment?.orderOfPaymentId ?? null;

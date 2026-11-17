@@ -35,6 +35,8 @@ interface ReceiptHeaderCardProps {
   dateChangeReason?: string;
   setDateChangeReason?: (v: string) => void;
   todayStr?: string;
+  isAlreadyPaid?: boolean;
+  issuedOrNumber?: string | null;
 }
 
 export function ReceiptHeaderCard({
@@ -61,6 +63,8 @@ export function ReceiptHeaderCard({
   dateChangeReason,
   setDateChangeReason,
   todayStr,
+  isAlreadyPaid = false,
+  issuedOrNumber = null,
 }: ReceiptHeaderCardProps) {
   const { colors } = useTheme();
 
@@ -96,53 +100,48 @@ export function ReceiptHeaderCard({
       <View style={styles.summaryTopRow}>
         <View style={styles.orBadgeContainer}>
           <Text style={[styles.orBadgeLabel, { color: colors.neutral[500] }]}>
-            OFFICIAL RECEIPT SERIAL NUMBER
+            {isAlreadyPaid ? 'ISSUED OFFICIAL RECEIPT NUMBER' : 'OFFICIAL RECEIPT SERIAL NUMBER'}
           </Text>
-          <Text style={[styles.orBadgeValue, { color: colors.text }]}>
-            {useManualOr
-              ? (manualOrNumber.trim() ? `#${manualOrNumber.trim()}` : 'Enter Custom OR #')
-              : (nextOr?.formattedOrNumber ? `#${nextOr.formattedOrNumber}` : 'NO ACTIVE BOOKLET')}
+          <Text style={[styles.orBadgeValue, { color: isAlreadyPaid ? '#059669' : colors.text }]}>
+            {isAlreadyPaid
+              ? (issuedOrNumber ? `#${issuedOrNumber}` : 'PAID')
+              : useManualOr
+                ? (manualOrNumber.trim() ? `#${manualOrNumber.trim()}` : 'Enter Custom OR #')
+                : (nextOr?.formattedOrNumber ? `#${nextOr.formattedOrNumber}` : 'NO ACTIVE BOOKLET')}
           </Text>
 
-          {!useManualOr && nextOr?.hasActiveBooklet && (
+          {isAlreadyPaid ? (
             <View style={styles.seriesInfoPillRow}>
-              <View style={[styles.seriesPill, { backgroundColor: '#F1F5F9' }]}>
-                <Lucide name="layers" size={12} color="#475569" />
-                <Text style={[styles.seriesPillText, { color: '#334155' }]}>
-                  Booklet {nextOr.bookletNumber ?? ''}
+              <View style={[styles.seriesPill, { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' }]}>
+                <Lucide name="check-circle" size={12} color="#059669" />
+                <Text style={[styles.seriesPillText, { color: '#065F46' }]}>
+                  Official Receipt Issued
                 </Text>
               </View>
-              {nextOr.formattedStartNumber && nextOr.formattedEndNumber && (
-                <View style={[styles.seriesPill, { backgroundColor: '#F1F5F9' }]}>
-                  <Text style={[styles.seriesPillText, { color: '#475569' }]}>
-                    Series: {nextOr.formattedStartNumber} – {nextOr.formattedEndNumber}
-                  </Text>
-                </View>
-              )}
-              <View style={[styles.seriesPill, { backgroundColor: '#F1F5F9' }]}>
-                <Text style={[styles.seriesPillText, { color: '#475569' }]}>
-                  {nextOr.remainingCount} remaining
-                </Text>
-              </View>
-              {nextOr.isShared && (
-                <View style={[styles.seriesPill, { backgroundColor: '#F1F5F9' }]}>
-                  <Lucide name="users" size={12} color="#475569" />
-                  <Text style={[styles.seriesPillText, { color: '#334155' }]}>
-                    Shared ({nextOr.assignedUserNames?.length ?? 2} Cashiers)
-                  </Text>
-                </View>
-              )}
             </View>
-          )}
+          ) : (
+            <>
+              {!useManualOr && nextOr?.hasActiveBooklet && (
+                <View style={styles.seriesInfoPillRow}>
+                  <View style={[styles.seriesPill, { backgroundColor: '#F1F5F9' }]}>
+                    <Lucide name="layers" size={12} color="#475569" />
+                    <Text style={[styles.seriesPillText, { color: '#334155' }]}>
+                      Booklet {nextOr.bookletNumber ?? ''} • {nextOr.remainingCount} left
+                    </Text>
+                  </View>
+                </View>
+              )}
 
-          <TouchableOpacity
-            onPress={() => setUseManualOr(!useManualOr)}
-            style={styles.overrideLink}
-          >
-            <Text style={[styles.overrideLinkText, { color: colors.brand.primary }]}>
-              {useManualOr ? '← Use Active Booklet Series' : 'Switch to Manual OR Override'}
-            </Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setUseManualOr(!useManualOr)}
+                style={styles.overrideLink}
+              >
+                <Text style={[styles.overrideLinkText, { color: colors.brand.primary }]}>
+                  {useManualOr ? '← Use Active Booklet Series' : 'Switch to Manual OR Override'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Payment Method Selector */}

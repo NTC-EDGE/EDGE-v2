@@ -12,7 +12,8 @@ interface ReceiptPayorSectionProps {
   payorAddress: string;
   setPayorAddress: (v: string) => void;
   activeOpLabel?: string;
-  activeApplicantName?: string;
+  activeSoaLabel?: string;
+  activeIssuedOrNumber?: string | null;
 }
 
 export function ReceiptPayorSection({
@@ -23,9 +24,13 @@ export function ReceiptPayorSection({
   payorAddress,
   setPayorAddress,
   activeOpLabel,
-  activeApplicantName,
+  activeSoaLabel,
+  activeIssuedOrNumber,
 }: ReceiptPayorSectionProps) {
   const { colors } = useTheme();
+  const displayOp = activeOpLabel || pendingPayment?.opNumber || 'N/A';
+  const displaySoa = activeSoaLabel || pendingPayment?.soaNumber || 'N/A';
+  const displayRef = pendingPayment?.applicationNumber || pendingPayment?.referenceNumber || 'N/A';
 
   return (
     <View
@@ -46,14 +51,50 @@ export function ReceiptPayorSection({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.sectionHeaderTitle, { color: '#0284C7' }]}>
-              2. PAYEE / PAYOR &amp; ORDER OF PAYMENT REFERENCE
+              2. PAYEE / PAYOR &amp; BILLING REFERENCE
             </Text>
             <Text style={styles.sectionHeaderSub}>
-              Confirm the payee name and address to be printed on the Official Receipt
+              Verify Order of Payment and Statement of Account reference and confirm printed payee details
             </Text>
           </View>
         </View>
       </View>
+
+      {/* Billing Reference Strip (OP No., SOA No., Application Ref, Issued OR No.) */}
+      {isFromPendingPayment && pendingPayment !== null && pendingPayment !== undefined && (
+        <View
+          style={[
+            styles.readOnlyPayorCard,
+            {
+              backgroundColor: '#F8FAFC',
+              borderColor: colors.border,
+              marginTop: 0,
+              marginBottom: 14,
+            },
+          ]}
+        >
+          <View style={styles.readOnlyField}>
+            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>ORDER OF PAYMENT NO.</Text>
+            <Text style={[styles.readOnlyValue, { color: colors.text }]}>
+              {displayOp}
+            </Text>
+          </View>
+
+          <View style={styles.readOnlyField}>
+            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>STATEMENT OF ACCOUNT NO.</Text>
+            <Text style={[styles.readOnlyValue, { color: colors.text }]}>
+              {displaySoa}
+            </Text>
+          </View>
+
+          <View style={styles.readOnlyField}>
+            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>APPLICATION REF</Text>
+            <Text style={[styles.readOnlyValue, { color: colors.text }]} numberOfLines={1}>
+              {displayRef}
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Editable Payee Details for Cashier */}
       <View style={styles.payorFieldsRow}>
@@ -91,40 +132,6 @@ export function ReceiptPayorSection({
           />
         </View>
       </View>
-
-      {/* Captured OP & Application reference card */}
-      {isFromPendingPayment && pendingPayment !== null && pendingPayment !== undefined && (
-        <View
-          style={[
-            styles.readOnlyPayorCard,
-            {
-              backgroundColor: '#F8FAFC',
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={styles.readOnlyField}>
-            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>ORIGINAL APPLICANT</Text>
-            <Text style={[styles.readOnlyValue, { color: colors.text }]}>
-              {activeApplicantName || pendingPayment.applicantName}
-            </Text>
-          </View>
-
-          <View style={styles.readOnlyField}>
-            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>ORDER OF PAYMENT</Text>
-            <Text style={[styles.readOnlyValue, { color: colors.text }]}>
-              {activeOpLabel || `OP #${pendingPayment.opNumber}`} ({pendingPayment.applicationNumber || pendingPayment.referenceNumber || 'N/A'})
-            </Text>
-          </View>
-
-          <View style={styles.readOnlyField}>
-            <Text style={[styles.readOnlyLabel, { color: colors.neutral[500] }]}>SERVICE</Text>
-            <Text style={[styles.readOnlyValue, { color: colors.text }]} numberOfLines={1}>
-              {pendingPayment.serviceName}
-            </Text>
-          </View>
-        </View>
-      )}
     </View>
   );
 }

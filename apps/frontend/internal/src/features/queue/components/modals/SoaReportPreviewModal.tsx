@@ -1223,6 +1223,7 @@ export function SoaReportPreviewModal({
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
+                justifyContent: 'space-between',
                 flexWrap: 'wrap',
                 gap: 8,
                 paddingHorizontal: SPACING[16],
@@ -1234,62 +1235,69 @@ export function SoaReportPreviewModal({
                 borderLeftColor: isDark ? '#818cf8' : '#4f46e5',
               }}
             >
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: '700',
-                  color: isDark ? colors.brand[300] : colors.brand[800],
-                }}
-              >
-                {docType === 'soa'
-                  ? `INDIVIDUAL SOA BY APPLICANT (${app.soasList.length}):`
-                  : `INDIVIDUAL OP BY APPLICANT (${app.soasList.length}):`}
-              </Text>
-              {app.soasList.map((soaRec, idx) => {
-                const isSelected = activePreviewSoa?.id === soaRec.id;
-                const matchedApplicant = app.applicantsList?.find((a) => a.id === soaRec.applicantId);
-                const matchedOp = app.opsList?.find((op) => op.statementOfAccountId === soaRec.id);
-                const displayName = matchedApplicant?.name || soaRec.issuedToName || `Applicant #${idx + 1}`;
-                const docCode = docType === 'op'
-                  ? (matchedOp?.opNumber || `SOA ${soaRec.soaNumber} • OP Pending`)
-                  : soaRec.soaNumber;
-                return (
-                  <Pressable
-                    key={soaRec.id}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 5,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 6,
-                      backgroundColor: isSelected
-                        ? (isDark ? colors.brand[600] : colors.brand[700])
-                        : (isDark ? colors.neutral[800] : '#FFFFFF'),
-                      borderWidth: 1,
-                      borderColor: isSelected
-                        ? (isDark ? colors.brand[400] : colors.brand[700])
-                        : (isDark ? colors.neutral[700] : '#CBD5E1'),
-                    }}
-                    onPress={() => setSelectedSoaId(soaRec.id)}
-                  >
-                    <Lucide
-                      name="user"
-                      size={11}
-                      color={isSelected ? '#FFFFFF' : (isDark ? colors.neutral[400] : '#64748B')}
-                    />
-                    <Text
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: isDark ? colors.brand[300] : colors.brand[800],
+                    marginRight: 4,
+                  }}
+                >
+                  APPLICANTS ({app.soasList.length}):
+                </Text>
+                {app.soasList.map((soaRec, idx) => {
+                  const isSelected = activePreviewSoa?.id === soaRec.id;
+                  const matchedApplicant = app.applicantsList?.find((a) => a.id === soaRec.applicantId);
+                  const displayName = matchedApplicant?.name || soaRec.issuedToName || `Applicant #${idx + 1}`;
+                  return (
+                    <Pressable
+                      key={soaRec.id}
                       style={{
-                        fontSize: 11,
-                        fontWeight: isSelected ? '700' : '500',
-                        color: isSelected ? '#FFFFFF' : (isDark ? colors.neutral[200] : '#334155'),
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 5,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 6,
+                        backgroundColor: isSelected
+                          ? (isDark ? colors.brand[600] : colors.brand[700])
+                          : (isDark ? colors.neutral[800] : '#FFFFFF'),
+                        borderWidth: 1,
+                        borderColor: isSelected
+                          ? (isDark ? colors.brand[400] : colors.brand[700])
+                          : (isDark ? colors.neutral[700] : '#CBD5E1'),
                       }}
+                      onPress={() => setSelectedSoaId(soaRec.id)}
                     >
-                      {displayName} ({docCode})
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Lucide
+                        name="user"
+                        size={11}
+                        color={isSelected ? '#FFFFFF' : (isDark ? colors.neutral[400] : '#64748B')}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#FFFFFF' : (isDark ? colors.neutral[200] : '#334155'),
+                        }}
+                      >
+                        {displayName}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? colors.neutral[300] : '#334155' }}>
+                  SOA: <Text style={{ fontWeight: '700' }}>{soaNumber}</Text>
+                </Text>
+                {docType === 'op' && (
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? colors.neutral[300] : '#334155' }}>
+                    OP: <Text style={{ fontWeight: '700' }}>{opNumber}</Text>
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
@@ -1507,90 +1515,6 @@ export function SoaReportPreviewModal({
                     Portrait (Standard)
                   </Text>
                 </Pressable>
-              </View>
-            </View>
-          )}
-
-          {/* Assessed Fees & Total Summary Strip for OP & SOA */}
-          {(docType === 'op' || docType === 'soa') && effectiveSoaItems.length > 0 && (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 8,
-                paddingHorizontal: SPACING[16],
-                paddingVertical: 8,
-                backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
-                borderBottomWidth: 1,
-                borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200],
-                borderLeftWidth: 4,
-                borderLeftColor: isDark ? '#10b981' : '#059669',
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 4 }}>
-                  <Lucide name="credit-card" size={13} color={isDark ? '#34d399' : '#059669'} />
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: isDark ? '#34d399' : '#059669' }}>
-                    ASSESSED FEES ({effectiveSoaItems.length}):
-                  </Text>
-                </View>
-                {effectiveSoaItems.map((item, idx) => {
-                  const upperCode = (item.code || '').toUpperCase();
-                  const isDst = upperCode === 'DST' || (item.particular || '').toUpperCase().includes('DOCUMENTARY STAMP');
-                  const isSur = upperCode === 'SUR' || upperCode.includes('SUR') || (item.particular || '').toUpperCase().includes('SURCHARGE');
-                  const pillBorder = isSur
-                    ? '#dc2626'
-                    : isDst
-                      ? '#059669'
-                      : (isDark ? colors.brand[400] : colors.brand[600]);
-                  return (
-                    <View
-                      key={`${item.code}-${idx}`}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 5,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        borderRadius: 5,
-                        backgroundColor: isDark ? colors.neutral[800] : '#FFFFFF',
-                        borderWidth: 1,
-                        borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
-                        borderLeftWidth: 3,
-                        borderLeftColor: pillBorder,
-                      }}
-                    >
-                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: pillBorder }}>
-                        {item.code || 'FEE'}
-                      </Text>
-                      <Text style={{ fontSize: 10.5, fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[800] }}>
-                        ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderRadius: 6,
-                  backgroundColor: isDark ? '#064e3b' : '#ECFDF5',
-                  borderWidth: 1,
-                  borderColor: isDark ? '#059669' : '#6EE7B7',
-                }}
-              >
-                <Text style={{ fontSize: 10.5, fontWeight: '700', color: isDark ? '#a7f3d0' : '#065F46' }}>
-                  TOTAL DUE:
-                </Text>
-                <Text style={{ fontSize: 12, fontWeight: '900', color: isDark ? '#34d399' : '#065F46' }}>
-                  ₱{effectiveTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Text>
               </View>
             </View>
           )}

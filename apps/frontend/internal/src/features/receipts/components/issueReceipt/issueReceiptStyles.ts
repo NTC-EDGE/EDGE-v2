@@ -628,4 +628,137 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+
+  /* 2-Column Bulk Applicants Sidebar */
+  twoColumnWrap: {
+    flexDirection: 'row',
+    flex: 1,
+  },
+  leftSidebar: {
+    width: 280,
+    borderRightWidth: 1,
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sidebarTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sidebarTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  sidebarCountBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  sidebarCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  scopeToggleRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 12,
+    padding: 3,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+  },
+  scopeToggleBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scopeToggleBtnActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  scopeToggleText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  scopeToggleTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  applicantListScroll: {
+    maxHeight: 520,
+  },
+  applicantCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
+  },
+  applicantCardActive: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  applicantIndexBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applicantIndexBadgeActive: {
+    backgroundColor: '#2563EB',
+  },
+  applicantIndexText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  applicantIndexTextActive: {
+    color: '#FFFFFF',
+  },
+  applicantNameText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  applicantNameTextActive: {
+    color: '#1D4ED8',
+    fontWeight: '700',
+  },
+  applicantPaidBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  applicantPaidText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#059669',
+  },
 });

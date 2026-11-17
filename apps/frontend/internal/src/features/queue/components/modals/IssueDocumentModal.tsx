@@ -55,6 +55,36 @@ export function IssueDocumentModal({
   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [selectedApplicantIndex, setSelectedApplicantIndex] = useState<number>(0);
+
+  const applicantsList = app.applicantsList ?? [];
+  const isBulkApp =
+    app.applicationType === 'BULK' ||
+    app.mode === 'Bulk' ||
+    applicantsList.length > 1;
+  const activeApplicant = isBulkApp ? applicantsList[selectedApplicantIndex] : applicantsList[0];
+
+  const matchedSoa = useMemo(() => {
+    if (!app.soasList || app.soasList.length === 0) return undefined;
+    if (activeApplicant?.id) {
+      const byApp = app.soasList.find((s) => s.applicantId === activeApplicant.id);
+      if (byApp) return byApp;
+    }
+    return app.soasList[selectedApplicantIndex] ?? app.soasList[0];
+  }, [app.soasList, activeApplicant?.id, selectedApplicantIndex]);
+
+  const matchedOp = useMemo(() => {
+    if (!app.opsList || app.opsList.length === 0) return undefined;
+    if (matchedSoa?.id) {
+      const bySoa = app.opsList.find((o) => o.statementOfAccountId === matchedSoa.id);
+      if (bySoa) return bySoa;
+    }
+    if (activeApplicant?.id) {
+      const byApp = app.opsList.find((o) => o.applicantId === activeApplicant.id);
+      if (byApp) return byApp;
+    }
+    return app.opsList[selectedApplicantIndex] ?? app.opsList[0];
+  }, [app.opsList, matchedSoa?.id, activeApplicant?.id, selectedApplicantIndex]);
 
   // Application type and variant resolution
   const applicationType =
@@ -64,6 +94,7 @@ export function IssueDocumentModal({
     'Statutory License / Permit';
 
   const applicationVariant =
+    activeApplicant?.serviceVariantName ||
     app.serviceVariantName ||
     app.services?.[0]?.serviceVariantName ||
     '';
@@ -163,6 +194,25 @@ export function IssueDocumentModal({
     };
   }, [visible, app.id, app.office, app.payment?.orNumber, app.evaluatingOfficer, isLicenseCategory, currentOfficerName, applicationType]);
 
+  const effectiveOrNumber = useMemo(() => {
+    if (matchedOp?.officialReceiptNumber && matchedOp.officialReceiptNumber.trim().length > 0) {
+      return formatOrDisplay(matchedOp.officialReceiptNumber);
+    }
+    return officialReceiptNumber;
+  }, [matchedOp?.officialReceiptNumber, officialReceiptNumber]);
+
+  const effectiveSoaNumber = matchedSoa?.soaNumber || app.soaNumber || 'N/A';
+  const effectiveOpNumber = matchedOp?.opNumber || app.payment?.opNumber || 'N/A';
+
+  const effectiveAppForPreview = useMemo<ApplicationData>(() => {
+    if (!activeApplicant) return app;
+    return {
+      ...app,
+      applicant: activeApplicant.name || app.applicant,
+      basicInfo: activeApplicant.basicInfo ?? app.basicInfo,
+    };
+  }, [app, activeApplicant]);
+
   // Active print options for live preview rendering
   const currentPrintOptions: DocumentPrintOptions = useMemo(() => {
     return {
@@ -177,7 +227,7 @@ export function IssueDocumentModal({
       frequencyBand: frequencyBand.trim(),
       issueDate,
       expiryDate,
-      officialReceiptNumber,
+      officialReceiptNumber: effectiveOrNumber,
       signatoryName: currentOfficerName,
       remarks: remarks.trim(),
     };
@@ -191,32 +241,32 @@ export function IssueDocumentModal({
     frequencyBand,
     issueDate,
     expiryDate,
-    officialReceiptNumber,
+    effectiveOrNumber,
     currentOfficerName,
     remarks,
   ]);
 
   const activeTemplate = useMemo(() => {
-    return findMatchingTemplate(app);
-  }, [app]);
+    return findMatchingTemplate(effectiveAppForPreview);
+  }, [effectiveAppForPreview]);
 
   // Accountable Form Overlay HTML
   const accountableOverlayHtml = useMemo(() => {
     try {
-      return generateAccountableFormOverlayHtml(app, currentPrintOptions, activeTemplate);
+      return generateAccountableFormOverlayHtml(effectiveAppForPreview, currentPrintOptions, activeTemplate);
     } catch {
       return '';
     }
-  }, [app, currentPrintOptions, activeTemplate]);
+  }, [effectiveAppForPreview, currentPrintOptions, activeTemplate]);
 
   // Full Statutory Document HTML (fallback or plain bond paper mode)
   const statutoryHtml = useMemo(() => {
     try {
-      return generateStatutoryDocumentHtml(app, currentPrintOptions);
+      return generateStatutoryDocumentHtml(effectiveAppForPreview, currentPrintOptions);
     } catch {
       return '';
     }
-  }, [app, currentPrintOptions]);
+  }, [effectiveAppForPreview, currentPrintOptions]);
 
   // Load PDF preview when PDF tab is selected
   useEffect(() => {
@@ -483,14 +533,129 @@ export function IssueDocumentModal({
                   { color: isDark ? colors.neutral[400] : colors.neutral[500] },
                 ]}
               >
-                Generating sequential form & license numbers...
+                Generating sequential form &amp; license numbers...
               </Text>
             </View>
           ) : (
             <View style={[styles.mainLayout, isDesktop && styles.desktopLayout]}>
+              {/* Left Column for Bulk Applications: Applicants List (Names Only) */}
+              {isBulkApp && applicantsList.length > 1 && (
+                <View
+                  style={[
+                    styles.bulkSidebar,
+                    {
+                      backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                      borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                      width: isDesktop ? 240 : '100%',
+                    },
+                  ]}
+                >
+                  <View style={styles.bulkSidebarHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Lucide name="users" size={15} color={isDark ? colors.brand[400] : '#1D4ED8'} />
+                      <Text
+                        style={[
+                          styles.bulkSidebarTitle,
+                          { color: isDark ? colors.neutral[100] : '#1E293B' },
+                        ]}
+                      >
+                        Applicants List
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.bulkCountBadge,
+                        {
+                          backgroundColor: isDark ? colors.brand[950] : '#EFF6FF',
+                          borderColor: isDark ? colors.brand[700] : '#BFDBFE',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '700',
+                          color: isDark ? colors.brand[300] : '#1D4ED8',
+                        }}
+                      >
+                        {applicantsList.length}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <ScrollView
+                    style={isDesktop ? { maxHeight: 460 } : { maxHeight: 160 }}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {applicantsList.map((applicantItem, idx) => {
+                      const isSelected = selectedApplicantIndex === idx;
+                      return (
+                        <TouchableOpacity
+                          key={applicantItem.id || `bulk-app-${idx}`}
+                          onPress={() => setSelectedApplicantIndex(idx)}
+                          style={[
+                            styles.bulkApplicantCard,
+                            {
+                              backgroundColor: isSelected
+                                ? (isDark ? colors.brand[950] : '#EFF6FF')
+                                : (isDark ? colors.neutral[800] : '#FFFFFF'),
+                              borderColor: isSelected
+                                ? (isDark ? colors.brand[500] : '#2563EB')
+                                : (isDark ? colors.neutral[700] : '#E2E8F0'),
+                            },
+                          ]}
+                          activeOpacity={0.75}
+                        >
+                          <View
+                            style={[
+                              styles.bulkApplicantIndex,
+                              {
+                                backgroundColor: isSelected
+                                  ? '#2563EB'
+                                  : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: '700',
+                                color: isSelected
+                                  ? '#FFFFFF'
+                                  : (isDark ? colors.neutral[200] : '#475569'),
+                              }}
+                            >
+                              {idx + 1}
+                            </Text>
+                          </View>
+                          <Text
+                            style={{
+                              flex: 1,
+                              fontSize: 12.5,
+                              fontWeight: isSelected ? '700' : '600',
+                              color: isSelected
+                                ? (isDark ? colors.brand[300] : '#1D4ED8')
+                                : (isDark ? colors.neutral[100] : '#1E293B'),
+                            }}
+                            numberOfLines={1}
+                          >
+                            {applicantItem.name || `Applicant #${idx + 1}`}
+                          </Text>
+                          <Lucide
+                            name="chevron-right"
+                            size={14}
+                            color={isSelected ? '#2563EB' : '#94A3B8'}
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
               {/* Form Input Column */}
               {(isDesktop || mobileTab === 'form') && (
-                <View style={[styles.formColumn, isDesktop && { flex: 1, maxWidth: 500 }]}>
+                <View style={[styles.formColumn, isDesktop && { flex: 1, maxWidth: 480 }]}>
                   <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
                     <View style={styles.fields}>
                       {/* Application Type & Variant Banner */}
@@ -523,7 +688,9 @@ export function IssueDocumentModal({
                                 { color: isDark ? colors.neutral[400] : colors.neutral[500] },
                               ]}
                             >
-                              APPLICATION TYPE &amp; VARIANT
+                              {isBulkApp && activeApplicant
+                                ? `APPLICANT • ${activeApplicant.name.toUpperCase()}`
+                                : 'APPLICATION TYPE & VARIANT'}
                             </Text>
                             <Text
                               style={[
@@ -559,32 +726,44 @@ export function IssueDocumentModal({
                         </View>
                       </View>
 
-                      {/* Official Receipt Cross-Reference Badge */}
-                      {officialReceiptNumber.length > 0 && (
-                        <View
-                          style={[
-                            styles.receiptBadge,
-                            {
-                              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                            },
-                          ]}
-                        >
-                          <Lucide
-                            name="file-text"
-                            size={14}
-                            color={isDark ? colors.brand[400] : COLORS.brand[700]}
-                          />
-                          <Text
-                            style={[
-                              styles.receiptBadgeText,
-                              { color: isDark ? colors.neutral[300] : colors.neutral[700] },
-                            ]}
-                          >
-                            Payment Verified: <Text style={{ fontWeight: '700' }}>OR #{officialReceiptNumber}</Text>
+                      {/* Consolidated Billing & Payment Reference Card (SOA No., OP No., OR No.) */}
+                      <View
+                        style={[
+                          styles.appTypeCard,
+                          {
+                            backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                            borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                            flexDirection: 'row',
+                            flexWrap: 'wrap',
+                            gap: 12,
+                          },
+                        ]}
+                      >
+                        <View style={{ flex: 1, minWidth: 110 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? colors.neutral[400] : '#64748B' }}>
+                            SOA NO.
+                          </Text>
+                          <Text style={{ fontSize: 12.5, fontWeight: '700', color: isDark ? colors.neutral[100] : '#0F172A', marginTop: 2 }}>
+                            {effectiveSoaNumber}
                           </Text>
                         </View>
-                      )}
+                        <View style={{ flex: 1, minWidth: 110 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? colors.neutral[400] : '#64748B' }}>
+                            OP NO.
+                          </Text>
+                          <Text style={{ fontSize: 12.5, fontWeight: '700', color: isDark ? colors.neutral[100] : '#0F172A', marginTop: 2 }}>
+                            {effectiveOpNumber}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1, minWidth: 110 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#34D399' : '#059669' }}>
+                            OR NO.
+                          </Text>
+                          <Text style={{ fontSize: 12.5, fontWeight: '700', color: isDark ? '#34D399' : '#059669', marginTop: 2 }}>
+                            {effectiveOrNumber ? `#${effectiveOrNumber}` : 'Verified'}
+                          </Text>
+                        </View>
+                      </View>
 
                       {/* Renewal Notice & Duration Selector */}
                       {isRenewal && (
@@ -1287,6 +1466,46 @@ const styles = StyleSheet.create({
   desktopLayout: {
     flexDirection: 'row',
     alignItems: 'stretch',
+  },
+  bulkSidebar: {
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    padding: SPACING[12],
+    flexDirection: 'column',
+  },
+  bulkSidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING[10],
+  },
+  bulkSidebarTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bulkCountBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  bulkApplicantCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  bulkApplicantIndex: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   formColumn: {
     flexDirection: 'column',

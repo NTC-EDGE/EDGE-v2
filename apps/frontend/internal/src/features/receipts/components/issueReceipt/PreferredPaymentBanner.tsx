@@ -23,60 +23,8 @@ export function PreferredPaymentBanner({
 }: PreferredPaymentBannerProps) {
   const { colors } = useTheme();
 
-  if (!preferredBreakdown) {
-    if (!pendingPayment) return null;
-    const hasCheckDetails = Boolean(pendingPayment.checkBank || pendingPayment.checkNumber || pendingPayment.paymentMethod === 'Check');
-    const hasOnlineDetails = Boolean(pendingPayment.paymentReferenceNumber || pendingPayment.paymentMethod === 'Online');
-
-    if (!hasCheckDetails && !hasOnlineDetails) return null;
-
-    return (
-      <View
-        style={[
-          styles.preferredCard,
-          {
-            backgroundColor: '#F8FAFC',
-            borderColor: colors.border,
-            borderLeftColor: '#6D28D9',
-          },
-        ]}
-      >
-        <View style={styles.preferredCardHeader}>
-          <View style={styles.preferredTitleRow}>
-            <Lucide name={hasCheckDetails ? 'credit-card' : 'globe'} size={16} color="#6D28D9" />
-            <Text style={[styles.preferredTitleText, { color: '#4C1D95' }]}>
-              CLIENT SUBMITTED PAYMENT
-            </Text>
-          </View>
-          <View style={[styles.preferredBadge, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }]}>
-            <Text style={[styles.preferredBadgeText, { color: '#475569' }]}>
-              {hasCheckDetails ? 'Check Payment' : 'Online Payment'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.preferredItemsRow}>
-          {hasCheckDetails && (
-            <View style={[styles.preferredItemPill, { backgroundColor: '#FFFFFF', borderColor: colors.border }]}>
-              <Lucide name="credit-card" size={14} color={colors.neutral[600]} />
-              <Text style={[styles.preferredItemText, { color: colors.text }]}>
-                <Text style={{ fontWeight: '700' }}>Drawee Bank:</Text> {pendingPayment.checkBank || 'Not Specified'}
-                {pendingPayment.checkNumber ? ` • Check #: ${pendingPayment.checkNumber}` : ''}
-                {pendingPayment.checkDate ? ` • Date: ${new Date(pendingPayment.checkDate).toLocaleDateString('en-US')}` : ''}
-              </Text>
-            </View>
-          )}
-          {hasOnlineDetails && (
-            <View style={[styles.preferredItemPill, { backgroundColor: '#FFFFFF', borderColor: colors.border }]}>
-              <Lucide name="globe" size={14} color={colors.neutral[600]} />
-              <Text style={[styles.preferredItemText, { color: colors.text }]}>
-                <Text style={{ fontWeight: '700' }}>Reference #:</Text> {pendingPayment.paymentReferenceNumber || 'Pending Verification'}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    );
+  if (!preferredBreakdown || !preferredBreakdown.isCombination) {
+    return null;
   }
 
   const effectiveTotal = preferredBreakdown.totalAmount > 0
