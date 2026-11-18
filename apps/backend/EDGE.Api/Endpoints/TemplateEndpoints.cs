@@ -27,6 +27,7 @@ public static class TemplateEndpoints
             .Produces<ApiResponse<IReadOnlyList<string>>>(StatusCodes.Status200OK);
 
         templateGroup.MapGet("/{templateId}", GetTemplateFile)
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
             .WithName("GetTemplateFile")
             .WithSummary("Download or view a PDF template")
             .WithDescription("Retrieves the binary PDF stream of the requested accountable form template.")
@@ -36,6 +37,7 @@ public static class TemplateEndpoints
         templateGroup.MapPost("/{templateId}", UploadTemplate)
             .DisableAntiforgery()
             .RequireAuthorization()
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.FileUpload)
             .WithName("UploadTemplate")
             .WithSummary("Upload or update a PDF template")
             .WithDescription("Uploads an accountable form PDF template to Cloudflare R2 cloud storage and updates the in-memory cache.")

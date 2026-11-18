@@ -31,6 +31,7 @@ public static class StorageEndpoints
 
         tenantStorageGroup.MapPost("/upload", UploadTenantFile)
             .DisableAntiforgery()
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.FileUpload)
             .WithName("UploadTenantFile")
             .WithTags("Tenant Storage")
             .WithSummary("Upload and encrypt a file for a specific tenant")

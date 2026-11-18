@@ -56,10 +56,16 @@ try
     // Configure CORS
     builder.Services.AddApiCors(builder.Configuration);
 
+    // Configure Anti-DDoS, ForwardedHeaders, Kestrel payload limits, and Rate Limiting
+    builder.AddApiRequestProtection();
+
     var app = builder.Build();
 
     // Initialize PDF engine libraries (e.g. iText 7 license configuration)
     app.Services.InitializePdfLibraries();
+
+    // Forward client IP and protocol headers from reverse proxies (Cloudflare, NGINX, ALB)
+    app.UseForwardedHeaders();
 
     // Use global exception handling middleware
     app.UseMiddleware<ExceptionHandlingMiddleware>();
@@ -83,6 +89,7 @@ try
     });
 
     app.UseAuthentication();
+    app.UseRateLimiter();
     app.UseAuthorization();
 
     // Configure HTTP request pipeline
