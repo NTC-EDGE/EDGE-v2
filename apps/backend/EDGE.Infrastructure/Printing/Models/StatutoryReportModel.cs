@@ -20,6 +20,7 @@ public class StatutoryReportModel
     public string GeneratedBy { get; set; } = "Authorized Regional Officer";
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
     public string? SecondaryFilter { get; set; }
+    public string? FieldOfficeFilter { get; set; }
     public IReadOnlyList<ApplicationSummaryDto> Applications { get; set; } = Array.Empty<ApplicationSummaryDto>();
     public IReadOnlyList<TenantTransactionDto> Transactions { get; set; } = Array.Empty<TenantTransactionDto>();
     public IReadOnlyList<TenantTransactionDto> PaidTransactions { get; set; } = Array.Empty<TenantTransactionDto>();

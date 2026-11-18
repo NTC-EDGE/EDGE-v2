@@ -8,6 +8,7 @@ import {
   useOfficialReceipts,
   useBankDeposits,
   useTenants,
+  useAdminFieldOffices,
   ApplicationSummaryDto,
   TenantTransactionDto,
   FeedbackDto,
@@ -57,6 +58,15 @@ export interface PeriodicStatBucket {
   avgCsat: string;
 }
 
+export interface FieldOfficeFilterOption {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  isMainOffice: boolean;
+  applicationCount: number;
+}
+
 export function useReportsState() {
   const { user } = useAuthContext();
   const [reportType, setReportType] = useState<ReportType>('statutory');
@@ -75,6 +85,7 @@ export function useReportsState() {
   const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined);
   const [selectedApplicantId, setSelectedApplicantId] = useState<string | undefined>(undefined);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | undefined>(undefined);
+  const [selectedFieldOffices, setSelectedFieldOffices] = useState<string[]>([]);
 
   const setSelectedPeriod = useCallback((period: StatutoryPeriod) => {
     setSelectedPeriodState(period);
@@ -122,6 +133,11 @@ export function useReportsState() {
   });
   const pageSize = 10;
 
+  const fieldOfficesQueryParam = useMemo(() => {
+    if (selectedFieldOffices.length === 0) return undefined;
+    return selectedFieldOffices.join(',');
+  }, [selectedFieldOffices]);
+
   // Server-Aggregated Operational Reports Statistics (Single Source of Truth)
   const {
     data: serverStats,
@@ -136,7 +152,14 @@ export function useReportsState() {
     quarter: selectedQuarter,
     month: selectedMonth + 1,
     category: categoryFilter !== 'all' ? categoryFilter : undefined,
+    fieldOffices: fieldOfficesQueryParam,
   });
+
+  // Live Field Offices of the authenticated tenant (for monitoring filter)
+  const {
+    fieldOffices: adminFieldOffices,
+    refetch: refetchFieldOffices,
+  } = useAdminFieldOffices(user?.tenantId ?? undefined);
 
   // Live Applications Data (Filtered strictly by authenticated tenant and regional scope)
   const {
@@ -187,7 +210,13 @@ export function useReportsState() {
     refetch: refetchFeedback,
   } = useAdminFeedback();
 
-  const isLoading = loadingServerStats || loadingApps || loadingTx || loadingFeedback || loadingReceipts || loadingDeposits;
+  const isLoading =
+    (loadingServerStats && applications.length === 0) ||
+    loadingApps ||
+    loadingTx ||
+    loadingFeedback ||
+    loadingReceipts ||
+    loadingDeposits;
 
   const tenantDisplayName = useMemo(() => {
     if (user?.tenantId && allTenants.length > 0) {
@@ -214,8 +243,9 @@ export function useReportsState() {
       refetchReceipts(),
       refetchDeposits(),
       refetchFeedback(),
+      refetchFieldOffices(),
     ]);
-  }, [refetchServerStats, refetchApps, refetchTx, refetchReceipts, refetchDeposits, refetchFeedback]);
+  }, [refetchServerStats, refetchApps, refetchTx, refetchReceipts, refetchDeposits, refetchFeedback, refetchFieldOffices]);
 
   // Unified Transactions combining TenantTransactions, OfficialReceipts, and Paid Applications
   const unifiedTransactions = useMemo(() => {
@@ -344,10 +374,207 @@ export function useReportsState() {
     return true;
   }, [periodMode, startDate, endDate, selectedYear, selectedQuarter, selectedMonth, timeRange]);
 
+  // Build Tenant Field Offices list (for checkbox monitoring filter)
+  const fieldOfficeOptions = useMemo<FieldOfficeFilterOption[]>(() => {
+    const map = new Map<string, FieldOfficeFilterOption>();
+
+    const registerOffice = (item: {
+      id?: string;
+      name?: string | null;
+      code?: string | null;
+      category?: string | null;
+    }) => {
+      const rawName = (item.name ?? '').trim();
+      if (rawName.length === 0) return;
+      const key = rawName.toLowerCase();
+      if (map.has(key)) return;
+
+      const catStr = (item.category ?? '').trim();
+      const isMain =
+        catStr.toLowerCase().includes('main') ||
+        rawName.toLowerCase().includes('main office') ||
+        rawName.toLowerCase() === tenantDisplayName.toLowerCase();
+
+      map.set(key, {
+        id: item.id ?? rawName,
+        name: rawName,
+        code: (item.code ?? '').trim(),
+        category: catStr || (isMain ? 'MainOffice' : 'FieldOffice'),
+        isMainOffice: isMain,
+        applicationCount: 0,
+      });
+    };
+
+    for (const fo of adminFieldOffices) {
+      registerOffice({
+        id: fo.id,
+        name: fo.name,
+        code: fo.code,
+        category: fo.category,
+      });
+    }
+
+    if (serverStats?.fieldOffices) {
+      for (const fo of serverStats.fieldOffices) {
+        registerOffice({
+          id: fo.id,
+          name: fo.name,
+          code: fo.code,
+          category: fo.category,
+        });
+      }
+    }
+
+    for (const app of applications) {
+      const appOff = (app.office ?? '').trim();
+      if (appOff.length > 0 && appOff.toLowerCase() !== tenantDisplayName.toLowerCase()) {
+        const alreadyCovered = Array.from(map.values()).some(
+          (o) =>
+            o.name.toLowerCase() === appOff.toLowerCase() ||
+            (o.code.length > 0 && o.code.toLowerCase() === appOff.toLowerCase()) ||
+            (o.isMainOffice && appOff.toLowerCase().includes('main office'))
+        );
+        if (!alreadyCovered) {
+          registerOffice({
+            id: appOff,
+            name: appOff,
+            code: '',
+            category: appOff.toLowerCase().includes('main') ? 'MainOffice' : 'FieldOffice',
+          });
+        }
+      }
+    }
+
+    // Ensure a Main Office entry always exists for the tenant
+    const hasMain = Array.from(map.values()).some((o) => o.isMainOffice);
+    if (!hasMain) {
+      const mainName = `${tenantDisplayName} - Main Office`;
+      map.set(mainName.toLowerCase(), {
+        id: 'main-office',
+        name: mainName,
+        code: 'MAIN',
+        category: 'MainOffice',
+        isMainOffice: true,
+        applicationCount: 0,
+      });
+    }
+
+    const list = Array.from(map.values()).sort((a, b) => {
+      if (a.isMainOffice && !b.isMainOffice) return -1;
+      if (!a.isMainOffice && b.isMainOffice) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    const resolveOfficeForApp = (
+      app: ApplicationSummaryDto,
+      optionsList: FieldOfficeFilterOption[]
+    ): FieldOfficeFilterOption | undefined => {
+      const mainOpt = optionsList.find((o) => o.isMainOffice) ?? optionsList[0];
+      const rawOffice = (app.office ?? '').trim();
+      if (
+        rawOffice.length === 0 ||
+        rawOffice.toLowerCase() === tenantDisplayName.toLowerCase() ||
+        rawOffice.toLowerCase().includes('main office')
+      ) {
+        return mainOpt;
+      }
+
+      const exactMatch = optionsList.find(
+        (o) =>
+          o.name.toLowerCase() === rawOffice.toLowerCase() ||
+          (o.code.length > 0 && o.code.toLowerCase() === rawOffice.toLowerCase()) ||
+          o.id.toLowerCase() === rawOffice.toLowerCase()
+      );
+      if (exactMatch) return exactMatch;
+
+      const subMatch = optionsList.find(
+        (o) =>
+          !o.isMainOffice &&
+          (o.name.toLowerCase().includes(rawOffice.toLowerCase()) ||
+            rawOffice.toLowerCase().includes(o.name.toLowerCase()))
+      );
+      if (subMatch) return subMatch;
+
+      return mainOpt;
+    };
+
+    for (const app of applications) {
+      if (!isWithinTimeRange(app.createdAt)) continue;
+      const targetOffice = resolveOfficeForApp(app, list);
+      if (targetOffice) {
+        targetOffice.applicationCount += 1;
+      }
+    }
+
+    return list;
+  }, [adminFieldOffices, serverStats?.fieldOffices, applications, tenantDisplayName, isWithinTimeRange]);
+
+  const isAllFieldOfficesSelected = selectedFieldOffices.length === 0;
+
+  const hasBackendFieldOfficeSupport = useMemo(() => {
+    return Array.isArray(serverStats?.fieldOffices);
+  }, [serverStats?.fieldOffices]);
+
+  const toggleFieldOffice = useCallback((officeName: string) => {
+    setSelectedFieldOffices((prev) => {
+      const exists = prev.some((s) => s.toLowerCase() === officeName.toLowerCase());
+      if (exists) {
+        return prev.filter((s) => s.toLowerCase() !== officeName.toLowerCase());
+      }
+      return [...prev, officeName];
+    });
+    setCurrentPage(1);
+  }, []);
+
+  const selectAllFieldOffices = useCallback(() => {
+    setSelectedFieldOffices([]);
+    setCurrentPage(1);
+  }, []);
+
+  const matchesSelectedFieldOffices = useCallback(
+    (app: ApplicationSummaryDto): boolean => {
+      if (selectedFieldOffices.length === 0) return true;
+
+      const selectedLower = new Set(selectedFieldOffices.map((s) => s.toLowerCase()));
+      const mainOpt = fieldOfficeOptions.find((o) => o.isMainOffice) ?? fieldOfficeOptions[0];
+      const rawOffice = (app.office ?? '').trim();
+
+      let resolvedOffice: FieldOfficeFilterOption | undefined = mainOpt;
+      if (
+        rawOffice.length > 0 &&
+        rawOffice.toLowerCase() !== tenantDisplayName.toLowerCase() &&
+        !rawOffice.toLowerCase().includes('main office')
+      ) {
+        const exactMatch = fieldOfficeOptions.find(
+          (o) =>
+            o.name.toLowerCase() === rawOffice.toLowerCase() ||
+            (o.code.length > 0 && o.code.toLowerCase() === rawOffice.toLowerCase()) ||
+            o.id.toLowerCase() === rawOffice.toLowerCase()
+        );
+        if (exactMatch) {
+          resolvedOffice = exactMatch;
+        } else {
+          const subMatch = fieldOfficeOptions.find(
+            (o) =>
+              !o.isMainOffice &&
+              (o.name.toLowerCase().includes(rawOffice.toLowerCase()) ||
+                rawOffice.toLowerCase().includes(o.name.toLowerCase()))
+          );
+          resolvedOffice = subMatch ?? mainOpt;
+        }
+      }
+
+      if (!resolvedOffice) return true;
+      return selectedLower.has(resolvedOffice.name.toLowerCase());
+    },
+    [selectedFieldOffices, fieldOfficeOptions, tenantDisplayName]
+  );
+
   // Filtered Applications
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
       if (!isWithinTimeRange(app.createdAt)) return false;
+      if (!matchesSelectedFieldOffices(app)) return false;
 
       if (categoryFilter !== 'all') {
         const cat = app.serviceCategory ?? app.serviceName ?? '';
@@ -370,12 +597,41 @@ export function useReportsState() {
 
       return true;
     });
-  }, [applications, isWithinTimeRange, categoryFilter, searchQuery]);
+  }, [applications, isWithinTimeRange, matchesSelectedFieldOffices, categoryFilter, searchQuery]);
 
   // Filtered Financial Transactions
   const filteredTransactions = useMemo(() => {
+    const allAppIds = new Set(applications.map((a) => a.id));
+    const matchedAppIds = new Set(filteredApplications.map((a) => a.id));
+    const matchedRefs = new Set<string>();
+    for (const a of filteredApplications) {
+      if (a.officialReceiptNumber) matchedRefs.add(a.officialReceiptNumber.trim().toUpperCase());
+      if (a.opNumber) matchedRefs.add(a.opNumber.trim().toUpperCase());
+      if (a.soaNumber) matchedRefs.add(a.soaNumber.trim().toUpperCase());
+      if (a.applicationNumber) matchedRefs.add(a.applicationNumber.trim().toUpperCase());
+      if (a.referenceNumber) matchedRefs.add(a.referenceNumber.trim().toUpperCase());
+    }
+    const mainOption = fieldOfficeOptions.find((o) => o.isMainOffice) ?? fieldOfficeOptions[0];
+    const isMainSelected =
+      isAllFieldOfficesSelected ||
+      Boolean(mainOption && selectedFieldOffices.some((s) => s.toLowerCase() === mainOption.name.toLowerCase())) ||
+      selectedFieldOffices.some((s) => s.toLowerCase().includes('main office'));
+
     return unifiedTransactions.filter((tx) => {
       if (!isWithinTimeRange(tx.date)) return false;
+
+      if (!isAllFieldOfficesSelected) {
+        const refUpper = (tx.refNo ?? '').trim().toUpperCase();
+        const isMatchedApp = matchedAppIds.has(tx.id) || (refUpper.length > 0 && matchedRefs.has(refUpper));
+        if (!isMatchedApp) {
+          if (allAppIds.has(tx.id)) {
+            return false;
+          }
+          if (!isMainSelected) {
+            return false;
+          }
+        }
+      }
 
       if (searchQuery.trim().length > 0) {
         const q = searchQuery.toLowerCase().trim();
@@ -390,7 +646,16 @@ export function useReportsState() {
 
       return true;
     });
-  }, [unifiedTransactions, isWithinTimeRange, searchQuery]);
+  }, [
+    unifiedTransactions,
+    isWithinTimeRange,
+    isAllFieldOfficesSelected,
+    applications,
+    filteredApplications,
+    fieldOfficeOptions,
+    selectedFieldOffices,
+    searchQuery,
+  ]);
 
   // Distinct Filter Options for Evaluator, Service, Entity, and Exam Class
   const evaluatorOptions = useMemo(() => {
@@ -1043,6 +1308,14 @@ export function useReportsState() {
     serviceOptions,
     entityOptions,
     scheduleOptions,
+    fieldOfficeOptions,
+    selectedFieldOffices,
+    setSelectedFieldOffices,
+    isAllFieldOfficesSelected,
+    hasBackendFieldOfficeSupport,
+    toggleFieldOffice,
+    selectAllFieldOffices,
+    fieldOfficesQueryParam,
     statutoryReports,
     statutoryModal,
     handleOpenStatutoryModal,

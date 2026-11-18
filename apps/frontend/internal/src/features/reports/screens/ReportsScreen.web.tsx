@@ -313,6 +313,158 @@ export function ReportsScreen() {
             )}
           </View>
 
+          {/* Row 2: Field Office Checkbox Filter (For Monitoring Purposes Only) */}
+          {state.fieldOfficeOptions.length > 0 && (
+            <View
+              style={{
+                paddingBottom: SPACING[12],
+                marginBottom: SPACING[12],
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: SPACING[8],
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING[8] }}>
+                <Lucide name="map-pin" size={13} color={isDark ? colors.brand[400] : colors.brand.primary} />
+                <Text style={[styles.controlSectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
+                  FIELD OFFICE FILTER (FOR MONITORING ONLY):
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING[8], flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
+                {/* All Field Offices Checkbox */}
+                <Pressable
+                  style={[
+                    styles.periodPill,
+                    { borderColor: colors.border },
+                    state.isAllFieldOfficesSelected && {
+                      backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                      borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                    },
+                    Platform.select({ web: { cursor: 'pointer' } }),
+                  ]}
+                  onPress={state.selectAllFieldOffices}
+                >
+                  <View
+                    style={{
+                      width: 15,
+                      height: 15,
+                      borderRadius: 3,
+                      borderWidth: 1.5,
+                      borderColor: state.isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[400] : colors.brand.primary)
+                        : colors.textMuted,
+                      backgroundColor: state.isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[500] : colors.brand.primary)
+                        : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {state.isAllFieldOfficesSelected && (
+                      <Lucide name="check" size={10} color="#FFFFFF" />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.periodPillText,
+                      {
+                        color: state.isAllFieldOfficesSelected
+                          ? (isDark ? colors.brand[500] : colors.brand.primary)
+                          : colors.textMuted,
+                        fontWeight: state.isAllFieldOfficesSelected
+                          ? TYPOGRAPHY.weights.bold
+                          : TYPOGRAPHY.weights.regular,
+                      },
+                    ]}
+                  >
+                    All Field Offices
+                  </Text>
+                </Pressable>
+
+                {/* Individual Field Office Checkboxes */}
+                {state.fieldOfficeOptions.map((fo) => {
+                  const isChecked = state.selectedFieldOffices.some(
+                    (s) => s.toLowerCase() === fo.name.toLowerCase()
+                  );
+
+                  return (
+                    <Pressable
+                      key={fo.id}
+                      style={[
+                        styles.periodPill,
+                        { borderColor: colors.border },
+                        isChecked && {
+                          backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                          borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                        },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
+                      onPress={() => state.toggleFieldOffice(fo.name)}
+                    >
+                      <View
+                        style={{
+                          width: 15,
+                          height: 15,
+                          borderRadius: 3,
+                          borderWidth: 1.5,
+                          borderColor: isChecked
+                            ? (isDark ? colors.brand[400] : colors.brand.primary)
+                            : colors.textMuted,
+                          backgroundColor: isChecked
+                            ? (isDark ? colors.brand[500] : colors.brand.primary)
+                            : 'transparent',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isChecked && <Lucide name="check" size={10} color="#FFFFFF" />}
+                      </View>
+                      <Text
+                        style={[
+                          styles.periodPillText,
+                          {
+                            color: isChecked
+                              ? (isDark ? colors.brand[500] : colors.brand.primary)
+                              : colors.text,
+                            fontWeight: isChecked
+                              ? TYPOGRAPHY.weights.bold
+                              : TYPOGRAPHY.weights.medium,
+                          },
+                        ]}
+                      >
+                        {fo.name}
+                      </Text>
+                      <View
+                        style={[
+                          styles.categoryCountBadge,
+                          {
+                            backgroundColor: isChecked
+                              ? (isDark ? colors.brand[500] : colors.brand.primary)
+                              : (isDark ? colors.neutral[800] : colors.neutral[200]),
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryCountText,
+                            { color: isChecked ? '#FFFFFF' : colors.textMuted },
+                          ]}
+                        >
+                          {fo.applicationCount}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           <View style={styles.categoryHeaderRow}>
             {/* Category Filter Pills */}
             <View style={styles.categoryPillsContainer}>
@@ -554,6 +706,13 @@ export function ReportsScreen() {
           state.setStartDate(s);
           state.setEndDate(e);
         }}
+        fieldOfficeOptions={state.fieldOfficeOptions}
+        selectedFieldOffices={state.selectedFieldOffices}
+        isAllFieldOfficesSelected={state.isAllFieldOfficesSelected}
+        hasBackendFieldOfficeSupport={state.hasBackendFieldOfficeSupport}
+        onToggleFieldOffice={state.toggleFieldOffice}
+        onSelectAllFieldOffices={state.selectAllFieldOffices}
+        fieldOfficesParam={state.fieldOfficesQueryParam}
         applications={state.filteredApplications}
         transactions={state.filteredTransactions}
         feedback={state.filteredFeedback}

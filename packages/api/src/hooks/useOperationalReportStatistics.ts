@@ -26,6 +26,7 @@ export function useOperationalReportStatistics(
   if (params?.quarter !== undefined) searchParams.set('quarter', params.quarter.toString());
   if (params?.month !== undefined) searchParams.set('month', params.month.toString());
   if (params?.category) searchParams.set('category', params.category);
+  if (params?.fieldOffices) searchParams.set('fieldOffices', params.fieldOffices);
 
   const queryString = searchParams.toString();
   const endpoint = `/api/v2/reports/statistics${queryString ? `?${queryString}` : ''}`;

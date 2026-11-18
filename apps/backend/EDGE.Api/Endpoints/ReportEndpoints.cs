@@ -57,6 +57,7 @@ public static class ReportEndpoints
         int? quarter,
         int? month,
         string? category,
+        string? fieldOffices,
         IMediator mediator,
         IValidator<GetOperationalReportStatisticsQuery> validator,
         CancellationToken cancellationToken)
@@ -69,7 +70,8 @@ public static class ReportEndpoints
             Year: year,
             Quarter: quarter,
             Month: month,
-            Category: category
+            Category: category,
+            FieldOffices: fieldOffices
         );
 
         var validationResult = await validator.ValidateAsync(query, cancellationToken);
@@ -102,10 +104,12 @@ public static class ReportEndpoints
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
         [FromQuery] string? secondaryFilter,
+        [FromQuery] string? fieldOffices,
         [FromQuery] bool download,
         HttpContext httpContext,
         IApplicationFullRepository applicationRepository,
         ITenantRepository tenantRepository,
+        IFieldOfficeRepository fieldOfficeRepository,
         IOfficialReceiptRepository receiptRepository,
         IBankDepositRepository depositRepository,
         IFeedbackRepository feedbackRepository,
@@ -266,6 +270,107 @@ public static class ReportEndpoints
         var filteredTx = transactions
             .Where(t => t.Date >= filterStart && t.Date <= filterEnd)
             .ToList();
+
+        string? fieldOfficeFilterLabel = null;
+        if (!string.IsNullOrWhiteSpace(fieldOffices) && !string.Equals(fieldOffices.Trim(), "all", StringComparison.OrdinalIgnoreCase))
+        {
+            var selectedTokens = fieldOffices
+                .Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToList();
+
+            if (selectedTokens.Count > 0)
+            {
+                fieldOfficeFilterLabel = string.Join(", ", selectedTokens);
+                var selectedSet = new HashSet<string>(selectedTokens, StringComparer.OrdinalIgnoreCase);
+
+                var tenantOffices = targetTenantId.HasValue && targetTenantId.Value != Guid.Empty
+                    ? await fieldOfficeRepository.GetByTenantIdAsync(targetTenantId.Value, cancellationToken)
+                    : new List<EDGE.Domain.Entities.FieldOffice>();
+
+                bool includesMainOffice = selectedTokens.Any(t =>
+                    t.Contains("Main Office", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t, "MainOffice", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t, tenantDisplayName, StringComparison.OrdinalIgnoreCase)) ||
+                    (tenantOffices != null && tenantOffices.Any(fo =>
+                        (fo.Category.ToString().Contains("Main", StringComparison.OrdinalIgnoreCase) || fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase)) &&
+                        (selectedSet.Contains(fo.Name) || selectedSet.Contains(fo.Code) || selectedSet.Contains(fo.Id.ToString()))));
+
+                bool MatchesSelectedFieldOffice(ApplicationSummaryDto app)
+                {
+                    var appOffice = (app.Office ?? string.Empty).Trim();
+                    if (string.IsNullOrEmpty(appOffice) ||
+                        string.Equals(appOffice, tenantDisplayName, StringComparison.OrdinalIgnoreCase) ||
+                        appOffice.Contains("Main Office", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return includesMainOffice;
+                    }
+                    if (selectedSet.Contains(appOffice))
+                    {
+                        return true;
+                    }
+                    if (tenantOffices != null)
+                    {
+                        foreach (var fo in tenantOffices)
+                        {
+                            bool isMainFo = fo.Category.ToString().Contains("Main", StringComparison.OrdinalIgnoreCase) ||
+                                            fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase);
+                            if (isMainFo) continue;
+
+                            if (selectedSet.Contains(fo.Name) || selectedSet.Contains(fo.Code) || selectedSet.Contains(fo.Id.ToString()))
+                            {
+                                if (string.Equals(appOffice, fo.Name, StringComparison.OrdinalIgnoreCase) ||
+                                    (!string.IsNullOrWhiteSpace(fo.Code) && string.Equals(appOffice, fo.Code, StringComparison.OrdinalIgnoreCase)) ||
+                                    appOffice.Contains(fo.Name, StringComparison.OrdinalIgnoreCase) ||
+                                    fo.Name.Contains(appOffice, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                var allAppIds = new HashSet<Guid>(filteredApps.Select(a => a.Id));
+                filteredApps = filteredApps.Where(MatchesSelectedFieldOffice).ToList();
+
+                var matchedAppIds = new HashSet<Guid>(filteredApps.Select(a => a.Id));
+                var matchedRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var a in filteredApps)
+                {
+                    if (!string.IsNullOrWhiteSpace(a.OfficialReceiptNumber)) matchedRefs.Add(a.OfficialReceiptNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.OpNumber)) matchedRefs.Add(a.OpNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.SoaNumber)) matchedRefs.Add(a.SoaNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.ApplicationNumber)) matchedRefs.Add(a.ApplicationNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.ReferenceNumber)) matchedRefs.Add(a.ReferenceNumber.Trim());
+                }
+
+                filteredTx = filteredTx.Where(tx =>
+                {
+                    if (matchedAppIds.Contains(tx.Id)) return true;
+                    if (!string.IsNullOrWhiteSpace(tx.RefNo) && matchedRefs.Contains(tx.RefNo.Trim())) return true;
+                    if (allAppIds.Contains(tx.Id)) return false;
+                    return includesMainOffice;
+                }).ToList();
+
+                validReceipts = validReceipts.Where(r =>
+                {
+                    var rAppId = r.ApplicationId ?? r.OrderOfPayment?.ApplicationId;
+                    if (rAppId.HasValue && rAppId.Value != Guid.Empty)
+                    {
+                        if (matchedAppIds.Contains(rAppId.Value)) return true;
+                        if (allAppIds.Contains(rAppId.Value)) return false;
+                    }
+                    if (!string.IsNullOrWhiteSpace(r.OfficialReceiptNumber) && matchedRefs.Contains(r.OfficialReceiptNumber.Trim()))
+                    {
+                        return true;
+                    }
+                    return includesMainOffice;
+                }).ToList();
+            }
+        }
 
         string normalizedCode = string.IsNullOrWhiteSpace(code) ? "NTC-MIS-OPS" : code.Trim().ToUpperInvariant();
         string trimmedSecondary = secondaryFilter?.Trim() ?? "all";
@@ -438,6 +543,7 @@ public static class ReportEndpoints
             GeneratedBy = generatedBy,
             GeneratedAt = DateTime.UtcNow,
             SecondaryFilter = trimmedSecondary,
+            FieldOfficeFilter = fieldOfficeFilterLabel,
             Applications = filteredApps,
             Transactions = filteredTx,
             PaidTransactions = paidTx.OrderByDescending(t => t.Date).ToList(),

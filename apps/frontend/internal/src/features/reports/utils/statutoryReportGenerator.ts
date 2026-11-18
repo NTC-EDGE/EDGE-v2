@@ -163,6 +163,7 @@ export interface StatutoryReportGeneratorOptions {
   serviceFilter?: string;
   entityFilter?: string;
   scheduleFilter?: string;
+  fieldOfficeFilter?: string;
 }
 
 export interface UacsBreakdown {
@@ -2086,43 +2087,48 @@ export function generateStatutoryPrintableHtml(
     ? `${dateRange.startDate} to ${dateRange.endDate}`
     : period;
 
+  const effectiveTenantName =
+    dateRange?.fieldOfficeFilter && dateRange.fieldOfficeFilter.trim().length > 0
+      ? `${tenantName} — Field Office (Monitoring): ${dateRange.fieldOfficeFilter.trim()}`
+      : tenantName;
+
   const scopedApplications = filterApplicationsForStatutoryReport(
     reportMetadata.code,
     applications,
     dateRange,
     userName
   );
-  const paidTransactions = getPaidTransactions(transactions, applications);
+  const paidTransactions = getPaidTransactions(transactions, scopedApplications);
 
   // Route to the exact dedicated government layout corresponding to the report
   switch (reportMetadata.code) {
     case 'NTC-MIS-OPS':
-      return renderMisOpsHtml(reportMetadata, tenantName, effectivePeriod, scopedApplications, paidTransactions, feedback, userName);
+      return renderMisOpsHtml(reportMetadata, effectiveTenantName, effectivePeriod, scopedApplications, paidTransactions, feedback, userName);
 
     case 'NTC-COA-APP26-M':
     case 'NTC-COA-APP26-D':
-      return renderAppendix26Html(reportMetadata, tenantName, effectivePeriod, paidTransactions, userName);
+      return renderAppendix26Html(reportMetadata, effectiveTenantName, effectivePeriod, paidTransactions, userName);
 
     case 'NTC-BIR-DST-01':
-      return renderDstRemittanceHtml(tenantName, effectivePeriod, paidTransactions);
+      return renderDstRemittanceHtml(effectiveTenantName, effectivePeriod, paidTransactions);
 
     case 'NTC-BTR-INC-01':
-      return renderBtrIncomeHtml(tenantName, effectivePeriod, paidTransactions);
+      return renderBtrIncomeHtml(effectiveTenantName, effectivePeriod, paidTransactions);
 
     case 'NTC-APP-SUM-EVAL':
     case 'NTC-APP-SUM-SVC':
     case 'NTC-APP-SUM-ENT':
-      return renderApplicationSummaryHtml(reportMetadata, tenantName, effectivePeriod, scopedApplications, paidTransactions, userName);
+      return renderApplicationSummaryHtml(reportMetadata, effectiveTenantName, effectivePeriod, scopedApplications, paidTransactions, userName);
 
     case 'NTC-EXAM-MST-01':
-      return renderExamMasterlistHtml(tenantName, effectivePeriod, scopedApplications);
+      return renderExamMasterlistHtml(effectiveTenantName, effectivePeriod, scopedApplications);
 
     case 'NTC-APP-VOL-01':
-      return renderVolumeReportHtml(tenantName, effectivePeriod, scopedApplications, paidTransactions, dateRange);
+      return renderVolumeReportHtml(effectiveTenantName, effectivePeriod, scopedApplications, paidTransactions, dateRange);
 
     default:
       // General Statutory Reports (NTC-BAR-1, ARTA, SPECTRUM, CSMR, NOV)
-      return renderGenericStatutoryHtml(reportMetadata, tenantName, effectivePeriod, scopedApplications, paidTransactions, feedback, userName);
+      return renderGenericStatutoryHtml(reportMetadata, effectiveTenantName, effectivePeriod, scopedApplications, paidTransactions, feedback, userName);
   }
 }
 

@@ -72,7 +72,6 @@ public static class FieldOfficeEndpoints
         return group;
     }
 
-    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOfficesByTenant(
         Guid tenantId,
         [FromQuery] bool? isActive,
@@ -82,7 +81,6 @@ public static class FieldOfficeEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOffices(
         [FromQuery] Guid? tenantId,
         [FromQuery] Guid? regionId,
@@ -93,7 +91,6 @@ public static class FieldOfficeEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOfficeById(
         Guid id,
         Guid? tenantId,

@@ -23,19 +23,22 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
     private readonly IFeedbackRepository _feedbackRepository;
     private readonly ITenantContextService _tenantContextService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IFieldOfficeRepository? _fieldOfficeRepository;
 
     public GetOperationalReportStatisticsQueryHandler(
         IApplicationFullRepository applicationRepository,
         ITenantRepository tenantRepository,
         IFeedbackRepository feedbackRepository,
         ITenantContextService tenantContextService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IFieldOfficeRepository? fieldOfficeRepository = null)
     {
         _applicationRepository = applicationRepository;
         _tenantRepository = tenantRepository;
         _feedbackRepository = feedbackRepository;
         _tenantContextService = tenantContextService;
         _currentUserService = currentUserService;
+        _fieldOfficeRepository = fieldOfficeRepository;
     }
 
     public async Task<ApiResponse<OperationalReportStatisticsDto>> Handle(GetOperationalReportStatisticsQuery request, CancellationToken cancellationToken)
@@ -136,6 +139,114 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
 
         // Fetch live feedback dataset scoped to tenant
         var allFeedback = await _feedbackRepository.GetByTenantAsync(targetTenantId, cancellationToken) ?? new List<FeedbackEntity>();
+
+        string tenantDisplayName = "National Telecommunications Commission - Central Office";
+        if (targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
+        {
+            var tenantEntity = await _tenantRepository.GetByIdAsync(targetTenantId.Value, cancellationToken);
+            tenantDisplayName = tenantEntity != null && !string.IsNullOrWhiteSpace(tenantEntity.Name)
+                ? tenantEntity.Name
+                : $"National Telecommunications Commission - Regional Office ({targetTenantId.Value.ToString()[..8].ToUpperInvariant()})";
+        }
+
+        // Load tenant field offices for monitoring filter
+        var fieldOfficeDtos = new List<ReportFieldOfficeDto>();
+        if (_fieldOfficeRepository != null && targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
+        {
+            var offices = await _fieldOfficeRepository.GetByTenantIdAsync(targetTenantId.Value, cancellationToken);
+            if (offices != null)
+            {
+                fieldOfficeDtos = offices
+                    .OrderByDescending(o => o.Category.ToString().Contains("Main", StringComparison.OrdinalIgnoreCase) || o.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(o => o.Name)
+                    .Select(o => new ReportFieldOfficeDto(
+                        o.Id,
+                        o.Name,
+                        o.Code,
+                        o.Category.ToString(),
+                        o.IsActive))
+                    .ToList();
+            }
+        }
+
+        // Apply optional Field Offices filter (for monitoring purposes when tenant has multiple field offices)
+        if (!string.IsNullOrWhiteSpace(request.FieldOffices) && !string.Equals(request.FieldOffices.Trim(), "all", StringComparison.OrdinalIgnoreCase))
+        {
+            var selectedTokens = request.FieldOffices
+                .Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToList();
+
+            if (selectedTokens.Count > 0)
+            {
+                var selectedSet = new HashSet<string>(selectedTokens, StringComparer.OrdinalIgnoreCase);
+                bool includesMainOffice = selectedTokens.Any(t =>
+                    t.Contains("Main Office", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t, "MainOffice", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t, tenantDisplayName, StringComparison.OrdinalIgnoreCase)) ||
+                    fieldOfficeDtos.Any(fo =>
+                        (fo.Category.Contains("Main", StringComparison.OrdinalIgnoreCase) || fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase)) &&
+                        (selectedSet.Contains(fo.Name) || selectedSet.Contains(fo.Code) || selectedSet.Contains(fo.Id.ToString())));
+
+                bool MatchesSelectedFieldOffice(ApplicationSummaryDto app)
+                {
+                    var appOffice = (app.Office ?? string.Empty).Trim();
+                    if (string.IsNullOrEmpty(appOffice) ||
+                        string.Equals(appOffice, tenantDisplayName, StringComparison.OrdinalIgnoreCase) ||
+                        appOffice.Contains("Main Office", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return includesMainOffice;
+                    }
+                    if (selectedSet.Contains(appOffice))
+                    {
+                        return true;
+                    }
+                    foreach (var fo in fieldOfficeDtos)
+                    {
+                        bool isMainFo = fo.Category.Contains("Main", StringComparison.OrdinalIgnoreCase) ||
+                                        fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase);
+                        if (isMainFo) continue;
+
+                        if (selectedSet.Contains(fo.Name) || selectedSet.Contains(fo.Code) || selectedSet.Contains(fo.Id.ToString()))
+                        {
+                            if (string.Equals(appOffice, fo.Name, StringComparison.OrdinalIgnoreCase) ||
+                                (!string.IsNullOrWhiteSpace(fo.Code) && string.Equals(appOffice, fo.Code, StringComparison.OrdinalIgnoreCase)) ||
+                                appOffice.Contains(fo.Name, StringComparison.OrdinalIgnoreCase) ||
+                                fo.Name.Contains(appOffice, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                var allAppIds = new HashSet<Guid>(tenantApps.Select(a => a.Id));
+                tenantApps = tenantApps.Where(MatchesSelectedFieldOffice).ToList();
+
+                var matchedAppIds = new HashSet<Guid>(tenantApps.Select(a => a.Id));
+                var matchedRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var a in tenantApps)
+                {
+                    if (!string.IsNullOrWhiteSpace(a.OfficialReceiptNumber)) matchedRefs.Add(a.OfficialReceiptNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.OpNumber)) matchedRefs.Add(a.OpNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.SoaNumber)) matchedRefs.Add(a.SoaNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.ApplicationNumber)) matchedRefs.Add(a.ApplicationNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.ReferenceNumber)) matchedRefs.Add(a.ReferenceNumber.Trim());
+                }
+
+                transactions = transactions.Where(tx =>
+                {
+                    if (matchedAppIds.Contains(tx.Id)) return true;
+                    if (!string.IsNullOrWhiteSpace(tx.RefNo) && matchedRefs.Contains(tx.RefNo.Trim())) return true;
+                    // If tx.Id belongs to an application that was filtered out, exclude it
+                    if (allAppIds.Contains(tx.Id)) return false;
+                    // Walk-in or standalone receipt not tied to a filtered-out sub-office application belongs to Main Office
+                    return includesMainOffice;
+                }).ToList();
+            }
+        }
 
         // Selected filter intervals
         var activeYear = request.Year ?? DateTime.UtcNow.Year;
@@ -526,21 +637,13 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
             )
         };
 
-        string tenantDisplayName = "National Telecommunications Commission - Central Office";
-        if (targetTenantId.HasValue)
-        {
-            var tenantEntity = await _tenantRepository.GetByIdAsync(targetTenantId.Value, cancellationToken);
-            tenantDisplayName = tenantEntity != null && !string.IsNullOrWhiteSpace(tenantEntity.Name)
-                ? tenantEntity.Name
-                : $"National Telecommunications Commission - Regional Office ({targetTenantId.Value.ToString()[..8].ToUpperInvariant()})";
-        }
-
         var result = new OperationalReportStatisticsDto(
             TenantDisplayName: tenantDisplayName,
             Summary: kpiSummary,
             CategoryBreakdown: categoryBreakdown,
             PeriodicStatistics: periodicStats,
-            StatutoryReports: statutorySummaries
+            StatutoryReports: statutorySummaries,
+            FieldOffices: fieldOfficeDtos
         );
 
         return ApiResponse<OperationalReportStatisticsDto>.Success(result, "Operational reports statistics aggregated successfully.");

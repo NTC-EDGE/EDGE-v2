@@ -209,6 +209,96 @@ export function ReportsScreen() {
           </View>
         )}
 
+        {/* Field Office Checkbox Filter (For Monitoring Only) */}
+        {state.fieldOfficeOptions.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodScroll}>
+            <Pressable
+              style={[
+                styles.periodPill,
+                { borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 6 },
+                state.isAllFieldOfficesSelected && {
+                  backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                  borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                },
+              ]}
+              onPress={state.selectAllFieldOffices}
+            >
+              <View
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 3,
+                  borderWidth: 1.5,
+                  borderColor: state.isAllFieldOfficesSelected
+                    ? (isDark ? colors.brand[400] : colors.brand.primary)
+                    : colors.textMuted,
+                  backgroundColor: state.isAllFieldOfficesSelected
+                    ? (isDark ? colors.brand[500] : colors.brand.primary)
+                    : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {state.isAllFieldOfficesSelected && <Lucide name="check" size={9} color="#FFFFFF" />}
+              </View>
+              <Text
+                style={[
+                  styles.periodPillText,
+                  { color: state.isAllFieldOfficesSelected ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                ]}
+              >
+                All Field Offices
+              </Text>
+            </Pressable>
+            {state.fieldOfficeOptions.map((fo) => {
+              const isChecked = state.selectedFieldOffices.some(
+                (s) => s.toLowerCase() === fo.name.toLowerCase()
+              );
+              return (
+                <Pressable
+                  key={fo.id}
+                  style={[
+                    styles.periodPill,
+                    { borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 6 },
+                    isChecked && {
+                      backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                      borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                    },
+                  ]}
+                  onPress={() => state.toggleFieldOffice(fo.name)}
+                >
+                  <View
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 3,
+                      borderWidth: 1.5,
+                      borderColor: isChecked
+                        ? (isDark ? colors.brand[400] : colors.brand.primary)
+                        : colors.textMuted,
+                      backgroundColor: isChecked
+                        ? (isDark ? colors.brand[500] : colors.brand.primary)
+                        : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {isChecked && <Lucide name="check" size={9} color="#FFFFFF" />}
+                  </View>
+                  <Text
+                    style={[
+                      styles.periodPillText,
+                      { color: isChecked ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.text },
+                    ]}
+                  >
+                    {fo.name} ({fo.applicationCount})
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
         {/* Category Pills & Search */}
         <View style={styles.categoryRow}>
           {TENANT_CATEGORIES.map((cat) => {
@@ -334,6 +424,13 @@ export function ReportsScreen() {
           state.setStartDate(s);
           state.setEndDate(e);
         }}
+        fieldOfficeOptions={state.fieldOfficeOptions}
+        selectedFieldOffices={state.selectedFieldOffices}
+        isAllFieldOfficesSelected={state.isAllFieldOfficesSelected}
+        hasBackendFieldOfficeSupport={state.hasBackendFieldOfficeSupport}
+        onToggleFieldOffice={state.toggleFieldOffice}
+        onSelectAllFieldOffices={state.selectAllFieldOffices}
+        fieldOfficesParam={state.fieldOfficesQueryParam}
         applications={state.filteredApplications}
         transactions={state.filteredTransactions}
         feedback={state.filteredFeedback}

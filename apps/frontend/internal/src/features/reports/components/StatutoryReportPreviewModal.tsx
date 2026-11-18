@@ -21,6 +21,7 @@ import {
   DatePickerInput,
 } from '@edge/ui';
 import { StatutoryReportMetadata } from '../types/statutoryReports';
+import { FieldOfficeFilterOption } from '../hooks/useReportsState';
 import {
   ApplicationSummaryDto,
   TenantTransactionDto,
@@ -106,6 +107,13 @@ export interface StatutoryReportPreviewModalProps {
   startDate?: string;
   endDate?: string;
   onDateRangeChange?: (startDate: string, endDate: string) => void;
+  fieldOfficeOptions?: FieldOfficeFilterOption[];
+  selectedFieldOffices?: string[];
+  isAllFieldOfficesSelected?: boolean;
+  hasBackendFieldOfficeSupport?: boolean;
+  onToggleFieldOffice?: (officeName: string) => void;
+  onSelectAllFieldOffices?: () => void;
+  fieldOfficesParam?: string;
   applications: ApplicationSummaryDto[];
   transactions: TenantTransactionDto[];
   feedback: FeedbackDto[];
@@ -122,6 +130,13 @@ export function StatutoryReportPreviewModal({
   startDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
   endDate = new Date().toISOString().slice(0, 10),
   onDateRangeChange,
+  fieldOfficeOptions = [],
+  selectedFieldOffices = [],
+  isAllFieldOfficesSelected = true,
+  hasBackendFieldOfficeSupport = false,
+  onToggleFieldOffice,
+  onSelectAllFieldOffices,
+  fieldOfficesParam,
   applications,
   transactions,
   feedback,
@@ -160,6 +175,7 @@ export function StatutoryReportPreviewModal({
       setSelectedSecondaryFilter('all');
       setViewFormat('pdf');
       setShowActionMenu(false);
+      setPdfBlobUrl(null);
     }
   }, [report?.code, visible]);
 
@@ -186,15 +202,23 @@ export function StatutoryReportPreviewModal({
       ? `${activeDateRange.start} to ${activeDateRange.end}`
       : period;
 
+  const useClientFilteredPreview =
+    selectedFieldOffices.length > 0 && !hasBackendFieldOfficeSupport;
+
   // Fetch backend QuestPDF blob whenever modal opens or filters change (matching SoaReportPreviewModal)
   useEffect(() => {
     let active = true;
     let createdUrl: string | null = null;
 
-    if (visible && report !== null && Platform.OS === 'web' && viewFormat === 'pdf') {
+    if (
+      visible &&
+      report !== null &&
+      Platform.OS === 'web' &&
+      viewFormat === 'pdf' &&
+      !useClientFilteredPreview
+    ) {
       setIsLoadingPdf(true);
       setPdfError(null);
-      setPdfBlobUrl(null);
 
       const loadBlob = async () => {
         try {
@@ -205,6 +229,7 @@ export function StatutoryReportPreviewModal({
             startDate: activeDateRange.start,
             endDate: activeDateRange.end,
             secondaryFilter: selectedSecondaryFilter,
+            fieldOffices: fieldOfficesParam,
           });
 
           if (!active) return;
@@ -253,6 +278,8 @@ export function StatutoryReportPreviewModal({
     activeDateRange.start,
     activeDateRange.end,
     selectedSecondaryFilter,
+    fieldOfficesParam,
+    useClientFilteredPreview,
     viewFormat,
     reloadKey,
   ]);
@@ -313,8 +340,9 @@ export function StatutoryReportPreviewModal({
       serviceFilter: report?.code === 'NTC-APP-SUM-SVC' ? selectedSecondaryFilter : undefined,
       entityFilter: report?.code === 'NTC-APP-SUM-ENT' ? selectedSecondaryFilter : undefined,
       scheduleFilter: report?.code === 'NTC-EXAM-MST-01' ? selectedSecondaryFilter : undefined,
+      fieldOfficeFilter: selectedFieldOffices.length > 0 ? selectedFieldOffices.join(', ') : undefined,
     };
-  }, [activeDateRange, report?.code, selectedSecondaryFilter]);
+  }, [activeDateRange, report?.code, selectedSecondaryFilter, selectedFieldOffices]);
 
   const filteredApps = useMemo(() => {
     if (!report) return dateFilteredApps;
@@ -388,6 +416,7 @@ export function StatutoryReportPreviewModal({
         startDate: activeDateRange.start,
         endDate: activeDateRange.end,
         secondaryFilter: selectedSecondaryFilter,
+        fieldOffices: fieldOfficesParam,
       });
 
       if (blob !== null && err === null) {
@@ -412,6 +441,7 @@ export function StatutoryReportPreviewModal({
         startDate: activeDateRange.start,
         endDate: activeDateRange.end,
         secondaryFilter: selectedSecondaryFilter,
+        fieldOffices: fieldOfficesParam,
       });
 
       if (blob !== null && err === null) {
@@ -728,6 +758,130 @@ export function StatutoryReportPreviewModal({
               </View>
             )}
 
+            {/* Field Office Checkbox Filter (Monitoring Only) */}
+            {fieldOfficeOptions.length > 0 && onToggleFieldOffice && onSelectAllFieldOffices && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, width: '100%' }}
+              >
+                <Text style={[styles.dateLabel, { color: colors.textMuted, marginRight: 2 }]}>
+                  FIELD OFFICE (MONITORING):
+                </Text>
+                <Pressable
+                  style={[
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[500] : colors.brand.primary)
+                        : colors.border,
+                      backgroundColor: isAllFieldOfficesSelected
+                        ? (isDark ? colors.neutral[800] : colors.brand.light)
+                        : 'transparent',
+                    },
+                    Platform.select({ web: { cursor: 'pointer' } }),
+                  ]}
+                  onPress={onSelectAllFieldOffices}
+                >
+                  <View
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 3,
+                      borderWidth: 1.5,
+                      borderColor: isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[400] : colors.brand.primary)
+                        : colors.textMuted,
+                      backgroundColor: isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[500] : colors.brand.primary)
+                        : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {isAllFieldOfficesSelected && <Lucide name="check" size={10} color="#FFFFFF" />}
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: isAllFieldOfficesSelected ? '700' : '500',
+                      color: isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[400] : colors.brand.primary)
+                        : colors.textMuted,
+                    }}
+                  >
+                    All Field Offices
+                  </Text>
+                </Pressable>
+
+                {fieldOfficeOptions.map((fo) => {
+                  const isChecked = selectedFieldOffices.some(
+                    (s) => s.toLowerCase() === fo.name.toLowerCase()
+                  );
+                  return (
+                    <Pressable
+                      key={fo.id}
+                      style={[
+                        {
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 6,
+                          borderWidth: 1,
+                          borderColor: isChecked
+                            ? (isDark ? colors.brand[500] : colors.brand.primary)
+                            : colors.border,
+                          backgroundColor: isChecked
+                            ? (isDark ? colors.neutral[800] : colors.brand.light)
+                            : 'transparent',
+                        },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
+                      onPress={() => onToggleFieldOffice(fo.name)}
+                    >
+                      <View
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: 3,
+                          borderWidth: 1.5,
+                          borderColor: isChecked
+                            ? (isDark ? colors.brand[400] : colors.brand.primary)
+                            : colors.textMuted,
+                          backgroundColor: isChecked
+                            ? (isDark ? colors.brand[500] : colors.brand.primary)
+                            : 'transparent',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isChecked && <Lucide name="check" size={10} color="#FFFFFF" />}
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: isChecked ? '700' : '500',
+                          color: isChecked
+                            ? (isDark ? colors.brand[400] : colors.brand.primary)
+                            : colors.text,
+                        }}
+                      >
+                        {fo.name} ({fo.applicationCount})
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+
             {/* Secondary Report-Specific Filter (Evaluator / Service / Entity / Exam Class) */}
             {secondaryFilterOptions.length > 0 && (
               <ScrollView
@@ -825,9 +979,9 @@ export function StatutoryReportPreviewModal({
 
           {/* Document Preview Body — Matching SoaReportPreviewModal */}
           <View style={[styles.documentPreviewContainer, { backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC' }]}>
-            {Platform.OS === 'web' && viewFormat === 'pdf' ? (
+            {Platform.OS === 'web' && viewFormat === 'pdf' && !useClientFilteredPreview ? (
               <View style={{ flex: 1, minHeight: 680, padding: SPACING[12] }}>
-                {isLoadingPdf ? (
+                {isLoadingPdf && pdfBlobUrl === null ? (
                   <View
                     style={{
                       flex: 1,
