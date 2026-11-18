@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView } from 'react-native';
 import { useWatch } from 'react-hook-form';
 import { useAdminRoles, useAdminFieldOffices } from '@edge/api';
@@ -33,6 +33,21 @@ export function EmployeeForm({ formState, isMobile, tenantId, isEditing = false 
 
   const currentRole = useWatch({ control: form.control, name: 'role' });
   const currentFieldOffice = useWatch({ control: form.control, name: 'fieldOffice' });
+
+  useEffect(() => {
+    if (fieldOffices.length === 0) return;
+    const trimmedOffice = (currentFieldOffice ?? '').trim();
+    const matchesExisting = fieldOffices.some(
+      (fo) => fo.name.toLowerCase() === trimmedOffice.toLowerCase()
+    );
+    if (!trimmedOffice || !matchesExisting) {
+      const mainOffice = fieldOffices.find((fo) => fo.category === 'Main') ?? fieldOffices[0];
+      if (mainOffice !== undefined) {
+        form.setValue('fieldOffice', mainOffice.name, { shouldValidate: true });
+      }
+    }
+  }, [fieldOffices, currentFieldOffice, form]);
+
   const provisioningMethod = useWatch({
     control: form.control,
     name: 'provisioningMethod',

@@ -1,3 +1,4 @@
+using System;
 using MediatR;
 using EDGE.Application.TenantMembers.DTOs;
 
@@ -11,5 +12,6 @@ public record UpdateMemberDetailsCommand(
     string? Level,
     string Division,
     string Position,
-    string? Designation
+    string? Designation,
+    Guid? FieldOfficeId = null
 ) : IRequest<TenantMemberDto>;

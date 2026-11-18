@@ -481,6 +481,90 @@ public static class RolePermissionDataSeeder
             }
         }
 
+        // ── 5b. Ensure Every Tenant Has a Main Office FieldOffice & Every Employee Has a FieldOfficeId ──
+        var allTenants = await context.Tenants.ToListAsync();
+        var allMembers = await context.TenantMembers.ToListAsync();
+        var allFieldOffices = await context.FieldOffices.ToListAsync();
+        var fallbackGlobalMemberId = allMembers.FirstOrDefault()?.Id ?? SeedConstants.TenantMembers.SuperAdminMemberId;
+
+        foreach (var tenant in allTenants)
+        {
+            var tenantOffices = allFieldOffices.Where(fo => fo.TenantId == tenant.Id && !fo.IsDeleted).ToList();
+            var mainOffice = tenantOffices.FirstOrDefault(fo => fo.Category == FieldOfficeCategory.Main)
+                             ?? tenantOffices.FirstOrDefault();
+
+            if (mainOffice == null)
+            {
+                var tenantMembersForOic = allMembers.Where(m => m.TenantId == tenant.Id && !m.IsDeleted).ToList();
+                var oicMemberId = tenantMembersForOic.FirstOrDefault(m => m.RoleId == actualRegionalDirectorRoleId)?.Id
+                                  ?? tenantMembersForOic.FirstOrDefault(m => m.RoleId == actualAdminRoleId)?.Id
+                                  ?? tenantMembersForOic.FirstOrDefault()?.Id
+                                  ?? fallbackGlobalMemberId;
+
+                var cleanName = tenant.Name.Trim();
+                var mainOfficeName = cleanName.EndsWith("Main Office", StringComparison.OrdinalIgnoreCase)
+                    ? cleanName
+                    : $"{cleanName} - Main Office";
+                var mainOfficeCode = $"{(string.IsNullOrWhiteSpace(tenant.Code) ? "NTC" : tenant.Code.Trim().ToUpperInvariant())}-MAIN";
+
+                mainOffice = new FieldOffice
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    Name = mainOfficeName,
+                    Code = mainOfficeCode,
+                    Category = FieldOfficeCategory.Main,
+                    Description = !string.IsNullOrWhiteSpace(tenant.Description)
+                        ? tenant.Description
+                        : $"Regional Main Office for {cleanName}",
+                    RegionId = tenant.RegionId,
+                    Address = cleanName,
+                    ContactPhone = string.Empty,
+                    ContactEmail = string.Empty,
+                    OfficerInChargeId = oicMemberId,
+                    IsActive = true,
+                    AllowSpectrumInspection = true,
+                    AllowPermitIssuance = true,
+                    AllowComplaintReception = true,
+                    CreatedAt = staticDate
+                };
+
+                try
+                {
+                    await context.FieldOffices.AddAsync(mainOffice);
+                    await context.SaveChangesAsync();
+                    allFieldOffices.Add(mainOffice);
+                }
+                catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+                {
+                    context.Entry(mainOffice).State = EntityState.Detached;
+                    mainOffice = await context.FieldOffices.FirstOrDefaultAsync(fo => fo.TenantId == tenant.Id);
+                }
+            }
+
+            if (mainOffice != null)
+            {
+                var validTenantOfficeIds = allFieldOffices
+                    .Where(fo => fo.TenantId == tenant.Id && !fo.IsDeleted)
+                    .Select(fo => fo.Id)
+                    .ToHashSet();
+                validTenantOfficeIds.Add(mainOffice.Id);
+
+                var unassignedMembers = allMembers
+                    .Where(m => m.TenantId == tenant.Id && (!m.FieldOfficeId.HasValue || m.FieldOfficeId.Value == Guid.Empty || !validTenantOfficeIds.Contains(m.FieldOfficeId.Value)))
+                    .ToList();
+
+                if (unassignedMembers.Count > 0)
+                {
+                    foreach (var member in unassignedMembers)
+                    {
+                        member.FieldOfficeId = mainOffice.Id;
+                    }
+                    await context.SaveChangesAsync();
+                }
+            }
+        }
+
         // ── 6. Sync/Provision Default Seed Users to Clerk (if Clerk service available) ──
         if (clerkUserService != null)
         {

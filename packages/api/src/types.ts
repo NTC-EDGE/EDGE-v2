@@ -317,6 +317,7 @@ export interface FieldOffice {
   tenantId: string;
   name: string;
   code: string;
+  category?: string;
   description?: string | null;
   regionId: string;
   regionName?: string | null;

@@ -1,6 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using MediatR;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.TenantMembers.DTOs;
 
@@ -11,6 +17,7 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
     private readonly ITenantRepository _tenantRepository;
     private readonly ITenantMemberRepository _memberRepository;
     private readonly IRoleRepository _roleRepository;
+    private readonly IFieldOfficeRepository? _fieldOfficeRepository;
     private readonly ITenantContextService _tenantContextService;
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -21,7 +28,8 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
         IRoleRepository roleRepository,
         ITenantContextService tenantContextService,
         IUserRepository userRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IFieldOfficeRepository? fieldOfficeRepository = null)
     {
         _tenantRepository = tenantRepository;
         _memberRepository = memberRepository;
@@ -29,6 +37,7 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
         _tenantContextService = tenantContextService;
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
+        _fieldOfficeRepository = fieldOfficeRepository;
     }
 
     public async Task<TenantMemberDto> Handle(AssignUserToTenantCommand request, CancellationToken cancellationToken)
@@ -53,6 +62,31 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             throw new InvalidOperationException($"Role '{request.RoleId}' is not valid for tenant '{request.TenantId}'.");
         }
 
+        // 3b. Resolve FieldOfficeId (validate against Tenant or default to Tenant's Main Office)
+        Guid? resolvedFieldOfficeId = request.FieldOfficeId;
+        FieldOffice? mainFieldOffice = null;
+        if (_fieldOfficeRepository != null)
+        {
+            var tenantOffices = await _fieldOfficeRepository.GetByTenantIdAsync(request.TenantId, cancellationToken);
+            mainFieldOffice = tenantOffices.FirstOrDefault(f => f.Category == FieldOfficeCategory.Main)
+                              ?? tenantOffices.FirstOrDefault();
+
+            if (resolvedFieldOfficeId.HasValue && resolvedFieldOfficeId.Value != Guid.Empty)
+            {
+                var selectedOffice = tenantOffices.FirstOrDefault(f => f.Id == resolvedFieldOfficeId.Value)
+                                     ?? await _fieldOfficeRepository.GetByIdAsync(resolvedFieldOfficeId.Value, cancellationToken);
+                if (selectedOffice == null || selectedOffice.TenantId != request.TenantId)
+                {
+                    throw new InvalidOperationException("The selected field office does not belong to the specified regional tenant.");
+                }
+                resolvedFieldOfficeId = selectedOffice.Id;
+            }
+            else if (mainFieldOffice != null)
+            {
+                resolvedFieldOfficeId = mainFieldOffice.Id;
+            }
+        }
+
         // 4. Verify duplication or restore soft-deleted assignment
         var existingAssignment = await _memberRepository.GetByTenantAndUserAsync(request.TenantId, request.UserId, cancellationToken);
         if (existingAssignment != null)
@@ -66,7 +100,7 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             existingAssignment.IsDeleted = false;
             existingAssignment.IsDeletedBy = string.Empty;
             existingAssignment.RoleId = request.RoleId;
-            existingAssignment.FieldOfficeId = request.FieldOfficeId;
+            existingAssignment.FieldOfficeId = resolvedFieldOfficeId;
             existingAssignment.JobTitle = request.JobTitle;
             existingAssignment.Level = request.Level;
             existingAssignment.Division = request.Division;
@@ -109,7 +143,7 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             TenantId = request.TenantId,
             UserId = request.UserId,
             RoleId = request.RoleId,
-            FieldOfficeId = request.FieldOfficeId,
+            FieldOfficeId = resolvedFieldOfficeId,
             JobTitle = request.JobTitle,
             Level = request.Level,
             Division = request.Division,
@@ -119,6 +153,44 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
 
         await _memberRepository.AddAsync(member, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // If the tenant had no Main Office yet, auto-create it now
+        if (_fieldOfficeRepository != null && mainFieldOffice == null)
+        {
+            var cleanTenantName = tenant.Name.Trim();
+            var mainOfficeName = cleanTenantName.EndsWith("Main Office", StringComparison.OrdinalIgnoreCase)
+                ? cleanTenantName
+                : $"{cleanTenantName} - Main Office";
+            var mainOfficeCode = $"{(string.IsNullOrWhiteSpace(tenant.Code) ? "NTC" : tenant.Code.Trim().ToUpperInvariant())}-MAIN";
+
+            mainFieldOffice = new FieldOffice
+            {
+                Id = Guid.NewGuid(),
+                TenantId = request.TenantId,
+                Name = mainOfficeName,
+                Code = mainOfficeCode,
+                Category = FieldOfficeCategory.Main,
+                Description = !string.IsNullOrWhiteSpace(tenant.Description)
+                    ? tenant.Description
+                    : $"Regional Main Office for {cleanTenantName}",
+                RegionId = tenant.RegionId,
+                Address = cleanTenantName,
+                ContactPhone = string.Empty,
+                ContactEmail = string.Empty,
+                OfficerInChargeId = member.Id,
+                IsActive = true,
+                AllowSpectrumInspection = true,
+                AllowPermitIssuance = true,
+                AllowComplaintReception = true
+            };
+
+            await _fieldOfficeRepository.AddAsync(mainFieldOffice, cancellationToken);
+            if (!member.FieldOfficeId.HasValue || member.FieldOfficeId.Value == Guid.Empty)
+            {
+                member.FieldOfficeId = mainFieldOffice.Id;
+            }
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         // Fetch back with navigation properties populated
         var savedMember = await _memberRepository.GetByIdAsync(member.Id, cancellationToken);

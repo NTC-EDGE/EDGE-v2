@@ -59,9 +59,15 @@ export function useEmployeeActions({
       );
       const roleKey = matchedRole?.key || (selectedRoleName.length > 0 ? selectedRoleName.toLowerCase().replace(/\s+/g, '-') : undefined);
 
-      const matchedFieldOffice = liveFieldOffices.find(
-        (f) => f.name.toLowerCase() === (data.fieldOffice ?? '').trim().toLowerCase()
-      );
+      const selectedOfficeName = (data.fieldOffice ?? editingEmployee.fieldOffice ?? '').trim().toLowerCase();
+      const matchedFieldOffice =
+        liveFieldOffices.find(
+          (f) =>
+            f.name.toLowerCase() === selectedOfficeName ||
+            f.id.toLowerCase() === selectedOfficeName
+        ) ??
+        liveFieldOffices.find((f) => f.category === 'Main') ??
+        liveFieldOffices[0];
 
       const [res, err] = await userService.updateUser(editingEmployee.id, {
         id: editingEmployee.id,
@@ -117,6 +123,16 @@ export function useEmployeeActions({
       const isEmailInvitation = data.provisioningMethod !== 'manual';
       const manualPassword = data.password && data.password.trim().length > 0 ? data.password.trim() : undefined;
 
+      const selectedOfficeName = (data.fieldOffice ?? '').trim().toLowerCase();
+      const matchedFieldOffice =
+        liveFieldOffices.find(
+          (f) =>
+            f.name.toLowerCase() === selectedOfficeName ||
+            f.id.toLowerCase() === selectedOfficeName
+        ) ??
+        liveFieldOffices.find((f) => f.category === 'Main') ??
+        liveFieldOffices[0];
+
       const [res, err] = await userService.createUser({
         email: data.email ?? '',
         firstName: data.firstName ?? '',
@@ -128,6 +144,7 @@ export function useEmployeeActions({
         sendInvitation: isEmailInvitation,
         roleKey,
         tenantId: currentTenantId,
+        fieldOfficeId: matchedFieldOffice?.id,
         jobTitle: data.title,
         level: data.level,
         division: data.division,
