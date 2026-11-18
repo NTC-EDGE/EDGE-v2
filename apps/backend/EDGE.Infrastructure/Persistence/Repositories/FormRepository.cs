@@ -70,87 +70,131 @@ public class FormRepository : IFormRepository
             ? canonicalId
             : serviceId;
 
+        var allServiceForms = await _context.Forms
+            .IgnoreQueryFilters()
+            .Include(f => f.Service)
+            .Include(f => f.ServiceVariant)
+            .Include(f => f.BaseForm)
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
+                .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
+                    .ThenInclude(sf => sf.Field)
+            .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId) && !f.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        if (allServiceForms.Count == 0)
+        {
+            return null;
+        }
+
+        Form? selectedForm = null;
+
         // 1. If explicit formKey provided, try matching active form by key
         if (!string.IsNullOrWhiteSpace(formKey))
         {
-            var matchByKey = await _context.Forms
-                .IgnoreQueryFilters()
-                .Include(f => f.Service)
-                .Include(f => f.ServiceVariant)
-                .Include(f => f.BaseForm)
-                .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
-                    .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
-                        .ThenInclude(sf => sf.Field)
-                .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId)
-                    && f.Key == formKey.Trim()
-                    && !f.IsDeleted)
-                .OrderByDescending(f => f.IsActive)
-                .ThenByDescending(f => f.CreatedAt)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (matchByKey != null) return matchByKey;
+            selectedForm = allServiceForms
+                .Where(f => string.Equals(f.Key, formKey.Trim(), StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
+                .ThenByDescending(f => f.IsActive)
+                .FirstOrDefault();
         }
 
         // 2. If specific serviceVariantId provided, look for dedicated variant form
-        if (serviceVariantId.HasValue && serviceVariantId.Value != Guid.Empty)
+        if (selectedForm == null && serviceVariantId.HasValue && serviceVariantId.Value != Guid.Empty)
         {
-            var matchByVariant = await _context.Forms
-                .IgnoreQueryFilters()
-                .Include(f => f.Service)
-                .Include(f => f.ServiceVariant)
-                .Include(f => f.BaseForm)
-                .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
-                    .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
-                        .ThenInclude(sf => sf.Field)
-                .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId)
-                    && f.ServiceVariantId == serviceVariantId.Value
-                    && !f.IsDeleted)
-                .OrderByDescending(f => f.IsActive)
-                .ThenByDescending(f => f.CreatedAt)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (matchByVariant != null) return matchByVariant;
+            selectedForm = allServiceForms
+                .Where(f => f.ServiceVariantId == serviceVariantId.Value)
+                .OrderByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
+                .ThenByDescending(f => f.IsActive)
+                .FirstOrDefault();
         }
 
         // 3. Fallback to base form (ServiceVariantId == null && BaseFormId == null)
-        var baseForm = await _context.Forms
-            .IgnoreQueryFilters()
-            .Include(f => f.Service)
-            .Include(f => f.ServiceVariant)
-            .Include(f => f.BaseForm)
-            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
-                .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
-                    .ThenInclude(sf => sf.Field)
-            .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId)
-                && f.ServiceVariantId == null
-                && f.BaseFormId == null
-                && !f.IsDeleted)
-            .OrderByDescending(f => f.ServiceId == serviceId)
-            .ThenByDescending(f => f.IsActive)
-            .ThenByDescending(f => f.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+        if (selectedForm == null)
+        {
+            selectedForm = allServiceForms
+                .Where(f => f.ServiceVariantId == null && f.BaseFormId == null)
+                .OrderByDescending(f => f.ServiceId == serviceId)
+                .ThenByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
+                .ThenByDescending(f => f.IsActive)
+                .FirstOrDefault();
+        }
 
-        if (baseForm != null) return baseForm;
-
-        // 4. Fallback to any active base form for this service
-        return await _context.Forms
-            .IgnoreQueryFilters()
-            .Include(f => f.Service)
-            .Include(f => f.ServiceVariant)
-            .Include(f => f.BaseForm)
-            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
-                .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
-                    .ThenInclude(sf => sf.Field)
-            .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId) && f.BaseFormId == null && !f.IsDeleted)
+        // 4. Fallback to any base form for this service
+        selectedForm ??= allServiceForms
+            .Where(f => f.BaseFormId == null)
             .OrderByDescending(f => f.ServiceId == serviceId)
+            .ThenByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
             .ThenByDescending(f => f.IsActive)
-            .ThenByDescending(f => f.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefault()
+            ?? allServiceForms
+                .OrderByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
+                .FirstOrDefault();
+
+        if (selectedForm != null)
+        {
+            SynchronizeServiceFormFields(selectedForm, allServiceForms);
+        }
+
+        return selectedForm;
+    }
+
+    private static void SynchronizeServiceFormFields(Form selectedForm, IReadOnlyList<Form> allServiceForms)
+    {
+        if (selectedForm.Sections == null || allServiceForms.Count == 0) return;
+
+        var allFieldEntries = allServiceForms
+            .Where(f => f.Sections != null)
+            .SelectMany(f => f.Sections.Where(s => !s.IsDeleted).SelectMany(s => (s.SectionFields ?? Enumerable.Empty<SectionField>())
+                .Where(sf => sf.Field != null && !sf.Field.IsDeleted)
+                .Select(sf => new
+                {
+                    Form = f,
+                    SectionKey = s.Key ?? string.Empty,
+                    SectionField = sf,
+                    Field = sf.Field!,
+                    Timestamp = sf.Field!.LastModifiedAt ?? f.LastModifiedAt ?? sf.Field!.CreatedAt
+                })))
+            .ToList();
+
+        if (allFieldEntries.Count == 0) return;
+
+        foreach (var section in selectedForm.Sections.Where(s => !s.IsDeleted))
+        {
+            if (section.SectionFields == null) continue;
+
+            foreach (var sf in section.SectionFields)
+            {
+                if (sf.Field == null) continue;
+                var labelTrimmed = (sf.Field.Label ?? string.Empty).Trim();
+                if (labelTrimmed.Length == 0) continue;
+
+                var newestMatch = allFieldEntries
+                    .Where(e =>
+                        e.Field.Id == sf.FieldId ||
+                        string.Equals((e.Field.Label ?? string.Empty).Trim(), labelTrimmed, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(e => e.Timestamp)
+                    .ThenByDescending(e => !string.IsNullOrWhiteSpace(e.Field.ValidationRules) ? e.Field.ValidationRules!.Length : 0)
+                    .FirstOrDefault();
+
+                if (newestMatch != null && newestMatch.Field.Id != sf.Field.Id)
+                {
+                    var currentTs = sf.Field.LastModifiedAt ?? selectedForm.LastModifiedAt ?? sf.Field.CreatedAt;
+                    if (newestMatch.Timestamp >= currentTs && !string.IsNullOrWhiteSpace(newestMatch.Field.ValidationRules))
+                    {
+                        sf.Field.ValidationRules = newestMatch.Field.ValidationRules;
+                        if (!string.IsNullOrWhiteSpace(newestMatch.Field.FieldType))
+                        {
+                            sf.Field.FieldType = newestMatch.Field.FieldType;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public async Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Forms
+        var form = await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
             .Include(f => f.ServiceVariant)
@@ -159,6 +203,25 @@ public class FormRepository : IFormRepository
                 .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
                     .ThenInclude(sf => sf.Field)
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+
+        if (form != null && form.ServiceId != Guid.Empty)
+        {
+            var targetServiceId = ServiceToCanonicalServiceMap.TryGetValue(form.ServiceId, out var canonicalId)
+                ? canonicalId
+                : form.ServiceId;
+
+            var siblingForms = await _context.Forms
+                .IgnoreQueryFilters()
+                .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
+                    .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
+                        .ThenInclude(sf => sf.Field)
+                .Where(f => (f.ServiceId == form.ServiceId || f.ServiceId == targetServiceId) && !f.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            SynchronizeServiceFormFields(form, siblingForms);
+        }
+
+        return form;
     }
 
     public async Task<List<Form>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -363,6 +426,53 @@ public class FormRepository : IFormRepository
                 existingFields[newField.Id] = newField;
             }
         }
+
+        // Propagate updated field options/validationRules to sibling fields with the same label under the same service
+        if (form.ServiceId != Guid.Empty && allFieldDtos.Count > 0)
+        {
+            var targetServiceId = ServiceToCanonicalServiceMap.TryGetValue(form.ServiceId, out var canonicalId)
+                ? canonicalId
+                : form.ServiceId;
+
+            var siblingFieldIds = await _context.FormSections
+                .IgnoreQueryFilters()
+                .Where(s => !s.IsDeleted && s.Form != null && !s.Form.IsDeleted && (s.Form.ServiceId == form.ServiceId || s.Form.ServiceId == targetServiceId))
+                .SelectMany(s => s.SectionFields.Select(sf => sf.FieldId))
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            if (siblingFieldIds.Count > 0)
+            {
+                var siblingFields = await _context.Fields
+                    .IgnoreQueryFilters()
+                    .Where(f => siblingFieldIds.Contains(f.Id) && !fieldIds.Contains(f.Id))
+                    .ToListAsync(cancellationToken);
+
+                // Use the last (most recently added/edited) field DTO per label
+                var latestDtoByLabel = allFieldDtos
+                    .Where(d => !string.IsNullOrWhiteSpace(d.Label))
+                    .GroupBy(d => d.Label!.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
+
+                foreach (var sib in siblingFields)
+                {
+                    var sibLabel = (sib.Label ?? string.Empty).Trim();
+                    if (sibLabel.Length > 0 && latestDtoByLabel.TryGetValue(sibLabel, out var matchingDto))
+                    {
+                        if (!string.IsNullOrWhiteSpace(matchingDto.ValidationRules))
+                        {
+                            sib.ValidationRules = matchingDto.ValidationRules;
+                        }
+                        if (!string.IsNullOrWhiteSpace(matchingDto.Type))
+                        {
+                            sib.FieldType = matchingDto.Type!;
+                        }
+                        sib.LastModifiedAt = DateTime.UtcNow;
+                    }
+                }
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         // 3. Upsert FormSections

@@ -11,7 +11,7 @@ export function useServiceForm(serviceId?: string) {
       const res = await apiClient.get<ApiResponse<FormDto>>(url);
       return res.data;
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true, revalidateIfStale: true, dedupingInterval: 2000 }
   );
 
   return {

@@ -110,7 +110,10 @@ function parseRepeaterRules(
     parsed = rules;
   } else if (typeof rules === "string" && rules.trim().length > 0) {
     try {
-      parsed = JSON.parse(rules);
+      parsed = JSON.parse(rules.trim());
+      if (typeof parsed === "string" && (parsed.trim().startsWith("{") || parsed.trim().startsWith("["))) {
+        parsed = JSON.parse(parsed.trim());
+      }
     } catch {
       parsed = null;
     }
