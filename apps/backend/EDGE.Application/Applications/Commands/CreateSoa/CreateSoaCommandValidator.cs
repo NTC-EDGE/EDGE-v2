@@ -36,6 +36,11 @@ public class CreateSoaCommandValidator : AbstractValidator<CreateSoaCommand>
             .When(x => x.NoOfCopies.HasValue)
             .WithMessage("NoOfCopies must be greater than zero when provided.");
 
+        RuleFor(x => x.SoaNumber)
+            .MaximumLength(64)
+            .When(x => !string.IsNullOrWhiteSpace(x.SoaNumber))
+            .WithMessage("SOA Number cannot exceed 64 characters.");
+
         RuleFor(x => x.LineItems)
             .Must(items =>
             {

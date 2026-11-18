@@ -111,29 +111,66 @@ export function RegionalConfigTab({
               </View>
             </View>
 
-            <View style={styles.bannerRight}>
+            <Pressable
+              onPress={() => setToggleConfirmModal({ visible: true, nextState: !isEmailNotificationActive })}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 12,
+                backgroundColor: isEmailNotificationActive
+                  ? (isDark ? 'rgba(79, 70, 229, 0.18)' : '#EEF2FF')
+                  : (isDark ? colors.neutral[800] : COLORS.neutral[100]),
+                borderWidth: 1,
+                borderColor: isEmailNotificationActive
+                  ? (isDark ? colors.brand[500] : colors.brand.primary)
+                  : colors.border,
+              }}
+            >
               <Text
                 style={[
                   styles.statusText,
                   {
                     color: isEmailNotificationActive
-                      ? (isDark ? colors.brand[500] : colors.brand.primary)
+                      ? (isDark ? colors.brand[400] : colors.brand.primary)
                       : COLORS.semantic.error,
                   },
                 ]}
               >
                 {isEmailNotificationActive ? 'ACTIVE' : 'INACTIVE'}
               </Text>
-              <Switch
-                value={isEmailNotificationActive}
-                onValueChange={(val) => setToggleConfirmModal({ visible: true, nextState: val })}
-                trackColor={{
-                  false: isDark ? colors.neutral[700] : colors.neutral[300],
-                  true: isDark ? colors.brand[600] : colors.brand.primary,
+              <View
+                style={{
+                  width: 52,
+                  height: 28,
+                  borderRadius: 14,
+                  padding: 3,
+                  backgroundColor: isEmailNotificationActive ? COLORS.brand.indigo : '#CBD5E1',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: isEmailNotificationActive ? 'flex-end' : 'flex-start',
                 }}
-                thumbColor={isDark ? colors.neutral[100] : COLORS.neutral.white}
-              />
-            </View>
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 11,
+                    backgroundColor: COLORS.neutral.white,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Lucide
+                    name={isEmailNotificationActive ? 'check' : 'x'}
+                    size={11}
+                    color={isEmailNotificationActive ? COLORS.brand.indigo : COLORS.neutral[400]}
+                  />
+                </View>
+              </View>
+            </Pressable>
           </View>
 
           {/* 2. Grid of Regional Configuration Cards */}
@@ -239,6 +276,20 @@ export function RegionalConfigTab({
                         <Lucide name="database" size={10} color={colors.textMuted} />
                         <Text style={[styles.codeBadgeText, { color: colors.textMuted }]}>
                           FUND: {card.fundCluster || '01'}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                        <Lucide name="edit-3" size={10} color={card.allowManualSoaNumber ? COLORS.semantic.success : colors.textMuted} />
+                        <Text style={[styles.codeBadgeText, { color: card.allowManualSoaNumber ? COLORS.semantic.success : colors.textMuted }]}>
+                          SOA #: {card.allowManualSoaNumber ? 'MANUAL + EDIT' : 'AUTO'}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                        <Lucide name="edit-3" size={10} color={card.allowManualOpNumber ? COLORS.semantic.success : colors.textMuted} />
+                        <Text style={[styles.codeBadgeText, { color: card.allowManualOpNumber ? COLORS.semantic.success : colors.textMuted }]}>
+                          OP #: {card.allowManualOpNumber ? 'MANUAL + EDIT' : 'AUTO'}
                         </Text>
                       </View>
                     </View>

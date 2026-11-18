@@ -9,6 +9,8 @@ export const DEFAULT_TENANT_CONFIG: RegionalConfigDto = {
   rcCodeOp: '61',
   fundCluster: '01',
   requestAndComplaintRouting: 'DirectToLegal',
+  allowManualSoaNumber: false,
+  allowManualOpNumber: false,
 };
 
 function isRegionalConfigDto(data: unknown): data is RegionalConfigDto {
@@ -71,5 +73,40 @@ export const updateTenantConfig = async (
     rcCodeOp: config.rcCodeOp ?? DEFAULT_TENANT_CONFIG.rcCodeOp,
     fundCluster: config.fundCluster ?? DEFAULT_TENANT_CONFIG.fundCluster,
     requestAndComplaintRouting: config.requestAndComplaintRouting ?? DEFAULT_TENANT_CONFIG.requestAndComplaintRouting,
+    allowManualSoaNumber: config.allowManualSoaNumber ?? DEFAULT_TENANT_CONFIG.allowManualSoaNumber,
+    allowManualOpNumber: config.allowManualOpNumber ?? DEFAULT_TENANT_CONFIG.allowManualOpNumber,
+  };
+};
+
+export const updateTenantNumberingMode = async (params: {
+  tenantId?: string;
+  allowManualSoaNumber: boolean;
+  allowManualOpNumber: boolean;
+  rcCodeSoa?: string;
+  rcCodeOp?: string;
+}): Promise<RegionalConfigDto> => {
+  const url = params.tenantId && params.tenantId.length > 0
+    ? `/api/v2/tenants/${params.tenantId}/config/numbering-mode`
+    : '/api/v2/tenants/config/numbering-mode';
+
+  const response = await apiClient.patch<ApiResponse<RegionalConfigDto> | RegionalConfigDto>(url, params);
+  const payload = response.data;
+
+  if (payload !== null && typeof payload === 'object') {
+    if ('data' in payload && isRegionalConfigDto(payload.data)) {
+      return payload.data;
+    }
+    if (isRegionalConfigDto(payload)) {
+      return payload;
+    }
+  }
+
+  return {
+    ...DEFAULT_TENANT_CONFIG,
+    tenantId: params.tenantId,
+    allowManualSoaNumber: params.allowManualSoaNumber,
+    allowManualOpNumber: params.allowManualOpNumber,
+    rcCodeSoa: params.rcCodeSoa ?? DEFAULT_TENANT_CONFIG.rcCodeSoa,
+    rcCodeOp: params.rcCodeOp ?? DEFAULT_TENANT_CONFIG.rcCodeOp,
   };
 };

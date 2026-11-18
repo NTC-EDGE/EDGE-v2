@@ -16,10 +16,19 @@ public class RegionalConfigurationDto
     public string RequestAndComplaintRouting { get; set; } = "DirectToLegal";
     public string SupportEmail { get; set; } = "region10@ntc.gov.ph";
     public string SupportPhone { get; set; } = "(088) 856-1234";
+    public bool AllowManualSoaNumber { get; set; }
+    public bool AllowManualOpNumber { get; set; }
 }
 
 public interface IRegionalConfigurationService
 {
     Task<RegionalConfigurationDto> GetConfigurationAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<RegionalConfigurationDto> UpdateConfigurationAsync(RegionalConfigurationDto dto, CancellationToken cancellationToken = default);
+    Task<RegionalConfigurationDto> UpdateNumberingModeAsync(
+        Guid tenantId,
+        bool allowManualSoaNumber,
+        bool allowManualOpNumber,
+        string? rcCodeSoa = null,
+        string? rcCodeOp = null,
+        CancellationToken cancellationToken = default);
 }

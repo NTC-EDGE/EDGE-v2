@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Applications.Commands.CreateSoa;
 using EDGE.Application.Applications.Commands.ApproveSoa;
 using EDGE.Application.Applications.Commands.ReturnSoa;
+using EDGE.Application.Applications.Commands.UpdateSoaNumber;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
@@ -54,6 +55,11 @@ public static class SoaEndpoints
             .WithSummary("Return SOA")
             .WithDescription("Returns a pending SOA back to evaluator.");
 
+        group.MapPatch("/{soaId:guid}/number", UpdateSoaNumber)
+            .WithName("UpdateSoaNumber")
+            .WithSummary("Update Statement of Account (SOA) Number")
+            .WithDescription("Allows updating the SOA number when manual SOA numbering is enabled for the regional office.");
+
         return app;
     }
 
@@ -78,7 +84,8 @@ public static class SoaEndpoints
             request?.AdditionalServicesCount,
             request?.NoOfCopies,
             request?.Remarks,
-            request?.SoaNoteId);
+            request?.SoaNoteId,
+            request?.SoaNumber);
 
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
@@ -101,7 +108,8 @@ public static class SoaEndpoints
         var command = new ApproveSoaCommand(
             SoaId: soaId,
             Remarks: request?.Remarks,
-            ApplicationId: request?.ApplicationId);
+            ApplicationId: request?.ApplicationId,
+            OpNumber: request?.OpNumber);
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {
@@ -111,6 +119,29 @@ public static class SoaEndpoints
         var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.CreateBilling)]
+    public static async Task<IResult> UpdateSoaNumber(
+        Guid soaId,
+        UpdateSoaNumberRequest request,
+        FluentValidation.IValidator<UpdateSoaNumberCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateSoaNumberCommand(
+            SoaId: soaId,
+            SoaNumber: request?.SoaNumber ?? string.Empty,
+            Remarks: request?.Remarks);
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     [HasPermission(Permissions.ReturnSoa)]
@@ -356,3 +387,5 @@ public static class SoaEndpoints
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 }
+
+public record UpdateSoaNumberRequest(string SoaNumber, string? Remarks = null);

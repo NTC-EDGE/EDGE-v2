@@ -1790,6 +1790,20 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .FirstOrDefaultAsync(s => s.Id == soaId, cancellationToken);
     }
 
+    public async Task<bool> SoaNumberExistsAsync(Guid tenantId, string soaNumber, Guid? excludeSoaId = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(soaNumber)) return false;
+        var clean = soaNumber.Trim().ToLowerInvariant();
+        return await _context.StatementsOfAccount
+            .IgnoreQueryFilters()
+            .AnyAsync(s =>
+                !s.IsDeleted &&
+                (excludeSoaId == null || s.Id != excludeSoaId.Value) &&
+                s.SoaNumber.ToLower() == clean &&
+                (tenantId == Guid.Empty || (s.Application != null && s.Application.TenantId == tenantId)),
+                cancellationToken);
+    }
+
     public async Task AddSoaAsync(StatementOfAccount soa, CancellationToken cancellationToken = default)
     {
         await _context.StatementsOfAccount.AddAsync(soa, cancellationToken);
@@ -1806,6 +1820,20 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(s => s.LineItems)
             .Include(o => o.Histories)
             .FirstOrDefaultAsync(o => o.Id == opId, cancellationToken);
+    }
+
+    public async Task<bool> OpNumberExistsAsync(Guid tenantId, string opNumber, Guid? excludeOpId = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(opNumber)) return false;
+        var clean = opNumber.Trim().ToLowerInvariant();
+        return await _context.OrdersOfPayment
+            .IgnoreQueryFilters()
+            .AnyAsync(o =>
+                !o.IsDeleted &&
+                (excludeOpId == null || o.Id != excludeOpId.Value) &&
+                o.OpNumber.ToLower() == clean &&
+                (tenantId == Guid.Empty || (o.Application != null && o.Application.TenantId == tenantId)),
+                cancellationToken);
     }
 
     public async Task AddOpAsync(OrderOfPayment op, CancellationToken cancellationToken = default)

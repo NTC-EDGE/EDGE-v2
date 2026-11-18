@@ -1438,6 +1438,7 @@ export interface CreateSoaRequest {
   noOfCopies?: number | null;
   remarks?: string | null;
   soaNoteId?: string | null;
+  soaNumber?: string | null;
 }
 
 export interface VerifyPaymentRequest {

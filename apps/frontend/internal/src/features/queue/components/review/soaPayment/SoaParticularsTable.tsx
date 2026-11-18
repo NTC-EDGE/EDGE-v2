@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Pressable, Platform } from "react-native";
-import { useTheme, COLORS, RADIUS, TYPOGRAPHY, Icon as Lucide, DatePickerInput } from "@edge/ui";
-import { extractOrNumbers } from "@edge/api";
+import { View, Text, TextInput, Pressable, Platform } from "react-native";
+import { useTheme, COLORS, RADIUS, TYPOGRAPHY, Icon as Lucide, DatePickerInput, toast } from "@edge/ui";
+import { extractOrNumbers, useTenantConfig, applicationService, mutateApplications } from "@edge/api";
 import { ApplicationData, SoaItem } from "../../../../../types/application";
 import { formatAmount, amountToWords, formatDisplayDueDate, formatDisplayDateTime } from "../reviewFormatters";
 import { resolveParticularNumber } from "../../../utils/soaReportGenerator";
@@ -31,6 +31,11 @@ export function SoaParticularsTable({
   const { colors, isDark } = useTheme();
   const [editingDueDate, setEditingDueDate] = useState(false);
   const [dueDraft, setDueDraft] = useState(app.dueDate);
+  const { config: tenantConfig } = useTenantConfig(app.tenantId);
+  const allowManualSoaNumber = tenantConfig.allowManualSoaNumber === true;
+  const [editingSoaNumber, setEditingSoaNumber] = useState(false);
+  const [soaNumberDraft, setSoaNumberDraft] = useState("");
+  const [isSavingSoaNumber, setIsSavingSoaNumber] = useState(false);
 
   const isIndividualSoaMode =
     app.soaBillingMode === 'INDIVIDUAL' &&
@@ -88,9 +93,82 @@ export function SoaParticularsTable({
           <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
           {displayedSoaNumber !== null && displayedSoaNumber !== undefined && displayedSoaNumber.trim().length > 0 ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], fontFamily: TYPOGRAPHY.fonts.mono }}>
-                {displayedSoaNumber}
-              </Text>
+              {editingSoaNumber ? (
+                <View style={styles.inlineEditRow}>
+                  <TextInput
+                    style={[styles.inlineEditInput, { minWidth: 160, color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
+                    value={soaNumberDraft}
+                    onChangeText={setSoaNumberDraft}
+                    autoFocus
+                    placeholder="Enter SOA Number"
+                    placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                  />
+                  <Pressable
+                    disabled={isSavingSoaNumber}
+                    onPress={async () => {
+                      const targetSoaId = activeSoaRecord?.id ?? app.soaId;
+                      const cleanNumber = soaNumberDraft.trim();
+                      if (!cleanNumber) {
+                        toast.error("SOA number cannot be empty.");
+                        return;
+                      }
+                      if (!targetSoaId) {
+                        setEditingSoaNumber(false);
+                        updateApplication(app.id, { soaNumber: cleanNumber });
+                        return;
+                      }
+                      setIsSavingSoaNumber(true);
+                      const [res, err] = await applicationService.updateSoaNumber(targetSoaId, cleanNumber);
+                      setIsSavingSoaNumber(false);
+                      if (err !== null || !res?.succeeded) {
+                        toast.error(err || res?.message || "Failed to update SOA number.");
+                        return;
+                      }
+                      setEditingSoaNumber(false);
+                      updateApplication(app.id, { soaNumber: cleanNumber });
+                      toast.success("SOA number updated.");
+                      void mutateApplications(app.id);
+                    }}
+                  >
+                    <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
+                      {isSavingSoaNumber ? "Saving..." : "Save"}
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={() => setEditingSoaNumber(false)}>
+                    <Text style={[styles.inlineEditSave, { color: colors.textMuted, marginLeft: 4 }]}>Cancel</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], fontFamily: TYPOGRAPHY.fonts.mono }}>
+                    {displayedSoaNumber}
+                  </Text>
+                  {allowManualSoaNumber && (
+                    <Pressable
+                      onPress={() => {
+                        setSoaNumberDraft(displayedSoaNumber);
+                        setEditingSoaNumber(true);
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: RADIUS.xs,
+                        borderWidth: 1,
+                        borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                        backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF',
+                      }}
+                    >
+                      <Lucide name="edit-2" size={10} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700] }}>
+                        EDIT SOA #
+                      </Text>
+                    </Pressable>
+                  )}
+                </>
+              )}
               {app.applicationType === 'BULK' && (
                 <View
                   style={{

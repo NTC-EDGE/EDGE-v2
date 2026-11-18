@@ -27,4 +27,6 @@ export interface RegionalConfigDto {
   requestAndComplaintRouting: 'DirectToLegal' | 'DirectToEvaluator';
   supportEmail?: string;
   supportPhone?: string;
+  allowManualSoaNumber?: boolean;
+  allowManualOpNumber?: boolean;
 }

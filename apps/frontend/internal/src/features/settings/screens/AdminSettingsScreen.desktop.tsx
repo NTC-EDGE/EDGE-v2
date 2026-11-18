@@ -189,6 +189,8 @@ export function AdminSettingsScreen(): React.ReactElement {
       rcCodeOp: tenantConfig.rcCodeOp,
       fundCluster: tenantConfig.fundCluster,
       requestAndComplaintRouting: tenantConfig.requestAndComplaintRouting,
+      allowManualSoaNumber: tenantConfig.allowManualSoaNumber,
+      allowManualOpNumber: tenantConfig.allowManualOpNumber,
       commissionerName: 'Comm. Ella Blanca B. Lopez',
       supportEmail: tenantConfig.supportEmail || 'region10@ntc.gov.ph',
       supportPhone: tenantConfig.supportPhone || '(088) 856-1234 / (02) 8924-4008',
@@ -212,6 +214,8 @@ export function AdminSettingsScreen(): React.ReactElement {
       rcCodeOp: config.rcCodeOp,
       fundCluster: config.fundCluster,
       requestAndComplaintRouting: config.requestAndComplaintRouting,
+      allowManualSoaNumber: config.allowManualSoaNumber,
+      allowManualOpNumber: config.allowManualOpNumber,
       contactEmail: config.supportEmail,
       contactPhone: config.supportPhone,
     });
@@ -410,6 +414,8 @@ export function AdminSettingsScreen(): React.ReactElement {
                 rcCodeOp: savedData.rcCodeOp,
                 fundCluster: savedData.fundCluster,
                 requestAndComplaintRouting: savedData.requestAndComplaintRouting,
+                allowManualSoaNumber: savedData.allowManualSoaNumber,
+                allowManualOpNumber: savedData.allowManualOpNumber,
                 supportEmail: savedData.contactEmail,
                 supportPhone: savedData.contactPhone,
               })

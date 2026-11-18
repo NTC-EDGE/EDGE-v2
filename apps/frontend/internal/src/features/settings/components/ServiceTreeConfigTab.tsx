@@ -1436,15 +1436,72 @@ export function ServiceTreeConfigTab() {
                   onChangeText={setNewReqName}
                 />
 
-                <View style={styles.toggleRow}>
-                  <Text style={styles.modalLabel}>Mandatory Requirement:</Text>
-                  <Switch
-                    value={newReqMandatory}
-                    onValueChange={setNewReqMandatory}
-                    trackColor={{ false: COLORS.neutral[200], true: COLORS.brand[500] }}
-                    thumbColor={newReqMandatory ? COLORS.brand[600] : COLORS.neutral[400]}
-                  />
-                </View>
+                <Pressable
+                  onPress={() => setNewReqMandatory((prev) => !prev)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 12,
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    borderColor: newReqMandatory ? COLORS.brand.indigo : COLORS.neutral[300],
+                    backgroundColor: newReqMandatory ? '#EEF2FF' : COLORS.neutral[50],
+                    marginTop: 6,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={[styles.modalLabel, { marginBottom: 0 }]}>Mandatory Requirement</Text>
+                      <View
+                        style={{
+                          paddingHorizontal: 7,
+                          paddingVertical: 2,
+                          borderRadius: 6,
+                          backgroundColor: newReqMandatory ? COLORS.brand.indigo : COLORS.neutral[400],
+                        }}
+                      >
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: COLORS.neutral.white }}>
+                          {newReqMandatory ? 'REQUIRED' : 'OPTIONAL'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 11, color: COLORS.neutral[500], marginTop: 2 }}>
+                      {newReqMandatory
+                        ? 'Applicants must upload this document before submitting.'
+                        : 'Document is optional during application intake.'}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      width: 52,
+                      height: 28,
+                      borderRadius: 14,
+                      padding: 3,
+                      backgroundColor: newReqMandatory ? COLORS.brand.indigo : '#CBD5E1',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: newReqMandatory ? 'flex-end' : 'flex-start',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: COLORS.neutral.white,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Lucide
+                        name={newReqMandatory ? 'check' : 'minus'}
+                        size={11}
+                        color={newReqMandatory ? COLORS.brand.indigo : COLORS.neutral[400]}
+                      />
+                    </View>
+                  </View>
+                </Pressable>
               </View>
 
               <View style={styles.modalFooter}>
@@ -1804,17 +1861,74 @@ return (
                 }
               />
 
-              <View style={styles.toggleRow}>
-                <Text style={styles.modalLabel}>Mandatory Requirement:</Text>
-                <Switch
-                  value={editingReq?.isRequired ?? true}
-                  onValueChange={(val) =>
-                    setEditingReq((prev) => (prev ? { ...prev, isRequired: val } : null))
-                  }
-                  trackColor={{ false: COLORS.neutral[200], true: COLORS.brand[500] }}
-                  thumbColor={editingReq?.isRequired ? COLORS.brand[600] : COLORS.neutral[400]}
-                />
-              </View>
+              <Pressable
+                onPress={() =>
+                  setEditingReq((prev) => (prev ? { ...prev, isRequired: !prev.isRequired } : null))
+                }
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: 12,
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: (editingReq?.isRequired ?? true) ? COLORS.brand.indigo : COLORS.neutral[300],
+                  backgroundColor: (editingReq?.isRequired ?? true) ? '#EEF2FF' : COLORS.neutral[50],
+                  marginTop: 6,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={[styles.modalLabel, { marginBottom: 0 }]}>Mandatory Requirement</Text>
+                    <View
+                      style={{
+                        paddingHorizontal: 7,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                        backgroundColor: (editingReq?.isRequired ?? true) ? COLORS.brand.indigo : COLORS.neutral[400],
+                      }}
+                    >
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: COLORS.neutral.white }}>
+                        {(editingReq?.isRequired ?? true) ? 'REQUIRED' : 'OPTIONAL'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 11, color: COLORS.neutral[500], marginTop: 2 }}>
+                    {(editingReq?.isRequired ?? true)
+                      ? 'Applicants must upload this document before submitting.'
+                      : 'Document is optional during application intake.'}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 52,
+                    height: 28,
+                    borderRadius: 14,
+                    padding: 3,
+                    backgroundColor: (editingReq?.isRequired ?? true) ? COLORS.brand.indigo : '#CBD5E1',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: (editingReq?.isRequired ?? true) ? 'flex-end' : 'flex-start',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      backgroundColor: COLORS.neutral.white,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Lucide
+                      name={(editingReq?.isRequired ?? true) ? 'check' : 'minus'}
+                      size={11}
+                      color={(editingReq?.isRequired ?? true) ? COLORS.brand.indigo : COLORS.neutral[400]}
+                    />
+                  </View>
+                </View>
+              </Pressable>
             </View>
 
             <View style={styles.modalFooter}>

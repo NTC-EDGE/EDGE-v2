@@ -901,7 +901,8 @@ public static class ApplicationEndpoints
     {
         var command = new ApproveSoaCommand(
             ApplicationId: id,
-            Remarks: request?.Remarks);
+            Remarks: request?.Remarks,
+            OpNumber: request?.OpNumber);
         var validationResult = await validator.ValidateAsync(command, cancellationToken);
         if (!validationResult.IsValid)
         {

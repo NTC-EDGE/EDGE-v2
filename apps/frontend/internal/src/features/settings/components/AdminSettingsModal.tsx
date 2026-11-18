@@ -75,6 +75,8 @@ export interface ModalInitialData {
   rcCodeOp?: string;
   fundCluster?: string;
   requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
+  allowManualSoaNumber?: boolean;
+  allowManualOpNumber?: boolean;
 }
 
 interface AdminSettingsModalProps {
@@ -105,10 +107,12 @@ interface AdminSettingsModalProps {
     feeBreakdown?: FeeBreakdownItemInput[];
     status?: 'Published' | 'Draft';
     serviceType?: string;
-  rcCodeSoa?: string;
-  rcCodeOp?: string;
-  fundCluster?: string;
-  requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
+    rcCodeSoa?: string;
+    rcCodeOp?: string;
+    fundCluster?: string;
+    requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
+    allowManualSoaNumber?: boolean;
+    allowManualOpNumber?: boolean;
   }) => void;
 }
 
@@ -166,6 +170,8 @@ export function AdminSettingsModal({
   const [rcCodeOpInput, setRcCodeOpInput] = useState('61');
   const [fundClusterInput, setFundClusterInput] = useState('01');
   const [routingInput, setRoutingInput] = useState<'DirectToLegal' | 'DirectToEvaluator'>('DirectToLegal');
+  const [allowManualSoaNumberToggle, setAllowManualSoaNumberToggle] = useState(false);
+  const [allowManualOpNumberToggle, setAllowManualOpNumberToggle] = useState(false);
 
   // Error & Loading States
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -289,6 +295,8 @@ export function AdminSettingsModal({
       setRcCodeOpInput(initialData.rcCodeOp ?? '61');
       setFundClusterInput(initialData.fundCluster ?? '01');
       setRoutingInput(initialData.requestAndComplaintRouting === 'DirectToEvaluator' ? 'DirectToEvaluator' : 'DirectToLegal');
+      setAllowManualSoaNumberToggle(initialData.allowManualSoaNumber === true);
+      setAllowManualOpNumberToggle(initialData.allowManualOpNumber === true);
       setMappedDocs(
         initialData.mappedDocuments && initialData.mappedDocuments.length > 0
           ? initialData.mappedDocuments
@@ -328,6 +336,8 @@ export function AdminSettingsModal({
       setRcCodeOpInput('61');
       setFundClusterInput('01');
       setRoutingInput('DirectToLegal');
+      setAllowManualSoaNumberToggle(false);
+      setAllowManualOpNumberToggle(false);
       setMappedDocs([
         { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
         { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
@@ -555,6 +565,8 @@ export function AdminSettingsModal({
         rcCodeOp: rcCodeOpInput,
         fundCluster: fundClusterInput,
         requestAndComplaintRouting: routingInput,
+        allowManualSoaNumber: allowManualSoaNumberToggle,
+        allowManualOpNumber: allowManualOpNumberToggle,
       });
       onClose();
     } catch (err: unknown) {
@@ -572,13 +584,23 @@ export function AdminSettingsModal({
           style={[
             styles.modalCard,
             { backgroundColor: colors.cardBg, borderColor: colors.border },
-            (type === 'add-branch' || isRequirementModal || isFeeModal || isNoteModal || isFormModal) && styles.modalCardWide,
+            (type === 'edit-config' || type === 'add-branch' || isRequirementModal || isFeeModal || isNoteModal || isFormModal) && styles.modalCardWide,
             SHADOWS.modal,
           ]}
         >
           {/* Header */}
           <View style={styles.modalHeader}>
             <View style={styles.modalTitleContainer}>
+              {type === 'edit-config' && (
+                <Text style={styles.topBadgeText}>
+                  REGIONAL OFFICE GOVERNANCE &amp; NUMBERING STUDIO
+                </Text>
+              )}
+              {type === 'add-branch' && (
+                <Text style={styles.topBadgeText}>
+                  {initialData?.id ? 'EDIT REGIONAL FIELD OFFICE' : 'REGISTER NEW REGIONAL FIELD OFFICE'}
+                </Text>
+              )}
               {isRequirementModal && (
                 <Text style={styles.topBadgeText}>
                   {type === 'add-requirement'
@@ -606,7 +628,18 @@ export function AdminSettingsModal({
                 </Text>
               )}
 
-              <Text style={styles.modalTitle}>{getModalTitle()}</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{getModalTitle()}</Text>
+
+              {type === 'edit-config' && (
+                <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+                  Configure regional identity, accounting responsibility center codes, transition manual numbering controls, and workflow routing.
+                </Text>
+              )}
+              {type === 'add-branch' && (
+                <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+                  Configure branch identity, physical address, officer-in-charge contact details, and field operational capabilities.
+                </Text>
+              )}
 
               {isRequirementModal && (
                 <Text style={styles.modalSubtitle}>
@@ -653,11 +686,44 @@ export function AdminSettingsModal({
             {type === 'edit-config' && (
               <>
                 {categoryName === 'Commissioner' && (
-                  <>
+                  <View
+                    style={[
+                      styles.featureSectionCard,
+                      {
+                        backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                        borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                        borderLeftColor: COLORS.brand.indigo,
+                      },
+                    ]}
+                  >
+                    <View style={styles.featureSectionHeader}>
+                      <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF' }]}>
+                        <Lucide name="award" size={16} color={COLORS.brand.indigo} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                          Commissioner &amp; Executive Signatory
+                        </Text>
+                        <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                          Configure the official signatory name and title for accountable forms and certificates.
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.featureSectionDivider} />
+
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>FULL NAME</Text>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>FULL NAME</Text>
                       <TextInput
-                        style={styles.textInput}
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                        ]}
                         placeholder="Atty. Ella Blanca B. Lopez"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={nameInput}
@@ -666,9 +732,17 @@ export function AdminSettingsModal({
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>TITLE</Text>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>OFFICIAL TITLE</Text>
                       <TextInput
-                        style={styles.textInput}
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                        ]}
                         placeholder="Regional Commissioner"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={subLabelInput}
@@ -676,24 +750,98 @@ export function AdminSettingsModal({
                       />
                     </View>
 
-                    <View style={styles.switchRow}>
-                      <Text style={styles.switchLabel}>Mark as Active Commissioner</Text>
-                      <Switch
-                        value={isActiveToggle}
-                        onValueChange={setIsActiveToggle}
-                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo400 }}
-                        thumbColor={isActiveToggle ? COLORS.brand.indigo : COLORS.neutral.white}
-                      />
-                    </View>
-                  </>
+                    <Pressable
+                      onPress={() => setIsActiveToggle((prev) => !prev)}
+                      style={[
+                        styles.aliveToggleCard,
+                        {
+                          backgroundColor: isActiveToggle
+                            ? (isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5')
+                            : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                          borderColor: isActiveToggle ? '#10B981' : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.aliveToggleIconCircle,
+                          {
+                            backgroundColor: isActiveToggle
+                              ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#D1FAE5')
+                              : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                          },
+                        ]}
+                      >
+                        <Lucide
+                          name={isActiveToggle ? 'check-circle' : 'slash'}
+                          size={16}
+                          color={isActiveToggle ? '#059669' : COLORS.neutral[400]}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.aliveToggleTitleRow}>
+                          <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>
+                            Active Commissioner Signatory
+                          </Text>
+                          <View style={[styles.aliveStateBadge, { backgroundColor: isActiveToggle ? '#10B981' : COLORS.neutral[400] }]}>
+                            <Text style={styles.aliveStateBadgeText}>{isActiveToggle ? 'ACTIVE' : 'INACTIVE'}</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                          Use this signatory on issued regional permits and certificates.
+                        </Text>
+                      </View>
+                      <View style={[styles.aliveSliderTrack, isActiveToggle ? styles.aliveSliderTrackGreen : styles.aliveSliderTrackOff]}>
+                        <Text style={[styles.aliveSliderTrackText, isActiveToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight]}>
+                          {isActiveToggle ? 'ON' : 'OFF'}
+                        </Text>
+                        <View style={styles.aliveSliderThumb}>
+                          <Lucide name={isActiveToggle ? 'check' : 'x'} size={11} color={isActiveToggle ? '#059669' : COLORS.neutral[400]} />
+                        </View>
+                      </View>
+                    </Pressable>
+                  </View>
                 )}
 
                 {categoryName === 'Support Contact' && (
-                  <>
+                  <View
+                    style={[
+                      styles.featureSectionCard,
+                      {
+                        backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                        borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                        borderLeftColor: '#0284C7',
+                      },
+                    ]}
+                  >
+                    <View style={styles.featureSectionHeader}>
+                      <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#0C4A6E' : '#E0F2FE' }]}>
+                        <Lucide name="phone" size={16} color="#0284C7" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                          Regional Helpdesk &amp; Support Contact
+                        </Text>
+                        <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                          Public assistance contact details displayed to applicants and regional clients.
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.featureSectionDivider} />
+
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>HELPDESK NAME</Text>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>HELPDESK NAME</Text>
                       <TextInput
-                        style={styles.textInput}
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                        ]}
                         placeholder="Main Helpdesk"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={nameInput}
@@ -702,24 +850,65 @@ export function AdminSettingsModal({
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>EMAIL & PHONE DETAILS</Text>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>EMAIL &amp; PHONE DETAILS</Text>
                       <TextInput
-                        style={styles.textInput}
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                        ]}
                         placeholder="ntc10@gov.ph · (02) 8-123-4567"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={subLabelInput}
                         onChangeText={setSubLabelInput}
                       />
                     </View>
-                  </>
+                  </View>
                 )}
 
                 {categoryName === 'Office Details' && (
-                  <>
+                  <View
+                    style={[
+                      styles.featureSectionCard,
+                      {
+                        backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                        borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                        borderLeftColor: COLORS.brand.indigo,
+                      },
+                    ]}
+                  >
+                    <View style={styles.featureSectionHeader}>
+                      <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF' }]}>
+                        <Lucide name="map-pin" size={16} color={COLORS.brand.indigo} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                          Regional Office Details &amp; Routing Keys
+                        </Text>
+                        <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                          Configure office display name, internal routing codes, and primary office designation.
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.featureSectionDivider} />
+
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>OFFICE NAME</Text>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>OFFICE NAME</Text>
                       <TextInput
-                        style={styles.textInput}
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                        ]}
                         placeholder="NTC Region X"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={nameInput}
@@ -728,9 +917,17 @@ export function AdminSettingsModal({
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>ROUTING KEYS / CODES</Text>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>ROUTING KEYS / CODES</Text>
                       <TextInput
-                        style={styles.textInput}
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                        ]}
                         placeholder="B5099 · 43A"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={subLabelInput}
@@ -738,116 +935,650 @@ export function AdminSettingsModal({
                       />
                     </View>
 
-                    <View style={styles.switchRow}>
-                      <Text style={styles.switchLabel}>Mark as Primary Office</Text>
-                      <Switch
-                        value={isActiveToggle}
-                        onValueChange={setIsActiveToggle}
-                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo400 }}
-                        thumbColor={isActiveToggle ? COLORS.brand.indigo : COLORS.neutral.white}
-                      />
-                    </View>
-                  </>
+                    <Pressable
+                      onPress={() => setIsActiveToggle((prev) => !prev)}
+                      style={[
+                        styles.aliveToggleCard,
+                        {
+                          backgroundColor: isActiveToggle
+                            ? (isDark ? 'rgba(79, 70, 229, 0.14)' : '#EEF2FF')
+                            : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                          borderColor: isActiveToggle ? COLORS.brand.indigo : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.aliveToggleIconCircle,
+                          {
+                            backgroundColor: isActiveToggle
+                              ? (isDark ? '#312E81' : '#E0E7FF')
+                              : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                          },
+                        ]}
+                      >
+                        <Lucide
+                          name={isActiveToggle ? 'star' : 'circle'}
+                          size={16}
+                          color={isActiveToggle ? COLORS.brand.indigo : COLORS.neutral[400]}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.aliveToggleTitleRow}>
+                          <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>
+                            Primary Regional Office
+                          </Text>
+                          <View style={[styles.aliveStateBadge, { backgroundColor: isActiveToggle ? COLORS.brand.indigo : COLORS.neutral[400] }]}>
+                            <Text style={styles.aliveStateBadgeText}>{isActiveToggle ? 'PRIMARY' : 'SECONDARY'}</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                          Designates this office as the main regional headquarters for default application routing.
+                        </Text>
+                      </View>
+                      <View style={[styles.aliveSliderTrack, isActiveToggle ? styles.aliveSliderTrackIndigo : styles.aliveSliderTrackOff]}>
+                        <Text style={[styles.aliveSliderTrackText, isActiveToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight]}>
+                          {isActiveToggle ? 'ON' : 'OFF'}
+                        </Text>
+                        <View style={styles.aliveSliderThumb}>
+                          <Lucide name={isActiveToggle ? 'check' : 'x'} size={11} color={isActiveToggle ? COLORS.brand.indigo : COLORS.neutral[400]} />
+                        </View>
+                      </View>
+                    </Pressable>
+                  </View>
                 )}
 
                 {categoryName !== 'Commissioner' && categoryName !== 'Support Contact' && categoryName !== 'Office Details' && (
-                  <>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>REGION NAME</Text>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Region X - Northern Mindanao"
-                        placeholderTextColor={COLORS.neutral[400]}
-                        value={nameInput}
-                        onChangeText={setNameInput}
-                      />
-                    </View>
+                  <View style={styles.regionalSectionsStack}>
+                    {/* ── SECTION 1: REGIONAL IDENTITY & HELPDESK CONTACTS ── */}
+                    <View
+                      style={[
+                        styles.featureSectionCard,
+                        {
+                          backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                          borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                          borderLeftColor: COLORS.brand.indigo,
+                        },
+                      ]}
+                    >
+                      <View style={styles.featureSectionHeader}>
+                        <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF' }]}>
+                          <Lucide name="shield" size={16} color={COLORS.brand.indigo} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.featureSectionTitleRow}>
+                            <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                              1. Regional Identity &amp; Helpdesk Contacts
+                            </Text>
+                            <View style={[styles.sectionPillBadge, { backgroundColor: isDark ? '#1E1B4B' : '#E0E7FF' }]}>
+                              <Text style={[styles.sectionPillBadgeText, { color: COLORS.brand.indigo }]}>PROFILE</Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                            Official regional designation and public support contact channels shown on accountable forms.
+                          </Text>
+                        </View>
+                      </View>
 
-                    <View style={styles.twoColumnRow}>
-                      <View style={[styles.inputGroup, styles.flexColumn]}>
-                        <Text style={styles.inputLabel}>RC CODE (SOA)</Text>
+                      <View style={styles.featureSectionDivider} />
+
+                      <View style={styles.inputGroup}>
+                        <Text style={[styles.inputLabel, { color: colors.textMuted }]}>REGION / OFFICE NAME</Text>
                         <TextInput
-                          style={styles.textInput}
-                          placeholder="61"
+                          style={[
+                            styles.textInput,
+                            {
+                              backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                              borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                              borderWidth: 1,
+                              color: colors.text,
+                            },
+                          ]}
+                          placeholder="Region X - Northern Mindanao"
                           placeholderTextColor={COLORS.neutral[400]}
-                          value={rcCodeSoaInput}
-                          onChangeText={setRcCodeSoaInput}
+                          value={nameInput}
+                          onChangeText={setNameInput}
                         />
                       </View>
-                      <View style={[styles.inputGroup, styles.flexColumn]}>
-                        <Text style={styles.inputLabel}>RC CODE (OP)</Text>
-                        <TextInput
-                          style={styles.textInput}
-                          placeholder="61"
-                          placeholderTextColor={COLORS.neutral[400]}
-                          value={rcCodeOpInput}
-                          onChangeText={setRcCodeOpInput}
-                        />
+
+                      <View style={styles.twoColumnRow}>
+                        <View style={[styles.inputGroup, styles.flexColumn]}>
+                          <Text style={[styles.inputLabel, { color: colors.textMuted }]}>SUPPORT EMAIL</Text>
+                          <TextInput
+                            style={[
+                              styles.textInput,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                                borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                                borderWidth: 1,
+                                color: colors.text,
+                              },
+                            ]}
+                            placeholder="region10@ntc.gov.ph"
+                            placeholderTextColor={COLORS.neutral[400]}
+                            value={contactEmailInput}
+                            onChangeText={setContactEmailInput}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                          />
+                        </View>
+                        <View style={[styles.inputGroup, styles.flexColumn]}>
+                          <Text style={[styles.inputLabel, { color: colors.textMuted }]}>SUPPORT PHONE</Text>
+                          <TextInput
+                            style={[
+                              styles.textInput,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                                borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                                borderWidth: 1,
+                                color: colors.text,
+                              },
+                            ]}
+                            placeholder="(088) 856-1234"
+                            placeholderTextColor={COLORS.neutral[400]}
+                            value={contactPhoneInput}
+                            onChangeText={setContactPhoneInput}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Active Region Interactive Slider Card */}
+                      <Pressable
+                        onPress={() => setIsActiveToggle((prev) => !prev)}
+                        style={[
+                          styles.aliveToggleCard,
+                          {
+                            backgroundColor: isActiveToggle
+                              ? (isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5')
+                              : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                            borderColor: isActiveToggle ? '#10B981' : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.aliveToggleIconCircle,
+                            {
+                              backgroundColor: isActiveToggle
+                                ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#D1FAE5')
+                                : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                            },
+                          ]}
+                        >
+                          <Lucide
+                            name={isActiveToggle ? 'check-circle' : 'slash'}
+                            size={16}
+                            color={isActiveToggle ? '#059669' : COLORS.neutral[400]}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.aliveToggleTitleRow}>
+                            <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>
+                              Active Regional Office Status
+                            </Text>
+                            <View
+                              style={[
+                                styles.aliveStateBadge,
+                                {
+                                  backgroundColor: isActiveToggle ? '#10B981' : COLORS.neutral[300],
+                                },
+                              ]}
+                            >
+                              <Text style={styles.aliveStateBadgeText}>
+                                {isActiveToggle ? 'OPERATIONAL' : 'INACTIVE'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                            Enables client intake, regional evaluation queues, and statutory billing for this region.
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.aliveSliderTrack,
+                            isActiveToggle ? styles.aliveSliderTrackGreen : styles.aliveSliderTrackOff,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.aliveSliderTrackText,
+                              isActiveToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight,
+                            ]}
+                          >
+                            {isActiveToggle ? 'ON' : 'OFF'}
+                          </Text>
+                          <View
+                            style={[
+                              styles.aliveSliderThumb,
+                              isActiveToggle ? styles.aliveSliderThumbOn : styles.aliveSliderThumbOff,
+                            ]}
+                          >
+                            <Lucide
+                              name={isActiveToggle ? 'check' : 'x'}
+                              size={11}
+                              color={isActiveToggle ? '#059669' : COLORS.neutral[400]}
+                            />
+                          </View>
+                        </View>
+                      </Pressable>
+                    </View>
+
+                    {/* ── SECTION 2: ACCOUNTING & RESPONSIBILITY CENTER SERIES ── */}
+                    <View
+                      style={[
+                        styles.featureSectionCard,
+                        {
+                          backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                          borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                          borderLeftColor: '#7C3AED',
+                        },
+                      ]}
+                    >
+                      <View style={styles.featureSectionHeader}>
+                        <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#2E1065' : '#F3E8FF' }]}>
+                          <Lucide name="database" size={16} color="#7C3AED" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.featureSectionTitleRow}>
+                            <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                              2. Accounting &amp; Responsibility Center Series
+                            </Text>
+                            <View style={[styles.sectionPillBadge, { backgroundColor: isDark ? '#2E1065' : '#F3E8FF' }]}>
+                              <Text style={[styles.sectionPillBadgeText, { color: '#7C3AED' }]}>COA / SERIES</Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                            Defines the prefix codes and fund cluster printed on Statements of Account and Orders of Payment.
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.featureSectionDivider} />
+
+                      <View style={styles.twoColumnRow}>
+                        <View style={[styles.inputGroup, styles.flexColumn]}>
+                          <Text style={[styles.inputLabel, { color: colors.textMuted }]}>RC CODE (SOA)</Text>
+                          <TextInput
+                            style={[
+                              styles.textInput,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                                borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                                borderWidth: 1,
+                                color: colors.text,
+                              },
+                            ]}
+                            placeholder="61"
+                            placeholderTextColor={COLORS.neutral[400]}
+                            value={rcCodeSoaInput}
+                            onChangeText={setRcCodeSoaInput}
+                          />
+                        </View>
+                        <View style={[styles.inputGroup, styles.flexColumn]}>
+                          <Text style={[styles.inputLabel, { color: colors.textMuted }]}>RC CODE (OP)</Text>
+                          <TextInput
+                            style={[
+                              styles.textInput,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                                borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                                borderWidth: 1,
+                                color: colors.text,
+                              },
+                            ]}
+                            placeholder="61"
+                            placeholderTextColor={COLORS.neutral[400]}
+                            value={rcCodeOpInput}
+                            onChangeText={setRcCodeOpInput}
+                          />
+                        </View>
+                        <View style={[styles.inputGroup, styles.flexColumn]}>
+                          <Text style={[styles.inputLabel, { color: colors.textMuted }]}>FUND CLUSTER</Text>
+                          <TextInput
+                            style={[
+                              styles.textInput,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                                borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                                borderWidth: 1,
+                                color: colors.text,
+                              },
+                            ]}
+                            placeholder="01"
+                            placeholderTextColor={COLORS.neutral[400]}
+                            value={fundClusterInput}
+                            onChangeText={setFundClusterInput}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Live Series Format Preview Banner */}
+                      <View
+                        style={[
+                          styles.seriesPreviewBox,
+                          {
+                            backgroundColor: isDark ? '#1E1B4B' : '#F5F3FF',
+                            borderColor: isDark ? '#4C1D95' : '#DDD6FE',
+                          },
+                        ]}
+                      >
+                        <View style={styles.seriesPreviewHeader}>
+                          <Lucide name="eye" size={13} color="#7C3AED" />
+                          <Text style={[styles.seriesPreviewLabel, { color: isDark ? '#C4B5FD' : '#5B21B6' }]}>
+                            LIVE AUTO-NUMBERING SERIES PREVIEW
+                          </Text>
+                        </View>
+                        <View style={styles.seriesPreviewPillsRow}>
+                          <View style={[styles.seriesPreviewPill, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? '#4C1D95' : '#DDD6FE' }]}>
+                            <Text style={[styles.seriesPreviewPillTitle, { color: colors.textMuted }]}>SOA:</Text>
+                            <Text style={[styles.seriesPreviewPillValue, { color: isDark ? '#A78BFA' : '#6D28D9' }]}>
+                              {(rcCodeSoaInput || '61').trim()}-{new Date().getFullYear()}-{String(new Date().getMonth() + 1).padStart(2, '0')}-0001
+                            </Text>
+                          </View>
+                          <View style={[styles.seriesPreviewPill, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? '#4C1D95' : '#DDD6FE' }]}>
+                            <Text style={[styles.seriesPreviewPillTitle, { color: colors.textMuted }]}>OP:</Text>
+                            <Text style={[styles.seriesPreviewPillValue, { color: isDark ? '#A78BFA' : '#6D28D9' }]}>
+                              {(rcCodeOpInput || '61').trim()}-{new Date().getFullYear()}-{String(new Date().getMonth() + 1).padStart(2, '0')}-0001
+                            </Text>
+                          </View>
+                          <View style={[styles.seriesPreviewPill, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? '#4C1D95' : '#DDD6FE' }]}>
+                            <Text style={[styles.seriesPreviewPillTitle, { color: colors.textMuted }]}>Fund:</Text>
+                            <Text style={[styles.seriesPreviewPillValue, { color: isDark ? '#A78BFA' : '#6D28D9' }]}>
+                              Cluster {(fundClusterInput || '01').trim()}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
                     </View>
 
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>FUND CLUSTER</Text>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="01"
-                        placeholderTextColor={COLORS.neutral[400]}
-                        value={fundClusterInput}
-                        onChangeText={setFundClusterInput}
-                      />
+                    {/* ── SECTION 3: TRANSITION NUMBERING MODE (SOA & OP MANUAL CONTROLS) ── */}
+                    <View
+                      style={[
+                        styles.featureSectionCard,
+                        {
+                          backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                          borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                          borderLeftColor: '#059669',
+                        },
+                      ]}
+                    >
+                      <View style={styles.featureSectionHeader}>
+                        <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#064E3B' : '#DCFCE7' }]}>
+                          <Lucide name="sliders" size={16} color="#059669" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.featureSectionTitleRow}>
+                            <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                              3. Transition Numbering Controls (Manual Entry &amp; Edit)
+                            </Text>
+                            <View style={[styles.sectionPillBadge, { backgroundColor: isDark ? '#064E3B' : '#DCFCE7' }]}>
+                              <Text style={[styles.sectionPillBadgeText, { color: '#059669' }]}>TRANSITION MODE</Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                            Toggle whether regional staff can manually input or override SOA and OP numbers during system transition.
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.featureSectionDivider} />
+
+                      {/* Toggle 1: Allow Manual SOA Number */}
+                      <Pressable
+                        onPress={() => setAllowManualSoaNumberToggle((prev) => !prev)}
+                        style={[
+                          styles.aliveToggleCard,
+                          {
+                            backgroundColor: allowManualSoaNumberToggle
+                              ? (isDark ? 'rgba(79, 70, 229, 0.14)' : '#EEF2FF')
+                              : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                            borderColor: allowManualSoaNumberToggle
+                              ? COLORS.brand.indigo
+                              : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.aliveToggleIconCircle,
+                            {
+                              backgroundColor: allowManualSoaNumberToggle
+                                ? (isDark ? '#312E81' : '#E0E7FF')
+                                : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                            },
+                          ]}
+                        >
+                          <Lucide
+                            name={allowManualSoaNumberToggle ? 'edit-3' : 'lock'}
+                            size={16}
+                            color={allowManualSoaNumberToggle ? COLORS.brand.indigo : COLORS.neutral[400]}
+                          />
+                        </View>
+
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.aliveToggleTitleRow}>
+                            <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>
+                              Manual SOA Number Entry &amp; Editing
+                            </Text>
+                            <View
+                              style={[
+                                styles.aliveStateBadge,
+                                {
+                                  backgroundColor: allowManualSoaNumberToggle ? COLORS.brand.indigo : COLORS.neutral[400],
+                                },
+                              ]}
+                            >
+                              <Text style={styles.aliveStateBadgeText}>
+                                {allowManualSoaNumberToggle ? 'MANUAL + EDITABLE' : 'AUTO-GENERATED ONLY'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                            {allowManualSoaNumberToggle
+                              ? 'Evaluators and Admins can enter custom SOA numbers on creation and edit existing SOA numbers inline.'
+                              : 'System strictly auto-generates sequential SOA numbers; manual SOA number overrides are locked.'}
+                          </Text>
+                        </View>
+
+                        <View
+                          style={[
+                            styles.aliveSliderTrack,
+                            allowManualSoaNumberToggle ? styles.aliveSliderTrackIndigo : styles.aliveSliderTrackOff,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.aliveSliderTrackText,
+                              allowManualSoaNumberToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight,
+                            ]}
+                          >
+                            {allowManualSoaNumberToggle ? 'ON' : 'OFF'}
+                          </Text>
+                          <View
+                            style={[
+                              styles.aliveSliderThumb,
+                              allowManualSoaNumberToggle ? styles.aliveSliderThumbOn : styles.aliveSliderThumbOff,
+                            ]}
+                          >
+                            <Lucide
+                              name={allowManualSoaNumberToggle ? 'check' : 'lock'}
+                              size={11}
+                              color={allowManualSoaNumberToggle ? COLORS.brand.indigo : COLORS.neutral[400]}
+                            />
+                          </View>
+                        </View>
+                      </Pressable>
+
+                      {/* Toggle 2: Allow Manual OP Number */}
+                      <Pressable
+                        onPress={() => setAllowManualOpNumberToggle((prev) => !prev)}
+                        style={[
+                          styles.aliveToggleCard,
+                          {
+                            backgroundColor: allowManualOpNumberToggle
+                              ? (isDark ? 'rgba(79, 70, 229, 0.14)' : '#EEF2FF')
+                              : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                            borderColor: allowManualOpNumberToggle
+                              ? COLORS.brand.indigo
+                              : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.aliveToggleIconCircle,
+                            {
+                              backgroundColor: allowManualOpNumberToggle
+                                ? (isDark ? '#312E81' : '#E0E7FF')
+                                : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                            },
+                          ]}
+                        >
+                          <Lucide
+                            name={allowManualOpNumberToggle ? 'edit-3' : 'lock'}
+                            size={16}
+                            color={allowManualOpNumberToggle ? COLORS.brand.indigo : COLORS.neutral[400]}
+                          />
+                        </View>
+
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.aliveToggleTitleRow}>
+                            <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>
+                              Manual OP Number Entry &amp; Editing
+                            </Text>
+                            <View
+                              style={[
+                                styles.aliveStateBadge,
+                                {
+                                  backgroundColor: allowManualOpNumberToggle ? COLORS.brand.indigo : COLORS.neutral[400],
+                                },
+                              ]}
+                            >
+                              <Text style={styles.aliveStateBadgeText}>
+                                {allowManualOpNumberToggle ? 'MANUAL + EDITABLE' : 'AUTO-GENERATED ONLY'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                            {allowManualOpNumberToggle
+                              ? 'Accountants and Admins can specify custom Order of Payment numbers upon approval and edit existing OP numbers.'
+                              : 'System strictly auto-generates sequential OP numbers upon Accountant approval; manual OP edits are locked.'}
+                          </Text>
+                        </View>
+
+                        <View
+                          style={[
+                            styles.aliveSliderTrack,
+                            allowManualOpNumberToggle ? styles.aliveSliderTrackIndigo : styles.aliveSliderTrackOff,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.aliveSliderTrackText,
+                              allowManualOpNumberToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight,
+                            ]}
+                          >
+                            {allowManualOpNumberToggle ? 'ON' : 'OFF'}
+                          </Text>
+                          <View
+                            style={[
+                              styles.aliveSliderThumb,
+                              allowManualOpNumberToggle ? styles.aliveSliderThumbOn : styles.aliveSliderThumbOff,
+                            ]}
+                          >
+                            <Lucide
+                              name={allowManualOpNumberToggle ? 'check' : 'lock'}
+                              size={11}
+                              color={allowManualOpNumberToggle ? COLORS.brand.indigo : COLORS.neutral[400]}
+                            />
+                          </View>
+                        </View>
+                      </Pressable>
                     </View>
 
-                    <View style={styles.twoColumnRow}>
-                      <View style={[styles.inputGroup, styles.flexColumn]}>
-                        <Text style={styles.inputLabel}>SUPPORT EMAIL</Text>
-                        <TextInput
-                          style={styles.textInput}
-                          placeholder="region10@ntc.gov.ph"
-                          placeholderTextColor={COLORS.neutral[400]}
-                          value={contactEmailInput}
-                          onChangeText={setContactEmailInput}
-                          autoCapitalize="none"
-                          keyboardType="email-address"
-                        />
+                    {/* ── SECTION 4: REQUESTS & COMPLAINTS WORKFLOW ROUTING ── */}
+                    <View
+                      style={[
+                        styles.featureSectionCard,
+                        {
+                          backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                          borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                          borderLeftColor: '#0284C7',
+                        },
+                      ]}
+                    >
+                      <View style={styles.featureSectionHeader}>
+                        <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#0C4A6E' : '#E0F2FE' }]}>
+                          <Lucide name="compass" size={16} color="#0284C7" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.featureSectionTitleRow}>
+                            <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                              4. Requests &amp; Complaints Workflow Routing
+                            </Text>
+                            <View style={[styles.sectionPillBadge, { backgroundColor: isDark ? '#0C4A6E' : '#E0F2FE' }]}>
+                              <Text style={[styles.sectionPillBadgeText, { color: '#0284C7' }]}>ROUTING</Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                            Choose which unit receives newly filed client requests and complaints first.
+                          </Text>
+                        </View>
                       </View>
-                      <View style={[styles.inputGroup, styles.flexColumn]}>
-                        <Text style={styles.inputLabel}>SUPPORT PHONE</Text>
-                        <TextInput
-                          style={styles.textInput}
-                          placeholder="(088) 856-1234"
-                          placeholderTextColor={COLORS.neutral[400]}
-                          value={contactPhoneInput}
-                          onChangeText={setContactPhoneInput}
-                        />
-                      </View>
-                    </View>
 
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>REQUESTS & COMPLAINTS ROUTING</Text>
+                      <View style={styles.featureSectionDivider} />
+
                       <View style={styles.routingOptionsRow}>
                         <Pressable
                           style={[
                             styles.routingOptionCard,
-                            routingInput === 'DirectToLegal' && styles.routingOptionCardActive,
+                            {
+                              backgroundColor:
+                                routingInput === 'DirectToLegal'
+                                  ? (isDark ? 'rgba(79, 70, 229, 0.15)' : '#EEF2FF')
+                                  : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                              borderColor:
+                                routingInput === 'DirectToLegal'
+                                  ? COLORS.brand.indigo
+                                  : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                            },
                           ]}
                           onPress={() => setRoutingInput('DirectToLegal')}
                         >
-                          <Lucide
-                            name="shield"
-                            size={18}
-                            color={routingInput === 'DirectToLegal' ? COLORS.brand.indigo : COLORS.neutral[400]}
-                          />
-                          <View style={{ flex: 1, marginLeft: 8 }}>
-                            <Text
-                              style={[
-                                styles.routingOptionTitle,
-                                routingInput === 'DirectToLegal' && styles.routingOptionTitleActive,
-                              ]}
-                            >
-                              Direct to Legal
-                            </Text>
-                            <Text style={styles.routingOptionSub}>
-                              Complaints & requests appear directly in Legal Officer pending queue
+                          <View
+                            style={[
+                              styles.aliveToggleIconCircle,
+                              {
+                                backgroundColor:
+                                  routingInput === 'DirectToLegal'
+                                    ? (isDark ? '#312E81' : '#E0E7FF')
+                                    : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                              },
+                            ]}
+                          >
+                            <Lucide
+                              name="shield"
+                              size={16}
+                              color={routingInput === 'DirectToLegal' ? COLORS.brand.indigo : COLORS.neutral[400]}
+                            />
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text
+                                style={[
+                                  styles.routingOptionTitle,
+                                  { color: colors.text },
+                                  routingInput === 'DirectToLegal' && styles.routingOptionTitleActive,
+                                ]}
+                              >
+                                Direct to Legal
+                              </Text>
+                              {routingInput === 'DirectToLegal' && (
+                                <Lucide name="check-circle" size={15} color={COLORS.brand.indigo} />
+                              )}
+                            </View>
+                            <Text style={[styles.routingOptionSub, { color: colors.textMuted }]}>
+                              Complaints &amp; requests appear directly in Legal Officer pending queue
                             </Text>
                           </View>
                         </Pressable>
@@ -855,288 +1586,625 @@ export function AdminSettingsModal({
                         <Pressable
                           style={[
                             styles.routingOptionCard,
-                            routingInput === 'DirectToEvaluator' && styles.routingOptionCardActive,
+                            {
+                              backgroundColor:
+                                routingInput === 'DirectToEvaluator'
+                                  ? (isDark ? 'rgba(79, 70, 229, 0.15)' : '#EEF2FF')
+                                  : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                              borderColor:
+                                routingInput === 'DirectToEvaluator'
+                                  ? COLORS.brand.indigo
+                                  : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                            },
                           ]}
                           onPress={() => setRoutingInput('DirectToEvaluator')}
                         >
-                          <Lucide
-                            name="users"
-                            size={18}
-                            color={routingInput === 'DirectToEvaluator' ? COLORS.brand.indigo : COLORS.neutral[400]}
-                          />
-                          <View style={{ flex: 1, marginLeft: 8 }}>
-                            <Text
-                              style={[
-                                styles.routingOptionTitle,
-                                routingInput === 'DirectToEvaluator' && styles.routingOptionTitleActive,
-                              ]}
-                            >
-                              Direct to Evaluator
-                            </Text>
-                            <Text style={styles.routingOptionSub}>
-                              Evaluator reviews & endorses to Legal Officer
+                          <View
+                            style={[
+                              styles.aliveToggleIconCircle,
+                              {
+                                backgroundColor:
+                                  routingInput === 'DirectToEvaluator'
+                                    ? (isDark ? '#312E81' : '#E0E7FF')
+                                    : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                              },
+                            ]}
+                          >
+                            <Lucide
+                              name="users"
+                              size={16}
+                              color={routingInput === 'DirectToEvaluator' ? COLORS.brand.indigo : COLORS.neutral[400]}
+                            />
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text
+                                style={[
+                                  styles.routingOptionTitle,
+                                  { color: colors.text },
+                                  routingInput === 'DirectToEvaluator' && styles.routingOptionTitleActive,
+                                ]}
+                              >
+                                Direct to Evaluator
+                              </Text>
+                              {routingInput === 'DirectToEvaluator' && (
+                                <Lucide name="check-circle" size={15} color={COLORS.brand.indigo} />
+                              )}
+                            </View>
+                            <Text style={[styles.routingOptionSub, { color: colors.textMuted }]}>
+                              Evaluator reviews &amp; endorses to Legal Officer
                             </Text>
                           </View>
                         </Pressable>
                       </View>
                     </View>
-
-                    <View style={styles.switchRow}>
-                      <Text style={styles.switchLabel}>Mark as Active Region</Text>
-                      <Switch
-                        value={isActiveToggle}
-                        onValueChange={setIsActiveToggle}
-                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo400 }}
-                        thumbColor={isActiveToggle ? COLORS.brand.indigo : COLORS.neutral.white}
-                      />
-                    </View>
-                  </>
+                  </View>
                 )}
               </>
             )}
 
             {/* 2. Regional Field Office Modal Fields */}
             {type === 'add-branch' && (
-              <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>BRANCH NAME</Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      fieldErrors.name !== undefined && fieldErrors.name !== '' && styles.textInputError,
-                    ]}
-                    placeholder="Zamboanga City Main Office"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    value={nameInput}
-                    onChangeText={(val) => {
-                      setNameInput(val);
-                      if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
-                    }}
-                    onBlur={() => handleBlur('name')}
-                  />
-                  {fieldErrors.name ? <Text style={styles.fieldErrorText}>{fieldErrors.name}</Text> : null}
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>BRANCH CODE</Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      fieldErrors.code !== undefined && fieldErrors.code !== '' && styles.textInputError,
-                    ]}
-                    placeholder="ZC-001"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    value={codeInput}
-                    onChangeText={(val) => {
-                      setCodeInput(val);
-                      if (fieldErrors.code) setFieldErrors((prev) => ({ ...prev, code: '' }));
-                    }}
-                    onBlur={() => handleBlur('code')}
-                  />
-                  {fieldErrors.code ? <Text style={styles.fieldErrorText}>{fieldErrors.code}</Text> : null}
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>BRANCH CATEGORY</Text>
-                  <View style={styles.radioContainer}>
-                    <Pressable
-                      style={[
-                        styles.radioOption,
-                        branchCategory === 'Main' && styles.radioOptionActive,
-                      ]}
-                      onPress={() => {
-                        setBranchCategory('Main');
-                        setBranchType('Main Office');
-                      }}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: branchCategory === 'Main' }}
-                    >
-                      <View style={[styles.radioCircle, branchCategory === 'Main' && styles.radioCircleActive]}>
-                        {branchCategory === 'Main' && <View style={styles.radioDot} />}
+              <View style={styles.regionalSectionsStack}>
+                {/* ── SECTION 1: FIELD OFFICE IDENTITY & CLASSIFICATION ── */}
+                <View
+                  style={[
+                    styles.featureSectionCard,
+                    {
+                      backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                      borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                      borderLeftColor: COLORS.brand.indigo,
+                    },
+                  ]}
+                >
+                  <View style={styles.featureSectionHeader}>
+                    <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF' }]}>
+                      <Lucide name="map-pin" size={16} color={COLORS.brand.indigo} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.featureSectionTitleRow}>
+                        <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                          1. Field Office Identity &amp; Classification
+                        </Text>
+                        <View style={[styles.sectionPillBadge, { backgroundColor: isDark ? '#1E1B4B' : '#E0E7FF' }]}>
+                          <Text style={[styles.sectionPillBadgeText, { color: COLORS.brand.indigo }]}>BRANCH PROFILE</Text>
+                        </View>
                       </View>
-                      <Text style={[styles.radioText, branchCategory === 'Main' && styles.radioTextActive]}>
-                        Main
+                      <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                        Specify the official branch name, routing code, and whether it operates as a Main or Extension office.
                       </Text>
-                    </Pressable>
+                    </View>
+                  </View>
 
-                    <Pressable
-                      style={[
-                        styles.radioOption,
-                        branchCategory === 'Extension' && styles.radioOptionActive,
-                      ]}
-                      onPress={() => {
-                        setBranchCategory('Extension');
-                        setBranchType('Field Office');
-                      }}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: branchCategory === 'Extension' }}
-                    >
-                      <View style={[styles.radioCircle, branchCategory === 'Extension' && styles.radioCircleActive]}>
-                        {branchCategory === 'Extension' && <View style={styles.radioDot} />}
+                  <View style={styles.featureSectionDivider} />
+
+                  <View style={styles.rowTwoInputs}>
+                    <View style={[styles.inputGroup, { flex: 2 }]}>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>BRANCH NAME *</Text>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                          fieldErrors.name !== undefined && fieldErrors.name !== '' && styles.textInputError,
+                        ]}
+                        placeholder="Zamboanga City Main Office"
+                        placeholderTextColor={COLORS.neutral[400]}
+                        value={nameInput}
+                        onChangeText={(val) => {
+                          setNameInput(val);
+                          if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
+                        }}
+                        onBlur={() => handleBlur('name')}
+                      />
+                      {fieldErrors.name ? <Text style={styles.fieldErrorText}>{fieldErrors.name}</Text> : null}
+                    </View>
+
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>BRANCH CODE *</Text>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                          fieldErrors.code !== undefined && fieldErrors.code !== '' && styles.textInputError,
+                        ]}
+                        placeholder="ZC-001"
+                        placeholderTextColor={COLORS.neutral[400]}
+                        value={codeInput}
+                        onChangeText={(val) => {
+                          setCodeInput(val);
+                          if (fieldErrors.code) setFieldErrors((prev) => ({ ...prev, code: '' }));
+                        }}
+                        onBlur={() => handleBlur('code')}
+                      />
+                      {fieldErrors.code ? <Text style={styles.fieldErrorText}>{fieldErrors.code}</Text> : null}
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: colors.textMuted }]}>BRANCH CATEGORY</Text>
+                    <View style={styles.radioContainer}>
+                      <Pressable
+                        style={[
+                          styles.radioOption,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: branchCategory === 'Main' ? COLORS.brand.indigo : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                          },
+                          branchCategory === 'Main' && styles.radioOptionActive,
+                        ]}
+                        onPress={() => {
+                          setBranchCategory('Main');
+                          setBranchType('Main Office');
+                        }}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: branchCategory === 'Main' }}
+                      >
+                        <View style={[styles.radioCircle, branchCategory === 'Main' && styles.radioCircleActive]}>
+                          {branchCategory === 'Main' && <View style={styles.radioDot} />}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.radioText, { color: colors.text }, branchCategory === 'Main' && styles.radioTextActive]}>
+                            Main Office
+                          </Text>
+                          <Text style={[styles.routingOptionSub, { color: colors.textMuted }]}>
+                            Regional headquarters or primary processing hub
+                          </Text>
+                        </View>
+                      </Pressable>
+
+                      <Pressable
+                        style={[
+                          styles.radioOption,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: branchCategory === 'Extension' ? COLORS.brand.indigo : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                          },
+                          branchCategory === 'Extension' && styles.radioOptionActive,
+                        ]}
+                        onPress={() => {
+                          setBranchCategory('Extension');
+                          setBranchType('Field Office');
+                        }}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: branchCategory === 'Extension' }}
+                      >
+                        <View style={[styles.radioCircle, branchCategory === 'Extension' && styles.radioCircleActive]}>
+                          {branchCategory === 'Extension' && <View style={styles.radioDot} />}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.radioText, { color: colors.text }, branchCategory === 'Extension' && styles.radioTextActive]}>
+                            Extension / Field Office
+                          </Text>
+                          <Text style={[styles.routingOptionSub, { color: colors.textMuted }]}>
+                            Satellite or provincial field extension unit
+                          </Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+
+                {/* ── SECTION 2: LOCATION, CONTACTS & OFFICER-IN-CHARGE ── */}
+                <View
+                  style={[
+                    styles.featureSectionCard,
+                    {
+                      backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                      borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                      borderLeftColor: '#0284C7',
+                    },
+                  ]}
+                >
+                  <View style={styles.featureSectionHeader}>
+                    <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#0C4A6E' : '#E0F2FE' }]}>
+                      <Lucide name="users" size={16} color="#0284C7" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.featureSectionTitleRow}>
+                        <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                          2. Location, Contacts &amp; Officer-in-Charge
+                        </Text>
+                        <View style={[styles.sectionPillBadge, { backgroundColor: isDark ? '#0C4A6E' : '#E0F2FE' }]}>
+                          <Text style={[styles.sectionPillBadgeText, { color: '#0284C7' }]}>DIRECTORY</Text>
+                        </View>
                       </View>
-                      <Text style={[styles.radioText, branchCategory === 'Extension' && styles.radioTextActive]}>
-                        Extension
+                      <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                        Physical address, public contact lines, and designated Officer-in-Charge for this branch.
                       </Text>
-                    </Pressable>
+                    </View>
+                  </View>
+
+                  <View style={styles.featureSectionDivider} />
+
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: colors.textMuted }]}>OFFICE ADDRESS *</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        {
+                          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                          borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                          borderWidth: 1,
+                          color: colors.text,
+                        },
+                        fieldErrors.address !== undefined && fieldErrors.address !== '' && styles.textInputError,
+                      ]}
+                      placeholder="Pasonanca, Zamboanga City"
+                      placeholderTextColor={COLORS.neutral[400]}
+                      value={addressInput}
+                      onChangeText={(val) => {
+                        setAddressInput(val);
+                        if (fieldErrors.address) setFieldErrors((prev) => ({ ...prev, address: '' }));
+                      }}
+                      onBlur={() => handleBlur('address')}
+                    />
+                    {fieldErrors.address ? <Text style={styles.fieldErrorText}>{fieldErrors.address}</Text> : null}
+                  </View>
+
+                  <View style={styles.rowTwoInputs}>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>CONTACT PHONE *</Text>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                          fieldErrors.contactPhone !== undefined && fieldErrors.contactPhone !== '' && styles.textInputError,
+                        ]}
+                        placeholder="(062) 991-1234"
+                        placeholderTextColor={COLORS.neutral[400]}
+                        value={contactPhoneInput}
+                        onChangeText={(val) => {
+                          setContactPhoneInput(val);
+                          if (fieldErrors.contactPhone) setFieldErrors((prev) => ({ ...prev, contactPhone: '' }));
+                        }}
+                        onBlur={() => handleBlur('contactPhone')}
+                      />
+                      {fieldErrors.contactPhone ? <Text style={styles.fieldErrorText}>{fieldErrors.contactPhone}</Text> : null}
+                    </View>
+
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>CONTACT EMAIL</Text>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                          fieldErrors.contactEmail !== undefined && fieldErrors.contactEmail !== '' && styles.textInputError,
+                        ]}
+                        placeholder="zamboanga@ntc.gov.ph"
+                        placeholderTextColor={COLORS.neutral[400]}
+                        value={contactEmailInput}
+                        onChangeText={(val) => {
+                          setContactEmailInput(val);
+                          if (fieldErrors.contactEmail) setFieldErrors((prev) => ({ ...prev, contactEmail: '' }));
+                        }}
+                        onBlur={() => handleBlur('contactEmail')}
+                      />
+                      {fieldErrors.contactEmail ? <Text style={styles.fieldErrorText}>{fieldErrors.contactEmail}</Text> : null}
+                    </View>
+                  </View>
+
+                  <View style={styles.rowTwoInputs}>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>OFFICER IN CHARGE NAME</Text>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                        ]}
+                        placeholder="Engr. Juan Dela Cruz"
+                        placeholderTextColor={COLORS.neutral[400]}
+                        value={officerNameInput}
+                        onChangeText={setOfficerNameInput}
+                      />
+                    </View>
+
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={[styles.inputLabel, { color: colors.textMuted }]}>OFFICER EMAIL</Text>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                            borderWidth: 1,
+                            color: colors.text,
+                          },
+                          fieldErrors.officerEmail !== undefined && fieldErrors.officerEmail !== '' && styles.textInputError,
+                        ]}
+                        placeholder="officer@ntc.gov.ph"
+                        placeholderTextColor={COLORS.neutral[400]}
+                        value={officerEmailInput}
+                        onChangeText={(val) => {
+                          setOfficerEmailInput(val);
+                          if (fieldErrors.officerEmail) setFieldErrors((prev) => ({ ...prev, officerEmail: '' }));
+                        }}
+                        onBlur={() => handleBlur('officerEmail')}
+                      />
+                      {fieldErrors.officerEmail ? <Text style={styles.fieldErrorText}>{fieldErrors.officerEmail}</Text> : null}
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: colors.textMuted }]}>DESCRIPTION / REMARKS</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        styles.textAreaInput,
+                        {
+                          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                          borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                          borderWidth: 1,
+                          color: colors.text,
+                        },
+                      ]}
+                      placeholder="Provide additional details or notes regarding this field office..."
+                      placeholderTextColor={COLORS.neutral[400]}
+                      multiline
+                      numberOfLines={3}
+                      value={descriptionInput}
+                      onChangeText={setDescriptionInput}
+                    />
                   </View>
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>OFFICE ADDRESS</Text>
-                  <TextInput
+                {/* ── SECTION 3: OPERATIONAL CAPABILITIES & BRANCH STATUS ── */}
+                <View
+                  style={[
+                    styles.featureSectionCard,
+                    {
+                      backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC',
+                      borderColor: isDark ? colors.neutral[700] : '#E2E8F0',
+                      borderLeftColor: '#059669',
+                    },
+                  ]}
+                >
+                  <View style={styles.featureSectionHeader}>
+                    <View style={[styles.featureSectionIconBox, { backgroundColor: isDark ? '#064E3B' : '#DCFCE7' }]}>
+                      <Lucide name="sliders" size={16} color="#059669" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.featureSectionTitleRow}>
+                        <Text style={[styles.featureSectionTitle, { color: colors.text }]}>
+                          3. Permit, Inspection Capabilities &amp; Branch Status
+                        </Text>
+                        <View style={[styles.sectionPillBadge, { backgroundColor: isDark ? '#064E3B' : '#DCFCE7' }]}>
+                          <Text style={[styles.sectionPillBadgeText, { color: '#059669' }]}>CAPABILITIES</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.featureSectionSubtitle, { color: colors.textMuted }]}>
+                        Configure which regulatory services and client intake queues are enabled at this field office.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featureSectionDivider} />
+
+                  {/* Capability 1: Allow Permit Issuance */}
+                  <Pressable
+                    onPress={() => setAllowPermitIssuanceToggle((prev) => !prev)}
                     style={[
-                      styles.textInput,
-                      fieldErrors.address !== undefined && fieldErrors.address !== '' && styles.textInputError,
+                      styles.aliveToggleCard,
+                      {
+                        backgroundColor: allowPermitIssuanceToggle
+                          ? (isDark ? 'rgba(79, 70, 229, 0.14)' : '#EEF2FF')
+                          : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                        borderColor: allowPermitIssuanceToggle ? COLORS.brand.indigo : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                      },
                     ]}
-                    placeholder="Pasonanca, Zamboanga City"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    value={addressInput}
-                    onChangeText={(val) => {
-                      setAddressInput(val);
-                      if (fieldErrors.address) setFieldErrors((prev) => ({ ...prev, address: '' }));
-                    }}
-                    onBlur={() => handleBlur('address')}
-                  />
-                  {fieldErrors.address ? <Text style={styles.fieldErrorText}>{fieldErrors.address}</Text> : null}
-                </View>
-
-                <View style={styles.rowTwoInputs}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>CONTACT PHONE</Text>
-                    <TextInput
+                  >
+                    <View
                       style={[
-                        styles.textInput,
-                        fieldErrors.contactPhone !== undefined && fieldErrors.contactPhone !== '' && styles.textInputError,
+                        styles.aliveToggleIconCircle,
+                        {
+                          backgroundColor: allowPermitIssuanceToggle
+                            ? (isDark ? '#312E81' : '#E0E7FF')
+                            : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                        },
                       ]}
-                      placeholder="(062) 991-1234"
-                      placeholderTextColor={COLORS.neutral[400]}
-                      value={contactPhoneInput}
-                      onChangeText={(val) => {
-                        setContactPhoneInput(val);
-                        if (fieldErrors.contactPhone) setFieldErrors((prev) => ({ ...prev, contactPhone: '' }));
-                      }}
-                      onBlur={() => handleBlur('contactPhone')}
-                    />
-                    {fieldErrors.contactPhone ? <Text style={styles.fieldErrorText}>{fieldErrors.contactPhone}</Text> : null}
-                  </View>
-
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>CONTACT EMAIL</Text>
-                    <TextInput
-                      style={[
-                        styles.textInput,
-                        fieldErrors.contactEmail !== undefined && fieldErrors.contactEmail !== '' && styles.textInputError,
-                      ]}
-                      placeholder="zamboanga@ntc.gov.ph"
-                      placeholderTextColor={COLORS.neutral[400]}
-                      value={contactEmailInput}
-                      onChangeText={(val) => {
-                        setContactEmailInput(val);
-                        if (fieldErrors.contactEmail) setFieldErrors((prev) => ({ ...prev, contactEmail: '' }));
-                      }}
-                      onBlur={() => handleBlur('contactEmail')}
-                    />
-                    {fieldErrors.contactEmail ? <Text style={styles.fieldErrorText}>{fieldErrors.contactEmail}</Text> : null}
-                  </View>
-                </View>
-
-                <View style={styles.rowTwoInputs}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>OFFICER IN CHARGE NAME</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="Engr. Juan Dela Cruz"
-                      placeholderTextColor={COLORS.neutral[400]}
-                      value={officerNameInput}
-                      onChangeText={setOfficerNameInput}
-                    />
-                  </View>
-
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>OFFICER EMAIL</Text>
-                    <TextInput
-                      style={[
-                        styles.textInput,
-                        fieldErrors.officerEmail !== undefined && fieldErrors.officerEmail !== '' && styles.textInputError,
-                      ]}
-                      placeholder="officer@ntc.gov.ph"
-                      placeholderTextColor={COLORS.neutral[400]}
-                      value={officerEmailInput}
-                      onChangeText={(val) => {
-                        setOfficerEmailInput(val);
-                        if (fieldErrors.officerEmail) setFieldErrors((prev) => ({ ...prev, officerEmail: '' }));
-                      }}
-                      onBlur={() => handleBlur('officerEmail')}
-                    />
-                    {fieldErrors.officerEmail ? <Text style={styles.fieldErrorText}>{fieldErrors.officerEmail}</Text> : null}
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>PERMIT & INSPECTION CAPABILITIES</Text>
-                  <View style={{ gap: SPACING[10], marginTop: SPACING[4] }}>
-                    <View style={styles.switchRow}>
-                      <Text style={[styles.switchLabel, { color: colors.text }]}>Allow Permit Issuance</Text>
-                      <Switch
-                        value={allowPermitIssuanceToggle}
-                        onValueChange={setAllowPermitIssuanceToggle}
-                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo }}
-                        thumbColor={COLORS.neutral.white}
+                    >
+                      <Lucide
+                        name="file-text"
+                        size={16}
+                        color={allowPermitIssuanceToggle ? COLORS.brand.indigo : COLORS.neutral[400]}
                       />
                     </View>
-
-                    <View style={styles.switchRow}>
-                      <Text style={[styles.switchLabel, { color: colors.text }]}>Allow Spectrum Inspection</Text>
-                      <Switch
-                        value={allowSpectrumInspectionToggle}
-                        onValueChange={setAllowSpectrumInspectionToggle}
-                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo }}
-                        thumbColor={COLORS.neutral.white}
-                      />
-                    </View>
-
-                    <View style={styles.switchRow}>
-                      <Text style={[styles.switchLabel, { color: colors.text }]}>Allow Complaint Reception</Text>
-                      <Switch
-                        value={allowComplaintReceptionToggle}
-                        onValueChange={setAllowComplaintReceptionToggle}
-                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo }}
-                        thumbColor={COLORS.neutral.white}
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>DESCRIPTION / REMARKS</Text>
-                  <TextInput
-                    style={[styles.textInput, styles.textAreaInput]}
-                    placeholder="Provide additional details or notes regarding this field office..."
-                    placeholderTextColor={COLORS.neutral[400]}
-                    multiline
-                    numberOfLines={3}
-                    value={descriptionInput}
-                    onChangeText={setDescriptionInput}
-                  />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <View style={styles.switchRow}>
-                    <View>
-                      <Text style={[styles.switchLabel, { color: colors.text }]}>Active Status</Text>
-                      <Text style={[styles.switchSubtext, { color: colors.textMuted }]}>
-                        Field office is active and accessible for service assignments
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.aliveToggleTitleRow}>
+                        <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>Allow Permit Issuance</Text>
+                        <View style={[styles.aliveStateBadge, { backgroundColor: allowPermitIssuanceToggle ? COLORS.brand.indigo : COLORS.neutral[400] }]}>
+                          <Text style={styles.aliveStateBadgeText}>{allowPermitIssuanceToggle ? 'ENABLED' : 'DISABLED'}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                        Authorizes this branch to process and release permits, certificates, and licenses.
                       </Text>
                     </View>
-                    <Switch
-                      value={isActiveToggle}
-                      onValueChange={setIsActiveToggle}
-                      trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo }}
-                      thumbColor={COLORS.neutral.white}
-                    />
-                  </View>
+                    <View style={[styles.aliveSliderTrack, allowPermitIssuanceToggle ? styles.aliveSliderTrackIndigo : styles.aliveSliderTrackOff]}>
+                      <Text style={[styles.aliveSliderTrackText, allowPermitIssuanceToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight]}>
+                        {allowPermitIssuanceToggle ? 'ON' : 'OFF'}
+                      </Text>
+                      <View style={styles.aliveSliderThumb}>
+                        <Lucide name={allowPermitIssuanceToggle ? 'check' : 'x'} size={11} color={allowPermitIssuanceToggle ? COLORS.brand.indigo : COLORS.neutral[400]} />
+                      </View>
+                    </View>
+                  </Pressable>
+
+                  {/* Capability 2: Allow Spectrum Inspection */}
+                  <Pressable
+                    onPress={() => setAllowSpectrumInspectionToggle((prev) => !prev)}
+                    style={[
+                      styles.aliveToggleCard,
+                      {
+                        backgroundColor: allowSpectrumInspectionToggle
+                          ? (isDark ? 'rgba(79, 70, 229, 0.14)' : '#EEF2FF')
+                          : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                        borderColor: allowSpectrumInspectionToggle ? COLORS.brand.indigo : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.aliveToggleIconCircle,
+                        {
+                          backgroundColor: allowSpectrumInspectionToggle
+                            ? (isDark ? '#312E81' : '#E0E7FF')
+                            : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                        },
+                      ]}
+                    >
+                      <Lucide
+                        name="radio"
+                        size={16}
+                        color={allowSpectrumInspectionToggle ? COLORS.brand.indigo : COLORS.neutral[400]}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.aliveToggleTitleRow}>
+                        <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>Allow Spectrum Inspection</Text>
+                        <View style={[styles.aliveStateBadge, { backgroundColor: allowSpectrumInspectionToggle ? COLORS.brand.indigo : COLORS.neutral[400] }]}>
+                          <Text style={styles.aliveStateBadgeText}>{allowSpectrumInspectionToggle ? 'ENABLED' : 'DISABLED'}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                        Enables technical radio spectrum monitoring and station inspection assignments.
+                      </Text>
+                    </View>
+                    <View style={[styles.aliveSliderTrack, allowSpectrumInspectionToggle ? styles.aliveSliderTrackIndigo : styles.aliveSliderTrackOff]}>
+                      <Text style={[styles.aliveSliderTrackText, allowSpectrumInspectionToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight]}>
+                        {allowSpectrumInspectionToggle ? 'ON' : 'OFF'}
+                      </Text>
+                      <View style={styles.aliveSliderThumb}>
+                        <Lucide name={allowSpectrumInspectionToggle ? 'check' : 'x'} size={11} color={allowSpectrumInspectionToggle ? COLORS.brand.indigo : COLORS.neutral[400]} />
+                      </View>
+                    </View>
+                  </Pressable>
+
+                  {/* Capability 3: Allow Complaint Reception */}
+                  <Pressable
+                    onPress={() => setAllowComplaintReceptionToggle((prev) => !prev)}
+                    style={[
+                      styles.aliveToggleCard,
+                      {
+                        backgroundColor: allowComplaintReceptionToggle
+                          ? (isDark ? 'rgba(79, 70, 229, 0.14)' : '#EEF2FF')
+                          : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                        borderColor: allowComplaintReceptionToggle ? COLORS.brand.indigo : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.aliveToggleIconCircle,
+                        {
+                          backgroundColor: allowComplaintReceptionToggle
+                            ? (isDark ? '#312E81' : '#E0E7FF')
+                            : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                        },
+                      ]}
+                    >
+                      <Lucide
+                        name="shield"
+                        size={16}
+                        color={allowComplaintReceptionToggle ? COLORS.brand.indigo : COLORS.neutral[400]}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.aliveToggleTitleRow}>
+                        <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>Allow Complaint Reception</Text>
+                        <View style={[styles.aliveStateBadge, { backgroundColor: allowComplaintReceptionToggle ? COLORS.brand.indigo : COLORS.neutral[400] }]}>
+                          <Text style={styles.aliveStateBadgeText}>{allowComplaintReceptionToggle ? 'ENABLED' : 'DISABLED'}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                        Allows this branch to receive and process public consumer complaints and blocking requests.
+                      </Text>
+                    </View>
+                    <View style={[styles.aliveSliderTrack, allowComplaintReceptionToggle ? styles.aliveSliderTrackIndigo : styles.aliveSliderTrackOff]}>
+                      <Text style={[styles.aliveSliderTrackText, allowComplaintReceptionToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight]}>
+                        {allowComplaintReceptionToggle ? 'ON' : 'OFF'}
+                      </Text>
+                      <View style={styles.aliveSliderThumb}>
+                        <Lucide name={allowComplaintReceptionToggle ? 'check' : 'x'} size={11} color={allowComplaintReceptionToggle ? COLORS.brand.indigo : COLORS.neutral[400]} />
+                      </View>
+                    </View>
+                  </Pressable>
+
+                  {/* Capability 4: Active Status */}
+                  <Pressable
+                    onPress={() => setIsActiveToggle((prev) => !prev)}
+                    style={[
+                      styles.aliveToggleCard,
+                      {
+                        backgroundColor: isActiveToggle
+                          ? (isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5')
+                          : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                        borderColor: isActiveToggle ? '#10B981' : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.aliveToggleIconCircle,
+                        {
+                          backgroundColor: isActiveToggle
+                            ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#D1FAE5')
+                            : (isDark ? colors.neutral[700] : '#F1F5F9'),
+                        },
+                      ]}
+                    >
+                      <Lucide
+                        name={isActiveToggle ? 'check-circle' : 'slash'}
+                        size={16}
+                        color={isActiveToggle ? '#059669' : COLORS.neutral[400]}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.aliveToggleTitleRow}>
+                        <Text style={[styles.aliveToggleTitle, { color: colors.text }]}>Active Field Office Status</Text>
+                        <View style={[styles.aliveStateBadge, { backgroundColor: isActiveToggle ? '#10B981' : COLORS.neutral[400] }]}>
+                          <Text style={styles.aliveStateBadgeText}>{isActiveToggle ? 'ACTIVE' : 'INACTIVE'}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.aliveToggleSubtitle, { color: colors.textMuted }]}>
+                        Field office is active and selectable by applicants and regional staff.
+                      </Text>
+                    </View>
+                    <View style={[styles.aliveSliderTrack, isActiveToggle ? styles.aliveSliderTrackGreen : styles.aliveSliderTrackOff]}>
+                      <Text style={[styles.aliveSliderTrackText, isActiveToggle ? styles.aliveSliderTrackTextLeft : styles.aliveSliderTrackTextRight]}>
+                        {isActiveToggle ? 'ON' : 'OFF'}
+                      </Text>
+                      <View style={styles.aliveSliderThumb}>
+                        <Lucide name={isActiveToggle ? 'check' : 'x'} size={11} color={isActiveToggle ? '#059669' : COLORS.neutral[400]} />
+                      </View>
+                    </View>
+                  </Pressable>
                 </View>
-              </>
+              </View>
             )}
 
             {/* 3. Application Requirements Checklist Modal */}
@@ -2453,5 +3521,203 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[500],
     marginTop: 2,
     fontFamily: TYPOGRAPHY.fonts.primary,
+    lineHeight: 15,
+  },
+  regionalSectionsStack: {
+    gap: 16,
+    paddingBottom: 4,
+  },
+  featureSectionCard: {
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderRadius: 14,
+    padding: 16,
+    gap: 12,
+  },
+  featureSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  featureSectionIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureSectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  featureSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.fonts.primary,
+  },
+  featureSectionSubtitle: {
+    fontSize: 12,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  sectionPillBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  sectionPillBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    letterSpacing: 0.5,
+  },
+  featureSectionDivider: {
+    height: 1,
+    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+    marginVertical: 2,
+  },
+  aliveToggleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  aliveToggleIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aliveToggleTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  aliveToggleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.fonts.primary,
+  },
+  aliveToggleSubtitle: {
+    fontSize: 11,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    marginTop: 3,
+    lineHeight: 15,
+  },
+  aliveStateBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  aliveStateBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: COLORS.neutral.white,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    letterSpacing: 0.4,
+  },
+  aliveSliderTrack: {
+    width: 56,
+    height: 30,
+    borderRadius: 15,
+    padding: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  aliveSliderTrackIndigo: {
+    backgroundColor: COLORS.brand.indigo,
+    justifyContent: 'flex-end',
+  },
+  aliveSliderTrackGreen: {
+    backgroundColor: '#10B981',
+    justifyContent: 'flex-end',
+  },
+  aliveSliderTrackOff: {
+    backgroundColor: '#CBD5E1',
+    justifyContent: 'flex-start',
+  },
+  aliveSliderTrackText: {
+    position: 'absolute',
+    fontSize: 9,
+    fontWeight: '800',
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    letterSpacing: 0.4,
+  },
+  aliveSliderTrackTextLeft: {
+    left: 8,
+    color: COLORS.neutral.white,
+  },
+  aliveSliderTrackTextRight: {
+    right: 7,
+    color: '#475569',
+  },
+  aliveSliderThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.neutral.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  aliveSliderThumbOn: {
+    backgroundColor: COLORS.neutral.white,
+  },
+  aliveSliderThumbOff: {
+    backgroundColor: COLORS.neutral.white,
+  },
+  seriesPreviewBox: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
+  },
+  seriesPreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  seriesPreviewLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    letterSpacing: 0.5,
+  },
+  seriesPreviewPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  seriesPreviewPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  seriesPreviewPillTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: TYPOGRAPHY.fonts.primary,
+  },
+  seriesPreviewPillValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    fontFamily: TYPOGRAPHY.fonts.mono,
   },
 });

@@ -35,8 +35,10 @@ public interface IApplicationFullRepository
     Task AddFormFieldValueAsync(FormFieldValue fieldValue, CancellationToken cancellationToken = default);
 
     Task<StatementOfAccount?> GetSoaByIdAsync(Guid soaId, CancellationToken cancellationToken = default);
+    Task<bool> SoaNumberExistsAsync(Guid tenantId, string soaNumber, Guid? excludeSoaId = null, CancellationToken cancellationToken = default);
     Task AddSoaAsync(StatementOfAccount soa, CancellationToken cancellationToken = default);
     Task<OrderOfPayment?> GetOpByIdAsync(Guid opId, CancellationToken cancellationToken = default);
+    Task<bool> OpNumberExistsAsync(Guid tenantId, string opNumber, Guid? excludeOpId = null, CancellationToken cancellationToken = default);
     Task AddOpAsync(OrderOfPayment op, CancellationToken cancellationToken = default);
     Task AddApplicationHistoryAsync(ApplicationHistory history, CancellationToken cancellationToken = default);
     Task AddSoaHistoryAsync(SoaHistory history, CancellationToken cancellationToken = default);

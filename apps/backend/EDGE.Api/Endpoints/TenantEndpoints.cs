@@ -20,6 +20,7 @@ using EDGE.Application.TenantMembers.DTOs;
 using EDGE.Application.Tenants.Queries.GetTenantClients;
 using EDGE.Application.Tenants.Queries.GetTenantClientDetails;
 using EDGE.Application.Tenants.Queries.GetTenantTransactions;
+using EDGE.Application.Tenants.Commands.UpdateTenantNumberingMode;
 
 namespace EDGE.Api.Endpoints;
 
@@ -143,8 +144,24 @@ public static class TenantEndpoints
             .WithName("UpdateCurrentTenantConfig")
             .WithTags("Tenants")
             .WithSummary("Update current tenant regional configuration")
-            .WithDescription("Updates RCCodeSOA, RCCodeOP, FundCluster, and RequestAndComplaintRouting.")
+            .WithDescription("Updates RCCodeSOA, RCCodeOP, FundCluster, RequestAndComplaintRouting, AllowManualSoaNumber, and AllowManualOpNumber.")
             .Produces<ApiResponse<RegionalConfigurationDto>>(StatusCodes.Status200OK);
+
+        tenants.MapPatch("/{id:guid}/config/numbering-mode", UpdateTenantNumberingModeById)
+            .WithName("UpdateTenantNumberingModeById")
+            .WithTags("Tenants")
+            .WithSummary("Configure manual SOA and OP numbering mode for a regional tenant")
+            .WithDescription("Allows Regional Administrators to enable or disable manual SOA and OP number entry and editing for a specific regional office.")
+            .Produces<ApiResponse<RegionalConfigurationDto>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
+
+        tenants.MapPatch("/config/numbering-mode", UpdateCurrentTenantNumberingMode)
+            .WithName("UpdateCurrentTenantNumberingMode")
+            .WithTags("Tenants")
+            .WithSummary("Configure manual SOA and OP numbering mode for current regional tenant")
+            .WithDescription("Allows Regional Administrators to enable or disable manual SOA and OP number entry and editing for the current regional office.")
+            .Produces<ApiResponse<RegionalConfigurationDto>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
 
         return group;
     }
@@ -314,7 +331,6 @@ public static class TenantEndpoints
     }
 
     [HasPermission(Permissions.ReadTenants)]
-    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetTenantConfig(
         Guid id,
         IRegionalConfigurationService configService,
@@ -324,7 +340,7 @@ public static class TenantEndpoints
         return Results.Ok(ApiResponse<RegionalConfigurationDto>.Success(result));
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.UpdateTenants)]
     public static async Task<IResult> UpdateTenantConfig(
         Guid id,
         RegionalConfigurationDto command,
@@ -350,7 +366,7 @@ public static class TenantEndpoints
         return Results.Ok(ApiResponse<RegionalConfigurationDto>.Success(result));
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.UpdateTenants)]
     public static async Task<IResult> UpdateCurrentTenantConfig(
         RegionalConfigurationDto command,
         IRegionalConfigurationService configService,
@@ -363,6 +379,60 @@ public static class TenantEndpoints
         }
         var result = await configService.UpdateConfigurationAsync(command, cancellationToken);
         return Results.Ok(ApiResponse<RegionalConfigurationDto>.Success(result));
+    }
+
+    [HasPermission(Permissions.UpdateTenants)]
+    public static async Task<IResult> UpdateTenantNumberingModeById(
+        Guid id,
+        [FromBody] UpdateTenantNumberingModeRequest request,
+        IValidator<UpdateTenantNumberingModeCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateTenantNumberingModeCommand(
+            TenantId: id,
+            AllowManualSoaNumber: request.AllowManualSoaNumber,
+            AllowManualOpNumber: request.AllowManualOpNumber,
+            RcCodeSoa: request.RcCodeSoa,
+            RcCodeOp: request.RcCodeOp);
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.UpdateTenants)]
+    public static async Task<IResult> UpdateCurrentTenantNumberingMode(
+        [FromBody] UpdateTenantNumberingModeRequest request,
+        IValidator<UpdateTenantNumberingModeCommand> validator,
+        IMediator mediator,
+        ITenantContextService tenantContext,
+        CancellationToken cancellationToken)
+    {
+        var resolvedTenantId = request.TenantId.HasValue && request.TenantId.Value != Guid.Empty
+            ? request.TenantId.Value
+            : (tenantContext.TenantId ?? Guid.Empty);
+
+        var command = new UpdateTenantNumberingModeCommand(
+            TenantId: resolvedTenantId,
+            AllowManualSoaNumber: request.AllowManualSoaNumber,
+            AllowManualOpNumber: request.AllowManualOpNumber,
+            RcCodeSoa: request.RcCodeSoa,
+            RcCodeOp: request.RcCodeOp);
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     public static async Task<IResult> GetTenantTransactions(
@@ -378,3 +448,10 @@ public static class TenantEndpoints
         return Results.Ok(result);
     }
 }
+
+public record UpdateTenantNumberingModeRequest(
+    bool AllowManualSoaNumber,
+    bool AllowManualOpNumber,
+    Guid? TenantId = null,
+    string? RcCodeSoa = null,
+    string? RcCodeOp = null);

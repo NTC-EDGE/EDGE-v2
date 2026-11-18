@@ -28,6 +28,7 @@ import {
   IssuedToTypeDto,
   FeeCalculationResultDto,
   useSoaNotes,
+  useTenantConfig,
 } from '@edge/api';
 import { ApplicationData, ApplicantItem, SoaItem, SoaRecordSummary } from '../../../../types/application';
 import {
@@ -123,8 +124,11 @@ export function GenerateSoaModal({
   const [dueDate, setDueDate] = useState('');
   const [remarks, setRemarks] = useState('');
   const [selectedSoaNoteId, setSelectedSoaNoteId] = useState<string | null>(null);
+  const [manualSoaNumber, setManualSoaNumber] = useState('');
 
   const { notes: tenantSoaNotes } = useSoaNotes({ tenantId: app.tenantId, enabled: visible });
+  const { config: tenantConfig } = useTenantConfig(app.tenantId);
+  const allowManualSoaNumber = tenantConfig.allowManualSoaNumber === true;
 
   // Calculation state from backend calculation engine
   const [calculatedFees, setCalculatedFees] = useState<FeeCalculationResultDto | null>(null);
@@ -374,6 +378,7 @@ export function GenerateSoaModal({
 
       setRemarks(app.soaRemarks || app.remarks || '');
       setSelectedSoaNoteId(app.soaNoteId ?? null);
+      setManualSoaNumber(app.soaNumber || '');
       void fetchBackendCalculatedFees(initialScope, 'ALL');
     }
   }, [visible, app.id]);
@@ -622,6 +627,10 @@ export function GenerateSoaModal({
           lineItems: lineItemRequests,
           remarks: remarks.trim() || undefined,
           soaNoteId: selectedSoaNoteId || undefined,
+          soaNumber:
+            allowManualSoaNumber && targetApplicants.length === 1 && manualSoaNumber.trim().length > 0
+              ? manualSoaNumber.trim()
+              : undefined,
         });
 
         if (err !== null) {
@@ -655,6 +664,10 @@ export function GenerateSoaModal({
       lineItems: lineItemRequests,
       remarks: remarks.trim() || undefined,
       soaNoteId: selectedSoaNoteId || undefined,
+      soaNumber:
+        allowManualSoaNumber && manualSoaNumber.trim().length > 0
+          ? manualSoaNumber.trim()
+          : undefined,
     });
 
     setSubmitting(false);
@@ -1236,6 +1249,33 @@ export function GenerateSoaModal({
               </View>
 
               <View style={styles.formRow}>
+                {allowManualSoaNumber && (
+                  <View style={styles.formField}>
+                    <Text
+                      style={[
+                        styles.fieldLabel,
+                        { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                      ]}
+                    >
+                      SOA Number (Manual Entry / Transition Mode)
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+                          borderColor: isDark ? colors.brand[600] : colors.brand[400],
+                          color: isDark ? colors.neutral[100] : colors.neutral[900],
+                        },
+                      ]}
+                      value={manualSoaNumber}
+                      onChangeText={setManualSoaNumber}
+                      placeholder="Leave blank to auto-generate (e.g. 61-2026-11-0001)"
+                      placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                    />
+                  </View>
+                )}
+
                 <View style={styles.formField}>
                   <Text
                     style={[
