@@ -1,14 +1,25 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using EDGE.Application.Applications.Dtos;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
+using EDGE.Application.Reports.Constants;
 using EDGE.Application.Reports.DTOs;
 using EDGE.Application.Reports.Queries.GetOperationalReportStatistics;
+using EDGE.Application.Tenants.DTOs;
+using EDGE.Domain.Authorization;
+using EDGE.Domain.Enums;
+using EDGE.Infrastructure.Printing.Models;
+using EDGE.Infrastructure.Printing.Services;
 
 namespace EDGE.Api.Endpoints;
 
@@ -24,6 +35,14 @@ public static class ReportEndpoints
             .WithName("GetOperationalReportStatistics")
             .WithSummary("Retrieve aggregated operational report statistics and statutory filing metrics.")
             .Produces<ApiResponse<OperationalReportStatisticsDto>>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/statutory/print", PrintStatutoryReport)
+            .WithName("PrintStatutoryReport")
+            .WithSummary("Generate and stream an official QuestPDF vector statutory report document.")
+            .Produces(StatusCodes.Status200OK, contentType: "application/pdf")
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
@@ -74,5 +93,369 @@ public static class ReportEndpoints
         }
 
         return Results.Ok(result);
+    }
+
+    public static async Task<IResult> PrintStatutoryReport(
+        [FromQuery] string? code,
+        [FromQuery] Guid? tenantId,
+        [FromQuery] string? period,
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate,
+        [FromQuery] string? secondaryFilter,
+        [FromQuery] bool download,
+        HttpContext httpContext,
+        IApplicationFullRepository applicationRepository,
+        ITenantRepository tenantRepository,
+        IOfficialReceiptRepository receiptRepository,
+        IBankDepositRepository depositRepository,
+        IFeedbackRepository feedbackRepository,
+        ITenantContextService tenantContextService,
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository,
+        IFormPrintingService printingService,
+        IValidator<GetOperationalReportStatisticsQuery> validator,
+        CancellationToken cancellationToken = default)
+    {
+        var userIdStr = currentUserService.UserId;
+        if (string.IsNullOrWhiteSpace(userIdStr))
+        {
+            return Results.Unauthorized();
+        }
+
+        var validationQuery = new GetOperationalReportStatisticsQuery(
+            TenantId: tenantId,
+            PeriodMode: startDate.HasValue && endDate.HasValue ? "custom" : "monthly",
+            StartDate: startDate,
+            EndDate: endDate,
+            Year: startDate?.Year ?? DateTime.UtcNow.Year,
+            Quarter: null,
+            Month: startDate?.Month ?? DateTime.UtcNow.Month,
+            Category: "all"
+        );
+
+        var validationResult = await validator.ValidateAsync(validationQuery, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        Guid? targetTenantId = null;
+        var isSuperAdmin = await tenantContextService.IsCurrentUserSuperAdminAsync(cancellationToken);
+
+        if (!isSuperAdmin)
+        {
+            if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+            {
+                var isMember = await tenantContextService.IsUserActiveMemberAsync(tenantId.Value, cancellationToken);
+                if (!isMember)
+                {
+                    return Results.Forbid();
+                }
+                targetTenantId = tenantId.Value;
+            }
+            else if (tenantContextService.TenantId.HasValue && tenantContextService.TenantId.Value != Guid.Empty)
+            {
+                var isMember = await tenantContextService.IsUserActiveMemberOfCurrentTenantAsync(cancellationToken);
+                if (!isMember)
+                {
+                    return Results.Forbid();
+                }
+                targetTenantId = tenantContextService.TenantId.Value;
+            }
+            else
+            {
+                var userTenants = await tenantContextService.GetUserActiveTenantIdsAsync(cancellationToken);
+                targetTenantId = userTenants.FirstOrDefault();
+            }
+        }
+        else
+        {
+            targetTenantId = tenantId ?? tenantContextService.TenantId;
+        }
+
+        string tenantDisplayName = "NTC Regional Office (All Active Regions)";
+        if (targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
+        {
+            var tenantEntity = await tenantRepository.GetByIdAsync(targetTenantId.Value, cancellationToken);
+            if (tenantEntity != null && !string.IsNullOrWhiteSpace(tenantEntity.Name))
+            {
+                tenantDisplayName = tenantEntity.Name;
+            }
+            else
+            {
+                tenantDisplayName = $"NTC Regional Office ({targetTenantId.Value.ToString()[..8].ToUpperInvariant()})";
+            }
+        }
+
+        var currentUser = await userRepository.ResolveCurrentUserAsync(currentUserService, cancellationToken);
+        string fullName = currentUser != null ? $"{currentUser.FirstName} {currentUser.LastName}".Trim() : string.Empty;
+        string generatedBy = !string.IsNullOrWhiteSpace(fullName)
+            ? fullName
+            : (currentUser?.Email ?? "Authorized Regional Officer");
+
+        // Load tenant applications
+        var tenantApps = new List<ApplicationSummaryDto>();
+        var currentAppPage = 1;
+        while (tenantApps.Count < ReportConstants.MaxSafetyRecordThreshold)
+        {
+            var pagedApps = await applicationRepository.GetPagedApplicationSummaryDtosAsync(
+                pageNumber: currentAppPage,
+                pageSize: ReportConstants.DefaultBatchPageSize,
+                tenantId: targetTenantId,
+                cancellationToken: cancellationToken);
+
+            var batch = pagedApps?.Items;
+            if (batch == null || batch.Count == 0) break;
+
+            tenantApps.AddRange(batch);
+            if (pagedApps == null || !pagedApps.HasNextPage || tenantApps.Count >= pagedApps.TotalCount) break;
+            currentAppPage++;
+        }
+
+        // Load tenant transactions (including Official Receipts, OPs, and SOAs; Guid.Empty queries all tenants when SuperAdmin views global scope)
+        var transactions = new List<TenantTransactionDto>();
+        var txQueryTenantId = targetTenantId ?? Guid.Empty;
+        var currentTxPage = 1;
+        while (transactions.Count < ReportConstants.MaxSafetyRecordThreshold)
+        {
+            var (txItems, totalTxCount) = await tenantRepository.GetTenantTransactionsAsync(
+                txQueryTenantId,
+                pageNumber: currentTxPage,
+                pageSize: ReportConstants.DefaultBatchPageSize,
+                cancellationToken: cancellationToken);
+
+            if (txItems == null || txItems.Count == 0) break;
+            transactions.AddRange(txItems);
+            if (transactions.Count >= totalTxCount || txItems.Count < ReportConstants.DefaultBatchPageSize) break;
+            currentTxPage++;
+        }
+
+        DateTime filterStart = startDate?.Date ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        DateTime filterEnd = endDate?.Date.AddDays(1).AddTicks(-1) ?? DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
+
+        // Load Official Receipts (with LineItems & Deposit details) and BankDeposits for the period
+        var allReceipts = await receiptRepository.GetByTenantAsync(
+            txQueryTenantId,
+            status: null,
+            paymentMethod: null,
+            fromDate: filterStart,
+            toDate: filterEnd,
+            cashierUserId: null,
+            search: null,
+            cancellationToken: cancellationToken);
+
+        var validReceipts = allReceipts
+            .Where(r => r.Status != ReceiptStatus.Cancelled)
+            .OrderByDescending(r => r.IssuedAt)
+            .ToList();
+
+        var bankDeposits = await depositRepository.GetByTenantAsync(
+            txQueryTenantId,
+            bankAccountId: null,
+            status: null,
+            fromDate: filterStart,
+            toDate: filterEnd,
+            cancellationToken: cancellationToken);
+
+        var allFeedback = await feedbackRepository.GetByTenantAsync(targetTenantId, cancellationToken);
+
+        var filteredApps = tenantApps
+            .Where(a => a.CreatedAt >= filterStart && a.CreatedAt <= filterEnd)
+            .ToList();
+
+        var filteredTx = transactions
+            .Where(t => t.Date >= filterStart && t.Date <= filterEnd)
+            .ToList();
+
+        string normalizedCode = string.IsNullOrWhiteSpace(code) ? "NTC-MIS-OPS" : code.Trim().ToUpperInvariant();
+        string trimmedSecondary = secondaryFilter?.Trim() ?? "all";
+
+        // Apply report-specific secondary filtering
+        if (normalizedCode == "NTC-EXAM-MST-01")
+        {
+            filteredApps = filteredApps.Where(a =>
+            {
+                string corpus = $"{a.ServiceCategory ?? ""} {a.ServiceName ?? ""} {a.ServiceVariantName ?? ""} {a.Element ?? ""}".ToLowerInvariant();
+                return corpus.Contains("exam") || corpus.Contains("operator") || corpus.Contains("roce") || corpus.Contains("amateur") || corpus.Contains("rroc") || corpus.Contains("1-01");
+            }).ToList();
+
+            if (!string.IsNullOrWhiteSpace(trimmedSecondary) && !string.Equals(trimmedSecondary, "all", StringComparison.OrdinalIgnoreCase))
+            {
+                filteredApps = filteredApps.Where(a =>
+                {
+                    string examLabel = $"{a.ServiceVariantName ?? ""} {a.Element ?? ""} {a.ServiceName ?? ""}";
+                    return examLabel.Contains(trimmedSecondary, StringComparison.OrdinalIgnoreCase);
+                }).ToList();
+            }
+        }
+        else if (normalizedCode == "NTC-APP-SUM-EVAL" && !string.IsNullOrWhiteSpace(trimmedSecondary) && !string.Equals(trimmedSecondary, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            filteredApps = filteredApps.Where(a =>
+            {
+                string evalName = a.EvaluatingOfficer
+                    ?? a.IssuedDocumentDetails?.FirstOrDefault()?.OriginalEvaluatorName
+                    ?? a.AssignedOfficerName
+                    ?? generatedBy;
+                return string.Equals(evalName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
+            }).ToList();
+        }
+        else if (normalizedCode == "NTC-APP-SUM-SVC" && !string.IsNullOrWhiteSpace(trimmedSecondary) && !string.Equals(trimmedSecondary, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            filteredApps = filteredApps.Where(a =>
+            {
+                string svcName = a.ServiceName ?? a.Services?.FirstOrDefault()?.ServiceName ?? string.Empty;
+                return string.Equals(svcName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
+            }).ToList();
+        }
+        else if (normalizedCode == "NTC-APP-SUM-ENT" && !string.IsNullOrWhiteSpace(trimmedSecondary) && !string.Equals(trimmedSecondary, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            filteredApps = filteredApps.Where(a =>
+            {
+                string entName = a.PayorName
+                    ?? a.FilingUser?.Company?.Name
+                    ?? a.FilingUser?.Name
+                    ?? a.Applicants?.FirstOrDefault()?.Company?.Name
+                    ?? a.Applicants?.FirstOrDefault()?.Name
+                    ?? string.Empty;
+                return string.Equals(entName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
+            }).ToList();
+        }
+
+        var paidTx = filteredTx
+            .Where(t =>
+                string.Equals(t.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.PaymentStatus, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.PaymentStatus, "Verified", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Deduplicate against OfficialReceipts and OrdersOfPayment by ID, ApplicationId, OrderOfPaymentId, and RefNo/OR Number
+        var coveredIds = new HashSet<Guid>(paidTx.Select(t => t.Id));
+        foreach (var r in validReceipts)
+        {
+            coveredIds.Add(r.Id);
+            if (r.ApplicationId.HasValue) coveredIds.Add(r.ApplicationId.Value);
+            if (r.OrderOfPaymentId.HasValue) coveredIds.Add(r.OrderOfPaymentId.Value);
+        }
+
+        var coveredRefNos = new HashSet<string>(
+            paidTx.Select(t => t.RefNo?.Trim() ?? string.Empty).Where(s => s.Length > 0),
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var r in validReceipts)
+        {
+            if (!string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+            {
+                coveredRefNos.Add(r.OfficialReceiptNumber.Trim());
+            }
+        }
+
+        foreach (var app in filteredApps)
+        {
+            if (coveredIds.Contains(app.Id)) continue;
+            if (app.OrderOfPaymentId.HasValue && coveredIds.Contains(app.OrderOfPaymentId.Value)) continue;
+            if (!string.IsNullOrWhiteSpace(app.OfficialReceiptNumber) && coveredRefNos.Contains(app.OfficialReceiptNumber.Trim())) continue;
+            if (!string.IsNullOrWhiteSpace(app.OpNumber) && coveredRefNos.Contains(app.OpNumber.Trim())) continue;
+            if (!string.IsNullOrWhiteSpace(app.SoaNumber) && coveredRefNos.Contains(app.SoaNumber.Trim())) continue;
+
+            bool isPaidApp =
+                !string.IsNullOrWhiteSpace(app.OfficialReceiptNumber) ||
+                (app.AmountPaid.HasValue && app.AmountPaid.Value > 0m) ||
+                string.Equals(app.Status, "ForIssuance", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(app.Status, "Approved", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(app.Status, "Completed", StringComparison.OrdinalIgnoreCase);
+
+            decimal paidAmount = app.AmountPaid ?? app.TotalAmountDue ?? 0m;
+            if (isPaidApp && paidAmount > 0m)
+            {
+                string refNo = !string.IsNullOrWhiteSpace(app.OfficialReceiptNumber)
+                    ? app.OfficialReceiptNumber!
+                    : (app.ApplicationNumber ?? app.ReferenceNumber ?? app.Id.ToString("N")[..8].ToUpperInvariant());
+
+                coveredIds.Add(app.Id);
+                coveredRefNos.Add(refNo);
+
+                paidTx.Add(new TenantTransactionDto(
+                    Id: app.Id,
+                    RefNo: refNo,
+                    ApplicantName: app.PayorName
+                        ?? app.FilingUser?.Company?.Name
+                        ?? app.FilingUser?.Name
+                        ?? app.Applicants?.FirstOrDefault()?.Name
+                        ?? "Applicant",
+                    ServiceType: app.ServiceName ?? app.ServiceCategory ?? "Regulatory Service",
+                    Amount: paidAmount,
+                    PaymentStatus: "Paid",
+                    Date: app.PaidAt ?? app.UpdatedAt ?? app.CreatedAt
+                ));
+            }
+        }
+
+        var allTemplates = new[]
+        {
+            ReportConstants.MisOps,
+            ReportConstants.CoaApp26Monthly,
+            ReportConstants.CoaApp26Daily,
+            ReportConstants.BirDst01,
+            ReportConstants.BtrInc01,
+            ReportConstants.AppSumEval,
+            ReportConstants.AppSumSvc,
+            ReportConstants.AppSumEnt,
+            ReportConstants.AppVol01,
+            ReportConstants.ExamMst01,
+            ReportConstants.BarNo1,
+            ReportConstants.BTrCoa01,
+            ReportConstants.ArtaRa11032,
+            ReportConstants.SpectrumInventory,
+            ReportConstants.Csmr8888,
+            ReportConstants.NovEnforcement
+        };
+
+        var matchedTemplate = allTemplates.FirstOrDefault(t => string.Equals(t.Code, normalizedCode, StringComparison.OrdinalIgnoreCase))
+            ?? ReportConstants.MisOps;
+
+        var filteredFeedback = (allFeedback ?? new List<EDGE.Domain.Entities.Feedback>())
+            .Where(f => f.CreatedAt >= filterStart && f.CreatedAt <= filterEnd)
+            .ToList();
+
+        double avgCsat = filteredFeedback.Count > 0
+            ? filteredFeedback.Average(f => f.Rating)
+            : 5.0;
+
+        string effectivePeriod = !string.IsNullOrWhiteSpace(period)
+            ? period.Trim()
+            : $"{filterStart:yyyy-MM-dd} to {filterEnd:yyyy-MM-dd}";
+
+        var reportModel = new StatutoryReportModel
+        {
+            Code = matchedTemplate.Code,
+            Title = matchedTemplate.Title,
+            Agency = matchedTemplate.Agency,
+            Frequency = matchedTemplate.Frequency,
+            LegalBasis = matchedTemplate.LegalBasis,
+            TenantName = tenantDisplayName,
+            Period = effectivePeriod,
+            StartDate = filterStart.ToString("yyyy-MM-dd"),
+            EndDate = filterEnd.ToString("yyyy-MM-dd"),
+            GeneratedBy = generatedBy,
+            GeneratedAt = DateTime.UtcNow,
+            SecondaryFilter = trimmedSecondary,
+            Applications = filteredApps,
+            Transactions = filteredTx,
+            PaidTransactions = paidTx.OrderByDescending(t => t.Date).ToList(),
+            OfficialReceipts = validReceipts,
+            BankDeposits = bankDeposits,
+            FeedbackCount = filteredFeedback.Count,
+            AverageCsat = avgCsat
+        };
+
+        byte[] pdfBytes = printingService.PrintStatutoryReport(reportModel);
+        string safeFileName = $"{reportModel.Code}_{reportModel.StartDate}_to_{reportModel.EndDate}.pdf".Replace(" ", "_");
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", safeFileName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{safeFileName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 }
