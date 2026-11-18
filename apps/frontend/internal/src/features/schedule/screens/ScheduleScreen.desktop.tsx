@@ -29,6 +29,7 @@ import { ScheduleFormModal } from '../components/ScheduleFormModal';
 import { ScheduleDetailModal } from '../components/ScheduleDetailModal';
 import { DeleteScheduleModal } from '../components/DeleteScheduleModal';
 import { ConfirmScheduleActionModal } from '../components/ConfirmScheduleActionModal';
+import { ExamAdmissionScannerModal } from '../components/ExamAdmissionScannerModal';
 
 export function ScheduleScreen() {
   const { colors, isDark } = useTheme();
@@ -53,16 +54,28 @@ export function ScheduleScreen() {
           title="Operational & Examination Schedules"
           subtitle="Desktop Workstation • Manage examination dates, testing centers, filing periods, and portal publishing."
           action={
-            <Button
-              variant="primary"
-              size="md"
-              fullWidth={false}
-              style={styles.createBtn}
-              leftIcon={<Lucide name="plus" size={16} color={COLORS.neutral.white} />}
-              onPress={state.handleOpenCreate}
-            >
-              Create Schedule
-            </Button>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING[10], flexWrap: 'wrap' }}>
+              <Button
+                variant="secondary"
+                size="md"
+                fullWidth={false}
+                style={styles.createBtn}
+                leftIcon={<Lucide name="maximize" size={16} color={colors.text} />}
+                onPress={() => state.handleOpenScanner(null)}
+              >
+                Scan Admission QR
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth={false}
+                style={styles.createBtn}
+                leftIcon={<Lucide name="plus" size={16} color={COLORS.neutral.white} />}
+                onPress={state.handleOpenCreate}
+              >
+                Create Schedule
+              </Button>
+            </View>
           }
         />
 
@@ -196,6 +209,7 @@ export function ScheduleScreen() {
                   onTogglePublish={state.handleTogglePublish}
                   onDelete={(item) => state.setDeleteModal({ visible: true, item })}
                   onViewDetails={state.handleOpenDetail}
+                  onScanQr={state.handleOpenScanner}
                 />
               </View>
             ))}
@@ -269,6 +283,23 @@ export function ScheduleScreen() {
         schedule={state.viewingSchedule}
         onClose={() => state.setViewingSchedule(null)}
         onEdit={state.handleOpenEdit}
+        onScanQr={state.handleOpenScanner}
+      />
+
+      <ExamAdmissionScannerModal
+        visible={state.isScannerModalOpen}
+        schedule={state.scannerSchedule}
+        tenantId={state.currentTenantId}
+        onClose={() => {
+          state.setIsScannerModalOpen(false);
+          state.setScannerSchedule(null);
+        }}
+        onAdmitted={(examinee) => {
+          state.showToast(
+            `Examinee ${examinee.examineeName} admitted to ${examinee.examTitle}!`,
+            'success'
+          );
+        }}
       />
 
       <DeleteScheduleModal

@@ -1048,7 +1048,7 @@ public static class ApplicationEndpoints
                 OfficialReceiptNumber = matchedApplicantOp?.OfficialReceiptNumber ?? matchedDoc?.OfficialReceiptNumber ?? paidOp?.OfficialReceiptNumber ?? "OR-RECORDED",
                 IssuedByStaffName = matchedDoc?.IssuedByStaffName ?? "Authorized Licensing Officer",
                 OriginalEvaluatorName = matchedDoc?.OriginalEvaluatorName,
-                QrVerificationCode = matchedDoc?.QrVerificationCode ?? $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}",
+                QrVerificationCode = matchedDoc?.QrVerificationCode ?? $"NTC-VERIFY-{(matchedDoc?.Id ?? targetAppId ?? app.Id).ToString("N")[..12].ToUpperInvariant()}",
                 Remarks = matchedDoc?.Remarks
             };
 

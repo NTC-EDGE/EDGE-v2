@@ -47,6 +47,8 @@ public interface IApplicationFullRepository
     Task AddCompanyDetailAsync(CompanyDetail companyDetail, CancellationToken cancellationToken = default);
     Task AddIssuedDocumentDetailAsync(IssuedDocumentDetail issuedDoc, CancellationToken cancellationToken = default);
     Task<IssuedDocumentDetail?> GetIssuedDocumentByApplicationIdAsync(Guid applicationId, CancellationToken cancellationToken = default);
+    Task<Domain.Entities.Application?> FindExamApplicationByAdmissionCodeAsync(string code, Guid? tenantId = null, Guid? scheduleId = null, CancellationToken cancellationToken = default);
+    Task<List<Domain.Entities.Application>> GetExamApplicationsForAdmissionAsync(Guid? scheduleId = null, Guid? tenantId = null, CancellationToken cancellationToken = default);
     Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<EDGE.Application.Applications.Dtos.RegionalSignatoriesDto> GetRegionalSignatoriesAsync(Guid? tenantId, Guid? regionId, CancellationToken cancellationToken = default);
 }

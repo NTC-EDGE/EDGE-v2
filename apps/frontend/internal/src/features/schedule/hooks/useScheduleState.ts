@@ -34,6 +34,8 @@ export function useScheduleState() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleItemDto | null>(null);
   const [viewingSchedule, setViewingSchedule] = useState<ScheduleItemDto | null>(null);
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [scannerSchedule, setScannerSchedule] = useState<ScheduleItemDto | null>(null);
   const [deleteModal, setDeleteModal] = useState<{
     visible: boolean;
     item: ScheduleItemDto | null;
@@ -158,6 +160,11 @@ export function useScheduleState() {
 
   const handleOpenDetail = (schedule: ScheduleItemDto) => {
     setViewingSchedule(schedule);
+  };
+
+  const handleOpenScanner = (schedule?: ScheduleItemDto | null) => {
+    setScannerSchedule(schedule ?? null);
+    setIsScannerModalOpen(true);
   };
 
   const parseSlots = (slotsStr?: string): number | null => {
@@ -319,6 +326,10 @@ export function useScheduleState() {
     editingSchedule,
     viewingSchedule,
     setViewingSchedule,
+    isScannerModalOpen,
+    setIsScannerModalOpen,
+    scannerSchedule,
+    setScannerSchedule,
     deleteModal,
     setDeleteModal,
     confirmModal,
@@ -330,6 +341,7 @@ export function useScheduleState() {
     handleOpenCreate,
     handleOpenEdit,
     handleOpenDetail,
+    handleOpenScanner,
     handleSaveSchedule,
     handleTogglePublish,
     handleConfirmAction,

@@ -1880,6 +1880,166 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .FirstOrDefaultAsync(d => d.ApplicationId == applicationId, cancellationToken);
     }
 
+    public async Task<Domain.Entities.Application?> FindExamApplicationByAdmissionCodeAsync(
+        string code,
+        Guid? tenantId = null,
+        Guid? scheduleId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return null;
+        }
+
+        var cleanCode = code.Trim();
+        if (cleanCode.Contains("code=", StringComparison.OrdinalIgnoreCase))
+        {
+            var idx = cleanCode.IndexOf("code=", StringComparison.OrdinalIgnoreCase);
+            cleanCode = Uri.UnescapeDataString(cleanCode[(idx + 5)..].Split('&', '#', ' ')[0]).Trim();
+        }
+
+        var lowerCode = cleanCode.ToLowerInvariant();
+        var upperCode = cleanCode.ToUpperInvariant();
+        var strippedPrefix = upperCode.StartsWith("NTC-VERIFY-", StringComparison.OrdinalIgnoreCase)
+            ? upperCode["NTC-VERIFY-".Length..].Trim()
+            : upperCode;
+        var lowerStripped = strippedPrefix.ToLowerInvariant();
+        var isGuid = Guid.TryParse(cleanCode, out var parsedGuid) || Guid.TryParse(strippedPrefix, out parsedGuid);
+
+        // 1. Direct match in IssuedDocumentDetails
+        var docQuery = _context.IssuedDocumentDetails
+            .AsNoTracking()
+            .Where(d => !d.IsDeleted);
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            docQuery = docQuery.Where(d => d.Application != null && d.Application.TenantId == tenantId.Value);
+        }
+
+        var matchedDocAppId = await docQuery
+            .Where(d =>
+                (d.QrVerificationCode != null && d.QrVerificationCode.ToLower() == lowerCode) ||
+                d.FormNumber.ToLower() == lowerCode ||
+                d.FormNumber.ToLower() == lowerStripped ||
+                (d.LicenseNumber != null && (d.LicenseNumber.ToLower() == lowerCode || d.LicenseNumber.ToLower() == lowerStripped)) ||
+                (isGuid && (d.Id == parsedGuid || d.ApplicationId == parsedGuid || d.ApplicantId == parsedGuid)))
+            .OrderByDescending(d => d.IssueDate)
+            .Select(d => (Guid?)d.ApplicationId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (matchedDocAppId.HasValue && matchedDocAppId.Value != Guid.Empty)
+        {
+            return await GetByIdWithDetailsAsync(matchedDocAppId.Value, cancellationToken);
+        }
+
+        // 2. Direct match in Applications by ReferenceNumber, ApplicationNumber, or GUID
+        var appQuery = _context.Applications
+            .AsNoTracking()
+            .Where(a => !a.IsDeleted && a.Status != ApplicationStatus.Draft);
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            appQuery = appQuery.Where(a => a.TenantId == tenantId.Value);
+        }
+
+        var matchedAppId = await appQuery
+            .Where(a =>
+                (a.ReferenceNumber != null && (a.ReferenceNumber.ToLower() == lowerCode || a.ReferenceNumber.ToLower() == lowerStripped)) ||
+                (a.ApplicationNumber != null && (a.ApplicationNumber.ToLower() == lowerCode || a.ApplicationNumber.ToLower() == lowerStripped)) ||
+                (isGuid && (a.Id == parsedGuid || a.ApplicationApplicants.Any(aa => aa.ApplicantId == parsedGuid))))
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => (Guid?)a.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (matchedAppId.HasValue && matchedAppId.Value != Guid.Empty)
+        {
+            return await GetByIdWithDetailsAsync(matchedAppId.Value, cancellationToken);
+        }
+
+        // 3. Fallback match on deterministic 12-character hex prefix (NTC-VERIFY-<12chars>)
+        if (strippedPrefix.Length >= 8)
+        {
+            var candidates = await GetExamApplicationsForAdmissionAsync(scheduleId, tenantId, cancellationToken);
+            var matchedCandidate = candidates.FirstOrDefault(a =>
+                a.Id.ToString("N").StartsWith(strippedPrefix, StringComparison.OrdinalIgnoreCase) ||
+                a.IssuedDocumentDetails.Any(d =>
+                    d.Id.ToString("N").StartsWith(strippedPrefix, StringComparison.OrdinalIgnoreCase) ||
+                    (d.QrVerificationCode != null && d.QrVerificationCode.Contains(strippedPrefix, StringComparison.OrdinalIgnoreCase))) ||
+                a.ApplicationApplicants.Any(aa =>
+                    aa.ApplicantId.ToString("N").StartsWith(strippedPrefix, StringComparison.OrdinalIgnoreCase)));
+
+            if (matchedCandidate != null)
+            {
+                return await GetByIdWithDetailsAsync(matchedCandidate.Id, cancellationToken);
+            }
+        }
+
+        return null;
+    }
+
+    public async Task<List<Domain.Entities.Application>> GetExamApplicationsForAdmissionAsync(
+        Guid? scheduleId = null,
+        Guid? tenantId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Applications
+            .AsNoTrackingWithIdentityResolution()
+            .AsSplitQuery()
+            .Include(a => a.Schedule)
+            .Include(a => a.User)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.ApplicantDetail)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.Service)
+                        .ThenInclude(s => s!.ServiceCategory)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.ServiceVariant)
+            .Include(a => a.FormSubmissions)
+                .ThenInclude(fs => fs.FieldValues)
+                    .ThenInclude(fv => fv.Field)
+            .Include(a => a.ApplicationRequirements)
+                .ThenInclude(ar => ar.StoredFile)
+            .Include(a => a.ApplicationRequirements)
+                .ThenInclude(ar => ar.Requirement)
+            .Include(a => a.OrdersOfPayment)
+            .Include(a => a.IssuedDocumentDetails)
+            .Include(a => a.Histories)
+            .Where(a => !a.IsDeleted && !a.IsArchived && a.Intent == ApplicationIntent.Regular && a.Status != ApplicationStatus.Draft);
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            query = query.Where(a => a.TenantId == tenantId.Value);
+        }
+
+        if (scheduleId.HasValue && scheduleId.Value != Guid.Empty)
+        {
+            query = query.Where(a => a.ScheduleId == scheduleId.Value);
+        }
+        else
+        {
+            query = query.Where(a =>
+                a.ScheduleId != null ||
+                a.IssuedDocumentDetails.Any(d => d.DocumentType.ToLower().Contains("admission")) ||
+                a.ApplicationApplicants.Any(aa =>
+                    aa.Applicant != null &&
+                    aa.Applicant.Service != null &&
+                    (aa.Applicant.Service.Code.StartsWith("NTC_1_01") ||
+                     aa.Applicant.Service.Name.ToLower().Contains("admission slip") ||
+                     aa.Applicant.Service.Name.ToLower().Contains("examination") ||
+                     (aa.Applicant.Service.ServiceCategory != null &&
+                      (aa.Applicant.Service.ServiceCategory.Type == ServiceCategoryType.Exam ||
+                       aa.Applicant.Service.ServiceCategory.Name.ToLower().Contains("exam"))))));
+        }
+
+        return await query
+            .OrderByDescending(a => a.CreatedAt)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.Users.AnyAsync(u => u.Id == userId, cancellationToken);
