@@ -579,157 +579,31 @@ public static class RolePermissionDataSeeder
             }
         }
 
-        // ── 7. Seed Initial Staff Collaboration Conversations & Meetings (Dev/Test only) ──
-        if (!seedDemoUsers)
+        // ── 7. Clean up legacy seeded mock conversations & meetings if present ──
+        var legacyMeetingId = Guid.Parse("ee000000-0000-0000-0000-000000000001");
+        var legacyMeetings = await context.Meetings
+            .IgnoreQueryFilters()
+            .Where(m => m.Id == legacyMeetingId || m.MeetingCode == "NTC-OPS-2026")
+            .ToListAsync();
+
+        if (legacyMeetings.Count > 0)
         {
-            return;
+            context.Meetings.RemoveRange(legacyMeetings);
+            await context.SaveChangesAsync();
+            logger?.LogInformation("Removed {Count} legacy seeded mock meeting(s).", legacyMeetings.Count);
         }
 
-        var allSeededUserIds = defaultUsers.Select(u => u.Id).Distinct().ToList();
+        var legacyConversationId = Guid.Parse("cc000000-0000-0000-0000-000000000001");
+        var legacyConversations = await context.Conversations
+            .IgnoreQueryFilters()
+            .Where(c => c.Id == legacyConversationId)
+            .ToListAsync();
 
-        var generalConversationId = SeedConstants.Communication.GeneralConversationId;
-        var existingConversation = await context.Conversations
-            .Include(c => c.Participants)
-            .FirstOrDefaultAsync(c => c.Id == generalConversationId);
-
-        if (existingConversation == null)
+        if (legacyConversations.Count > 0)
         {
-            var generalConversation = new Conversation
-            {
-                Id = generalConversationId,
-                Title = "NTC Regional Staff Collaboration",
-                Description = "General collaboration channel for all regional staff and department officers",
-                Type = ConversationType.Group,
-                Scope = ConversationScope.IntraRegional,
-                TenantId = defaultTenantId,
-                CreatedAt = staticDate,
-                LastMessageAt = staticDate,
-                LastMessagePreview = "Welcome to the NTC-EDGE Regional Collaboration Hub!",
-                Participants = allSeededUserIds.Select(uid => new ConversationParticipant
-                {
-                    Id = Guid.NewGuid(),
-                    ConversationId = generalConversationId,
-                    UserId = uid,
-                    TenantId = defaultTenantId,
-                    Role = uid == SeedConstants.Users.RegionalDirectorUserId || uid == SeedConstants.Users.SuperAdminUserId
-                        ? ParticipantRole.Owner
-                        : ParticipantRole.Member,
-                    CreatedAt = staticDate
-                }).ToList(),
-                Messages = new List<ChatMessage>
-                {
-                    new()
-                    {
-                        Id = SeedConstants.Communication.WelcomeMessageId,
-                        ConversationId = generalConversationId,
-                        SenderId = SeedConstants.Users.RegionalDirectorUserId,
-                        SenderTenantId = defaultTenantId,
-                        Content = "Welcome to the NTC-EDGE Regional Collaboration Hub! All internal staff have access to coordinate on permits, licensing, and compliance here.",
-                        Type = MessageType.Text,
-                        CreatedAt = staticDate
-                    }
-                }
-            };
-
-            try
-            {
-                await context.Conversations.AddAsync(generalConversation);
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Seeded general collaboration conversation '{Title}' with all roles participating.", generalConversation.Title);
-            }
-            catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
-            {
-                context.Entry(generalConversation).State = EntityState.Detached;
-            }
-        }
-        else
-        {
-            // Ensure any missing staff user is enrolled as participant
-            var existingParticipantIds = existingConversation.Participants.Select(p => p.UserId).ToHashSet();
-            var missingUsers = allSeededUserIds.Where(uid => !existingParticipantIds.Contains(uid)).ToList();
-            if (missingUsers.Count > 0)
-            {
-                foreach (var missingUid in missingUsers)
-                {
-                    context.ConversationParticipants.Add(new ConversationParticipant
-                    {
-                        Id = Guid.NewGuid(),
-                        ConversationId = generalConversationId,
-                        UserId = missingUid,
-                        TenantId = defaultTenantId,
-                        Role = ParticipantRole.Member,
-                        CreatedAt = staticDate
-                    });
-                }
-                await context.SaveChangesAsync();
-            }
-        }
-
-        var defaultMeetingId = SeedConstants.Communication.DefaultMeetingId;
-        var existingMeeting = await context.Meetings
-            .Include(m => m.Participants)
-            .FirstOrDefaultAsync(m => m.Id == defaultMeetingId || m.MeetingCode == "NTC-OPS-2026");
-
-        if (existingMeeting == null)
-        {
-            var defaultMeeting = new Meeting
-            {
-                Id = defaultMeetingId,
-                Title = "Weekly Regional Operations & Coordination",
-                Description = "Regular coordination meeting for regional evaluation, cashiering, and management review.",
-                MeetingCode = "NTC-OPS-2026",
-                Scope = ConversationScope.IntraRegional,
-                TenantId = defaultTenantId,
-                HostUserId = SeedConstants.Users.RegionalDirectorUserId, // Regional Director
-                ScheduledStartTime = DateTimeOffset.UtcNow.AddHours(2),
-                ScheduledEndTime = DateTimeOffset.UtcNow.AddHours(3),
-                Status = MeetingStatus.Scheduled,
-                AllowExternalGuests = false,
-                CreatedAt = staticDate,
-                Participants = allSeededUserIds.Select(uid => new MeetingParticipant
-                {
-                    Id = Guid.NewGuid(),
-                    MeetingId = defaultMeetingId,
-                    UserId = uid,
-                    TenantId = defaultTenantId,
-                    Role = uid == SeedConstants.Users.RegionalDirectorUserId
-                        ? ParticipantRole.Owner
-                        : ParticipantRole.Member,
-                    CreatedAt = staticDate
-                }).ToList()
-            };
-
-            try
-            {
-                await context.Meetings.AddAsync(defaultMeeting);
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Seeded default upcoming meeting '{Title}' (Code: {Code}) with all roles participating.", defaultMeeting.Title, defaultMeeting.MeetingCode);
-            }
-            catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
-            {
-                context.Entry(defaultMeeting).State = EntityState.Detached;
-            }
-        }
-        else
-        {
-            var existingParticipantIds = existingMeeting.Participants.Select(p => p.UserId).ToHashSet();
-            var missingUsers = allSeededUserIds.Where(uid => !existingParticipantIds.Contains(uid)).ToList();
-            if (missingUsers.Count > 0)
-            {
-                foreach (var missingUid in missingUsers)
-                {
-                    context.MeetingParticipants.Add(new MeetingParticipant
-                    {
-                        Id = Guid.NewGuid(),
-                        MeetingId = existingMeeting.Id,
-                        UserId = missingUid,
-                        TenantId = defaultTenantId,
-                        Role = ParticipantRole.Member,
-                        CreatedAt = staticDate
-                    });
-                }
-                await context.SaveChangesAsync();
-            }
+            context.Conversations.RemoveRange(legacyConversations);
+            await context.SaveChangesAsync();
+            logger?.LogInformation("Removed {Count} legacy seeded mock conversation(s).", legacyConversations.Count);
         }
     }
 }
