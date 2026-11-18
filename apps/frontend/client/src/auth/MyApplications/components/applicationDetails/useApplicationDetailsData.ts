@@ -698,6 +698,7 @@ export function useApplicationDetailsData(initialApp: Application) {
     const rawBeStatus = (typeof app.rawStatus === 'string' ? app.rawStatus : '').toLowerCase();
     const remarksLower = (typeof app.remarks === 'string' ? app.remarks : '').toLowerCase();
     const opStatus = (app.op && typeof app.op.status === 'string' ? app.op.status : '').toLowerCase();
+    const soaStatus = (app.soa && typeof app.soa.status === 'string' ? app.soa.status : '').toLowerCase();
 
     // ── Pre-Assessment (3-step lifecycle) ──────────────────────────────────
     if (isAssessmentOnly) {
@@ -747,7 +748,19 @@ export function useApplicationDetailsData(initialApp: Application) {
       return 4;
     }
 
-    // 3. Payment / Accountant review -> Step 3
+    // 3. Active Evaluator review / Submitted / Returned -> Step 2
+    if (
+      rawBeStatus === 'submitted' ||
+      rawBeStatus === 'evaluating' ||
+      rawBeStatus === 'returned' ||
+      rawStatus === 'submitted' ||
+      rawStatus === 'evaluating' ||
+      rawStatus === 'declined'
+    ) {
+      return 2;
+    }
+
+    // 4. Payment / Accountant review -> Step 3
     const isPaymentSubmitted =
       remarksLower.includes('payment submitted') ||
       remarksLower.includes('waiting for cashier verification') ||
@@ -762,30 +775,24 @@ export function useApplicationDetailsData(initialApp: Application) {
       rawStatus === 'foraccountant' ||
       rawBeStatus === 'foraccountant' ||
       isPaymentSubmitted ||
-      (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
+      soaStatus === 'fororderofpayment' ||
+      soaStatus === 'approved'
     ) {
       return 3;
     }
 
-    // 4. Evaluation -> Step 2
-    if (
-      rawStatus === 'for_evaluation' ||
-      rawStatus === 'evaluating' ||
-      rawStatus === 'submitted' ||
-      rawBeStatus === 'evaluating' ||
-      rawBeStatus === 'submitted' ||
-      rawStatus === 'declined'
-    ) {
+    // 5. Evaluation fallback -> Step 2
+    if (rawStatus === 'for_evaluation') {
       return 2;
     }
 
-    // 5. Draft / Initial Submission -> Step 1
+    // 6. Draft / Initial Submission -> Step 1
     if (rawStatus === 'draft' || rawStatus === 'pending') {
       return 1;
     }
 
     return 2;
-  }, [app.status, app.rawStatus, app.soaNumber, app.remarks, app.op, isAssessmentOnly, app.assessedAt]);
+  }, [app.status, app.rawStatus, app.soa, app.remarks, app.op, isAssessmentOnly, app.assessedAt]);
 
   return {
     app,

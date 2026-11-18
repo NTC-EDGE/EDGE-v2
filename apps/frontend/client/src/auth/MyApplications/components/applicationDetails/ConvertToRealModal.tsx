@@ -60,9 +60,9 @@ export function ConvertToRealModal({
               <Icon name="check-circle" size={20} color="#0F2C59" />
             </View>
             <View style={styles.headerTexts}>
-              <Text style={styles.modalTitle}>Submit as Real Application</Text>
+              <Text style={styles.modalTitle}>Proceed to Official Application</Text>
               <Text style={styles.modalSubtitle}>
-                Convert your pre-assessment into an official regulatory filing.
+                Create a new official filing from this completed pre-assessment.
               </Text>
             </View>
             {!isLoading && (
@@ -77,7 +77,7 @@ export function ConvertToRealModal({
           {/* Body */}
           <View style={styles.modalBody}>
             <Text style={styles.bodyText}>
-              You are about to officially submit this application for regulatory processing. Your assessed Statement of Account will be locked in and forwarded for payment settlement.
+              Confirming will create a new Official Application in My Applications and leave this For Assessment record intact. Your new application will proceed through the full regulatory workflow (Evaluator, Accountant, Client Payment, and Cashier).
             </Text>
 
             {/* Assessment Details Summary Card */}
@@ -101,7 +101,7 @@ export function ConvertToRealModal({
             <View style={styles.infoBox}>
               <Icon name="shield" size={15} color="#0369A1" />
               <Text style={styles.infoBoxText}>
-                No need to re-upload documents or fill out information. All submitted details will be automatically preserved.
+                All submitted applicant details, form answers, and uploaded requirements will be automatically copied into the new official application.
               </Text>
             </View>
           </View>

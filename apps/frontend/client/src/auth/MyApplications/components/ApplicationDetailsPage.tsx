@@ -1,16 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, TouchableOpacity, ScrollView, Text, useWindowDimensions } from 'react-native';
 import { Icon, SPACING, TYPOGRAPHY } from '@edge/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '@clerk/expo';
 import { apiClient } from '@edge/api';
 import {
+  ApiApplicationDto,
   ApplicationDocument,
   BulkApplicant,
   RawRequirement,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
+  mapApiApplicationToApplication,
 } from '../data/applicationsData';
 import {
   ApplicationDetailsPageProps,
@@ -36,7 +38,14 @@ import { ConvertToRealModal } from './applicationDetails/ConvertToRealModal';
 import { isEligibleForRenewal, getRenewalDaysRemaining } from '../data/applicationsData';
 import { ReassessmentModal } from './applicationDetails/ReassessmentModal';
 import { resolveApplicationTenantId, isGuid } from '../../../shared/helpers/tenantHelper';
+import { openApplicationDetail } from '../../../shared/helpers/applicationNavigationHelper';
 import { resolveFileFromUpload } from '../../Services/shared/helpers/requirementUploadHelper';
+
+interface SingleApplicationResponse {
+  succeeded?: boolean;
+  data?: ApiApplicationDto;
+  message?: string;
+}
 
 function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null;
@@ -70,6 +79,12 @@ export function ApplicationDetailsPage({
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
   const [isResubmitting, setIsResubmitting] = useState(false);
+
+  useEffect(() => {
+    setAppState(initialApp);
+    setSelectedApplicant(null);
+    setTablePage(1);
+  }, [initialApp.id]);
 
   const {
     app,
@@ -165,25 +180,53 @@ export function ApplicationDetailsPage({
     if (!app.id) return;
     setIsConverting(true);
     try {
-      await api.post(`/api/v2/applications/${app.id}/convert-to-real`, {});
+      const convertRes = await api.post<unknown>(`/api/v2/applications/${app.id}/convert-to-real`, {});
+      const resObj = isRecord(convertRes) ? convertRes : {};
+      if (resObj.succeeded === false) {
+        const failMsg =
+          typeof resObj.message === 'string' && resObj.message.length > 0
+            ? resObj.message
+            : 'Failed to create official application.';
+        toast.error('Submission Failed', failMsg);
+        return;
+      }
+
+      const newAppId =
+        typeof resObj.data === 'string' && resObj.data.trim() !== ''
+          ? resObj.data.trim()
+          : null;
+
       toast.success(
-        'Application Converted',
-        'Your application has been converted to an official application and is ready for payment.'
+        'Official Application Created',
+        'A new official application has been created and submitted for evaluation while preserving your pre-assessment record.'
       );
       setIsConvertToRealModalOpen(false);
-      setAppState((prev) => ({
-        ...prev,
-        isAssessmentOnly: false,
-        intent: 'Regular' as const,
-        status: 'READY_FOR_PAYMENT',
-      }));
-      refetch();
+
+      if (newAppId !== null && newAppId !== app.id) {
+        try {
+          const detailRes = await api.get<SingleApplicationResponse>(`/api/v2/applications/${newAppId}`);
+          if (detailRes !== null && detailRes.succeeded === true && detailRes.data !== undefined) {
+            const mappedNewApp = mapApiApplicationToApplication(detailRes.data);
+            setAppState(mappedNewApp);
+          }
+        } catch {
+          // openApplicationDetail below will navigate to the new application
+        }
+        openApplicationDetail(newAppId);
+      } else {
+        setAppState((prev) => ({
+          ...prev,
+          convertedToRegularAt: new Date().toISOString(),
+          hasActiveRenewal: true,
+        }));
+        refetch();
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error && err.message.length > 0
           ? err.message
-          : 'Failed to convert application.';
-      toast.error('Conversion Failed', message);
+          : 'Failed to create official application.';
+      toast.error('Submission Failed', message);
     } finally {
       setIsConverting(false);
     }
@@ -448,7 +491,7 @@ export function ApplicationDetailsPage({
           docsCount={docs.length}
         />
 
-        {/* Active Renewal in Progress Banner */}
+        {/* Active Renewal or Proceeded Official Application Banner */}
         {app.hasActiveRenewal && (
           <View
             style={{
@@ -458,20 +501,50 @@ export function ApplicationDetailsPage({
               borderRadius: 12,
               padding: 16,
               marginBottom: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: isDesktop ? 'row' : 'column',
+              alignItems: isDesktop ? 'center' : 'flex-start',
+              justifyContent: 'space-between',
               gap: 12,
             }}
           >
-            <Icon name="refresh-cw" size={20} color="#2563EB" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E40AF' }}>
-                Renewal Application in Progress
-              </Text>
-              <Text style={{ fontSize: 13, color: '#1E3A8A', marginTop: 2 }}>
-                A renewal application has been filed for this license (Reference #{app.activeRenewalReferenceNumber ?? 'N/A'}).
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <Icon name={isAssessmentOnly ? 'check-circle' : 'refresh-cw'} size={20} color="#2563EB" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E40AF' }}>
+                  {isAssessmentOnly ? 'Official Application Submitted' : 'Renewal Application in Progress'}
+                </Text>
+                <Text style={{ fontSize: 13, color: '#1E3A8A', marginTop: 2 }}>
+                  {isAssessmentOnly
+                    ? `An official application has been created from this pre-assessment (Reference #${app.activeRenewalReferenceNumber ?? 'N/A'}).`
+                    : `A renewal application has been filed for this license (Reference #${app.activeRenewalReferenceNumber ?? 'N/A'}).`}
+                </Text>
+              </View>
             </View>
+            {app.activeRenewalApplicationId ? (
+              <TouchableOpacity
+                onPress={() => {
+                  if (app.activeRenewalApplicationId) {
+                    openApplicationDetail(app.activeRenewalApplicationId);
+                  }
+                }}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: '#1D4ED8',
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  alignSelf: isDesktop ? 'auto' : 'flex-end',
+                }}
+              >
+                <Icon name="external-link" size={13} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>
+                  {isAssessmentOnly ? 'View Official Application' : 'View Renewal'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
 
@@ -667,6 +740,7 @@ export function ApplicationDetailsPage({
             }}
             onConvertToReal={() => setIsConvertToRealModalOpen(true)}
             onRequestReassessment={() => setIsReassessmentModalOpen(true)}
+            onOpenOfficialApplication={(targetId) => openApplicationDetail(targetId)}
           />
 
           {isBulk ? (
