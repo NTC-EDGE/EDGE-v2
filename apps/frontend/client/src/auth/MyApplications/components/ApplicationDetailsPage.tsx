@@ -1,12 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, TouchableOpacity, ScrollView, Text, useWindowDimensions } from 'react-native';
 import { Icon, SPACING, TYPOGRAPHY } from '@edge/ui';
+import * as DocumentPicker from 'expo-document-picker';
+import { useAuth } from '@clerk/expo';
+import { apiClient } from '@edge/api';
 import {
+  ApiApplicationDto,
   ApplicationDocument,
   BulkApplicant,
+  RawRequirement,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
+  mapApiApplicationToApplication,
 } from '../data/applicationsData';
 import {
   ApplicationDetailsPageProps,
@@ -27,10 +33,23 @@ import { ClientPaymentSubmissionModal } from './applicationDetails/ClientPayment
 import { ClientSoaOpPreviewModal, ClientReportTab } from './applicationDetails/ClientSoaOpPreviewModal';
 import { DocumentPreviewFile } from '../../../shared/components/DocumentPreviewModal';
 import { useApi } from '../../../shared/hooks/useApi';
-import { useToast } from '../../../shared/components/Toast';
+import { useToast, extractApiErrorMessage } from '../../../shared/components/Toast';
 import { ConvertToRealModal } from './applicationDetails/ConvertToRealModal';
 import { isEligibleForRenewal, getRenewalDaysRemaining } from '../data/applicationsData';
 import { ReassessmentModal } from './applicationDetails/ReassessmentModal';
+import { resolveApplicationTenantId, isGuid } from '../../../shared/helpers/tenantHelper';
+import { openApplicationDetail } from '../../../shared/helpers/applicationNavigationHelper';
+import { resolveFileFromUpload } from '../../Services/shared/helpers/requirementUploadHelper';
+
+interface SingleApplicationResponse {
+  succeeded?: boolean;
+  data?: ApiApplicationDto;
+  message?: string;
+}
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
+}
 
 const TABLE_PAGE_SIZE = 6;
 
@@ -45,6 +64,7 @@ export function ApplicationDetailsPage({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 992;
   const api = useApi();
+  const { getToken } = useAuth();
   const toast = useToast();
 
   const [appState, setAppState] = useState(initialApp);
@@ -57,6 +77,14 @@ export function ApplicationDetailsPage({
   const [isReassessmentModalOpen, setIsReassessmentModalOpen] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
+  const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
+  const [isResubmitting, setIsResubmitting] = useState(false);
+
+  useEffect(() => {
+    setAppState(initialApp);
+    setSelectedApplicant(null);
+    setTablePage(1);
+  }, [initialApp.id]);
 
   const {
     app,
@@ -152,25 +180,53 @@ export function ApplicationDetailsPage({
     if (!app.id) return;
     setIsConverting(true);
     try {
-      await api.post(`/api/v2/applications/${app.id}/convert-to-real`, {});
+      const convertRes = await api.post<unknown>(`/api/v2/applications/${app.id}/convert-to-real`, {});
+      const resObj = isRecord(convertRes) ? convertRes : {};
+      if (resObj.succeeded === false) {
+        const failMsg =
+          typeof resObj.message === 'string' && resObj.message.length > 0
+            ? resObj.message
+            : 'Failed to create official application.';
+        toast.error('Submission Failed', failMsg);
+        return;
+      }
+
+      const newAppId =
+        typeof resObj.data === 'string' && resObj.data.trim() !== ''
+          ? resObj.data.trim()
+          : null;
+
       toast.success(
-        'Application Converted',
-        'Your application has been converted to an official application and is ready for payment.'
+        'Official Application Created',
+        'A new official application has been created and submitted for evaluation while preserving your pre-assessment record.'
       );
       setIsConvertToRealModalOpen(false);
-      setAppState((prev) => ({
-        ...prev,
-        isAssessmentOnly: false,
-        intent: 'Regular' as const,
-        status: 'READY_FOR_PAYMENT',
-      }));
-      refetch();
+
+      if (newAppId !== null && newAppId !== app.id) {
+        try {
+          const detailRes = await api.get<SingleApplicationResponse>(`/api/v2/applications/${newAppId}`);
+          if (detailRes !== null && detailRes.succeeded === true && detailRes.data !== undefined) {
+            const mappedNewApp = mapApiApplicationToApplication(detailRes.data);
+            setAppState(mappedNewApp);
+          }
+        } catch {
+          // openApplicationDetail below will navigate to the new application
+        }
+        openApplicationDetail(newAppId);
+      } else {
+        setAppState((prev) => ({
+          ...prev,
+          convertedToRegularAt: new Date().toISOString(),
+          hasActiveRenewal: true,
+        }));
+        refetch();
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error && err.message.length > 0
           ? err.message
-          : 'Failed to convert application.';
-      toast.error('Conversion Failed', message);
+          : 'Failed to create official application.';
+      toast.error('Submission Failed', message);
     } finally {
       setIsConverting(false);
     }
@@ -204,6 +260,207 @@ export function ApplicationDetailsPage({
     }
   };
 
+  const isReturnedForCorrection =
+    app.status === 'DECLINED' ||
+    (typeof app.rawStatus === 'string' && app.rawStatus.toLowerCase().includes('return'));
+
+  const handleUploadRequirement = async (doc: ApplicationDocument, matchedReq?: RawRequirement) => {
+    if (!app.id || uploadingDocId !== null) return;
+
+    const tenantId = resolveApplicationTenantId(app);
+    if (!tenantId) {
+      toast.error('Upload Failed', 'Unable to determine regional office context for this application.');
+      return;
+    }
+
+    try {
+      const pickerRes = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        copyToCacheDirectory: true,
+      });
+      if (pickerRes.canceled || !pickerRes.assets || pickerRes.assets.length === 0) {
+        return;
+      }
+
+      const asset = pickerRes.assets[0];
+      if (!asset) return;
+
+      setUploadingDocId(doc.id);
+
+      const rawWebFile = 'file' in asset && asset.file instanceof Blob ? asset.file : undefined;
+      const fileName = asset.name || (doc.name && doc.name.trim() !== '' ? doc.name : `requirement_${Date.now()}.pdf`);
+      const mimeType = (typeof asset.mimeType === 'string' && asset.mimeType) || rawWebFile?.type || undefined;
+
+      const resolvedFile =
+        rawWebFile ??
+        (await resolveFileFromUpload({
+          name: fileName,
+          uri: asset.uri,
+          type: mimeType,
+        }));
+
+      if (!resolvedFile) {
+        toast.error('Upload Failed', `Could not read selected file "${fileName}".`);
+        return;
+      }
+
+      let authHeaders: Record<string, string> = {};
+      try {
+        const token = await getToken();
+        if (token && token.trim() !== '') {
+          authHeaders = { Authorization: `Bearer ${token}` };
+        }
+      } catch {
+        // ignore
+      }
+
+      const formData = new FormData();
+      formData.append('file', resolvedFile, fileName);
+      formData.append('category', 'requirements');
+
+      const uploadRes = await apiClient.post<unknown>(
+        `/api/v2/tenants/${tenantId}/storage/upload`,
+        formData,
+        {
+          headers: {
+            ...authHeaders,
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 60000,
+        }
+      );
+
+      const uploadResObj = isRecord(uploadRes.data) ? uploadRes.data : {};
+      const uploadPayload =
+        uploadResObj.succeeded === true && isRecord(uploadResObj.data)
+          ? uploadResObj.data
+          : uploadResObj;
+      const storedFileId = typeof uploadPayload.id === 'string' && uploadPayload.id.trim() !== ''
+        ? uploadPayload.id.trim()
+        : null;
+
+      if (!storedFileId) {
+        toast.error('Upload Failed', 'Storage service did not return a file identifier.');
+        return;
+      }
+
+      const targetApplicantId =
+        doc.applicantId ||
+        matchedReq?.applicantId ||
+        (isBulk ? effectiveSelectedApplicant?.id : undefined) ||
+        app.applicants?.[0]?.id ||
+        app.Applicants?.[0]?.id ||
+        app.id;
+
+      let reqId = isGuid(doc.requirementId)
+        ? doc.requirementId
+        : isGuid(matchedReq?.requirementId)
+          ? matchedReq?.requirementId
+          : undefined;
+      let svrId = isGuid(doc.serviceVariantRequirementId)
+        ? doc.serviceVariantRequirementId
+        : isGuid(matchedReq?.serviceVariantRequirementId)
+          ? matchedReq?.serviceVariantRequirementId
+          : undefined;
+
+      if (!reqId && !svrId && isGuid(doc.id)) {
+        reqId = doc.id;
+      }
+
+      if (!reqId && !svrId) {
+        try {
+          const liveReqRes = await api.get<unknown>(`/api/v2/applications/${app.id}/applicants/${targetApplicantId}/requirements`);
+          const liveObj = isRecord(liveReqRes) ? liveReqRes : {};
+          const liveList = liveObj.succeeded === true && Array.isArray(liveObj.data) ? liveObj.data : [];
+          const docLabelLower = (doc.requirementName || doc.name || '').trim().toLowerCase();
+          const foundLive = liveList.find((item: unknown) => {
+            if (!isRecord(item)) return false;
+            const rName = typeof item.requirementName === 'string' ? item.requirementName.trim().toLowerCase() : '';
+            const fName = typeof item.fileName === 'string' ? item.fileName.trim().toLowerCase() : '';
+            return (docLabelLower !== '' && (rName === docLabelLower || fName === docLabelLower));
+          });
+          if (isRecord(foundLive)) {
+            if (typeof foundLive.requirementId === 'string' && isGuid(foundLive.requirementId)) {
+              reqId = foundLive.requirementId;
+            }
+            if (typeof foundLive.serviceVariantRequirementId === 'string' && isGuid(foundLive.serviceVariantRequirementId)) {
+              svrId = foundLive.serviceVariantRequirementId;
+            }
+          }
+        } catch {
+          // fallback handled below
+        }
+      }
+
+      const body: Record<string, unknown> = { storedFileId };
+      if (svrId) body.serviceVariantRequirementId = svrId;
+      if (reqId) body.requirementId = reqId;
+
+      const linkRes = await api.post<unknown>(
+        `/api/v2/applications/${app.id}/applicants/${targetApplicantId}/requirements`,
+        body
+      );
+      const linkObj = isRecord(linkRes) ? linkRes : {};
+      if (linkObj.succeeded === false) {
+        const msg = typeof linkObj.message === 'string' ? linkObj.message : 'Failed to link uploaded requirement document.';
+        toast.error('Attachment Link Failed', msg);
+        return;
+      }
+
+      toast.success('Document Updated', `"${fileName}" has been uploaded and attached.`);
+      refetch();
+    } catch (err: unknown) {
+      toast.error('Upload Failed', extractApiErrorMessage(err) || 'Could not upload the selected document.');
+    } finally {
+      setUploadingDocId(null);
+    }
+  };
+
+  const handleResubmitReturnedApplication = async () => {
+    if (!app.id || isResubmitting) return;
+    setIsResubmitting(true);
+    try {
+      let submitted = false;
+      try {
+        const submitRes = await api.post<unknown>(`/api/v2/applications/${app.id}/submit`, {});
+        const resObj = isRecord(submitRes) ? submitRes : {};
+        if (resObj.succeeded !== false) {
+          submitted = true;
+        }
+      } catch {
+        submitted = false;
+      }
+
+      if (!submitted) {
+        await api.patch(`/api/v2/applications/${app.id}/status`, {
+          status: 'Submitted',
+          action: 'Application Resubmitted by Applicant',
+          staffName: primaryName || 'Applicant',
+          staffRole: 'Applicant',
+          remarks: 'Applicant updated requirements and resubmitted application for evaluation.',
+        });
+      }
+
+      toast.success(
+        'Application Resubmitted',
+        'Your application and uploaded documents have been resubmitted for evaluation.'
+      );
+      setAppState((prev) => ({
+        ...prev,
+        status: 'FOR_EVALUATION',
+        rawStatus: 'Submitted',
+      }));
+      refetch();
+    } catch (err: unknown) {
+      toast.error(
+        'Resubmission Failed',
+        extractApiErrorMessage(err) || 'Failed to resubmit application. Please ensure all required documents are attached.'
+      );
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View
@@ -234,7 +491,7 @@ export function ApplicationDetailsPage({
           docsCount={docs.length}
         />
 
-        {/* Active Renewal in Progress Banner */}
+        {/* Active Renewal or Proceeded Official Application Banner */}
         {app.hasActiveRenewal && (
           <View
             style={{
@@ -244,20 +501,50 @@ export function ApplicationDetailsPage({
               borderRadius: 12,
               padding: 16,
               marginBottom: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: isDesktop ? 'row' : 'column',
+              alignItems: isDesktop ? 'center' : 'flex-start',
+              justifyContent: 'space-between',
               gap: 12,
             }}
           >
-            <Icon name="refresh-cw" size={20} color="#2563EB" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E40AF' }}>
-                Renewal Application in Progress
-              </Text>
-              <Text style={{ fontSize: 13, color: '#1E3A8A', marginTop: 2 }}>
-                A renewal application has been filed for this license (Reference #{app.activeRenewalReferenceNumber ?? 'N/A'}).
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <Icon name={isAssessmentOnly ? 'check-circle' : 'refresh-cw'} size={20} color="#2563EB" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E40AF' }}>
+                  {isAssessmentOnly ? 'Official Application Submitted' : 'Renewal Application in Progress'}
+                </Text>
+                <Text style={{ fontSize: 13, color: '#1E3A8A', marginTop: 2 }}>
+                  {isAssessmentOnly
+                    ? `An official application has been created from this pre-assessment (Reference #${app.activeRenewalReferenceNumber ?? 'N/A'}).`
+                    : `A renewal application has been filed for this license (Reference #${app.activeRenewalReferenceNumber ?? 'N/A'}).`}
+                </Text>
+              </View>
             </View>
+            {app.activeRenewalApplicationId ? (
+              <TouchableOpacity
+                onPress={() => {
+                  if (app.activeRenewalApplicationId) {
+                    openApplicationDetail(app.activeRenewalApplicationId);
+                  }
+                }}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: '#1D4ED8',
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  alignSelf: isDesktop ? 'auto' : 'flex-end',
+                }}
+              >
+                <Icon name="external-link" size={13} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>
+                  {isAssessmentOnly ? 'View Official Application' : 'View Renewal'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
 
@@ -345,12 +632,11 @@ export function ApplicationDetailsPage({
         })()}
 
         {/* Returned for Correction Alert Banner */}
-        {(app.status === 'DECLINED' ||
-          (typeof app.rawStatus === 'string' && app.rawStatus.toLowerCase().includes('return')) ||
-          (typeof app.remarks === 'string' && (
-            app.remarks.toLowerCase().includes('notice of discrepancy') ||
-            app.remarks.toLowerCase().includes('returned')
-          ))) && (
+        {(isReturnedForCorrection ||
+          (app.status === 'PENDING' &&
+            typeof app.remarks === 'string' &&
+            (app.remarks.toLowerCase().includes('notice of discrepancy') ||
+              app.remarks.toLowerCase().includes('returned')))) && (
           <View
             style={{
               backgroundColor: '#FEF2F2',
@@ -359,35 +645,61 @@ export function ApplicationDetailsPage({
               borderRadius: 12,
               padding: 16,
               marginBottom: 16,
-              flexDirection: 'row',
-              alignItems: 'flex-start',
+              flexDirection: isDesktop ? 'row' : 'column',
+              alignItems: isDesktop ? 'center' : 'flex-start',
+              justifyContent: 'space-between',
               gap: 12,
             }}
           >
-            <Icon name="alert-triangle" size={20} color="#DC2626" />
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 15,
-                  fontWeight: TYPOGRAPHY.weights.bold,
-                  color: '#991B1B',
-                  marginBottom: 4,
-                }}
-              >
-                Application Returned for Correction
-              </Text>
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 13,
-                  color: '#7F1D1D',
-                  lineHeight: 18,
-                }}
-              >
-                {app.remarks || 'The evaluating officer has returned this application. Please review the deficiency notice.'}
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, flex: 1 }}>
+              <Icon name="alert-triangle" size={20} color="#DC2626" />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 15,
+                    fontWeight: TYPOGRAPHY.weights.bold,
+                    color: '#991B1B',
+                    marginBottom: 4,
+                  }}
+                >
+                  Application Returned for Correction
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 13,
+                    color: '#7F1D1D',
+                    lineHeight: 18,
+                  }}
+                >
+                  {app.remarks || 'The evaluating officer has returned this application. Please review the deficiency notice and update any required documents below before resubmitting.'}
+                </Text>
+              </View>
             </View>
+
+            {isReturnedForCorrection && (
+              <TouchableOpacity
+                onPress={handleResubmitReturnedApplication}
+                disabled={isResubmitting}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: isResubmitting ? '#FCA5A5' : '#DC2626',
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  alignSelf: isDesktop ? 'center' : 'flex-end',
+                }}
+              >
+                <Icon name={isResubmitting ? 'loader' : 'send'} size={14} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
+                  {isResubmitting ? 'Resubmitting...' : 'Resubmit Application'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -428,6 +740,7 @@ export function ApplicationDetailsPage({
             }}
             onConvertToReal={() => setIsConvertToRealModalOpen(true)}
             onRequestReassessment={() => setIsReassessmentModalOpen(true)}
+            onOpenOfficialApplication={(targetId) => openApplicationDetail(targetId)}
           />
 
           {isBulk ? (
@@ -458,6 +771,9 @@ export function ApplicationDetailsPage({
               onDownloadDoc={onDownloadDoc}
               previewLoadingId={previewLoadingId}
               setPreviewLoadingId={setPreviewLoadingId}
+              canEditRequirements={isReturnedForCorrection}
+              uploadingDocId={uploadingDocId}
+              onUploadRequirement={handleUploadRequirement}
             />
           ) : (
             <SingleApplicantSection
@@ -478,6 +794,9 @@ export function ApplicationDetailsPage({
               onDownloadDoc={onDownloadDoc}
               previewLoadingId={previewLoadingId}
               setPreviewLoadingId={setPreviewLoadingId}
+              canEditRequirements={isReturnedForCorrection}
+              uploadingDocId={uploadingDocId}
+              onUploadRequirement={handleUploadRequirement}
             />
           )}
         </View>

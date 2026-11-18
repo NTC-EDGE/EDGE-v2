@@ -414,6 +414,7 @@ export function MyApplications() {
       <View style={styles.contentColumn}>
         {selectedApp !== null ? (
           <ApplicationDetailsPage
+            key={selectedApp.id}
             app={selectedApp}
             onBack={() => {
               setSelectedApp(null);

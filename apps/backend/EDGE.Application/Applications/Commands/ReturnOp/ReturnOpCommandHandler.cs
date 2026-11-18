@@ -65,20 +65,23 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
-        if ((request.ReturnTo == ReturnTarget.Evaluator || request.ReturnTo == ReturnTarget.Supervisor) && op.StatementOfAccount != null)
+        if (op.StatementOfAccount != null)
         {
             var soa = op.StatementOfAccount;
             var prevSoaStatus = soa.Status;
-            soa.Status = SoaStatus.Returned;
-            
+            var nextSoaStatus = request.ReturnTo == ReturnTarget.Accountant
+                ? SoaStatus.ForOrderOfPayment
+                : SoaStatus.Returned;
+            soa.Status = nextSoaStatus;
+
             await _repository.AddSoaHistoryAsync(new SoaHistory
             {
                 Id = Guid.NewGuid(),
                 StatementOfAccountId = soa.Id,
-                Action = $"SOA returned along with OP. Reason: {request.Remarks}",
+                Action = $"SOA returned along with OP to {request.ReturnTo}. Reason: {request.Remarks}",
                 FromStatus = prevSoaStatus,
-                ToStatus = SoaStatus.Returned,
-                PerformedByUserId = userContext.UserId,
+                ToStatus = nextSoaStatus,
+                PerformedByUserId = validUserId,
                 StaffName = userContext.StaffName,
                 StaffRole = userContext.StaffRole,
                 Remarks = request.Remarks,
@@ -114,7 +117,7 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
                 Status = targetAppStatus,
                 Remarks = $"Order of Payment returned by Cashier: {request.Remarks}",
                 Timestamp = DateTime.UtcNow,
-                UserId = userContext.UserId
+                UserId = validUserId
             }, cancellationToken);
 
             await _repository.AddApplicationHistoryAsync(new ApplicationHistory
@@ -123,7 +126,7 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
                 ApplicationId = app.Id,
                 Action = actionName,
                 ToStatus = targetAppStatus,
-                PerformedByUserId = userContext.UserId,
+                PerformedByUserId = validUserId,
                 StaffName = userContext.StaffName,
                 StaffRole = userContext.StaffRole,
                 Remarks = request.Remarks,

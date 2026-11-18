@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon, TYPOGRAPHY } from '@edge/ui';
 import { applicationService } from '@edge/api';
-import { Application, ApplicationDocument } from '../../data/applicationsData';
+import { Application, ApplicationDocument, RawRequirement } from '../../data/applicationsData';
 import {
   resolvePreviewApplicationType,
   resolvePreviewElements,
@@ -58,6 +58,9 @@ interface SingleApplicantSectionProps {
   onDownloadDoc?: (doc: ApplicationDocument) => void;
   previewLoadingId?: string | null;
   setPreviewLoadingId: (id: string | null) => void;
+  canEditRequirements?: boolean;
+  uploadingDocId?: string | null;
+  onUploadRequirement?: (doc: ApplicationDocument, matchedReq?: RawRequirement) => void;
 }
 
 export function SingleApplicantSection({
@@ -78,6 +81,9 @@ export function SingleApplicantSection({
   onDownloadDoc,
   previewLoadingId,
   setPreviewLoadingId,
+  canEditRequirements,
+  uploadingDocId,
+  onUploadRequirement,
 }: SingleApplicantSectionProps) {
   const serviceNameLower = (app.serviceName || '').toLowerCase();
   const serviceCategoryLower = (app.serviceCategory || '').toLowerCase();
@@ -245,6 +251,9 @@ export function SingleApplicantSection({
         onDownloadDoc={onDownloadDoc}
         previewLoadingId={previewLoadingId}
         setPreviewLoadingId={setPreviewLoadingId}
+        canEditRequirements={canEditRequirements}
+        uploadingDocId={uploadingDocId}
+        onUploadRequirement={onUploadRequirement}
       />
     </View>
   );

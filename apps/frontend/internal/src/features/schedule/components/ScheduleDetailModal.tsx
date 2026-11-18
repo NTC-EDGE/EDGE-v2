@@ -24,12 +24,14 @@ interface ScheduleDetailModalProps {
   schedule: ScheduleItemDto | null;
   onClose: () => void;
   onEdit: (schedule: ScheduleItemDto) => void;
+  onScanQr?: (schedule: ScheduleItemDto) => void;
 }
 
 export function ScheduleDetailModal({
   schedule,
   onClose,
   onEdit,
+  onScanQr,
 }: ScheduleDetailModalProps) {
   const { colors, isDark } = useTheme();
 
@@ -326,6 +328,20 @@ export function ScheduleDetailModal({
             >
               Close
             </Button>
+            {onScanQr !== undefined && (
+              <Button
+                variant="secondary"
+                fullWidth={false}
+                style={styles.editButtonAction}
+                leftIcon={<Lucide name="maximize" size={14} color={colors.text} />}
+                onPress={() => {
+                  onClose();
+                  onScanQr(schedule);
+                }}
+              >
+                Scan Admission QR
+              </Button>
+            )}
             {!schedule.isPublished && (
               <Button
                 variant="primary"

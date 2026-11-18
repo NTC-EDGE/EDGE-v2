@@ -22,7 +22,13 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
-        services.AddSignalR();
+        services.AddSignalR(hubOptions =>
+        {
+            hubOptions.MaximumReceiveMessageSize = 64 * 1024; // 64 KB max WebSocket frame payload
+            hubOptions.MaximumParallelInvocationsPerClient = 2;
+            hubOptions.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+            hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        });
 
         // Register Tenant Context Service
         services.AddScoped<ITenantContextService, TenantContextService>();

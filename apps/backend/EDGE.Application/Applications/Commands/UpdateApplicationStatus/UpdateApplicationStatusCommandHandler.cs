@@ -247,6 +247,72 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                     }
                 }
             }
+            else if (newStatus == ApplicationStatus.PendingPayment)
+            {
+                var activeSoas = app.StatementsOfAccount?
+                    .Where(s => !s.IsDeleted && s.Status != SoaStatus.Returned)
+                    .OrderBy(s => s.CreatedAt)
+                    .ToList() ?? new System.Collections.Generic.List<StatementOfAccount>();
+
+                foreach (var targetSoa in activeSoas)
+                {
+                    if (targetSoa.Status != SoaStatus.Approved)
+                    {
+                        var prevSoaStatus = targetSoa.Status;
+                        targetSoa.Status = SoaStatus.Approved;
+                        targetSoa.ApprovedByUserId = actingUserId;
+                        targetSoa.ApprovedAt = DateTime.UtcNow;
+
+                        await _applicationRepository.AddSoaHistoryAsync(new SoaHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            StatementOfAccountId = targetSoa.Id,
+                            Action = "SOA approved for payment.",
+                            FromStatus = prevSoaStatus,
+                            ToStatus = SoaStatus.Approved,
+                            PerformedByUserId = actingUserId,
+                            StaffName = staffName,
+                            StaffRole = staffRole,
+                            Remarks = request.Remarks ?? "SOA approved and ready for payment",
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
+                    }
+
+                    var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == targetSoa.Id && o.Status != OpStatus.Returned);
+                    if (existingOp == null)
+                    {
+                        var opNumber = _numberingSeriesService != null
+                            ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId, cancellationToken)
+                            : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+
+                        var newOp = new OrderOfPayment
+                        {
+                            Id = Guid.NewGuid(),
+                            ApplicationId = app.Id,
+                            StatementOfAccountId = targetSoa.Id,
+                            OpNumber = opNumber,
+                            AmountDue = targetSoa.TotalAmount,
+                            AmountReceived = 0m,
+                            Status = OpStatus.Billed,
+                            Remarks = request.Remarks ?? "Order of Payment issued. Ready for client payment.",
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _applicationRepository.AddOpAsync(newOp, cancellationToken);
+
+                        await _applicationRepository.AddOpHistoryAsync(new OpHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderOfPaymentId = newOp.Id,
+                            Action = "Order of Payment issued.",
+                            ToStatus = OpStatus.Billed,
+                            PerformedByUserId = actingUserId,
+                            StaffName = staffName,
+                            StaffRole = staffRole,
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
+                    }
+                }
+            }
 
             await _applicationRepository.AddApplicationHistoryAsync(new ApplicationHistory
             {
@@ -254,7 +320,7 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                 ApplicationId = app.Id,
                 Action = actionTitle,
                 ToStatus = newStatus,
-                PerformedByUserId = actingUserId ?? Guid.Empty,
+                PerformedByUserId = actingUserId,
                 StaffName = staffName,
                 StaffRole = staffRole,
                 Remarks = request.Remarks,

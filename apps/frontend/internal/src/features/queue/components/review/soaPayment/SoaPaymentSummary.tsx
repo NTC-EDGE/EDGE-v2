@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
-import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon as Lucide } from "@edge/ui";
+import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon as Lucide, toast } from "@edge/ui";
 import { ApplicationData } from "../../../../../types/application";
-import { parsePaymentBreakdown, extractOrNumbers } from "@edge/api";
+import { parsePaymentBreakdown, extractOrNumbers, useTenantConfig, applicationService, mutateApplications } from "@edge/api";
 import { formatDisplayDateTime } from "../reviewFormatters";
 import { reviewStyles as styles } from "../reviewStyles";
 
@@ -28,12 +28,23 @@ export function SoaPaymentSummary({
   const { colors, isDark } = useTheme();
   const [editingOrNumber, setEditingOrNumber] = useState(false);
   const [orDraft, setOrDraft] = useState(app.payment.orNumber);
+  const { config: tenantConfig } = useTenantConfig(app.tenantId);
+  const allowManualOpNumber = tenantConfig.allowManualOpNumber === true;
+  const [editingOpNumber, setEditingOpNumber] = useState(false);
+  const [opNumberDraft, setOpNumberDraft] = useState(app.payment.opNumber || '');
+  const [isSavingOpNumber, setIsSavingOpNumber] = useState(false);
 
   useEffect(() => {
     if (!editingOrNumber) {
       setOrDraft(app.payment.orNumber);
     }
   }, [app.payment.orNumber, editingOrNumber]);
+
+  useEffect(() => {
+    if (!editingOpNumber) {
+      setOpNumberDraft(app.payment.opNumber || '');
+    }
+  }, [app.payment.opNumber, editingOpNumber]);
 
   const excess = app.payment.amountReceived - app.totalAmountDue;
   const preferredBreakdown = parsePaymentBreakdown(app.payment.remarks || app.note || app.payment.checkName || '');
@@ -225,12 +236,91 @@ export function SoaPaymentSummary({
                     ? 'Bulk Order of Payment (OP) — Ready for Review'
                     : 'Order of Payment (OP) — Ready for Review'}
                 </Text>
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontSize: 12, color: isDark ? '#a5b4fc' : '#4338ca', marginTop: 2 }}>
-                  {isIndividualMode && opsCount > 1
-                    ? `${opsCount} Individual OPs`
-                    : (app.payment.opNumber || 'OP Series # generated upon Accountant approval')}{' '}
-                  • ₱{(app.totalAmountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                  {editingOpNumber ? (
+                    <View style={styles.inlineEditRow}>
+                      <TextInput
+                        style={[styles.inlineEditInput, { minWidth: 160, color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
+                        value={opNumberDraft}
+                        onChangeText={setOpNumberDraft}
+                        autoFocus
+                        placeholder="Enter OP Number"
+                        placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                      />
+                      <Pressable
+                        disabled={isSavingOpNumber}
+                        onPress={async () => {
+                          const targetOpId = app.payment.orderOfPaymentId || (app.opsList && app.opsList.length > 0 ? app.opsList[0]?.id : undefined);
+                          const cleanNumber = opNumberDraft.trim();
+                          if (!cleanNumber) {
+                            toast.error("OP number cannot be empty.");
+                            return;
+                          }
+                          if (!targetOpId) {
+                            setEditingOpNumber(false);
+                            updateApplication(app.id, {
+                              payment: { ...app.payment, opNumber: cleanNumber },
+                            });
+                            return;
+                          }
+                          setIsSavingOpNumber(true);
+                          const [res, err] = await applicationService.updateOpNumber(targetOpId, cleanNumber);
+                          setIsSavingOpNumber(false);
+                          if (err !== null || !res?.succeeded) {
+                            toast.error(err || res?.message || "Failed to update OP number.");
+                            return;
+                          }
+                          setEditingOpNumber(false);
+                          updateApplication(app.id, {
+                            payment: { ...app.payment, opNumber: cleanNumber },
+                          });
+                          toast.success("Order of Payment number updated.");
+                          void mutateApplications(app.id);
+                        }}
+                      >
+                        <Text style={[styles.inlineEditSave, { color: isDark ? '#a5b4fc' : '#4338ca' }]}>
+                          {isSavingOpNumber ? "Saving..." : "Save"}
+                        </Text>
+                      </Pressable>
+                      <Pressable onPress={() => setEditingOpNumber(false)}>
+                        <Text style={[styles.inlineEditSave, { color: colors.textMuted, marginLeft: 4 }]}>Cancel</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontSize: 12, color: isDark ? '#a5b4fc' : '#4338ca' }}>
+                        {isIndividualMode && opsCount > 1
+                          ? `${opsCount} Individual OPs`
+                          : (app.payment.opNumber || 'OP Series # generated upon Accountant approval')}{' '}
+                        • ₱{(app.totalAmountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                      {allowManualOpNumber && Boolean(app.payment.orderOfPaymentId || (app.opsList && app.opsList.length > 0)) && (
+                        <Pressable
+                          onPress={() => {
+                            setOpNumberDraft(app.payment.opNumber || '');
+                            setEditingOpNumber(true);
+                          }}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: RADIUS.xs,
+                            borderWidth: 1,
+                            borderColor: isDark ? '#818cf8' : '#4f46e5',
+                            backgroundColor: isDark ? '#312e81' : '#e0e7ff',
+                          }}
+                        >
+                          <Lucide name="edit-2" size={10} color={isDark ? '#c7d2fe' : '#3730a3'} />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#c7d2fe' : '#3730a3' }}>
+                            EDIT OP #
+                          </Text>
+                        </Pressable>
+                      )}
+                    </>
+                  )}
+                </View>
               </View>
             </View>
 
@@ -310,6 +400,100 @@ export function SoaPaymentSummary({
                 ? 'Payment reference submitted. Ready for Cashier OR issuance.'
                 : 'Client has not paid. Cashier cannot issue OR until payment is made.'}
             </Text>
+
+            {Boolean(app.payment.opNumber) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                {editingOpNumber ? (
+                  <View style={styles.inlineEditRow}>
+                    <TextInput
+                      style={[styles.inlineEditInput, { minWidth: 160, color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
+                      value={opNumberDraft}
+                      onChangeText={setOpNumberDraft}
+                      autoFocus
+                      placeholder="Enter OP Number"
+                      placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                    />
+                    <Pressable
+                      disabled={isSavingOpNumber}
+                      onPress={async () => {
+                        const targetOpId = app.payment.orderOfPaymentId || (app.opsList && app.opsList.length > 0 ? app.opsList[0]?.id : undefined);
+                        const cleanNumber = opNumberDraft.trim();
+                        if (!cleanNumber) {
+                          toast.error("OP number cannot be empty.");
+                          return;
+                        }
+                        if (!targetOpId) {
+                          setEditingOpNumber(false);
+                          updateApplication(app.id, {
+                            payment: { ...app.payment, opNumber: cleanNumber },
+                          });
+                          return;
+                        }
+                        setIsSavingOpNumber(true);
+                        const [res, err] = await applicationService.updateOpNumber(targetOpId, cleanNumber);
+                        setIsSavingOpNumber(false);
+                        if (err !== null || !res?.succeeded) {
+                          toast.error(err || res?.message || "Failed to update OP number.");
+                          return;
+                        }
+                        setEditingOpNumber(false);
+                        updateApplication(app.id, {
+                          payment: { ...app.payment, opNumber: cleanNumber },
+                        });
+                        toast.success("Order of Payment number updated.");
+                        void mutateApplications(app.id);
+                      }}
+                    >
+                      <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
+                        {isSavingOpNumber ? "Saving..." : "Save"}
+                      </Text>
+                    </Pressable>
+                    <Pressable onPress={() => setEditingOpNumber(false)}>
+                      <Text style={[styles.inlineEditSave, { color: colors.textMuted, marginLeft: 4 }]}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <>
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.mono,
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: isPaymentSubmitted
+                          ? (isDark ? '#d1fae5' : '#065f46')
+                          : (isDark ? '#fde68a' : '#92400e'),
+                      }}
+                    >
+                      OP #: {app.payment.opNumber}
+                    </Text>
+                    {allowManualOpNumber && Boolean(app.payment.orderOfPaymentId || (app.opsList && app.opsList.length > 0)) && (
+                      <Pressable
+                        onPress={() => {
+                          setOpNumberDraft(app.payment.opNumber || '');
+                          setEditingOpNumber(true);
+                        }}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: RADIUS.xs,
+                          borderWidth: 1,
+                          borderColor: isDark ? '#fbbf24' : '#d97706',
+                          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                        }}
+                      >
+                        <Lucide name="edit-2" size={10} color={isDark ? '#fbbf24' : '#b45309'} />
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#fbbf24' : '#b45309' }}>
+                          EDIT OP #
+                        </Text>
+                      </Pressable>
+                    )}
+                  </>
+                )}
+              </View>
+            )}
           </View>
         </View>
       )}

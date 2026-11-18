@@ -26,6 +26,8 @@ public class DatabaseInitializerHostedService : IHostedService
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var configuration = scope.ServiceProvider.GetService<IConfiguration>();
+        var environment = scope.ServiceProvider.GetService<IHostEnvironment>();
+
         // 1. Run migrations first
         try
         {
@@ -35,72 +37,6 @@ public class DatabaseInitializerHostedService : IHostedService
                 await context.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA IF NOT EXISTS public; GRANT ALL ON SCHEMA public TO CURRENT_USER; GRANT ALL ON SCHEMA public TO public;", cancellationToken);
                 _logger.LogInformation("Public schema dropped and recreated successfully.");
             }
-
-            // Guard: if tables were already created outside of EF migrations (e.g. via schema dump),
-            // ensure __EFMigrationsHistory exists and has the InitialCreate entry recorded so that
-            // MigrateAsync does not attempt to re-create existing tables (which causes 42P07).
-            // Also backfill any columns added to the migration that may be missing from an older schema.
-            await context.Database.ExecuteSqlRawAsync("""
-                CREATE SCHEMA IF NOT EXISTS public;
-                SET search_path TO public;
-
-                CREATE TABLE IF NOT EXISTS public."__EFMigrationsHistory" (
-                    "MigrationId" character varying(150) NOT NULL,
-                    "ProductVersion" character varying(32) NOT NULL,
-                    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
-                );
-
-                INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
-                SELECT '20260813070918_InitialCreate', '9.0.0'
-                WHERE EXISTS (
-                    SELECT 1 FROM information_schema.tables
-                    WHERE table_schema = 'public' AND table_name = 'ActivityLogs'
-                )
-                AND NOT EXISTS (
-                    SELECT 1 FROM public."__EFMigrationsHistory"
-                    WHERE "MigrationId" = '20260813070918_InitialCreate'
-                );
-
-                -- Backfill columns that exist in the current migration but may be missing from older DB schemas
-                DO $$ BEGIN
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.tables
-                        WHERE table_schema = 'public' AND table_name = 'Applicants'
-                    ) THEN
-                        ALTER TABLE public."Applicants"
-                            ADD COLUMN IF NOT EXISTS "ServiceId" uuid NULL;
-
-                        CREATE INDEX IF NOT EXISTS "IX_Applicants_ServiceId" ON public."Applicants" ("ServiceId");
-
-                        IF NOT EXISTS (
-                            SELECT 1 FROM information_schema.table_constraints
-                            WHERE constraint_schema = 'public'
-                            AND constraint_name = 'FK_Applicants_Services_ServiceId'
-                            AND table_name = 'Applicants'
-                        ) THEN
-                            ALTER TABLE public."Applicants"
-                            ADD CONSTRAINT "FK_Applicants_Services_ServiceId"
-                            FOREIGN KEY ("ServiceId") REFERENCES public."Services" ("Id");
-                        END IF;
-                    END IF;
-
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.tables
-                        WHERE table_schema = 'public' AND table_name = 'ServiceVariants'
-                    ) THEN
-                        ALTER TABLE public."ServiceVariants"
-                            ADD COLUMN IF NOT EXISTS "IsIndividual" boolean NOT NULL DEFAULT true;
-                    END IF;
-
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.tables
-                        WHERE table_schema = 'public' AND table_name = 'Requirements'
-                    ) THEN
-                        ALTER TABLE public."Requirements"
-                            ALTER COLUMN "Description" TYPE text;
-                    END IF;
-                END $$;
-                """, cancellationToken);
 
             _logger.LogInformation("Applying database migrations...");
             await context.Database.MigrateAsync(cancellationToken);
@@ -125,13 +61,21 @@ public class DatabaseInitializerHostedService : IHostedService
             throw new InvalidOperationException("Geographic seed data failed. Please check the logs for details.", ex);
         }
 
-        // 3. Seed IAM reference data (Roles, Permissions, RolePermissions, Tenants, default Users)
+        // 3. Seed IAM reference data (Roles, Permissions, RolePermissions, Default Tenant, Initial SuperAdmin; Demo Users in Dev only)
         try
         {
             _logger.LogInformation("Seeding database IAM reference data...");
             var clerkUserService = scope.ServiceProvider.GetService<EDGE.Application.Common.Interfaces.IClerkUserService>();
             var strictClerkSync = configuration?.GetValue<bool>("Seeding:StrictClerkSync") == true;
-            await RolePermissionDataSeeder.SeedAsync(context, forceResetPermissions: true, clerkUserService: clerkUserService, logger: _logger, throwOnPartialFailure: strictClerkSync);
+            var seedDemoUsers = environment?.IsDevelopment() == true || configuration?.GetValue<bool>("Seeding:SeedDemoUsers") == true;
+
+            await RolePermissionDataSeeder.SeedAsync(
+                context,
+                forceResetPermissions: true,
+                clerkUserService: clerkUserService,
+                logger: _logger,
+                throwOnPartialFailure: strictClerkSync,
+                seedDemoUsers: seedDemoUsers);
             _logger.LogInformation("IAM seed data completed.");
         }
         catch (Exception ex)
@@ -140,7 +84,7 @@ public class DatabaseInitializerHostedService : IHostedService
             throw new InvalidOperationException("IAM seed data failed. Please check the logs for details.", ex);
         }
 
-        // 4. Seed Fast-Track catalog data (ServiceCategory, Service, ServiceVariant, Form templates, etc.)
+        // 4. Seed Fast-Track catalog data (ServiceCategory, Service, ServiceVariant, ServiceInformation, Form templates, etc.)
         try
         {
             _logger.LogInformation("Seeding Fast-Track catalog data...");
@@ -153,31 +97,7 @@ public class DatabaseInitializerHostedService : IHostedService
             throw new InvalidOperationException("Fast-Track seed data failed. Please check the logs for details.", ex);
         }
 
-        // 5. Seed Feedback data (100+ feedback instances with anonymous options)
-        try
-        {
-            _logger.LogInformation("Seeding Feedback entries (100 instances)...");
-            await FeedbackDataSeeder.SeedAsync(context);
-            _logger.LogInformation("Feedback entries seeded successfully.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Feedback seed data encountered an issue.");
-        }
-
-        // 6. Seed System Announcements and Audit Logs
-        try
-        {
-            _logger.LogInformation("Seeding System Announcements...");
-            await SystemAnnouncementDataSeeder.SeedAsync(context);
-            _logger.LogInformation("System Announcements seeded successfully.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "System Announcements/Audit Logs seed data encountered an issue.");
-        }
-
-        // 7. Seed Notification Templates (External & Internal)
+        // 5. Seed Notification Templates (External & Internal)
         try
         {
             _logger.LogInformation("Seeding Notification Templates...");
@@ -189,20 +109,7 @@ public class DatabaseInitializerHostedService : IHostedService
             _logger.LogError(ex, "Notification Templates seed data encountered an issue.");
         }
 
-        // 8. Seed Application dev data (Applications, SOAs, OPs, Histories)
-        try
-        {
-            _logger.LogInformation("Seeding Application dev data...");
-            await ApplicationDataSeeder.SeedAsync(context);
-            _logger.LogInformation("Application dev data seeded successfully.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Application dev data seed encountered an issue.");
-            throw;
-        }
-
-        // 10. Seed System Configuration entries
+        // 6. Seed System Configuration entries
         try
         {
             _logger.LogInformation("Seeding System Configuration entries...");
@@ -212,18 +119,6 @@ public class DatabaseInitializerHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogError(ex, "System Configuration seed data encountered an issue.");
-        }
-
-        // 9. Seed Service Information entries
-        try
-        {
-            _logger.LogInformation("Seeding Service Information entries...");
-            await ServiceInformationDataSeeder.SeedAsync(context);
-            _logger.LogInformation("Service Information entries seeded successfully.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Service Information seed data encountered an issue.");
         }
     }
 

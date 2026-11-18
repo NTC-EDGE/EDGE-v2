@@ -69,11 +69,13 @@ public static class ApplicationEndpoints
 
         group.MapPost("/csv-preview", PreviewCsvImport)
             .DisableAntiforgery()
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.FileUpload)
             .WithName("PreviewCsvImport")
             .WithSummary("Preview CSV bulk application import")
             .WithDescription("Validates and previews application details imported from a CSV file before finalized submission.");
 
         group.MapPost("/", SubmitApplication)
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.StrictMutation)
             .WithName("SubmitApplication")
             .WithSummary("Create draft bulk application")
             .WithDescription("Initiates a draft bulk application under the selected service catalog, establishing the application shell.");
@@ -234,18 +236,21 @@ public static class ApplicationEndpoints
 
         group.MapGet("/{id:guid}/issued-document/print", PrintIssuedDocumentEndpoint)
             .AllowAnonymous()
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
             .WithName("PrintIssuedDocument")
             .WithSummary("Print Issued Document and License")
             .WithDescription("Generates and downloads official printable PDF statutory license, certificate, or permit document for the application.");
 
         group.MapGet("/{id:guid}/issuance/print", PrintIssuedDocumentEndpoint)
             .AllowAnonymous()
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
             .WithName("PrintIssuance")
             .WithSummary("Print Issuance Document")
             .WithDescription("Alias for PrintIssuedDocument.");
 
         group.MapGet("/{id:guid}/form/print", PrintApplicationFormEndpoint)
             .RequireAuthorization()
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
             .WithName("PrintApplicationForm")
             .WithSummary("Print Application Form")
             .WithDescription("Generates and downloads official printable PDF statutory application form (e.g. NTC 1-24 Blocking/Unblocking, NTC 1-25 Complaints) for the application.");
@@ -272,6 +277,7 @@ public static class ApplicationEndpoints
                 download: true,
                 cancellationToken))
             .RequireAuthorization()
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
             .WithName("DownloadApplicationForm")
             .WithSummary("Download Application Form")
             .WithDescription("Alias for PrintApplicationForm with download=true.");
@@ -294,17 +300,20 @@ public static class ApplicationEndpoints
             .WithDescription("Permanently removes a draft application and its associated applicant entries.");
 
         group.MapPost("/{id:guid}/submit", FinalizeApplicationSubmission)
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.StrictMutation)
             .WithName("FinalizeApplicationSubmission")
             .WithSummary("Finalize and submit application")
             .WithDescription("Transitions a draft application to submitted state, locking files and triggering workflows.");
 
         group.MapPost("/{id:guid}/submit-payment", SubmitPaymentEndpoint)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.SubmitApplication))
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.StrictMutation)
             .WithName("SubmitPayment")
             .WithSummary("Client payment submission")
             .WithDescription("Submits client payment reference and details, advancing Order of Payment to Processing for Cashier collection verification.");
 
         group.MapPost("/{id:guid}/applicants/{applicantId:guid}/requirements", UploadApplicantRequirement)
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.FileUpload)
             .WithName("UploadApplicantRequirement")
             .WithSummary("Upload applicant requirement attachment")
             .WithDescription("Uploads a specific file attachment satisfying a document requirement for a single applicant.");
@@ -892,7 +901,8 @@ public static class ApplicationEndpoints
     {
         var command = new ApproveSoaCommand(
             ApplicationId: id,
-            Remarks: request?.Remarks);
+            Remarks: request?.Remarks,
+            OpNumber: request?.OpNumber);
         var validationResult = await validator.ValidateAsync(command, cancellationToken);
         if (!validationResult.IsValid)
         {
@@ -1038,7 +1048,7 @@ public static class ApplicationEndpoints
                 OfficialReceiptNumber = matchedApplicantOp?.OfficialReceiptNumber ?? matchedDoc?.OfficialReceiptNumber ?? paidOp?.OfficialReceiptNumber ?? "OR-RECORDED",
                 IssuedByStaffName = matchedDoc?.IssuedByStaffName ?? "Authorized Licensing Officer",
                 OriginalEvaluatorName = matchedDoc?.OriginalEvaluatorName,
-                QrVerificationCode = matchedDoc?.QrVerificationCode ?? $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}",
+                QrVerificationCode = matchedDoc?.QrVerificationCode ?? $"NTC-VERIFY-{(matchedDoc?.Id ?? targetAppId ?? app.Id).ToString("N")[..12].ToUpperInvariant()}",
                 Remarks = matchedDoc?.Remarks
             };
 

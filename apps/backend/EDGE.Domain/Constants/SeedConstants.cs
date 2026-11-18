@@ -56,12 +56,4 @@ public static class SeedConstants
         public static readonly Guid AdminMemberId            = Guid.Parse("40000000-0000-0000-0000-000000000009");
         public static readonly Guid LegacyHigherUpsMemberId  = Guid.Parse("40000000-0000-0000-0000-000000000034");
     }
-
-    // ── Communication & Meetings (cc000000-... and ee000000-... collision-free ranges) ──
-    public static class Communication
-    {
-        public static readonly Guid GeneralConversationId = Guid.Parse("cc000000-0000-0000-0000-000000000001");
-        public static readonly Guid WelcomeMessageId      = Guid.Parse("cc000000-0000-0000-0000-000000000002");
-        public static readonly Guid DefaultMeetingId      = Guid.Parse("ee000000-0000-0000-0000-000000000001");
-    }
 }

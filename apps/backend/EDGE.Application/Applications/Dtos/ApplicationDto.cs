@@ -97,6 +97,7 @@ public class ApplicationRequirementDto
     public Guid ApplicantId { get; set; }
     public Guid? ApplicationServiceId { get; set; }
     public Guid RequirementId { get; set; }
+    public string? RequirementName { get; set; }
     public Guid? ServiceVariantRequirementId { get; set; }
     public Guid? StoredFileId { get; set; }
     public string? FileName { get; set; }

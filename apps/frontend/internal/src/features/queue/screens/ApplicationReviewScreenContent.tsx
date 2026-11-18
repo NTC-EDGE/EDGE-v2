@@ -455,7 +455,7 @@ export function ApplicationReviewScreenContent({
     });
   };
 
-  if (isDetailsLoading) return <ApplicationReviewSkeleton onClose={onClose} />;
+  if (isDetailsLoading && selectedApplication === null) return <ApplicationReviewSkeleton onClose={onClose} />;
 
   if (selectedApplication === null) {
     return (

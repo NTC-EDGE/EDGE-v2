@@ -50,6 +50,9 @@ export function useApplicationDetailsData(initialApp: Application) {
                   applicantIdSet.add(ap.id.trim());
                 }
               }
+              if (applicantIdSet.size === 0 && typeof initialApp.id === 'string' && initialApp.id.trim() !== '') {
+                applicantIdSet.add(initialApp.id.trim());
+              }
 
               const fetchedReqs: RawRequirement[] = [];
               for (const aid of applicantIdSet) {
@@ -72,6 +75,7 @@ export function useApplicationDetailsData(initialApp: Application) {
                                   ? io.requirementId
                                   : undefined,
                             requirementId: typeof io.requirementId === 'string' ? io.requirementId : undefined,
+                            requirementName: typeof io.requirementName === 'string' && io.requirementName.trim() !== '' ? io.requirementName : undefined,
                             serviceVariantRequirementId: typeof io.serviceVariantRequirementId === 'string' ? io.serviceVariantRequirementId : undefined,
                             name: typeof io.requirementName === 'string' && io.requirementName.trim() !== ''
                               ? io.requirementName
@@ -115,8 +119,52 @@ export function useApplicationDetailsData(initialApp: Application) {
               }
 
               if (fetchedReqs.length > 0) {
-                mapped.requirements = fetchedReqs;
-                mapped.documents = fetchedReqs;
+                // Merge with any existing requirements from mapped.requirements or payload.requirements
+                const existingDocs = Array.isArray(mapped.requirements) ? mapped.requirements : [];
+                const mergedReqs: RawRequirement[] = [...fetchedReqs];
+
+                for (const existingDoc of existingDocs) {
+                  const hasExistingFile = Boolean(
+                    (existingDoc.url && existingDoc.url.trim() !== '' && existingDoc.url.toLowerCase() !== 'none' && existingDoc.url.toLowerCase() !== 'null') ||
+                    (existingDoc.storedFileId && existingDoc.storedFileId.trim() !== '' && existingDoc.storedFileId.toLowerCase() !== 'none' && existingDoc.storedFileId.toLowerCase() !== 'null')
+                  );
+                  if (!hasExistingFile) continue;
+
+                  const existingLabelLower = (existingDoc.requirementName || existingDoc.name || '').trim().toLowerCase();
+
+                  // Check if this existing doc already matches an item in fetchedReqs for the same applicant
+                  const matched = mergedReqs.find((r) => {
+                    const sameApplicant =
+                      !r.applicantId ||
+                      !existingDoc.applicantId ||
+                      r.applicantId === existingDoc.applicantId ||
+                      (applicantIdSet.size <= 1 && existingDoc.applicantId === initialApp.id);
+                    if (!sameApplicant) return false;
+
+                    const rLabelLower = (r.requirementName || r.name || '').trim().toLowerCase();
+                    return (
+                      (r.id && existingDoc.id && r.id === existingDoc.id) ||
+                      (r.storedFileId && existingDoc.storedFileId && r.storedFileId === existingDoc.storedFileId) ||
+                      (r.requirementId && existingDoc.requirementId && r.requirementId === existingDoc.requirementId) ||
+                      (r.serviceVariantRequirementId && existingDoc.serviceVariantRequirementId && r.serviceVariantRequirementId === existingDoc.serviceVariantRequirementId) ||
+                      (rLabelLower !== '' && existingLabelLower !== '' && rLabelLower === existingLabelLower)
+                    );
+                  });
+
+                  if (matched) {
+                    if (!matched.storedFileId && existingDoc.storedFileId) matched.storedFileId = existingDoc.storedFileId;
+                    if (!matched.url && existingDoc.url) matched.url = existingDoc.url;
+                    if (!matched.fileName && existingDoc.fileName) matched.fileName = existingDoc.fileName;
+                    if (!matched.requirementName && existingDoc.requirementName) matched.requirementName = existingDoc.requirementName;
+                    if (!matched.fileSizeBytes && existingDoc.fileSizeBytes) matched.fileSizeBytes = existingDoc.fileSizeBytes;
+                    if (!matched.contentType && existingDoc.contentType) matched.contentType = existingDoc.contentType;
+                  } else {
+                    mergedReqs.push(existingDoc);
+                  }
+                }
+
+                mapped.requirements = mergedReqs;
+                mapped.documents = mergedReqs;
               }
 
               if (isMounted) {
@@ -519,7 +567,8 @@ export function useApplicationDetailsData(initialApp: Application) {
           (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
         );
 
-        const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${index + 1}.pdf` : req.name || `Requirement_${index + 1}`);
+        const rawName = req.fileName || req.requirementName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${index + 1}.pdf` : `Requirement_${index + 1}`);
+        const reqDisplayName = req.requirementName || req.name || rawName;
         let cat: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP' = 'ATTACHMENT';
         if (['ATTACHMENT','ISSUED_PERMIT','RECEIPT','SOA','ADMISSION_SLIP'].includes(req.category || '')) cat = req.category as typeof cat;
         const ext = rawName.toLowerCase().split('.').pop() || '';
@@ -538,6 +587,10 @@ export function useApplicationDetailsData(initialApp: Application) {
         return {
           id: req.id || req.storedFileId || `doc-${index}`,
           name: rawName,
+          requirementName: reqDisplayName,
+          applicantId: req.applicantId,
+          requirementId: req.requirementId,
+          serviceVariantRequirementId: req.serviceVariantRequirementId,
           type: typ,
           size: formattedSize || (hasFile ? '1.2 MB' : ''),
           category: cat,
@@ -645,6 +698,7 @@ export function useApplicationDetailsData(initialApp: Application) {
     const rawBeStatus = (typeof app.rawStatus === 'string' ? app.rawStatus : '').toLowerCase();
     const remarksLower = (typeof app.remarks === 'string' ? app.remarks : '').toLowerCase();
     const opStatus = (app.op && typeof app.op.status === 'string' ? app.op.status : '').toLowerCase();
+    const soaStatus = (app.soa && typeof app.soa.status === 'string' ? app.soa.status : '').toLowerCase();
 
     // ── Pre-Assessment (3-step lifecycle) ──────────────────────────────────
     if (isAssessmentOnly) {
@@ -694,7 +748,19 @@ export function useApplicationDetailsData(initialApp: Application) {
       return 4;
     }
 
-    // 3. Payment / Accountant review -> Step 3
+    // 3. Active Evaluator review / Submitted / Returned -> Step 2
+    if (
+      rawBeStatus === 'submitted' ||
+      rawBeStatus === 'evaluating' ||
+      rawBeStatus === 'returned' ||
+      rawStatus === 'submitted' ||
+      rawStatus === 'evaluating' ||
+      rawStatus === 'declined'
+    ) {
+      return 2;
+    }
+
+    // 4. Payment / Accountant review -> Step 3
     const isPaymentSubmitted =
       remarksLower.includes('payment submitted') ||
       remarksLower.includes('waiting for cashier verification') ||
@@ -709,30 +775,24 @@ export function useApplicationDetailsData(initialApp: Application) {
       rawStatus === 'foraccountant' ||
       rawBeStatus === 'foraccountant' ||
       isPaymentSubmitted ||
-      (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
+      soaStatus === 'fororderofpayment' ||
+      soaStatus === 'approved'
     ) {
       return 3;
     }
 
-    // 4. Evaluation -> Step 2
-    if (
-      rawStatus === 'for_evaluation' ||
-      rawStatus === 'evaluating' ||
-      rawStatus === 'submitted' ||
-      rawBeStatus === 'evaluating' ||
-      rawBeStatus === 'submitted' ||
-      rawStatus === 'declined'
-    ) {
+    // 5. Evaluation fallback -> Step 2
+    if (rawStatus === 'for_evaluation') {
       return 2;
     }
 
-    // 5. Draft / Initial Submission -> Step 1
+    // 6. Draft / Initial Submission -> Step 1
     if (rawStatus === 'draft' || rawStatus === 'pending') {
       return 1;
     }
 
     return 2;
-  }, [app.status, app.rawStatus, app.soaNumber, app.remarks, app.op, isAssessmentOnly, app.assessedAt]);
+  }, [app.status, app.rawStatus, app.soa, app.remarks, app.op, isAssessmentOnly, app.assessedAt]);
 
   return {
     app,

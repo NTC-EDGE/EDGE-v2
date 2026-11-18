@@ -5,6 +5,7 @@ import {
   Application,
   ApplicationDocument,
   BulkApplicant,
+  RawRequirement,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
@@ -55,6 +56,9 @@ interface BulkApplicantsSectionProps {
   onDownloadDoc?: (doc: ApplicationDocument) => void;
   previewLoadingId?: string | null;
   setPreviewLoadingId: (id: string | null) => void;
+  canEditRequirements?: boolean;
+  uploadingDocId?: string | null;
+  onUploadRequirement?: (doc: ApplicationDocument, matchedReq?: RawRequirement) => void;
 }
 
 const TABLE_PAGE_SIZE = 6;
@@ -86,6 +90,9 @@ export function BulkApplicantsSection({
   onDownloadDoc,
   previewLoadingId,
   setPreviewLoadingId,
+  canEditRequirements,
+  uploadingDocId,
+  onUploadRequirement,
 }: BulkApplicantsSectionProps) {
   const activeApplicant = selectedApplicant || (appApplicants.length > 0 ? appApplicants[0] : null);
 
@@ -363,6 +370,9 @@ export function BulkApplicantsSection({
                 onDownloadDoc={onDownloadDoc}
                 previewLoadingId={previewLoadingId}
                 setPreviewLoadingId={setPreviewLoadingId}
+                canEditRequirements={canEditRequirements}
+                uploadingDocId={uploadingDocId}
+                onUploadRequirement={onUploadRequirement}
               />
             );
           })() : (

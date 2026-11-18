@@ -11,5 +11,10 @@ public class ApproveSoaCommandValidator : AbstractValidator<ApproveSoaCommand>
             .Must(x => (x.SoaId.HasValue && x.SoaId.Value != Guid.Empty) ||
                        (x.ApplicationId.HasValue && x.ApplicationId.Value != Guid.Empty))
             .WithMessage("Either SoaId or ApplicationId is required.");
+
+        RuleFor(x => x.OpNumber)
+            .MaximumLength(64)
+            .When(x => !string.IsNullOrWhiteSpace(x.OpNumber))
+            .WithMessage("OP Number cannot exceed 64 characters.");
     }
 }

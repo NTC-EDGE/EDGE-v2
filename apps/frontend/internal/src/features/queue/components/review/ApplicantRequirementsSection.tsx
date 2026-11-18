@@ -34,18 +34,74 @@ export function ApplicantRequirementsSection({
   const [previewLoadingReqId, setPreviewLoadingReqId] = useState<string | null>(null);
   const [activeReqMenuId, setActiveReqMenuId] = useState<string | null>(null);
 
-  const fetchRequirements = useCallback(async () => {
+  const fetchRequirements = useCallback(async (silent = false) => {
     if (!app?.id || !activeApplicant?.id) return;
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     const [res] = await applicationService.getApplicantRequirements(app.id, activeApplicant.id);
-    setIsLoading(false);
-    if (res?.data) {
-      setRequirements(res.data);
+    if (!silent) {
+      setIsLoading(false);
+    }
+
+    const isMultiApplicant = Array.isArray(app.applicantsList) && app.applicantsList.length > 1;
+    const preloadedPool =
+      Array.isArray(activeApplicant.requirements) && activeApplicant.requirements.length > 0
+        ? activeApplicant.requirements
+        : Array.isArray(app.requirements)
+          ? (isMultiApplicant
+              ? app.requirements.filter((ar) => !ar.applicantId || ar.applicantId === activeApplicant.id)
+              : app.requirements)
+          : [];
+
+    if (res?.data && res.data.length > 0) {
+      const merged = res.data.map((r) => {
+        if ((!r.storedFileId || r.storedFileId === '') && (!r.url || r.url === '') && preloadedPool.length > 0) {
+          const matchInApp = preloadedPool.find(
+            (ar) =>
+              (typeof ar.requirementId === 'string' && ar.requirementId === r.requirementId) ||
+              (typeof ar.serviceVariantRequirementId === 'string' && ar.serviceVariantRequirementId === r.serviceVariantRequirementId) ||
+              (typeof ar.label === 'string' && typeof r.requirementName === 'string' && ar.label.toLowerCase() === r.requirementName.toLowerCase()) ||
+              (typeof ar.filename === 'string' && typeof r.fileName === 'string' && ar.filename.toLowerCase() === r.fileName.toLowerCase()) ||
+              (typeof ar.url === 'string' && typeof r.url === 'string' && ar.url === r.url)
+          );
+          if (matchInApp && ((typeof matchInApp.storedFileId === 'string' && matchInApp.storedFileId.trim() !== '') || (typeof matchInApp.url === 'string' && matchInApp.url.trim() !== ''))) {
+            return {
+              ...r,
+              submittedRequirementId: matchInApp.id ?? r.submittedRequirementId,
+              storedFileId: matchInApp.storedFileId ?? r.storedFileId,
+              url: matchInApp.url ?? r.url,
+              fileName: matchInApp.filename || r.fileName,
+              contentType: matchInApp.contentType ?? r.contentType,
+              fileSizeBytes: matchInApp.fileSizeBytes ?? r.fileSizeBytes,
+              isApproved: matchInApp.isApproved ?? r.isApproved,
+            };
+          }
+        }
+        return r;
+      });
+      setRequirements(merged);
+    } else if (preloadedPool.length > 0) {
+      const fallbackList: ApplicantRequirementItemDto[] = preloadedPool.map((ar, idx) => ({
+        requirementId: ar.requirementId || `fallback-req-${idx}`,
+        serviceVariantRequirementId: ar.serviceVariantRequirementId ?? null,
+        requirementName: ar.label || ar.filename || `Requirement Document ${idx + 1}`,
+        description: ar.note || '',
+        isRequired: true,
+        submittedRequirementId: ar.id ?? null,
+        storedFileId: ar.storedFileId ?? null,
+        fileName: ar.filename || 'Attached Document',
+        contentType: ar.contentType ?? null,
+        fileSizeBytes: ar.fileSizeBytes ?? null,
+        url: ar.url,
+        isApproved: ar.isApproved ?? false,
+      }));
+      setRequirements(fallbackList);
     }
   }, [app?.id, activeApplicant?.id]);
 
   useEffect(() => {
-    fetchRequirements();
+    void fetchRequirements(false);
   }, [fetchRequirements]);
 
   useEffect(() => {
@@ -94,10 +150,26 @@ export function ApplicantRequirementsSection({
         return;
       }
 
-      toast.success('Requirement document attached successfully.');
-      await fetchRequirements();
+      // Immediately reflect the updated file in local state without reloading or unmounting
+      setRequirements((prev) =>
+        prev.map((item) =>
+          item.requirementId === reqItem.requirementId
+            ? {
+                ...item,
+                storedFileId,
+                fileName: storageRes.data?.fileName || fileName,
+                contentType: storageRes.data?.contentType || item.contentType,
+                fileSizeBytes: storageRes.data?.fileSizeBytes ?? item.fileSizeBytes,
+                uploadedAt: new Date().toISOString(),
+              }
+            : item
+        )
+      );
+
+      toast.success(`"${reqItem.requirementName}" attachment updated successfully.`);
+      await fetchRequirements(true);
       if (typeof app.id === 'string') {
-        await mutateApplications(app.id);
+        void mutateApplications(app.id);
       }
     } catch {
       toast.error('An error occurred during file upload.');

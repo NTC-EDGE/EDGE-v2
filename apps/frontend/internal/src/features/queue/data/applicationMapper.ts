@@ -1,9 +1,10 @@
-import { ApplicationDto, ApplicationSummaryDto, ApplicationActivityDto, extractOrNumbers, formatOrDisplay } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto, ApplicationActivityDto, ApplicationRequirementDto, extractOrNumbers, formatOrDisplay } from '@edge/api';
 import {
   ApplicationData,
   ApplicationCategory,
   SoaRecordSummary,
   OpRecordSummary,
+  RequirementDocument,
 } from '../../../types/application';
 import {
   parseApplicationCategory,
@@ -379,6 +380,30 @@ export function mapApplicationDtoToUI(
     (dto.applicationNumber?.startsWith('BULK-') ?? false) ||
     (dto.applicants?.length ?? 0) > 1;
 
+  const rawDtoRequirements: ApplicationRequirementDto[] =
+    'requirements' in dto && Array.isArray(dto.requirements) ? dto.requirements : [];
+  const mappedRequirements: RequirementDocument[] = rawDtoRequirements.map((r) => {
+    const resolvedFilename = (typeof r.fileName === 'string' && r.fileName.trim().length > 0)
+      ? r.fileName.trim()
+      : (typeof r.url === 'string' && r.url.trim().length > 0 ? (r.url.split('/').pop() ?? 'Attached Document') : 'Attached Document');
+    const resolvedLabel = (typeof r.requirementName === 'string' && r.requirementName.trim().length > 0)
+      ? r.requirementName.trim()
+      : resolvedFilename;
+    return {
+      id: r.id,
+      applicantId: r.applicantId,
+      requirementId: r.requirementId,
+      serviceVariantRequirementId: r.serviceVariantRequirementId ?? undefined,
+      storedFileId: r.storedFileId ?? undefined,
+      label: resolvedLabel,
+      filename: resolvedFilename,
+      contentType: r.contentType ?? undefined,
+      fileSizeBytes: typeof r.fileSizeBytes === 'number' ? r.fileSizeBytes : undefined,
+      isApproved: r.isApproved,
+      url: r.url,
+    };
+  });
+
   const applicantsList = (dto.applicants ?? []).map((appItem, idx) => {
     const ad = appItem.details;
     const formFields = appItem.formFieldValues ?? [];
@@ -648,6 +673,10 @@ export function mapApplicationDtoToUI(
       nationality: itemNat,
       civilStatus: itemCivil,
       documents: appItem.documents ?? [],
+      requirements: mappedRequirements.filter((mr) =>
+        mr.applicantId === appItem.id ||
+        ((dto.applicants?.length ?? 0) === 1 && (mr.applicantId === dto.id || !mr.applicantId))
+      ),
       schoolAttended: ad?.schoolAttended ?? findFv((lbl) => lbl.includes('school') || lbl.includes('university')),
       courseTaken: ad?.courseTaken ?? findFv((lbl) => lbl.includes('course') || lbl.includes('degree') || lbl.includes('program')),
       yearGraduated: ad?.yearGraduated ?? findFv((lbl) => lbl.includes('graduat')),
@@ -1090,7 +1119,7 @@ export function mapApplicationDtoToUI(
       formType: '',
       submittedAt: dto.createdAt,
     },
-    requirements: [],
+    requirements: mappedRequirements,
     forms: [],
     soaItems: deduplicateSoaLineItems(activeSoa?.lineItems).map((item) => ({
       particular: item.particular,

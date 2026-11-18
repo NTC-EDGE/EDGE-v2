@@ -330,10 +330,13 @@ public class SubmitApplicationCommandHandler
                 : null;
 
             Domain.Entities.Application application;
+            Domain.Entities.Application? existing = null;
             if (request.ExistingDraftId.HasValue && request.ExistingDraftId.Value != Guid.Empty)
             {
-                var existing = await _applicationRepository.GetByIdAsync(request.ExistingDraftId.Value, cancellationToken);
-                if (existing != null && existing.Status == ApplicationStatus.Draft)
+                existing = await _applicationRepository.GetByIdWithDetailsAsync(request.ExistingDraftId.Value, cancellationToken)
+                           ?? await _applicationRepository.GetByIdAsync(request.ExistingDraftId.Value, cancellationToken);
+
+                if (existing != null && (existing.Status == ApplicationStatus.Draft || existing.Status == ApplicationStatus.Returned))
                 {
                     existing.TenantId = request.TenantId;
                     existing.ScheduleId = effectiveScheduleId;
@@ -351,7 +354,7 @@ public class SubmitApplicationCommandHandler
                     {
                         existing.RenewedFromApplicationId = request.RenewedFromApplicationId;
                     }
-                    if (status == ApplicationStatus.Submitted)
+                    if (status == ApplicationStatus.Submitted && string.IsNullOrEmpty(existing.ApplicationNumber))
                     {
                         existing.ApplicationNumber = appNumber;
                     }
@@ -402,45 +405,15 @@ public class SubmitApplicationCommandHandler
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Loop over applicants — runs once for Single, N times for Bulk
+            var existingAppApplicants = (application.ApplicationApplicants ?? new List<ApplicationApplicant>())
+                .OrderBy(aa => aa.SequenceOrder)
+                .ToList();
+
             int sequenceOrder = 1;
-            foreach (var dto in request.Applicants)
+            for (int i = 0; i < request.Applicants.Count; i++)
             {
-                // Create ApplicantDetail with safe fallbacks for draft incomplete entries
-                var detail = new ApplicantDetail
-                {
-                    Id = Guid.NewGuid(),
-                    FirstName = string.IsNullOrWhiteSpace(dto.FirstName) ? (request.IsDraft ? "Draft" : "") : dto.FirstName,
-                    MiddleName = dto.MiddleName,
-                    LastName = string.IsNullOrWhiteSpace(dto.LastName) ? (request.IsDraft ? "Applicant" : "") : dto.LastName,
-                    Suffix = dto.Suffix,
-                    Sex = !string.IsNullOrWhiteSpace(dto.Sex)
-                        ? dto.Sex
-                        : (dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("sex") || (fv.FieldLabel ?? "").ToLower().Contains("gender"))?.Value ?? ""),
-                    Nationality = !string.IsNullOrWhiteSpace(dto.Nationality)
-                        ? dto.Nationality
-                        : (dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("nationality") || (fv.FieldLabel ?? "").ToLower().Contains("citizenship"))?.Value ?? "Filipino"),
-                    Height = dto.Height,
-                    Weight = dto.Weight,
-                    ZipCode = !string.IsNullOrWhiteSpace(dto.ZipCode)
-                        ? dto.ZipCode
-                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("zip") || (fv.FieldLabel ?? "").ToLower().Contains("postal"))?.Value,
-                    SchoolAttended = !string.IsNullOrWhiteSpace(dto.SchoolAttended)
-                        ? dto.SchoolAttended
-                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("school") || (fv.FieldLabel ?? "").ToLower().Contains("university"))?.Value,
-                    CourseTaken = !string.IsNullOrWhiteSpace(dto.CourseTaken)
-                        ? dto.CourseTaken
-                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("course") || (fv.FieldLabel ?? "").ToLower().Contains("degree"))?.Value,
-                    YearGraduated = !string.IsNullOrWhiteSpace(dto.YearGraduated)
-                        ? dto.YearGraduated
-                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("graduat"))?.Value,
-                    BarangayId = dto.BarangayId,
-                    EmailAddress = string.IsNullOrWhiteSpace(dto.Email) ? (request.IsDraft ? "draft@example.com" : null) : dto.Email,
-                    ContactNumber = dto.ContactNumber ?? "",
-                    Address = dto.Address ?? "",
-                    BirthDate = (!dto.BirthDate.HasValue || dto.BirthDate.Value == default) ? new DateOnly(2000, 1, 1) : dto.BirthDate.Value,
-                    ESignature = dto.ESignature
-                };
-                await _applicantRepository.AddApplicantDetailAsync(detail, cancellationToken);
+                var dto = request.Applicants[i];
+                var currentSeq = sequenceOrder++;
 
                 // Resolve ApplicantType (prefer explicit DTO value, fallback to isBulk ? Company : Individual)
                 ApplicantType resolvedApplicantType = isBulk ? ApplicantType.Company : ApplicantType.Individual;
@@ -449,47 +422,6 @@ public class SubmitApplicationCommandHandler
                 {
                     resolvedApplicantType = parsedType;
                 }
-
-                Guid? companyDetailId = null;
-                if (resolvedApplicantType == ApplicantType.Company && !string.IsNullOrWhiteSpace(dto.CompanyName))
-                {
-                    var companyDetail = new CompanyDetail
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = dto.CompanyName,
-                        RegistrationNumber = dto.DtiSecRegistration ?? "",
-                        Address = dto.Address ?? "",
-                        ContactNumber = dto.ContactNumber ?? "",
-                        Email = dto.Email
-                    };
-                    await _applicantRepository.AddCompanyDetailAsync(companyDetail, cancellationToken);
-                    companyDetailId = companyDetail.Id;
-                }
-
-                // Create Applicant
-                var applicant = new Applicant
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = request.TenantId,
-                    UserId = submitterUserId,
-                    IsGuest = isGuest,
-                    ApplicantType = resolvedApplicantType,
-                    ApplicantDetailId = detail.Id,
-                    CompanyDetailId = companyDetailId,
-                    Status = request.IsDraft ? ApplicantStatus.Incomplete : ApplicantStatus.Complete
-                };
-                await _applicantRepository.AddApplicantAsync(applicant, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-                // Link Applicant to Application
-                var appApplicant = new ApplicationApplicant
-                {
-                    ApplicationId = application.Id,
-                    ApplicantId = applicant.Id,
-                    SequenceOrder = sequenceOrder++
-                };
-                await _applicationRepository.AddApplicationApplicantAsync(
-                    appApplicant, cancellationToken);
 
                 // Determine per-applicant service parameters (fallback to root request values if not specified)
                 Guid? applicantServiceId = dto.ServiceId.HasValue && dto.ServiceId.Value != Guid.Empty
@@ -500,11 +432,190 @@ public class SubmitApplicationCommandHandler
                     ? dto.ServiceVariantId.Value
                     : resolvedVariantId;
 
-                applicant.ServiceId = applicantServiceId;
-                applicant.ServiceVariantId = applicantVariantId;
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                Applicant applicant;
 
-                // Create FormSubmission + FormFieldValue rows tied to Applicant
+                if (i < existingAppApplicants.Count && existingAppApplicants[i].Applicant != null)
+                {
+                    // Re-use existing applicant entity to preserve ID and documentary requirement attachments
+                    var appApplicant = existingAppApplicants[i];
+                    applicant = appApplicant.Applicant!;
+
+                    applicant.TenantId = request.TenantId;
+                    applicant.ApplicantType = resolvedApplicantType;
+                    applicant.Status = request.IsDraft ? ApplicantStatus.Incomplete : ApplicantStatus.Complete;
+                    applicant.ServiceId = applicantServiceId;
+                    applicant.ServiceVariantId = applicantVariantId;
+                    _applicantRepository.UpdateApplicant(applicant);
+
+                    var detail = applicant.ApplicantDetail;
+                    if (detail == null)
+                    {
+                        detail = new ApplicantDetail { Id = Guid.NewGuid() };
+                        applicant.ApplicantDetailId = detail.Id;
+                        applicant.ApplicantDetail = detail;
+                        await _applicantRepository.AddApplicantDetailAsync(detail, cancellationToken);
+                    }
+
+                    detail.FirstName = string.IsNullOrWhiteSpace(dto.FirstName) ? (request.IsDraft ? "Draft" : "") : dto.FirstName;
+                    detail.MiddleName = dto.MiddleName;
+                    detail.LastName = string.IsNullOrWhiteSpace(dto.LastName) ? (request.IsDraft ? "Applicant" : "") : dto.LastName;
+                    detail.Suffix = dto.Suffix;
+                    detail.Sex = !string.IsNullOrWhiteSpace(dto.Sex)
+                        ? dto.Sex
+                        : (dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("sex") || (fv.FieldLabel ?? "").ToLower().Contains("gender"))?.Value ?? "");
+                    detail.Nationality = !string.IsNullOrWhiteSpace(dto.Nationality)
+                        ? dto.Nationality
+                        : (dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("nationality") || (fv.FieldLabel ?? "").ToLower().Contains("citizenship"))?.Value ?? "Filipino");
+                    detail.Height = dto.Height;
+                    detail.Weight = dto.Weight;
+                    detail.ZipCode = !string.IsNullOrWhiteSpace(dto.ZipCode)
+                        ? dto.ZipCode
+                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("zip") || (fv.FieldLabel ?? "").ToLower().Contains("postal"))?.Value;
+                    detail.SchoolAttended = !string.IsNullOrWhiteSpace(dto.SchoolAttended)
+                        ? dto.SchoolAttended
+                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("school") || (fv.FieldLabel ?? "").ToLower().Contains("university"))?.Value;
+                    detail.CourseTaken = !string.IsNullOrWhiteSpace(dto.CourseTaken)
+                        ? dto.CourseTaken
+                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("course") || (fv.FieldLabel ?? "").ToLower().Contains("degree"))?.Value;
+                    detail.YearGraduated = !string.IsNullOrWhiteSpace(dto.YearGraduated)
+                        ? dto.YearGraduated
+                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("graduat"))?.Value;
+                    detail.BarangayId = dto.BarangayId;
+                    detail.EmailAddress = string.IsNullOrWhiteSpace(dto.Email) ? (request.IsDraft ? "draft@example.com" : null) : dto.Email;
+                    detail.ContactNumber = dto.ContactNumber ?? "";
+                    detail.Address = dto.Address ?? "";
+                    detail.BirthDate = (!dto.BirthDate.HasValue || dto.BirthDate.Value == default) ? new DateOnly(2000, 1, 1) : dto.BirthDate.Value;
+                    if (!string.IsNullOrWhiteSpace(dto.ESignature))
+                    {
+                        detail.ESignature = dto.ESignature;
+                    }
+                    _applicantRepository.UpdateApplicantDetail(detail);
+
+                    if (resolvedApplicantType == ApplicantType.Company && !string.IsNullOrWhiteSpace(dto.CompanyName))
+                    {
+                        if (applicant.CompanyDetail != null)
+                        {
+                            applicant.CompanyDetail.Name = dto.CompanyName;
+                            applicant.CompanyDetail.RegistrationNumber = dto.DtiSecRegistration ?? "";
+                            applicant.CompanyDetail.Address = dto.Address ?? "";
+                            applicant.CompanyDetail.ContactNumber = dto.ContactNumber ?? "";
+                            applicant.CompanyDetail.Email = dto.Email;
+                            _applicantRepository.UpdateCompanyDetail(applicant.CompanyDetail);
+                        }
+                        else
+                        {
+                            var companyDetail = new CompanyDetail
+                            {
+                                Id = Guid.NewGuid(),
+                                Name = dto.CompanyName,
+                                RegistrationNumber = dto.DtiSecRegistration ?? "",
+                                Address = dto.Address ?? "",
+                                ContactNumber = dto.ContactNumber ?? "",
+                                Email = dto.Email
+                            };
+                            await _applicantRepository.AddCompanyDetailAsync(companyDetail, cancellationToken);
+                            applicant.CompanyDetailId = companyDetail.Id;
+                            applicant.CompanyDetail = companyDetail;
+                        }
+                    }
+                }
+                else
+                {
+                    // Create ApplicantDetail with safe fallbacks for draft incomplete entries
+                    var detail = new ApplicantDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        FirstName = string.IsNullOrWhiteSpace(dto.FirstName) ? (request.IsDraft ? "Draft" : "") : dto.FirstName,
+                        MiddleName = dto.MiddleName,
+                        LastName = string.IsNullOrWhiteSpace(dto.LastName) ? (request.IsDraft ? "Applicant" : "") : dto.LastName,
+                        Suffix = dto.Suffix,
+                        Sex = !string.IsNullOrWhiteSpace(dto.Sex)
+                            ? dto.Sex
+                            : (dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("sex") || (fv.FieldLabel ?? "").ToLower().Contains("gender"))?.Value ?? ""),
+                        Nationality = !string.IsNullOrWhiteSpace(dto.Nationality)
+                            ? dto.Nationality
+                            : (dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("nationality") || (fv.FieldLabel ?? "").ToLower().Contains("citizenship"))?.Value ?? "Filipino"),
+                        Height = dto.Height,
+                        Weight = dto.Weight,
+                        ZipCode = !string.IsNullOrWhiteSpace(dto.ZipCode)
+                            ? dto.ZipCode
+                            : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("zip") || (fv.FieldLabel ?? "").ToLower().Contains("postal"))?.Value,
+                        SchoolAttended = !string.IsNullOrWhiteSpace(dto.SchoolAttended)
+                            ? dto.SchoolAttended
+                            : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("school") || (fv.FieldLabel ?? "").ToLower().Contains("university"))?.Value,
+                        CourseTaken = !string.IsNullOrWhiteSpace(dto.CourseTaken)
+                            ? dto.CourseTaken
+                            : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("course") || (fv.FieldLabel ?? "").ToLower().Contains("degree"))?.Value,
+                        YearGraduated = !string.IsNullOrWhiteSpace(dto.YearGraduated)
+                            ? dto.YearGraduated
+                            : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("graduat"))?.Value,
+                        BarangayId = dto.BarangayId,
+                        EmailAddress = string.IsNullOrWhiteSpace(dto.Email) ? (request.IsDraft ? "draft@example.com" : null) : dto.Email,
+                        ContactNumber = dto.ContactNumber ?? "",
+                        Address = dto.Address ?? "",
+                        BirthDate = (!dto.BirthDate.HasValue || dto.BirthDate.Value == default) ? new DateOnly(2000, 1, 1) : dto.BirthDate.Value,
+                        ESignature = dto.ESignature
+                    };
+                    await _applicantRepository.AddApplicantDetailAsync(detail, cancellationToken);
+
+                    Guid? companyDetailId = null;
+                    if (resolvedApplicantType == ApplicantType.Company && !string.IsNullOrWhiteSpace(dto.CompanyName))
+                    {
+                        var companyDetail = new CompanyDetail
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = dto.CompanyName,
+                            RegistrationNumber = dto.DtiSecRegistration ?? "",
+                            Address = dto.Address ?? "",
+                            ContactNumber = dto.ContactNumber ?? "",
+                            Email = dto.Email
+                        };
+                        await _applicantRepository.AddCompanyDetailAsync(companyDetail, cancellationToken);
+                        companyDetailId = companyDetail.Id;
+                    }
+
+                    // Create Applicant
+                    applicant = new Applicant
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = request.TenantId,
+                        UserId = submitterUserId,
+                        IsGuest = isGuest,
+                        ApplicantType = resolvedApplicantType,
+                        ApplicantDetailId = detail.Id,
+                        CompanyDetailId = companyDetailId,
+                        Status = request.IsDraft ? ApplicantStatus.Incomplete : ApplicantStatus.Complete,
+                        ServiceId = applicantServiceId,
+                        ServiceVariantId = applicantVariantId
+                    };
+                    await _applicantRepository.AddApplicantAsync(applicant, cancellationToken);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                    // Link Applicant to Application
+                    var appApplicant = new ApplicationApplicant
+                    {
+                        ApplicationId = application.Id,
+                        ApplicantId = applicant.Id,
+                        SequenceOrder = currentSeq
+                    };
+                    await _applicationRepository.AddApplicationApplicantAsync(
+                        appApplicant, cancellationToken);
+                }
+
+                // Ensure all existing application requirements are linked to the target applicant ID
+                if (application.ApplicationRequirements != null && application.ApplicationRequirements.Any())
+                {
+                    foreach (var req in application.ApplicationRequirements)
+                    {
+                        if (req.ApplicantId == Guid.Empty || req.ApplicantId == application.Id)
+                        {
+                            req.ApplicantId = applicant.Id;
+                            await _applicationRepository.UpdateApplicationRequirementAsync(req, cancellationToken);
+                        }
+                    }
+                }
+
+                // Create or update FormSubmission + FormFieldValue rows tied to Applicant
                 Form? applicantForm = null;
                 if (applicantServiceId.HasValue && applicantServiceId.Value != Guid.Empty)
                 {
@@ -515,16 +626,22 @@ public class SubmitApplicationCommandHandler
 
                 if (applicantForm != null)
                 {
-                    var formSubmission = new FormSubmission
+                    var formSubmission = application.FormSubmissions?
+                        .FirstOrDefault(fs => fs.ApplicantId == applicant.Id && fs.FormId == applicantForm.Id);
+
+                    if (formSubmission == null)
                     {
-                        Id = Guid.NewGuid(),
-                        ApplicationId = application.Id,
-                        FormId = applicantForm.Id,
-                        ApplicantId = applicant.Id
-                    };
-                    await _applicationRepository.AddFormSubmissionAsync(
-                        formSubmission, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                        formSubmission = new FormSubmission
+                        {
+                            Id = Guid.NewGuid(),
+                            ApplicationId = application.Id,
+                            FormId = applicantForm.Id,
+                            ApplicantId = applicant.Id
+                        };
+                        await _applicationRepository.AddFormSubmissionAsync(
+                            formSubmission, cancellationToken);
+                        await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    }
 
                     var distinctFieldValues = dto.FormFieldValues
                         .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty)
@@ -534,14 +651,28 @@ public class SubmitApplicationCommandHandler
 
                     foreach (var fv in distinctFieldValues)
                     {
-                        await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
+                        var existingFv = formSubmission.FieldValues?
+                            .FirstOrDefault(f => f.FieldId == fv.FieldId!.Value);
+
+                        if (existingFv != null)
                         {
-                            Id = Guid.NewGuid(),
-                            FormSubmissionId = formSubmission.Id,
-                            FieldId = fv.FieldId!.Value,
-                            CustomLabel = !string.IsNullOrWhiteSpace(fv.FieldLabel) ? fv.FieldLabel : null,
-                            Value = fv.Value ?? ""
-                        }, cancellationToken);
+                            existingFv.Value = fv.Value ?? "";
+                            if (!string.IsNullOrWhiteSpace(fv.FieldLabel))
+                            {
+                                existingFv.CustomLabel = fv.FieldLabel;
+                            }
+                        }
+                        else
+                        {
+                            await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
+                            {
+                                Id = Guid.NewGuid(),
+                                FormSubmissionId = formSubmission.Id,
+                                FieldId = fv.FieldId!.Value,
+                                CustomLabel = !string.IsNullOrWhiteSpace(fv.FieldLabel) ? fv.FieldLabel : null,
+                                Value = fv.Value ?? ""
+                            }, cancellationToken);
+                        }
                     }
                 }
             }
@@ -554,8 +685,8 @@ public class SubmitApplicationCommandHandler
                     ApplicationId = application.Id,
                     Status = status,
                     Remarks = status == ApplicationStatus.Submitted
-                        ? "Initial submission"
-                        : "Draft created",
+                        ? (existing != null && existing.Status == ApplicationStatus.Returned ? "Resubmitted after return" : "Initial submission")
+                        : "Draft saved",
                     Timestamp = DateTime.UtcNow,
                     UserId = submitterUserId
                 }, cancellationToken);
@@ -567,13 +698,18 @@ public class SubmitApplicationCommandHandler
                     ? $"{firstApp.FirstName} {firstApp.LastName}".Trim()
                     : "Applicant";
                 
-                var actionName = intent == ApplicationIntent.AssessmentOnly
-                    ? "Pre-Assessment submitted by applicant"
-                    : "Application submitted by applicant";
+                var isResubmission = existing != null && existing.Status == ApplicationStatus.Returned;
+                var actionName = isResubmission
+                    ? "Application resubmitted by applicant"
+                    : (intent == ApplicationIntent.AssessmentOnly
+                        ? "Pre-Assessment submitted by applicant"
+                        : "Application submitted by applicant");
 
-                var remarks = intent == ApplicationIntent.AssessmentOnly
-                    ? "Application submitted for pre-assessment and SOA estimation"
-                    : "Initial application submission";
+                var remarks = isResubmission
+                    ? "Application resubmitted with amended requirements and applicant details"
+                    : (intent == ApplicationIntent.AssessmentOnly
+                        ? "Application submitted for pre-assessment and SOA estimation"
+                        : "Initial application submission");
 
                 await _applicationRepository.AddApplicationHistoryAsync(
                     new ApplicationHistory
@@ -581,7 +717,7 @@ public class SubmitApplicationCommandHandler
                         Id = Guid.NewGuid(),
                         ApplicationId = application.Id,
                         Action = actionName,
-                        FromStatus = null,
+                        FromStatus = existing != null ? existing.Status : null,
                         ToStatus = ApplicationStatus.Submitted,
                         PerformedByUserId = submitterUserId,
                         StaffName = submitterName,

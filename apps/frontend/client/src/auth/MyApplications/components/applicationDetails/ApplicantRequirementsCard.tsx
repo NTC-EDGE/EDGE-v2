@@ -17,6 +17,13 @@ interface ApplicantRequirementsCardProps {
   onDownloadDoc?: (doc: ApplicationDocument) => void;
   previewLoadingId?: string | null;
   setPreviewLoadingId: (id: string | null) => void;
+  canEditRequirements?: boolean;
+  uploadingDocId?: string | null;
+  onUploadRequirement?: (doc: ApplicationDocument, matchedReq?: RawRequirement) => void;
+}
+
+function isRawRequirement(item: unknown): item is RawRequirement {
+  return typeof item === 'object' && item !== null;
 }
 
 function isDocAvailable(doc: ApplicationDocument, matchedReq?: RawRequirement | null): boolean {
@@ -63,6 +70,9 @@ export function ApplicantRequirementsCard({
   onDownloadDoc,
   previewLoadingId,
   setPreviewLoadingId,
+  canEditRequirements = false,
+  uploadingDocId,
+  onUploadRequirement,
 }: ApplicantRequirementsCardProps) {
   const isMountedRef = React.useRef(true);
 
@@ -73,7 +83,54 @@ export function ApplicantRequirementsCard({
     };
   }, []);
 
-  const availableDocsCount = docs.filter((d) => isDocAvailable(d)).length;
+  const rawReq = React.useMemo<RawRequirement[]>(() => {
+    const list: RawRequirement[] = [];
+    const pushR = (r: RawRequirement | null | undefined) => {
+      if (r && !list.some((e) => (r.id && e.id === r.id) || (r.storedFileId && e.storedFileId === r.storedFileId))) {
+        list.push(r);
+      }
+    };
+    const appRequirementsDynamic = typeof app === 'object' && app !== null && 'applicationRequirements' in app
+      ? Reflect.get(app, 'applicationRequirements')
+      : undefined;
+    const topList = app.requirements || app.Requirements || app.documents || app.Documents || (Array.isArray(appRequirementsDynamic) ? appRequirementsDynamic : undefined);
+    if (Array.isArray(topList)) topList.forEach(pushR);
+    const appList = app.applicants || app.Applicants;
+    if (Array.isArray(appList)) {
+      appList.forEach((a) => {
+        if (typeof a === 'object' && a !== null) {
+          const reqKey = Object.keys(a).find(
+            (k) => k.toLowerCase() === 'requirements' || k.toLowerCase() === 'documents' || k.toLowerCase() === 'applicationrequirements'
+          );
+          if (reqKey !== undefined) {
+            const desc = Object.getOwnPropertyDescriptor(a, reqKey);
+            const val = desc ? desc.value : undefined;
+            if (Array.isArray(val)) {
+              val.forEach((item: unknown) => {
+                if (isRawRequirement(item)) {
+                  pushR(item);
+                }
+              });
+            }
+          }
+        }
+      });
+    }
+    return list;
+  }, [app]);
+
+  const findMatchedReq = React.useCallback((doc: ApplicationDocument): RawRequirement | undefined => {
+    return rawReq.find(
+      (r) =>
+        r.id === doc.id ||
+        (typeof r.url === 'string' && r.url.includes(doc.id)) ||
+        (typeof r.storedFileId === 'string' && r.storedFileId === doc.storedFileId) ||
+        (typeof r.name === 'string' && typeof doc.name === 'string' && r.name.toLowerCase() === doc.name.toLowerCase()) ||
+        (typeof r.requirementId === 'string' && typeof doc.id === 'string' && r.requirementId === doc.id)
+    );
+  }, [rawReq]);
+
+  const availableDocsCount = docs.filter((d) => isDocAvailable(d, findMatchedReq(d))).length;
   const unavailableDocsCount = docs.length - availableDocsCount;
 
   return (
@@ -112,42 +169,7 @@ export function ApplicantRequirementsCard({
           {docs.map((doc, idx) => {
             const isLoading = previewLoadingId === doc.id;
 
-            const rawReq: RawRequirement[] = [];
-            const pushR = (r: RawRequirement | null | undefined) => {
-              if (r && !rawReq.some((e) => (r.id && e.id === r.id) || (r.storedFileId && e.storedFileId === r.storedFileId))) {
-                rawReq.push(r);
-              }
-            };
-            const topList = app.requirements || app.Requirements || app.documents || app.Documents;
-            if (Array.isArray(topList)) topList.forEach(pushR);
-            const appList = app.applicants || app.Applicants;
-            if (Array.isArray(appList)) {
-              appList.forEach((a) => {
-                if (typeof a === 'object' && a !== null) {
-                  const reqKey = Object.keys(a).find(
-                    (k) => k.toLowerCase() === 'requirements' || k.toLowerCase() === 'documents'
-                  );
-                  if (reqKey !== undefined) {
-                    const desc = Object.getOwnPropertyDescriptor(a, reqKey);
-                    const val = desc ? desc.value : undefined;
-                    if (Array.isArray(val)) {
-                      val.forEach((item: unknown) => {
-                        if (typeof item === 'object' && item !== null) {
-                          pushR(item);
-                        }
-                      });
-                    }
-                  }
-                }
-              });
-            }
-
-            const matched = rawReq.find(
-              (r) =>
-                r.id === doc.id ||
-                (typeof r.url === 'string' && r.url.includes(doc.id)) ||
-                (typeof r.storedFileId === 'string' && r.storedFileId === doc.storedFileId)
-            );
+            const matched = findMatchedReq(doc);
 
             const hasFile = isDocAvailable(doc, matched);
 
@@ -243,7 +265,7 @@ export function ApplicantRequirementsCard({
                     }}
                     numberOfLines={1}
                   >
-                    {doc.name}
+                    {doc.requirementName && doc.requirementName !== doc.name ? `${doc.requirementName} (${doc.name})` : doc.name}
                   </Text>
                   <Text
                     style={{
@@ -262,7 +284,7 @@ export function ApplicantRequirementsCard({
                   <>
                     <Icon name="check-circle" size={16} color="#16A34A" />
 
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <TouchableOpacity
                         onPress={handlePreview}
                         disabled={isLoading}
@@ -303,33 +325,78 @@ export function ApplicantRequirementsCard({
                           Download
                         </Text>
                       </TouchableOpacity>
+
+                      {canEditRequirements && onUploadRequirement !== undefined && (
+                        <TouchableOpacity
+                          onPress={() => onUploadRequirement(doc, matched)}
+                          disabled={uploadingDocId === doc.id}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: '#FFFBEB',
+                            borderWidth: 1,
+                            borderColor: '#FDE68A',
+                            paddingVertical: 5,
+                            paddingHorizontal: 10,
+                            borderRadius: 8,
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Icon name={uploadingDocId === doc.id ? 'loader' : 'upload'} size={13} color="#B45309" style={{ marginRight: 4 }} />
+                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#B45309' }}>
+                            {uploadingDocId === doc.id ? 'Uploading...' : 'Replace'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </>
                 ) : (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      backgroundColor: '#FEF2F2',
-                      borderWidth: 1,
-                      borderColor: '#FECACA',
-                      paddingVertical: 4,
-                      paddingHorizontal: 8,
-                      borderRadius: 6,
-                      gap: 4,
-                    }}
-                  >
-                    <Icon name="alert-circle" size={12} color="#DC2626" />
-                    <Text
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <View
                       style={{
-                        fontFamily: TYPOGRAPHY.fonts.primary,
-                        fontSize: 11,
-                        fontWeight: '700',
-                        color: '#DC2626',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: '#FEF2F2',
+                        borderWidth: 1,
+                        borderColor: '#FECACA',
+                        paddingVertical: 4,
+                        paddingHorizontal: 8,
+                        borderRadius: 6,
+                        gap: 4,
                       }}
                     >
-                      Requirement not available
-                    </Text>
+                      <Icon name="alert-circle" size={12} color="#DC2626" />
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          color: '#DC2626',
+                        }}
+                      >
+                        Requirement not available
+                      </Text>
+                    </View>
+                    {canEditRequirements && onUploadRequirement !== undefined && (
+                      <TouchableOpacity
+                        onPress={() => onUploadRequirement(doc, matched)}
+                        disabled={uploadingDocId === doc.id}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: '#1D4ED8',
+                          paddingVertical: 5,
+                          paddingHorizontal: 10,
+                          borderRadius: 8,
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name={uploadingDocId === doc.id ? 'loader' : 'upload'} size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#FFFFFF' }}>
+                          {uploadingDocId === doc.id ? 'Uploading...' : 'Upload'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>

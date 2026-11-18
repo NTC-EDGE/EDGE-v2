@@ -19,6 +19,7 @@ import {
 } from "../shared/GeneralServiceWizard";
 import { ServiceRequirementItem } from "../shared/hooks/useGeneralServiceWizard";
 import { isServiceVariantIndividual } from "../shared/helpers/applicantDisplayHelper";
+import { uploadRequirementsAfterSubmit } from "../shared/helpers/requirementUploadHelper";
 import { resolveEffectiveTenantId } from "../../../shared/helpers/tenantHelper";
 import { CurrentUserProfile } from "@edge/api";
 
@@ -623,6 +624,25 @@ export function useServices() {
       const res = await api.post<{ succeeded: boolean; data: string }>(`/api/v2/applications`, payload);
       if (res?.data) {
         setActiveDraftId(res.data);
+        const currentHolders =
+          activeWizardService === "cpe-accreditation"
+            ? applicants
+            : activeWizardService === "radio-operator-exam"
+            ? examApplicants
+            : generalApplicants;
+        if (typeof res.data === "string" && isGuid(res.data) && effectiveTenantId && currentHolders.length > 0) {
+          try {
+            await uploadRequirementsAfterSubmit({
+              api,
+              applicationId: res.data,
+              tenantId: effectiveTenantId,
+              applicants: currentHolders,
+              getToken,
+            });
+          } catch (upErr: unknown) {
+            console.warn("Draft requirement upload warning:", upErr);
+          }
+        }
       }
       toast.success("Draft Saved", "Your application draft has been saved to the server.");
       await refetchDrafts();
@@ -644,7 +664,7 @@ export function useServices() {
     setViewingDraftsCategory(null);
 
     let fullDraft = draft;
-    if (!draft.applicants || draft.applicants.length === 0) {
+    if (!draft.applicants || draft.applicants.length === 0 || !Array.isArray(draft.requirements)) {
       try {
         const fullRes = await api.get<{ succeeded: boolean; data: any }>(`/api/v2/applications/${draft.id}`);
         if (fullRes?.succeeded && fullRes.data) {
@@ -733,6 +753,74 @@ export function useServices() {
         setActiveWizardService(wizType);
 
         if (fullDraft.applicants && fullDraft.applicants.length > 0) {
+          const isDraftRecord = (val: unknown): val is Record<string, unknown> =>
+            typeof val === "object" && val !== null;
+
+          const rawDraftReqs: Array<Record<string, unknown>> = [];
+          if (Array.isArray(fullDraft.requirements)) {
+            fullDraft.requirements.forEach((item: unknown) => {
+              if (isDraftRecord(item)) rawDraftReqs.push(item);
+            });
+          }
+
+          const buildDraftUploadsMap = (applicantObj: unknown, totalCount: number, isCpeMode: boolean) => {
+            const uploadsMap: Record<string, { name: string; uri: string; type?: string; storedFileId?: string }> = {};
+            const appIdCandidate = isDraftRecord(applicantObj) && typeof applicantObj.id === "string"
+              ? applicantObj.id
+              : isDraftRecord(applicantObj) && typeof applicantObj.applicantId === "string"
+              ? applicantObj.applicantId
+              : "";
+
+            const perAppReqs: Array<Record<string, unknown>> = [];
+            if (isDraftRecord(applicantObj) && Array.isArray(applicantObj.requirements)) {
+              applicantObj.requirements.forEach((item: unknown) => {
+                if (isDraftRecord(item)) perAppReqs.push(item);
+              });
+            }
+
+            const matchedReqs = rawDraftReqs.filter((r) => {
+              const rAppId = typeof r.applicantId === "string" ? r.applicantId : "";
+              return (
+                (appIdCandidate !== "" && rAppId === appIdCandidate) ||
+                (totalCount <= 1 && (!rAppId || rAppId === fullDraft.id || rAppId === "00000000-0000-0000-0000-000000000000"))
+              );
+            });
+
+            const combinedReqs = matchedReqs.length > 0 ? matchedReqs : perAppReqs;
+            combinedReqs.forEach((r, rIdx) => {
+              const storedFileId = typeof r.storedFileId === "string" && r.storedFileId.trim() !== ""
+                ? r.storedFileId.trim()
+                : undefined;
+              const rawUrl = typeof r.url === "string" ? r.url.trim() : "";
+              if (!storedFileId && !rawUrl) return;
+
+              const reqName = typeof r.requirementName === "string" ? r.requirementName.trim() : "";
+              const fileName = typeof r.fileName === "string" && r.fileName.trim() !== ""
+                ? r.fileName.trim()
+                : (reqName || `Document_${rIdx + 1}`);
+              const contentType = typeof r.contentType === "string" ? r.contentType : undefined;
+              const resolvedUri = rawUrl || (storedFileId && fullDraft.tenantId
+                ? `/api/v2/tenants/${fullDraft.tenantId}/storage/files/${storedFileId}`
+                : "");
+
+              const reqId = typeof r.requirementId === "string" && r.requirementId.trim() !== "" ? r.requirementId.trim() : "";
+              const svrId = typeof r.serviceVariantRequirementId === "string" && r.serviceVariantRequirementId.trim() !== "" ? r.serviceVariantRequirementId.trim() : "";
+              const slotKey = isCpeMode
+                ? String(rIdx)
+                : (reqId ? `req-${reqId}` : svrId ? `req-${svrId}` : `req-${rIdx}`);
+
+              uploadsMap[slotKey] = {
+                name: fileName,
+                uri: resolvedUri,
+                type: contentType,
+                storedFileId,
+              };
+            });
+            return uploadsMap;
+          };
+
+          const totalDraftApplicants = fullDraft.applicants.length;
+
           if (wizType === "cpe-accreditation") {
             const mappedCpeApps = fullDraft.applicants.map((a: any, idx: number) => {
               const d = a.details || a || {};
@@ -761,7 +849,7 @@ export function useServices() {
                 ectNo: "",
                 expiryMonth: "",
                 expiryYear: "",
-                uploads: {},
+                uploads: buildDraftUploadsMap(a, totalDraftApplicants, true),
                 files: {},
               };
             });
@@ -789,7 +877,7 @@ export function useServices() {
                   fieldLabel: fv.fieldLabel,
                   value: fv.value || "",
                 })),
-                uploads: {},
+                uploads: buildDraftUploadsMap(a, totalDraftApplicants, false),
                 files: {},
               };
             });

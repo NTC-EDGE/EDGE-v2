@@ -464,11 +464,12 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetAgencyBankAccounts(
-        [FromQuery] Guid? tenantId,
+        [FromQuery] string? tenantId,
         [FromQuery] bool? activeOnly,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetAgencyBankAccountsQuery(tenantId ?? Guid.Empty, activeOnly));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        var result = await mediator.Send(new GetAgencyBankAccountsQuery(resolvedTenantId, activeOnly));
         return Results.Ok(result);
     }
 
@@ -499,14 +500,16 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.ReceiptsDeposit)]
     public static async Task<IResult> GetBankDeposits(
-        [FromQuery] Guid? tenantId,
-        [FromQuery] Guid? bankAccountId,
+        [FromQuery] string? tenantId,
+        [FromQuery] string? bankAccountId,
         [FromQuery] DepositStatus? status,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetBankDepositsQuery(tenantId ?? Guid.Empty, bankAccountId, status, fromDate, toDate));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        Guid? resolvedBankAccountId = (!string.IsNullOrWhiteSpace(bankAccountId) && Guid.TryParse(bankAccountId, out var bId)) ? bId : null;
+        var result = await mediator.Send(new GetBankDepositsQuery(resolvedTenantId, resolvedBankAccountId, status, fromDate, toDate));
         return Results.Ok(result);
     }
 
@@ -532,13 +535,14 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.CashierReports)]
     public static async Task<IResult> GetCashierRcdReport(
-        [FromQuery] Guid? tenantId,
+        [FromQuery] string? tenantId,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         [FromQuery] string? cashierUserId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetCashierRcdReportQuery(tenantId ?? Guid.Empty, fromDate, toDate, cashierUserId));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        var result = await mediator.Send(new GetCashierRcdReportQuery(resolvedTenantId, fromDate, toDate, cashierUserId));
         return Results.Ok(result);
     }
 
@@ -556,12 +560,13 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.CashierReports)]
     public static async Task<IResult> GetCancelledOrReport(
-        [FromQuery] Guid? tenantId,
+        [FromQuery] string? tenantId,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetCancelledOrReportQuery(tenantId ?? Guid.Empty, fromDate, toDate));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        var result = await mediator.Send(new GetCancelledOrReportQuery(resolvedTenantId, fromDate, toDate));
         return Results.Ok(result);
     }
 

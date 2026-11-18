@@ -299,12 +299,16 @@ export function ScheduleForm({ formState, isEditing = false, onCancel }: Schedul
         </View>
 
         {/* Publish Toggle Switch */}
-        <View
+        <Pressable
+          onPress={() => form.setValue('isPublished', !isPublishedValue, { shouldValidate: true })}
           style={[
             styles.publishRow,
             {
-              backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-              borderColor: colors.border,
+              backgroundColor: isPublishedValue
+                ? (isDark ? 'rgba(16, 185, 129, 0.14)' : '#ECFDF5')
+                : (isDark ? colors.neutral[800] : colors.neutral[50]),
+              borderColor: isPublishedValue ? '#10B981' : colors.border,
+              borderWidth: 1.5,
             },
           ]}
         >
@@ -318,6 +322,18 @@ export function ScheduleForm({ formState, isEditing = false, onCancel }: Schedul
               <Text style={[styles.publishTitle, { color: colors.text }]}>
                 {isPublishedValue ? 'Published to Client Portal' : 'Save as Internal Draft'}
               </Text>
+              <View
+                style={{
+                  paddingHorizontal: 7,
+                  paddingVertical: 2,
+                  borderRadius: 6,
+                  backgroundColor: isPublishedValue ? '#10B981' : colors.neutral[400],
+                }}
+              >
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF' }}>
+                  {isPublishedValue ? 'LIVE' : 'DRAFT'}
+                </Text>
+              </View>
             </View>
             <Text style={[styles.publishDesc, { color: colors.textMuted }]}>
               {isPublishedValue
@@ -326,13 +342,36 @@ export function ScheduleForm({ formState, isEditing = false, onCancel }: Schedul
             </Text>
           </View>
 
-          <Switch
-            value={isPublishedValue}
-            onValueChange={(val) => form.setValue('isPublished', val, { shouldValidate: true })}
-            trackColor={{ false: isDark ? colors.neutral[700] : colors.neutral[300], true: COLORS.semantic.success }}
-            thumbColor={COLORS.neutral.white}
-          />
-        </View>
+          <View
+            style={{
+              width: 54,
+              height: 28,
+              borderRadius: 14,
+              padding: 3,
+              backgroundColor: isPublishedValue ? '#10B981' : '#CBD5E1',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: isPublishedValue ? 'flex-end' : 'flex-start',
+            }}
+          >
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: COLORS.neutral.white,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Lucide
+                name={isPublishedValue ? 'check' : 'lock'}
+                size={11}
+                color={isPublishedValue ? '#059669' : COLORS.neutral[400]}
+              />
+            </View>
+          </View>
+        </Pressable>
       </ScrollView>
 
       {/* Fixed Sticky Form Footer */}

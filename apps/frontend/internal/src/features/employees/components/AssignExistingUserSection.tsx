@@ -33,6 +33,17 @@ export function AssignExistingUserSection({
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [selectedFieldOfficeId, setSelectedFieldOfficeId] = useState<string>('');
   const [division, setDivision] = useState('');
+
+  useEffect(() => {
+    if (fieldOffices.length === 0) return;
+    const matchesExisting = fieldOffices.some((fo) => fo.id === selectedFieldOfficeId);
+    if (!selectedFieldOfficeId || !matchesExisting) {
+      const mainOffice = fieldOffices.find((fo) => fo.category === 'Main') ?? fieldOffices[0];
+      if (mainOffice !== undefined) {
+        setSelectedFieldOfficeId(mainOffice.id);
+      }
+    }
+  }, [fieldOffices, selectedFieldOfficeId]);
   const [position, setPosition] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [level, setLevel] = useState('');
@@ -86,6 +97,10 @@ export function AssignExistingUserSection({
     }
     if (!selectedRoleId) {
       onError('Please select a security role.');
+      return;
+    }
+    if (!selectedFieldOfficeId) {
+      onError('Please select a field office.');
       return;
     }
     if (!division.trim()) {
@@ -367,7 +382,9 @@ export function AssignExistingUserSection({
             { zIndex: isOfficeDropdownOpen ? 350 : 1, elevation: isOfficeDropdownOpen ? 30 : 1 },
           ]}
         >
-          <Text style={fieldStyles.label}>Field Office Assignment</Text>
+          <Text style={fieldStyles.label}>
+            Field Office Assignment <Text style={fieldStyles.requiredStar}>*</Text>
+          </Text>
           <Pressable
             style={[
               fieldStyles.dropdownTrigger,
@@ -380,7 +397,7 @@ export function AssignExistingUserSection({
             }}
           >
             <Text style={fieldStyles.dropdownTriggerText} numberOfLines={1}>
-              {selectedOffice !== null ? selectedOffice.name : 'Select Field Office (Optional)...'}
+              {selectedOffice !== null ? selectedOffice.name : 'Select Field Office...'}
             </Text>
             {isOfficesLoading ? (
               <ActivityIndicator size="small" color={COLORS.brand[700]} />
@@ -400,18 +417,6 @@ export function AssignExistingUserSection({
                 nestedScrollEnabled={true}
                 keyboardShouldPersistTaps="handled"
               >
-                <Pressable
-                  style={[
-                    fieldStyles.dropdownOption,
-                    !selectedFieldOfficeId && fieldStyles.dropdownOptionActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedFieldOfficeId('');
-                    setIsOfficeDropdownOpen(false);
-                  }}
-                >
-                  <Text style={fieldStyles.dropdownOptionText}>None (Regional Main Office)</Text>
-                </Pressable>
                 {fieldOffices.map((fo) => (
                   <Pressable
                     key={fo.id}

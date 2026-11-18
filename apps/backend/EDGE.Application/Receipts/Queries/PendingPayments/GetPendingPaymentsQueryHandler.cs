@@ -171,14 +171,16 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
 
             if (!isAdministrative)
             {
-                if (currentMembership?.FieldOffice != null && !string.IsNullOrWhiteSpace(currentMembership.FieldOffice.Name))
+                if (currentMembership?.FieldOffice != null &&
+                    currentMembership.FieldOffice.Category != FieldOfficeCategory.Main &&
+                    !string.IsNullOrWhiteSpace(currentMembership.FieldOffice.Name))
                 {
                     effectiveFieldOffice = currentMembership.FieldOffice.Name;
                 }
                 else if (currentMembership?.FieldOfficeId.HasValue == true && currentMembership.FieldOfficeId.Value != Guid.Empty)
                 {
                     var office = await _fieldOfficeRepository.GetByIdAsync(currentMembership.FieldOfficeId.Value, cancellationToken);
-                    if (office != null && !string.IsNullOrWhiteSpace(office.Name))
+                    if (office != null && office.Category != FieldOfficeCategory.Main && !string.IsNullOrWhiteSpace(office.Name))
                     {
                         effectiveFieldOffice = office.Name;
                     }
@@ -239,6 +241,11 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
                 li.Description ?? li.Particular ?? "Processing Fee",
                 li.Amount
             )).ToList() ?? new List<PendingPaymentLineItemDto>();
+
+            if (lineItems.Count == 0 && op.AmountDue > 0)
+            {
+                lineItems.Add(new PendingPaymentLineItemDto("PAYMENT", $"Payment for {serviceName}", op.AmountDue));
+            }
 
             var amtReceived = op.AmountReceived;
             var remBalance = op.AmountDue > amtReceived ? op.AmountDue - amtReceived : 0m;

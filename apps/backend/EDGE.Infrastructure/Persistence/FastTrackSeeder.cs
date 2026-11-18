@@ -16,56 +16,16 @@ public static class FastTrackSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context, ILogger? logger = null)
     {
-        try
+        if (!await context.Tenants.IgnoreQueryFilters().AnyAsync())
         {
-            await context.Database.ExecuteSqlRawAsync(@"
-                CREATE SCHEMA IF NOT EXISTS public;
-                SET search_path TO public;
-
-                DO $$ BEGIN
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.tables
-                        WHERE table_schema = 'public' AND table_name = 'ServiceVariants'
-                    ) THEN
-                        ALTER TABLE public.""ServiceVariants"" 
-                        ADD COLUMN IF NOT EXISTS ""IsIndividual"" boolean NOT NULL DEFAULT true;
-                    END IF;
-
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.tables
-                        WHERE table_schema = 'public' AND table_name = 'Requirements'
-                    ) THEN
-                        ALTER TABLE public.""Requirements"" 
-                        ALTER COLUMN ""Description"" TYPE text;
-                    END IF;
-                END $$;
-            ");
-        }
-        catch
-        {
-            // Table may not exist yet in fresh setup
+            throw new InvalidOperationException("Tenant not seeded. Run RolePermissionDataSeeder first.");
         }
 
-        bool skipInitialSeed = await context.Services.IgnoreQueryFilters().CountAsync() >= 12;
-        if (skipInitialSeed)
-        {
-            await FastTrackContractSeeder.UpdateContractsAsync(context);
-            await FastTrackCatalogSeeder.BackfillNewServicesAsync(context);
-            await FastTrackVariantSeeder.UpdateVariantsAsync(context);
-            await FastTrackCatalogSeeder.BackfillNewCatalogDetailsAsync(context, logger);
-            await ServiceInformationDataSeeder.SeedAsync(context);
-            await FastTrackFormSeeder.SeedFormsInternalAsync(context, logger);
-            return;
-        }
-
-        var tenant = await context.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync()
-            ?? throw new InvalidOperationException("Tenant not seeded. Run RolePermissionDataSeeder first.");
-
-        // 1. Seed Service Categories
-        var categories = new Dictionary<string, ServiceCategory>();
+        // 1. Ensure Service Categories exist (Idempotent)
         var existingCategories = await context.ServiceCategories.IgnoreQueryFilters().ToListAsync();
+        bool categoriesChanged = false;
 
-        ServiceCategory GetOrAddCategory(string key, string name, string code, ServiceCategoryType type, Guid defaultId)
+        void EnsureCategory(string name, string code, ServiceCategoryType type, Guid defaultId)
         {
             var existing = existingCategories.FirstOrDefault(c => c.Code == code || c.Type == type);
             if (existing != null)
@@ -74,30 +34,33 @@ public static class FastTrackSeeder
                 {
                     existing.IsDeleted = false;
                     existing.IsDeletedBy = string.Empty;
+                    categoriesChanged = true;
                 }
-                return existing;
+                return;
             }
 
-            var cat = new ServiceCategory { Id = defaultId, Name = name, Code = code, Type = type };
-            context.ServiceCategories.Add(cat);
-            return cat;
+            context.ServiceCategories.Add(new ServiceCategory { Id = defaultId, Name = name, Code = code, Type = type });
+            categoriesChanged = true;
         }
 
-        categories["Exams"] = GetOrAddCategory("Exams", "Exams", "EXAM", ServiceCategoryType.Exam, Guid.Parse("c0000000-0000-0000-0000-000000000001"));
-        categories["Certificates"] = GetOrAddCategory("Certificates", "Certificates", "CERT", ServiceCategoryType.Certificate, Guid.Parse("c0000000-0000-0000-0000-000000000002"));
-        categories["Licenses"] = GetOrAddCategory("Licenses", "Licenses", "LIC", ServiceCategoryType.License, Guid.Parse("c0000000-0000-0000-0000-000000000003"));
-        categories["Permits"] = GetOrAddCategory("Permits", "Permits", "PRM", ServiceCategoryType.Permit, Guid.Parse("c0000000-0000-0000-0000-000000000004"));
-        categories["Accreditations"] = GetOrAddCategory("Accreditations", "Accreditations", "ACCR", ServiceCategoryType.Accreditation, Guid.Parse("c0000000-0000-0000-0000-000000000005"));
-        categories["RequestsAndComplaints"] = GetOrAddCategory("RequestsAndComplaints", "Requests and Complaints", "REQ", ServiceCategoryType.RequestsAndComplaints, Guid.Parse("c0000000-0000-0000-0000-000000000006"));
+        EnsureCategory("Exams", "EXAM", ServiceCategoryType.Exam, Guid.Parse("c0000000-0000-0000-0000-000000000001"));
+        EnsureCategory("Certificates", "CERT", ServiceCategoryType.Certificate, Guid.Parse("c0000000-0000-0000-0000-000000000002"));
+        EnsureCategory("Licenses", "LIC", ServiceCategoryType.License, Guid.Parse("c0000000-0000-0000-0000-000000000003"));
+        EnsureCategory("Permits", "PRM", ServiceCategoryType.Permit, Guid.Parse("c0000000-0000-0000-0000-000000000004"));
+        EnsureCategory("Accreditations", "ACCR", ServiceCategoryType.Accreditation, Guid.Parse("c0000000-0000-0000-0000-000000000005"));
+        EnsureCategory("Requests and Complaints", "REQ", ServiceCategoryType.RequestsAndComplaints, Guid.Parse("c0000000-0000-0000-0000-000000000006"));
 
-        await context.SaveChangesAsync();
+        if (categoriesChanged)
+        {
+            await context.SaveChangesAsync();
+        }
 
-        // 2. Delegate to sub-seeders (FastTrackCatalogSeeder delegates fee seeding to FastTrackFeeSeeder)
+        // 2. Seed and synchronize catalog services, contracts, variants, requirements, fees, service info, and forms
         await FastTrackCatalogSeeder.BackfillNewServicesAsync(context);
+        await FastTrackContractSeeder.UpdateContractsAsync(context);
         await FastTrackVariantSeeder.UpdateVariantsAsync(context);
         await FastTrackCatalogSeeder.BackfillNewCatalogDetailsAsync(context, logger);
-        await context.SaveChangesAsync();
-
+        await ServiceInformationDataSeeder.SeedAsync(context);
         await FastTrackFormSeeder.SeedFormsInternalAsync(context, logger);
     }
 }

@@ -1,6 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using MediatR;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.TenantMembers.DTOs;
 
@@ -10,6 +16,7 @@ public class UpdateMemberDetailsCommandHandler : IRequestHandler<UpdateMemberDet
 {
     private readonly ITenantMemberRepository _memberRepository;
     private readonly IRoleRepository _roleRepository;
+    private readonly IFieldOfficeRepository? _fieldOfficeRepository;
     private readonly ITenantContextService _tenantContextService;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -17,12 +24,14 @@ public class UpdateMemberDetailsCommandHandler : IRequestHandler<UpdateMemberDet
         ITenantMemberRepository memberRepository,
         IRoleRepository roleRepository,
         ITenantContextService tenantContextService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IFieldOfficeRepository? fieldOfficeRepository = null)
     {
         _memberRepository = memberRepository;
         _roleRepository = roleRepository;
         _tenantContextService = tenantContextService;
         _unitOfWork = unitOfWork;
+        _fieldOfficeRepository = fieldOfficeRepository;
     }
 
     public async Task<TenantMemberDto> Handle(UpdateMemberDetailsCommand request, CancellationToken cancellationToken)
@@ -44,6 +53,37 @@ public class UpdateMemberDetailsCommandHandler : IRequestHandler<UpdateMemberDet
             throw new InvalidOperationException($"Role '{request.RoleId}' is not valid for tenant '{request.TenantId}'.");
         }
 
+        string? resolvedFieldOfficeName = member.FieldOffice?.Name;
+        if (_fieldOfficeRepository != null)
+        {
+            var tenantOffices = await _fieldOfficeRepository.GetByTenantIdAsync(request.TenantId, cancellationToken);
+            if (request.FieldOfficeId.HasValue && request.FieldOfficeId.Value != Guid.Empty)
+            {
+                var selectedOffice = tenantOffices.FirstOrDefault(f => f.Id == request.FieldOfficeId.Value)
+                                     ?? await _fieldOfficeRepository.GetByIdAsync(request.FieldOfficeId.Value, cancellationToken);
+                if (selectedOffice == null || selectedOffice.TenantId != request.TenantId)
+                {
+                    throw new InvalidOperationException("The selected field office does not belong to the specified regional tenant.");
+                }
+                member.FieldOfficeId = selectedOffice.Id;
+                resolvedFieldOfficeName = selectedOffice.Name;
+            }
+            else if (!member.FieldOfficeId.HasValue || member.FieldOfficeId.Value == Guid.Empty)
+            {
+                var mainOffice = tenantOffices.FirstOrDefault(f => f.Category == FieldOfficeCategory.Main)
+                                 ?? tenantOffices.FirstOrDefault();
+                if (mainOffice != null)
+                {
+                    member.FieldOfficeId = mainOffice.Id;
+                    resolvedFieldOfficeName = mainOffice.Name;
+                }
+            }
+        }
+        else if (request.FieldOfficeId.HasValue && request.FieldOfficeId.Value != Guid.Empty)
+        {
+            member.FieldOfficeId = request.FieldOfficeId.Value;
+        }
+
         member.RoleId = request.RoleId;
         member.JobTitle = request.JobTitle;
         member.Level = request.Level;
@@ -59,10 +99,12 @@ public class UpdateMemberDetailsCommandHandler : IRequestHandler<UpdateMemberDet
             TenantId = member.TenantId,
             TenantName = member.Tenant?.Name ?? string.Empty,
             UserId = member.UserId,
-            UserEmail = string.Empty, // Populate dynamically later when User entity is available
-            UserFirstName = string.Empty,
-            UserLastName = string.Empty,
+            UserEmail = member.User?.Email ?? string.Empty,
+            UserFirstName = member.User?.FirstName ?? string.Empty,
+            UserLastName = member.User?.LastName ?? string.Empty,
             RoleId = member.RoleId,
+            FieldOfficeId = member.FieldOfficeId,
+            FieldOfficeName = resolvedFieldOfficeName,
             JobTitle = member.JobTitle,
             Level = member.Level,
             Division = member.Division,

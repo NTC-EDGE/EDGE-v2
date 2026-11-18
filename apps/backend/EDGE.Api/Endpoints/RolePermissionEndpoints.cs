@@ -83,9 +83,14 @@ public static class RolePermissionEndpoints
     }
 
     [HasPermission(Permissions.SystemAdmin)]
-    public static async Task<IResult> ResetRolePermissions([FromServices] ApplicationDbContext context)
+    public static async Task<IResult> ResetRolePermissions(
+        [FromServices] ApplicationDbContext context,
+        [FromServices] Microsoft.Extensions.Hosting.IHostEnvironment environment)
     {
-        await RolePermissionDataSeeder.SeedAsync(context, forceResetPermissions: true);
+        await RolePermissionDataSeeder.SeedAsync(
+            context,
+            forceResetPermissions: true,
+            seedDemoUsers: environment.IsDevelopment());
         return Results.Ok(new { succeeded = true, message = "Seeded role permissions have been successfully reset." });
     }
 }

@@ -12,6 +12,8 @@ export interface RegionalConfigCard {
   rcCodeOp?: string;
   fundCluster?: string;
   requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
+  allowManualSoaNumber?: boolean;
+  allowManualOpNumber?: boolean;
   commissionerName?: string;
   supportEmail?: string;
   supportPhone?: string;

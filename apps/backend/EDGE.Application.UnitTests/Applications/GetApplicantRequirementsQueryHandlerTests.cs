@@ -143,4 +143,93 @@ public class GetApplicantRequirementsQueryHandlerTests
         result.Data[0].IsRequired.Should().BeTrue();
         result.Data[0].SubmittedRequirementId.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Handle_SingleApplicant_ResolvedViaApplicationIdFallback_ReturnsRetainedRequirements()
+    {
+        // Arrange
+        var appId = Guid.NewGuid();
+        var trueApplicantId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        var variantId = Guid.NewGuid();
+        var reqId = Guid.NewGuid();
+        var svrId = Guid.NewGuid();
+        var storedFileId = Guid.NewGuid();
+
+        var applicant = new Applicant
+        {
+            Id = trueApplicantId,
+            ServiceId = serviceId,
+            ServiceVariantId = variantId
+        };
+
+        var appApplicant = new ApplicationApplicant
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = appId,
+            ApplicantId = trueApplicantId,
+            Applicant = applicant
+        };
+
+        var uploadedReq = new ApplicationRequirement
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = appId,
+            ApplicantId = trueApplicantId,
+            RequirementId = reqId,
+            ServiceVariantRequirementId = svrId,
+            StoredFileId = storedFileId,
+            StoredFile = new StoredFile
+            {
+                Id = storedFileId,
+                FileName = "gov_id_scan.pdf",
+                ContentType = "application/pdf",
+                FileSizeBytes = 1048576
+            },
+            Url = $"/api/v2/storage/files/{storedFileId}"
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ApplicationApplicants = new List<ApplicationApplicant> { appApplicant },
+            ApplicationRequirements = new List<ApplicationRequirement> { uploadedReq }
+        };
+
+        var requirement = new Requirement
+        {
+            Id = reqId,
+            Name = "Proof of Identity",
+            Description = "Government ID Copy"
+        };
+
+        var rule = new ServiceVariantRequirement
+        {
+            Id = svrId,
+            RequirementId = reqId,
+            Requirement = requirement,
+            IsRequired = true
+        };
+
+        _mockAppRepo.Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+
+        _mockReqRepo.Setup(r => r.GetServiceVariantRequirementsAsync(serviceId, variantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ServiceVariantRequirement> { rule });
+
+        // Query using appId as applicantId (frontend fallback in single applicant mode)
+        var query = new GetApplicantRequirementsQuery(appId, appId);
+
+        // Act
+        var result = await _handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data.Should().HaveCount(1);
+        result.Data![0].RequirementName.Should().Be("Proof of Identity");
+        result.Data[0].SubmittedRequirementId.Should().Be(uploadedReq.Id);
+        result.Data[0].StoredFileId.Should().Be(storedFileId);
+        result.Data[0].FileName.Should().Be("gov_id_scan.pdf");
+    }
 }

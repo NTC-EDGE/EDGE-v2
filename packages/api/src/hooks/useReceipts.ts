@@ -175,8 +175,14 @@ export function useUndepositedReceipts(tenantId?: string | null) {
 
   const { data, error, isLoading, mutate } = useSWR<OfficialReceiptDto[]>(
     key,
-    () => fetcher<OfficialReceiptDto[]>('/api/v2/receipts/undeposited', { tenantId: tenantId ?? '' }),
-    { revalidateOnFocus: false }
+    () => {
+      const queryParams: Record<string, string> = {};
+      if (tenantId && tenantId.trim().length > 0) {
+        queryParams.tenantId = tenantId.trim();
+      }
+      return fetcher<OfficialReceiptDto[]>('/api/v2/receipts/undeposited', queryParams);
+    },
+    { revalidateOnFocus: true }
   );
 
   return {
@@ -195,7 +201,10 @@ export function useAgencyBankAccounts(tenantId?: string | null, activeOnly?: boo
   const { data, error, isLoading, mutate } = useSWR<AgencyBankAccountDto[]>(
     key,
     () => {
-      const queryParams: Record<string, string | boolean> = { tenantId: tenantId ?? '' };
+      const queryParams: Record<string, string | boolean> = {};
+      if (tenantId && tenantId.trim().length > 0) {
+        queryParams.tenantId = tenantId.trim();
+      }
       if (typeof activeOnly === 'boolean') queryParams.activeOnly = activeOnly;
       return fetcher<AgencyBankAccountDto[]>('/api/v2/receipts/bank-accounts', queryParams);
     },
@@ -233,14 +242,17 @@ export function useBankDeposits(params: {
   const { data, error, isLoading, mutate } = useSWR<BankDepositDto[]>(
     key,
     () => {
-      const queryParams: Record<string, string> = { tenantId: params.tenantId ?? '' };
+      const queryParams: Record<string, string> = {};
+      if (params.tenantId && params.tenantId.trim().length > 0) {
+        queryParams.tenantId = params.tenantId.trim();
+      }
       if (params.bankAccountId) queryParams.bankAccountId = params.bankAccountId;
       if (params.status) queryParams.status = params.status;
       if (params.fromDate) queryParams.fromDate = params.fromDate;
       if (params.toDate) queryParams.toDate = params.toDate;
       return fetcher<BankDepositDto[]>('/api/v2/receipts/deposits', queryParams);
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true }
   );
 
   return {
@@ -272,13 +284,16 @@ export function useCashierRcdReport(params: {
   const { data, error, isLoading, mutate } = useSWR<CashierRcdReportDto>(
     key,
     () => {
-      const queryParams: Record<string, string> = { tenantId: params.tenantId ?? '' };
+      const queryParams: Record<string, string> = {};
+      if (params.tenantId && params.tenantId.trim().length > 0) {
+        queryParams.tenantId = params.tenantId.trim();
+      }
       if (params.fromDate) queryParams.fromDate = params.fromDate;
       if (params.toDate) queryParams.toDate = params.toDate;
       if (params.cashierUserId) queryParams.cashierUserId = params.cashierUserId;
       return fetcher<CashierRcdReportDto>('/api/v2/receipts/reports/rcd', queryParams);
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true }
   );
 
   return {
@@ -299,12 +314,15 @@ export function useCancelledOrReport(params: { tenantId?: string | null; fromDat
   const { data, error, isLoading, mutate } = useSWR<CancelledOrReportDto>(
     key,
     () => {
-      const queryParams: Record<string, string> = { tenantId: params.tenantId ?? '' };
+      const queryParams: Record<string, string> = {};
+      if (params.tenantId && params.tenantId.trim().length > 0) {
+        queryParams.tenantId = params.tenantId.trim();
+      }
       if (params.fromDate) queryParams.fromDate = params.fromDate;
       if (params.toDate) queryParams.toDate = params.toDate;
       return fetcher<CancelledOrReportDto>('/api/v2/receipts/reports/cancelled', queryParams);
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true }
   );
 
   return {

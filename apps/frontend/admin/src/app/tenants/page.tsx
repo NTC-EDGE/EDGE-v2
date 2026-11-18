@@ -163,7 +163,10 @@ export default function TenantsPage() {
         regionId: formData.regionId,
       });
       await mutate();
-      setToast({ message: `Tenant "${formData.name}" created successfully as Inactive.`, type: "success" });
+      setToast({
+        message: `Tenant "${formData.name}" and its equivalent Main Office (${formData.code.toUpperCase()}-MAIN) were created successfully.`,
+        type: "success",
+      });
       setIsCreateOpen(false);
     } catch (err: unknown) {
       const msg = getErrorMessage(err, "Failed to create tenant. Please try again.");

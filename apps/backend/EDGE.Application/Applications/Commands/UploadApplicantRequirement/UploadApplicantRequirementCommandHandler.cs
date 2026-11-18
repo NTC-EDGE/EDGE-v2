@@ -95,11 +95,21 @@ public class UploadApplicantRequirementCommandHandler
                 "You do not have permission to upload requirements for this application.");
 
         // 3. Verify the applicant is a member of this application
-        var isApplicantMember = app.ApplicationApplicants
-            .Any(a => a.ApplicantId == request.ApplicantId);
-        if (!isApplicantMember)
+        var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa =>
+            aa.ApplicantId == request.ApplicantId ||
+            aa.Id == request.ApplicantId ||
+            (app.ApplicationApplicants.Count == 1 && (request.ApplicantId == app.Id || request.ApplicantId == Guid.Empty)));
+
+        if (appApplicant == null && (request.ApplicantId == app.Id || app.ApplicationApplicants.Count == 1))
+        {
+            appApplicant = app.ApplicationApplicants.FirstOrDefault();
+        }
+
+        if (appApplicant == null)
             return ApiResponse<Guid>.Fail(
                 $"Applicant '{request.ApplicantId}' is not linked to application '{request.ApplicationId}'.");
+
+        var resolvedApplicantId = appApplicant.ApplicantId;
 
         // 5. Resolve RequirementId — prefer ServiceVariantRequirementId (auto-derives RequirementId)
         Guid resolvedRequirementId;
@@ -131,8 +141,7 @@ public class UploadApplicantRequirementCommandHandler
                 $"Requirement '{resolvedRequirementId}' was not found in the master catalog.");
 
         // 7. Verify requirement is valid for the applicant's service & variant
-        var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId);
-        var applicant = appApplicant?.Applicant;
+        var applicant = appApplicant.Applicant;
 
         Guid? serviceId = applicant?.ServiceId;
         Guid? variantId = applicant?.ServiceVariantId;
@@ -174,7 +183,7 @@ public class UploadApplicantRequirementCommandHandler
 
         // 9. Check if an existing submission record exists for this requirement and applicant
         var applicantRequirements = await _applicationRepository.GetApplicantRequirementsAsync(
-            request.ApplicationId, request.ApplicantId, cancellationToken);
+            request.ApplicationId, resolvedApplicantId, cancellationToken);
 
         var existingRequirement = applicantRequirements.FirstOrDefault(ar =>
             (request.ServiceVariantRequirementId.HasValue && ar.ServiceVariantRequirementId == request.ServiceVariantRequirementId.Value) ||
@@ -200,7 +209,7 @@ public class UploadApplicantRequirementCommandHandler
                 var entity = new ApplicationRequirement
                 {
                     ApplicationId               = request.ApplicationId,
-                    ApplicantId                 = request.ApplicantId,
+                    ApplicantId                 = resolvedApplicantId,
                     RequirementId               = resolvedRequirementId,
                     ServiceVariantRequirementId = request.ServiceVariantRequirementId,
                     StoredFileId                = request.StoredFileId,

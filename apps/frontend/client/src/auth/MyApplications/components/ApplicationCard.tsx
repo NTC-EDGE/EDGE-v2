@@ -123,7 +123,11 @@ export function ApplicationCard({
                 gap: 4,
               }}
             >
-              <Icon name="refresh-cw" size={10} color="#2563EB" />
+              <Icon
+                name={app.isAssessmentOnly || app.intent === 'AssessmentOnly' ? 'check-circle' : 'refresh-cw'}
+                size={10}
+                color="#2563EB"
+              />
               <Text
                 style={{
                   fontFamily: TYPOGRAPHY.fonts.primary,
@@ -132,7 +136,9 @@ export function ApplicationCard({
                   color: '#2563EB',
                 }}
               >
-                RENEWAL IN PROGRESS #{app.activeRenewalReferenceNumber ?? ''}
+                {app.isAssessmentOnly || app.intent === 'AssessmentOnly'
+                  ? `OFFICIAL APP FILED #${app.activeRenewalReferenceNumber ?? ''}`
+                  : `RENEWAL IN PROGRESS #${app.activeRenewalReferenceNumber ?? ''}`}
               </Text>
             </View>
           )}

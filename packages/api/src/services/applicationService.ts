@@ -210,11 +210,31 @@ export const applicationService = {
     });
   },
 
-  async approveSoa(soaOrApplicationId: string, remarks?: string) {
+  async approveSoa(soaOrApplicationId: string, remarks?: string, opNumber?: string) {
     return safeAsync(async () => {
       const response = await apiClient.patch(
         `/api/v2/soas/${soaOrApplicationId}/approve`,
-        { remarks, applicationId: soaOrApplicationId }
+        { remarks, applicationId: soaOrApplicationId, opNumber }
+      );
+      return response.data;
+    });
+  },
+
+  async updateSoaNumber(soaId: string, soaNumber: string, remarks?: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<ApiResponse<string>>(
+        `/api/v2/soas/${soaId}/number`,
+        { soaNumber, remarks }
+      );
+      return response.data;
+    });
+  },
+
+  async updateOpNumber(opId: string, opNumber: string, remarks?: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<ApiResponse<string>>(
+        `/api/v2/ops/${opId}/number`,
+        { opNumber, remarks }
       );
       return response.data;
     });

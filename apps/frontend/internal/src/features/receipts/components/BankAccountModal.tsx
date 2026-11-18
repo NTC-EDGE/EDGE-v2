@@ -189,17 +189,66 @@ export function BankAccountModal({
               />
             </View>
 
-            <View style={[styles.switchRow, { borderColor: colors.border }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.switchLabel, { color: colors.text }]}>Active Account for Remittance</Text>
-                <Text style={[styles.switchSub, { color: colors.textMuted }]}>Allow cashiers to remit collections to this account</Text>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setIsActive((prev) => !prev)}
+              style={[
+                styles.switchRow,
+                {
+                  borderColor: isActive ? '#10B981' : colors.border,
+                  backgroundColor: isActive ? '#ECFDF5' : colors.neutral[50],
+                  borderWidth: 1.5,
+                  borderRadius: 12,
+                  padding: 12,
+                },
+              ]}
+            >
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={[styles.switchLabel, { color: colors.text }]}>Active Account for Remittance</Text>
+                  <View
+                    style={{
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                      backgroundColor: isActive ? '#10B981' : colors.neutral[400],
+                    }}
+                  >
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF' }}>
+                      {isActive ? 'ACTIVE' : 'INACTIVE'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.switchSub, { color: colors.textMuted }]}>
+                  Allow cashiers to remit collections to this Authorized Government Depositary Bank account
+                </Text>
               </View>
-              <Switch
-                value={isActive}
-                onValueChange={setIsActive}
-                trackColor={{ false: colors.neutral[300], true: colors.brand.primary }}
-              />
-            </View>
+              <View
+                style={{
+                  width: 52,
+                  height: 28,
+                  borderRadius: 14,
+                  padding: 3,
+                  backgroundColor: isActive ? '#10B981' : '#CBD5E1',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: isActive ? 'flex-end' : 'flex-start',
+                }}
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 11,
+                    backgroundColor: '#FFFFFF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Lucide name={isActive ? 'check' : 'x'} size={11} color={isActive ? '#059669' : colors.neutral[500]} />
+                </View>
+              </View>
+            </TouchableOpacity>
 
             <View style={styles.formGroup}>
               <Text style={[styles.label, { color: colors.neutral[700] }]}>Remarks</Text>
