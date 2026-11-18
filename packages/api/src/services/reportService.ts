@@ -1,4 +1,5 @@
 import { apiClient } from '../apiClient';
+import { safeAsync } from '../utils/safeAsync';
 import { ApiResponse } from '../types';
 
 export interface KpiSummaryDto {
@@ -64,6 +65,15 @@ export interface GetOperationalReportStatisticsParams {
   category?: string;
 }
 
+export interface PrintStatutoryReportParams {
+  code: string;
+  tenantId?: string | null;
+  period?: string;
+  startDate?: string;
+  endDate?: string;
+  secondaryFilter?: string;
+}
+
 export const reportService = {
   getOperationalReportStatistics: async (
     params?: GetOperationalReportStatisticsParams
@@ -83,5 +93,44 @@ export const reportService = {
       { params: queryParams }
     );
     return res.data;
+  },
+
+  previewStatutoryReportPdf: async (params: PrintStatutoryReportParams) => {
+    return safeAsync(async () => {
+      const queryParams: Record<string, string> = {
+        code: params.code,
+      };
+      if (params.tenantId) queryParams.tenantId = params.tenantId;
+      if (params.period) queryParams.period = params.period;
+      if (params.startDate) queryParams.startDate = params.startDate;
+      if (params.endDate) queryParams.endDate = params.endDate;
+      if (params.secondaryFilter) queryParams.secondaryFilter = params.secondaryFilter;
+
+      const response = await apiClient.get<Blob>('/api/v2/reports/statutory/print', {
+        params: queryParams,
+        responseType: 'blob',
+      });
+      return response.data;
+    });
+  },
+
+  downloadStatutoryReportPdf: async (params: PrintStatutoryReportParams) => {
+    return safeAsync(async () => {
+      const queryParams: Record<string, string> = {
+        code: params.code,
+        download: 'true',
+      };
+      if (params.tenantId) queryParams.tenantId = params.tenantId;
+      if (params.period) queryParams.period = params.period;
+      if (params.startDate) queryParams.startDate = params.startDate;
+      if (params.endDate) queryParams.endDate = params.endDate;
+      if (params.secondaryFilter) queryParams.secondaryFilter = params.secondaryFilter;
+
+      const response = await apiClient.get<Blob>('/api/v2/reports/statutory/print', {
+        params: queryParams,
+        responseType: 'blob',
+      });
+      return response.data;
+    });
   },
 };

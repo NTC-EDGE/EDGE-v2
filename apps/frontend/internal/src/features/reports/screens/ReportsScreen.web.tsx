@@ -63,12 +63,6 @@ export function ReportsScreen() {
   // Selected Category Filter for the 10 Official Tenant Reports
   const [tenantCategory, setTenantCategory] = useState<TenantReportCategory>('all');
 
-  // Selected Report for the Top Direct Generation Station
-  const [selectedReportCode, setSelectedReportCode] = useState<StatutoryReportCode>('NTC-MIS-OPS');
-
-  // Quick Dropdown Open State for Report Selector
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
   // Filtered list of the 10 official tenant reports
   const displayedReports = useMemo(() => {
     return state.statutoryReports.filter((rep) => {
@@ -110,14 +104,6 @@ export function ReportsScreen() {
     });
   }, [state.statutoryReports, tenantCategory, state.searchQuery]);
 
-  // Selected report metadata for top station
-  const activeReport = useMemo(() => {
-    const found = state.statutoryReports.find((r) => r.metadata.code === selectedReportCode);
-    if (found !== undefined) return found.metadata;
-    const fallback = state.statutoryReports[0];
-    return fallback !== undefined ? fallback.metadata : null;
-  }, [state.statutoryReports, selectedReportCode]);
-
   const formatCurrency = (amount?: number | null) => {
     const safeAmt = amount ?? 0;
     return `₱${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -155,213 +141,70 @@ export function ReportsScreen() {
           }
         />
 
-        {/* ── Executive Top Quick Generation & Print Station (Immediately Above the Fold) ── */}
-        <AnimatedCard
+        {/* ── Compact Regional Context & Live Metrics Strip ── */}
+        <View
           style={[
-            styles.quickPrintCard,
+            styles.metricsStrip,
             {
-              backgroundColor: colors.cardBg,
-              borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+              backgroundColor: isDark ? colors.neutral[900] : '#F0FDF4',
+              borderColor: isDark ? colors.neutral[800] : '#DCFCE7',
             },
           ]}
         >
-          <View style={styles.quickPrintHeader}>
-            <View style={styles.quickPrintHeaderLeft}>
-              <View
-                style={[
-                  styles.quickPrintIconBox,
-                  { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
-                ]}
-              >
-                <Lucide
-                  name="printer"
-                  size={18}
-                  color={isDark ? colors.brand[500] : colors.brand.primary}
-                />
-              </View>
-              <View>
-                <Text style={[styles.quickPrintTitle, { color: colors.text }]}>
-                  Direct Report Generation & Print Station
-                </Text>
-                <Text style={[styles.quickPrintSubtitle, { color: colors.textMuted }]}>
-                  Select an official statutory report, adjust filing period or custom dates, and print or export immediately.
-                </Text>
-              </View>
-            </View>
-
-            {/* Quick Actions for Selected Report */}
-            {activeReport !== null && (
-              <View style={styles.quickPrintTopActions}>
-                <Button
-                  variant="primary"
-                  size="md"
-                  fullWidth={false}
-                  leftIcon={<Lucide name="printer" size={16} color="#FFFFFF" />}
-                  onPress={() => {
-                    state.handlePrintStatutoryReport(activeReport);
-                  }}
-                >
-                  Print / PDF Report
-                </Button>
-                <Button
-                  variant="outline"
-                  size="md"
-                  fullWidth={false}
-                  leftIcon={<Lucide name="eye" size={16} color={colors.text} />}
-                  onPress={() => {
-                    state.handleOpenStatutoryModal(activeReport);
-                  }}
-                >
-                  Preview Document
-                </Button>
-                <Button
-                  variant="outline"
-                  size="md"
-                  fullWidth={false}
-                  leftIcon={<Lucide name="download" size={16} color={colors.text} />}
-                  onPress={() => {
-                    state.handleDownloadStatutoryCsv(activeReport.code);
-                  }}
-                >
-                  CSV
-                </Button>
-              </View>
-            )}
+          <View style={styles.metricItem}>
+            <Lucide name="map-pin" size={14} color={isDark ? colors.brand[500] : colors.brand.primary} />
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Regional Tenant:</Text>
+            <Text style={[styles.metricValue, { color: colors.text }]}>{state.tenantDisplayName}</Text>
           </View>
 
-          {/* Quick Station Controls: Report Selector & Period Selector */}
-          <View style={[styles.quickControlsRow, { borderTopColor: colors.border }]}>
-            {/* Left: Report Dropdown Trigger */}
-            <View style={styles.dropdownWrapper}>
-              <Text style={[styles.controlSectionLabel, { color: colors.textMuted }]}>
-                TARGET OFFICIAL REPORT:
-              </Text>
-              <Pressable
-                style={[
-                  styles.dropdownButton,
-                  {
-                    backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                    borderColor: isDropdownOpen ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.border,
-                  },
-                  Platform.select({ web: { cursor: 'pointer' } }),
-                ]}
-                onPress={() => setIsDropdownOpen((prev) => !prev)}
-              >
-                <View style={styles.dropdownButtonContent}>
-                  <View
-                    style={[
-                      styles.codeBadgeSmall,
-                      {
-                        backgroundColor: activeReport !== null ? `${activeReport.badgeColor}20` : 'transparent',
-                        borderColor: activeReport !== null ? `${activeReport.badgeColor}60` : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.codeBadgeSmallText,
-                        { color: activeReport !== null ? activeReport.badgeColor : colors.text },
-                      ]}
-                    >
-                      {activeReport !== null ? activeReport.code : 'SELECT'}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[styles.dropdownSelectedText, { color: colors.text }]}
-                    numberOfLines={1}
-                  >
-                    {activeReport !== null ? activeReport.title : 'Select a report to print'}
-                  </Text>
-                </View>
-                <Lucide
-                  name={isDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={colors.textMuted}
-                />
-              </Pressable>
+          <View style={styles.metricDivider} />
 
-              {/* Floating Dropdown Menu */}
-              {isDropdownOpen && (
-                <View
-                  style={[
-                    styles.dropdownList,
-                    {
-                      backgroundColor: colors.cardBg,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <ScrollView style={{ maxHeight: 300 }}>
-                    {state.statutoryReports.map((item) => {
-                      const isSelected = item.metadata.code === selectedReportCode;
-                      return (
-                        <Pressable
-                          key={item.metadata.code}
-                          style={[
-                            styles.dropdownItem,
-                            { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] },
-                            isSelected && {
-                              backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                            },
-                            Platform.select({ web: { cursor: 'pointer' } }),
-                          ]}
-                          onPress={() => {
-                            setSelectedReportCode(item.metadata.code);
-                            setIsDropdownOpen(false);
-                          }}
-                        >
-                          <View style={styles.dropdownItemLeft}>
-                            <View
-                              style={[
-                                styles.agencyDot,
-                                { backgroundColor: item.metadata.badgeColor },
-                              ]}
-                            />
-                            <View>
-                              <Text
-                                style={[
-                                  styles.dropdownItemCode,
-                                  {
-                                    color: isSelected
-                                      ? (isDark ? colors.brand[500] : colors.brand.primary)
-                                      : colors.text,
-                                    fontWeight: isSelected
-                                      ? TYPOGRAPHY.weights.bold
-                                      : TYPOGRAPHY.weights.semibold,
-                                  },
-                                ]}
-                              >
-                                {item.metadata.code}
-                              </Text>
-                              <Text
-                                style={[styles.dropdownItemTitle, { color: colors.textMuted }]}
-                                numberOfLines={1}
-                              >
-                                {item.metadata.title}
-                              </Text>
-                            </View>
-                          </View>
-                          <View
-                            style={[
-                              styles.dropdownItemBadge,
-                              { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] },
-                            ]}
-                          >
-                            <Text style={[styles.dropdownItemBadgeText, { color: colors.text }]}>
-                              {item.metadata.agency}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-              )}
-            </View>
+          <View style={styles.metricItem}>
+            <Lucide name="clock" size={14} color={colors.textMuted} />
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Active Range:</Text>
+            <Text style={[styles.metricValue, { color: colors.text }]}>{effectivePeriod}</Text>
+          </View>
 
-            {/* Right: Filing Term / Date Range Picker */}
-            <View style={styles.periodControlsWrapper}>
-              <Text style={[styles.controlSectionLabel, { color: colors.textMuted }]}>
+          <View style={styles.metricDivider} />
+
+          <View style={styles.metricItem}>
+            <Lucide name="file-text" size={14} color={COLORS.semantic.info} />
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Applications:</Text>
+            <Text style={[styles.metricValue, { color: colors.text }]}>{state.stats.totalApps} records</Text>
+          </View>
+
+          <View style={styles.metricDivider} />
+
+          <View style={styles.metricItem}>
+            <Lucide name="check-circle" size={14} color={COLORS.semantic.success} />
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>SLA Compliance:</Text>
+            <Text style={[styles.metricValue, { color: COLORS.semantic.success }]}>
+              {state.stats.approvalRate}%
+            </Text>
+          </View>
+
+          <View style={styles.metricDivider} />
+
+          <View style={styles.metricItem}>
+            <Lucide name="dollar-sign" size={14} color={COLORS.semantic.warning} />
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Total Collections:</Text>
+            <Text style={[styles.metricValue, { color: COLORS.semantic.warning }]}>
+              {formatCurrency(state.stats.totalCollected)}
+            </Text>
+          </View>
+        </View>
+
+        {/* ── Unified Filing Period, Category Filter Tabs & Search Bar ── */}
+        <AnimatedCard
+          style={[
+            styles.categoryNavCard,
+            { backgroundColor: colors.cardBg, borderColor: colors.border },
+          ]}
+        >
+          {/* Row 1: Filing Period / Date Range Selector */}
+          <View style={[styles.periodControlsWrapper, { paddingBottom: SPACING[12], marginBottom: SPACING[12], borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: SPACING[8] }}>
+              <Text style={[styles.controlSectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
                 FILING PERIOD / DATE RANGE:
               </Text>
               <View style={styles.periodPillsRow}>
@@ -380,7 +223,6 @@ export function ReportsScreen() {
                         Platform.select({ web: { cursor: 'pointer' } }),
                       ]}
                       onPress={() => {
-                        state.setPeriodMode('quarterly');
                         state.setSelectedPeriod(p.id);
                       }}
                     >
@@ -443,96 +285,34 @@ export function ReportsScreen() {
                   </Text>
                 </Pressable>
               </View>
+            </View>
 
-              {/* Inline Custom Date Inputs (when custom mode is selected) */}
-              {state.periodMode === 'custom' && (
-                <View style={styles.customDateInputsRow}>
-                  <View style={styles.dateInputGroup}>
-                    <Text style={[styles.dateInputLabel, { color: colors.textMuted }]}>Start:</Text>
-                    <View style={{ minWidth: 165 }}>
-                      <DatePickerInput
-                        value={state.startDate}
-                        onChangeText={state.setStartDate}
-                        placeholder="YYYY-MM-DD"
-                      />
-                    </View>
-                  </View>
-                  <View style={styles.dateInputGroup}>
-                    <Text style={[styles.dateInputLabel, { color: colors.textMuted }]}>End:</Text>
-                    <View style={{ minWidth: 165 }}>
-                      <DatePickerInput
-                        value={state.endDate}
-                        onChangeText={state.setEndDate}
-                        placeholder="YYYY-MM-DD"
-                      />
-                    </View>
+            {state.periodMode === 'custom' && (
+              <View style={styles.customDateInputsRow}>
+                <View style={styles.dateInputGroup}>
+                  <Text style={[styles.dateInputLabel, { color: colors.textMuted }]}>Start:</Text>
+                  <View style={{ minWidth: 165 }}>
+                    <DatePickerInput
+                      value={state.startDate}
+                      onChangeText={state.setStartDate}
+                      placeholder="YYYY-MM-DD"
+                    />
                   </View>
                 </View>
-              )}
-            </View>
-          </View>
-        </AnimatedCard>
-
-        {/* ── Compact Regional Context & Live Metrics Strip (1 Single Row, No Heavy Push Down) ── */}
-        <View
-          style={[
-            styles.metricsStrip,
-            {
-              backgroundColor: isDark ? colors.neutral[900] : '#F0FDF4',
-              borderColor: isDark ? colors.neutral[800] : '#DCFCE7',
-            },
-          ]}
-        >
-          <View style={styles.metricItem}>
-            <Lucide name="map-pin" size={14} color={isDark ? colors.brand[500] : colors.brand.primary} />
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Regional Tenant:</Text>
-            <Text style={[styles.metricValue, { color: colors.text }]}>{state.tenantDisplayName}</Text>
+                <View style={styles.dateInputGroup}>
+                  <Text style={[styles.dateInputLabel, { color: colors.textMuted }]}>End:</Text>
+                  <View style={{ minWidth: 165 }}>
+                    <DatePickerInput
+                      value={state.endDate}
+                      onChangeText={state.setEndDate}
+                      placeholder="YYYY-MM-DD"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
 
-          <View style={styles.metricDivider} />
-
-          <View style={styles.metricItem}>
-            <Lucide name="clock" size={14} color={colors.textMuted} />
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Active Range:</Text>
-            <Text style={[styles.metricValue, { color: colors.text }]}>{effectivePeriod}</Text>
-          </View>
-
-          <View style={styles.metricDivider} />
-
-          <View style={styles.metricItem}>
-            <Lucide name="file-text" size={14} color={COLORS.semantic.info} />
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Applications:</Text>
-            <Text style={[styles.metricValue, { color: colors.text }]}>{state.stats.totalApps} records</Text>
-          </View>
-
-          <View style={styles.metricDivider} />
-
-          <View style={styles.metricItem}>
-            <Lucide name="check-circle" size={14} color={COLORS.semantic.success} />
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>SLA Compliance:</Text>
-            <Text style={[styles.metricValue, { color: COLORS.semantic.success }]}>
-              {state.stats.approvalRate}%
-            </Text>
-          </View>
-
-          <View style={styles.metricDivider} />
-
-          <View style={styles.metricItem}>
-            <Lucide name="dollar-sign" size={14} color={COLORS.semantic.warning} />
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Total Collections:</Text>
-            <Text style={[styles.metricValue, { color: COLORS.semantic.warning }]}>
-              {formatCurrency(state.stats.totalCollected)}
-            </Text>
-          </View>
-        </View>
-
-        {/* ── Category Filter Tabs & Keyword Search Bar ── */}
-        <AnimatedCard
-          style={[
-            styles.categoryNavCard,
-            { backgroundColor: colors.cardBg, borderColor: colors.border },
-          ]}
-        >
           <View style={styles.categoryHeaderRow}>
             {/* Category Filter Pills */}
             <View style={styles.categoryPillsContainer}>
@@ -637,12 +417,11 @@ export function ReportsScreen() {
           />
         )}
 
-        {/* ── Official Reports Directory Grid (Right in the Main View!) ── */}
+        {/* ── Official Reports Directory Grid ── */}
         {!state.isLoading && displayedReports.length > 0 && (
           <View style={styles.reportsGrid}>
             {displayedReports.map((rep: StatutoryReportSummary, index: number) => {
               const meta = rep.metadata;
-              const isCardSelectedInTopStation = meta.code === selectedReportCode;
 
               return (
                 <AnimatedCard
@@ -652,10 +431,8 @@ export function ReportsScreen() {
                     styles.reportCard,
                     {
                       backgroundColor: colors.cardBg,
-                      borderColor: isCardSelectedInTopStation
-                        ? (isDark ? colors.brand[500] : colors.brand.primary)
-                        : colors.border,
-                      borderWidth: isCardSelectedInTopStation ? 2 : 1,
+                      borderColor: colors.border,
+                      borderWidth: 1,
                     },
                   ]}
                 >
@@ -740,7 +517,7 @@ export function ReportsScreen() {
                     )}
                   </View>
 
-                  {/* Card Action Buttons (Clear, Distinct, Right at Hand) */}
+                  {/* Single Focused Action Button (No Repetitive Print/CSV/Preview Clutter) */}
                   <View
                     style={[
                       styles.cardActionsRow,
@@ -748,31 +525,13 @@ export function ReportsScreen() {
                     ]}
                   >
                     <Button
-                      variant="outline"
-                      size="sm"
-                      fullWidth={false}
-                      leftIcon={<Lucide name="eye" size={13} color={colors.text} />}
-                      onPress={() => state.handleOpenStatutoryModal(meta)}
-                    >
-                      Preview
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      fullWidth={false}
-                      leftIcon={<Lucide name="download" size={13} color={colors.text} />}
-                      onPress={() => state.handleDownloadStatutoryCsv(meta.code)}
-                    >
-                      CSV
-                    </Button>
-                    <Button
                       variant="primary"
                       size="sm"
                       fullWidth={false}
-                      leftIcon={<Lucide name="printer" size={13} color="#FFFFFF" />}
-                      onPress={() => state.handlePrintStatutoryReport(meta)}
+                      leftIcon={<Lucide name="file-text" size={13} color="#FFFFFF" />}
+                      onPress={() => state.handleOpenStatutoryModal(meta)}
                     >
-                      Print Form
+                      Open Report
                     </Button>
                   </View>
                 </AnimatedCard>
@@ -787,6 +546,7 @@ export function ReportsScreen() {
         visible={state.statutoryModal.visible}
         report={state.statutoryModal.report}
         tenantName={state.tenantDisplayName}
+        tenantId={state.activeTenantId}
         period={effectivePeriod}
         startDate={state.startDate}
         endDate={state.endDate}

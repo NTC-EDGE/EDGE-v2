@@ -128,19 +128,16 @@ export function useOfficialReceipts(params: {
   cashierUserId?: string;
   search?: string;
 }) {
-  const shouldFetch = params.tenantId !== null;
-  const key = shouldFetch
-    ? [
-        '/api/v2/receipts',
-        params.tenantId ?? '',
-        params.status ?? 'all',
-        params.paymentMethod ?? 'all',
-        params.fromDate ?? '',
-        params.toDate ?? '',
-        params.cashierUserId ?? '',
-        params.search ?? '',
-      ]
-    : null;
+  const key = [
+    '/api/v2/receipts',
+    params.tenantId ?? '',
+    params.status ?? 'all',
+    params.paymentMethod ?? 'all',
+    params.fromDate ?? '',
+    params.toDate ?? '',
+    params.cashierUserId ?? '',
+    params.search ?? '',
+  ];
 
   const { data, error, isLoading, mutate } = useSWR<OfficialReceiptDto[]>(
     key,
@@ -227,17 +224,14 @@ export function useBankDeposits(params: {
   fromDate?: string;
   toDate?: string;
 }) {
-  const shouldFetch = params.tenantId !== null;
-  const key = shouldFetch
-    ? [
-        '/api/v2/receipts/deposits',
-        params.tenantId ?? '',
-        params.bankAccountId ?? 'all',
-        params.status ?? 'all',
-        params.fromDate ?? '',
-        params.toDate ?? '',
-      ]
-    : null;
+  const key = [
+    '/api/v2/receipts/deposits',
+    params.tenantId ?? '',
+    params.bankAccountId ?? 'all',
+    params.status ?? 'all',
+    params.fromDate ?? '',
+    params.toDate ?? '',
+  ];
 
   const { data, error, isLoading, mutate } = useSWR<BankDepositDto[]>(
     key,
