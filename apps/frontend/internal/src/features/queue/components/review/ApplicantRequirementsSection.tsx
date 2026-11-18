@@ -34,11 +34,15 @@ export function ApplicantRequirementsSection({
   const [previewLoadingReqId, setPreviewLoadingReqId] = useState<string | null>(null);
   const [activeReqMenuId, setActiveReqMenuId] = useState<string | null>(null);
 
-  const fetchRequirements = useCallback(async () => {
+  const fetchRequirements = useCallback(async (silent = false) => {
     if (!app?.id || !activeApplicant?.id) return;
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     const [res] = await applicationService.getApplicantRequirements(app.id, activeApplicant.id);
-    setIsLoading(false);
+    if (!silent) {
+      setIsLoading(false);
+    }
 
     const isMultiApplicant = Array.isArray(app.applicantsList) && app.applicantsList.length > 1;
     const preloadedPool =
@@ -94,10 +98,10 @@ export function ApplicantRequirementsSection({
       }));
       setRequirements(fallbackList);
     }
-  }, [app?.id, app?.applicantsList, activeApplicant?.id, activeApplicant?.requirements, app?.requirements]);
+  }, [app?.id, activeApplicant?.id]);
 
   useEffect(() => {
-    fetchRequirements();
+    void fetchRequirements(false);
   }, [fetchRequirements]);
 
   useEffect(() => {
@@ -146,10 +150,26 @@ export function ApplicantRequirementsSection({
         return;
       }
 
-      toast.success('Requirement document attached successfully.');
-      await fetchRequirements();
+      // Immediately reflect the updated file in local state without reloading or unmounting
+      setRequirements((prev) =>
+        prev.map((item) =>
+          item.requirementId === reqItem.requirementId
+            ? {
+                ...item,
+                storedFileId,
+                fileName: storageRes.data?.fileName || fileName,
+                contentType: storageRes.data?.contentType || item.contentType,
+                fileSizeBytes: storageRes.data?.fileSizeBytes ?? item.fileSizeBytes,
+                uploadedAt: new Date().toISOString(),
+              }
+            : item
+        )
+      );
+
+      toast.success(`"${reqItem.requirementName}" attachment updated successfully.`);
+      await fetchRequirements(true);
       if (typeof app.id === 'string') {
-        await mutateApplications(app.id);
+        void mutateApplications(app.id);
       }
     } catch {
       toast.error('An error occurred during file upload.');

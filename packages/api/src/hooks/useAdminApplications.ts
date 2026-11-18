@@ -8,18 +8,13 @@ import { ApiResponse, ApplicationSummaryDto, PagedApplicationListDto, Applicatio
  * immediately update when application status or review evaluation data changes.
  */
 export async function mutateApplications(applicationId?: string): Promise<void> {
-  await globalMutate(
-    (key: unknown) => {
-      if (typeof key !== 'string') return false;
-      if (key.startsWith('/api/v2/applications')) return true;
-      return false;
-    },
-    undefined,
-    { revalidate: true }
-  );
+  await globalMutate((key: unknown) => {
+    if (typeof key !== 'string') return false;
+    return key.startsWith('/api/v2/applications');
+  });
 
   if (applicationId) {
-    await globalMutate(`/api/v2/applications/${applicationId}`, undefined, { revalidate: true });
+    await globalMutate(`/api/v2/applications/${applicationId}`);
   }
 }
 
