@@ -736,6 +736,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 Dto = new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
                 {
                     Id = app.Id,
+                    TenantId = app.TenantId,
                     ApplicationNumber = app.ApplicationNumber,
                     ReferenceNumber = app.ReferenceNumber,
                     Status = app.Status.ToString(),
@@ -781,6 +782,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         FrequencyBand = d.FrequencyBand,
                         IssueDate = d.IssueDate,
                         ExpiryDate = d.ExpiryDate,
+                        OriginalEvaluatorUserId = d.OriginalEvaluatorUserId,
+                        OriginalEvaluatorName = d.OriginalEvaluatorName,
+                        IssuedByUserId = d.IssuedByUserId,
+                        IssuedByStaffName = d.IssuedByStaffName,
+                        IsAlternateIssuer = d.IsAlternateIssuer,
                         OfficialReceiptNumber = d.OfficialReceiptNumber,
                         Remarks = d.Remarks
                     }).ToList(),
@@ -796,9 +802,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
                     AmountPaid = app.OrdersOfPayment
                         .Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrEmpty(o.OfficialReceiptNumber))
-                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
-                        .Select(o => (decimal?)o.AmountReceived)
-                        .FirstOrDefault(),
+                        .Sum(o => (decimal?)(o.AmountReceived > 0 ? o.AmountReceived : o.AmountDue)),
                     PaidAt = app.OrdersOfPayment
                         .Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrEmpty(o.OfficialReceiptNumber))
                         .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
