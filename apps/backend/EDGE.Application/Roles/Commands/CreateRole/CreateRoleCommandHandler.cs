@@ -66,7 +66,15 @@ public class CreateRoleCommandHandler : IRequestHandler<CreateRoleCommand, Role>
             Key = request.Key,
             Description = request.Description,
             TenantId = request.TenantId,
-            IsSystemRole = request.IsSystemRole
+            IsSystemRole = request.IsSystemRole,
+            RolePermissions =
+            [
+                new RolePermission
+                {
+                    Id = Guid.NewGuid(),
+                    PermissionKey = Permissions.ReadTenants
+                }
+            ]
         };
 
         await _roleRepository.AddAsync(role, cancellationToken);

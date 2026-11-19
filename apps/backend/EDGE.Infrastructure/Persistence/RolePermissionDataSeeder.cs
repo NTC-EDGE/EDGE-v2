@@ -232,7 +232,9 @@ public static class RolePermissionDataSeeder
 
             // Regional Director (Regional Executive Authority & Approver)
             (actualRegionalDirectorRoleId, Permissions.ReadTenants),
+            (actualRegionalDirectorRoleId, Permissions.CreateTenants),
             (actualRegionalDirectorRoleId, Permissions.UpdateTenants),
+            (actualRegionalDirectorRoleId, Permissions.DeleteTenants),
             (actualRegionalDirectorRoleId, Permissions.ReadRoles),
             (actualRegionalDirectorRoleId, Permissions.CreateRoles),
             (actualRegionalDirectorRoleId, Permissions.UpdateRoles),
@@ -367,6 +369,12 @@ public static class RolePermissionDataSeeder
         {
             targetRolePermissions.Add((actualSuperAdminRoleId, permKey));
             targetRolePermissions.Add((actualAdminRoleId, permKey));
+        }
+
+        // Ensure every role in the database (including custom tenant roles) has ReadTenants permission to access tenant & field office endpoints
+        foreach (var dbRole in dbRoles)
+        {
+            targetRolePermissions.Add((dbRole.Id, Permissions.ReadTenants));
         }
 
         var uniqueTargetRolePermissions = targetRolePermissions.Distinct().ToList();

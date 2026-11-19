@@ -178,6 +178,10 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
             if (rolePerms != null && rolePerms.Count > 0)
             {
                 effectivePermissions.AddRange(rolePerms);
+                if (!effectivePermissions.Contains(Permissions.ReadTenants))
+                {
+                    effectivePermissions.Add(Permissions.ReadTenants);
+                }
             }
             else
             {
