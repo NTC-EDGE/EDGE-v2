@@ -110,15 +110,21 @@ export const createLinkingConfig = <T extends object>(
 
       // Validate and sanitize the redirect path against Open Redirect attacks
       const sanitizedRedirect = sanitizeRedirectPath(rawRedirectParam);
-      const targetPath = sanitizedRedirect !== null ? sanitizedRedirect : path;
-      const cleanPath = targetPath.split("?")[0].replace(/^\//, "").replace(/\/$/, "");
+      if (sanitizedRedirect !== null) {
+        const redirectState = getStateFromPath(sanitizedRedirect, opts);
+        if (redirectState !== undefined) {
+          return redirectState;
+        }
+      }
+
+      const cleanPath = path.split("?")[0].replace(/^\//, "").replace(/\/$/, "");
 
       if (normalizedRedirects.has(cleanPath)) {
         return {
           routes: [{ name: defaultRoute }],
         };
       }
-      return getStateFromPath(targetPath, opts);
+      return getStateFromPath(path, opts);
     },
     getPathFromState(state, opts) {
       const generatedPath = getPathFromState(state, opts);

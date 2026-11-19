@@ -1,5 +1,5 @@
 import axios from 'axios';
-import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
+import useSWR, { mutate as globalMutate, SWRConfiguration, SWRResponse } from 'swr';
 import { attachTokenInterceptor } from './services/tokenManager';
 
 const getApiUrl = (): string => {
@@ -97,6 +97,10 @@ attachTokenInterceptor(apiClient);
 export const fetcher = <T>(url: string): Promise<T> =>
   apiClient.get<T>(url).then((res) => res.data);
 
+export async function clearApiCache(): Promise<void> {
+  await globalMutate(() => true, undefined, { revalidate: false });
+}
+
 export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
   key: string | null,
   clerkGetToken: () => Promise<string | null>,
@@ -154,8 +158,8 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
         return;
       }
 
-      // Never retry on 403 Forbidden
-      if (status === 403) return;
+      // Never retry on 401 Unauthorized or 403 Forbidden
+      if (status === 401 || status === 403) return;
 
       // Retry up to 3 times for transient errors
       if (opts.retryCount < 3) {

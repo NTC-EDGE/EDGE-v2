@@ -318,4 +318,42 @@ public class CurrentUserServiceTests
         // Act & Assert
         service.IsEmailVerified.Should().BeFalse();
     }
+
+    [Fact]
+    public void IsTrustedClerkIssuer_WhenClerkAuthorityEnvOverrideIsSet_PrefersOverrideOverBaseConfig()
+    {
+        // Arrange
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Clerk:Authority"] = "https://easy-snipe-36.clerk.accounts.dev",
+                ["CLERK_AUTHORITY"] = "https://clerk.edge.ntc.gov.ph"
+            })
+            .Build();
+
+        var accessor = CreateHttpContextAccessor(new[] { new Claim("iss", "https://clerk.edge.ntc.gov.ph") });
+        var service = new CurrentUserService(accessor, config);
+
+        // Act & Assert
+        service.IsTrustedClerkIssuer().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsTrustedClerkIssuer_WhenClerkAuthorityEnvOverrideIsEmpty_FallsBackToConfiguredAuthority()
+    {
+        // Arrange
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Clerk:Authority"] = "https://clerk.edge.ntc.gov.ph",
+                ["CLERK_AUTHORITY"] = "   "
+            })
+            .Build();
+
+        var accessor = CreateHttpContextAccessor(new[] { new Claim("iss", "https://clerk.edge.ntc.gov.ph") });
+        var service = new CurrentUserService(accessor, config);
+
+        // Act & Assert
+        service.IsTrustedClerkIssuer().Should().BeTrue();
+    }
 }

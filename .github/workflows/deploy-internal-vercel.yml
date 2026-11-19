@@ -69,6 +69,46 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_INTERNAL_PROJECT_ID }}
         run: npx vercel pull --yes --environment=${{ steps.resolve.outputs.vercel_env }} --token=${{ secrets.VERCEL_TOKEN }}
 
+      - name: Validate Required Frontend Environment Variables
+        run: |
+          ENV_FILE=".vercel/.env.${{ steps.resolve.outputs.vercel_env }}.local"
+          if [ ! -f "$ENV_FILE" ]; then
+            echo "❌ Error: Expected Vercel environment file $ENV_FILE was not generated!"
+            exit 1
+          fi
+
+          CLERK_KEY=$(grep -E '^EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f2- || true)
+          CLERK_KEY="${CLERK_KEY%\"}"
+          CLERK_KEY="${CLERK_KEY#\"}"
+          CLERK_KEY="${CLERK_KEY%\'}"
+          CLERK_KEY="${CLERK_KEY#\'}"
+          CLERK_KEY="$(printf '%s' "$CLERK_KEY" | tr -d '[:space:]')"
+
+          API_URL=$(grep -E '^EXPO_PUBLIC_API_URL=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f2- || true)
+          API_URL="${API_URL%\"}"
+          API_URL="${API_URL#\"}"
+          API_URL="${API_URL%\'}"
+          API_URL="${API_URL#\'}"
+          API_URL="$(printf '%s' "$API_URL" | tr -d '[:space:]')"
+
+          if [ -z "$CLERK_KEY" ]; then
+            echo "❌ Error: EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is missing or empty in Vercel (${{ steps.resolve.outputs.vercel_env }}) environment!"
+            exit 1
+          fi
+
+          if [ -z "$API_URL" ]; then
+            echo "❌ Error: EXPO_PUBLIC_API_URL is missing or empty in Vercel (${{ steps.resolve.outputs.vercel_env }}) environment!"
+            exit 1
+          fi
+
+          if [ "${{ steps.resolve.outputs.vercel_env }}" = "production" ] && echo "$API_URL" | grep -qi "localhost"; then
+            echo "❌ Error: EXPO_PUBLIC_API_URL points to localhost ($API_URL) in production!"
+            exit 1
+          fi
+
+          cp "$ENV_FILE" "apps/frontend/internal/.env.${{ steps.resolve.outputs.vercel_env }}.local"
+          echo "✅ Verified EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY and EXPO_PUBLIC_API_URL for ${{ steps.resolve.outputs.vercel_env }}."
+
       - name: Build Project Artifacts
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

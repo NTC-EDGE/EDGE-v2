@@ -2,7 +2,7 @@ import { createNativeStackNavigator } from "@edge/ui";
 import { unauthRoutes } from "../routes/unauthRoutes";
 
 export const UnauthStack = createNativeStackNavigator({
-  initialRouteName: "Landing",
+  initialRouteName: "InternalLogin",
   screenOptions: {
     headerShown: false,
     contentStyle: { backgroundColor: "transparent" },

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Extensions;
 
 namespace EDGE.Infrastructure.Services;
 
@@ -79,7 +80,7 @@ public class CurrentUserService : ICurrentUserService
         var cleanIssuer = issuer.Trim().TrimEnd('/');
 
         // 1. Direct match with configured Clerk:Authority
-        var clerkAuthority = _configuration?["Clerk:Authority"]?.Trim().TrimEnd('/');
+        var clerkAuthority = _configuration?.GetClerkAuthority()?.TrimEnd('/');
         if (!string.IsNullOrWhiteSpace(clerkAuthority) &&
             string.Equals(cleanIssuer, clerkAuthority, StringComparison.OrdinalIgnoreCase))
         {

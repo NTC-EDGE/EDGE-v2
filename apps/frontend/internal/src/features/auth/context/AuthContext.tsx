@@ -1,8 +1,19 @@
-import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import { createContext, useContext, ReactNode, useState, useEffect, useCallback, useRef } from "react";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { useAuth, useUser, useSignIn, useSignUp, isClerkAPIResponseError } from "@clerk/expo";
-import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken, setTenantId, generateSafeUsername, isClerkUnknownParamError } from "@edge/api";
+import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
+import {
+  parseApiError,
+  verifyStaffMembership,
+  setTokenProvider,
+  setAuthToken,
+  setTenantId,
+  clearTokenState,
+  clearApiCache,
+  subscribeUnauthorized,
+  generateSafeUsername,
+  isClerkUnknownParamError,
+} from "@edge/api";
 import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
 import {
   MfaOtpVerificationModal,
@@ -106,10 +117,18 @@ function extractStrategy(factor: unknown): MfaStrategy | undefined {
   return undefined;
 }
 
+function isHttpStatusError(err: unknown, targetStatus: number): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const response = Reflect.get(err, "response");
+  if (typeof response !== "object" || response === null) return false;
+  return Reflect.get(response, "status") === targetStatus;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isClerkEnabled = typeof CLERK_PUBLISHABLE_KEY === "string" && CLERK_PUBLISHABLE_KEY.length > 0;
+  const isClerkEnabled = typeof CLERK_PUBLISHABLE_KEY === "string" && CLERK_PUBLISHABLE_KEY.trim().length > 0;
   const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
   const [isMembershipVerified, setIsMembershipVerified] = useState<boolean>(false);
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(true);
   const [mfaFactors, setMfaFactors] = useState<SupportedFactor[] | null>(null);
 
   const [backendStaffClaims, setBackendStaffClaims] = useState<{
@@ -126,63 +145,161 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
 
+  const getTokenRef = useRef(clerkAuth.getToken);
+  getTokenRef.current = clerkAuth.getToken;
+
+  const signOutRef = useRef(clerkAuth.signOut);
+  signOutRef.current = clerkAuth.signOut;
+
+  const isMembershipVerifiedRef = useRef(isMembershipVerified);
+  isMembershipVerifiedRef.current = isMembershipVerified;
+
+  const isLoggingOutRef = useRef(false);
+
   // Register Clerk's getToken callback with the API tokenManager service
   useEffect(() => {
-    if (clerkAuth.isSignedIn && clerkAuth.getToken) {
+    if (isClerkEnabled && clerkAuth.isSignedIn && clerkAuth.getToken !== undefined) {
       setTokenProvider(clerkAuth.getToken);
     } else {
       setTokenProvider(null);
     }
-  }, [clerkAuth.isSignedIn, clerkAuth.getToken]);
+  }, [isClerkEnabled, clerkAuth.isSignedIn, clerkAuth.getToken]);
 
-  // Restore stored region code on page reload and verify membership in background
+  const logout = useCallback(async () => {
+    if (isLoggingOutRef.current) return;
+    isLoggingOutRef.current = true;
+
+    if (Platform.OS === "web" && typeof window !== "undefined" && window.history !== undefined) {
+      window.history.replaceState(null, "", "/internal/login");
+    }
+
+    clearTokenState();
+    await removeStoredRegionCode();
+    setIsMembershipVerified(false);
+    setSelectedRegionState(undefined);
+    setMfaFactors(null);
+    setBackendStaffClaims({});
+
+    try {
+      await clearApiCache();
+    } catch {
+      // Ignore SWR cache clear errors
+    }
+
+    try {
+      if (isClerkEnabled && signOutRef.current !== undefined) {
+        await signOutRef.current();
+      }
+    } catch (err: unknown) {
+      console.error("[AuthContext] Clerk signOut error:", err);
+    } finally {
+      if (Platform.OS === "web" && typeof window !== "undefined" && window.history !== undefined) {
+        window.history.replaceState(null, "", "/internal/login");
+      }
+      isLoggingOutRef.current = false;
+    }
+  }, [isClerkEnabled]);
+
+  // Automatically evict stale/unauthorized sessions on terminal 401 while inside the portal
+  useEffect(() => {
+    return subscribeUnauthorized(() => {
+      if (isMembershipVerifiedRef.current) {
+        void logout();
+      }
+    });
+  }, [logout]);
+
+  // Restore stored region code on page reload and verify membership before mounting /dashboard
   useEffect(() => {
     let isMounted = true;
 
     async function restoreAndVerifyRegion() {
-      if (!isClerkEnabled || !clerkAuth.isSignedIn) return;
+      if (!isClerkEnabled) {
+        if (isMounted) setIsRestoringSession(false);
+        return;
+      }
+
+      if (!clerkAuth.isLoaded) {
+        return;
+      }
+
+      if (!clerkAuth.isSignedIn) {
+        clearTokenState();
+        if (isMounted) {
+          setIsMembershipVerified(false);
+          setSelectedRegionState(undefined);
+          setBackendStaffClaims({});
+          setIsRestoringSession(false);
+        }
+        return;
+      }
+
+      if (isMembershipVerifiedRef.current) {
+        if (isMounted) setIsRestoringSession(false);
+        return;
+      }
+
+      if (isMounted) setIsRestoringSession(true);
 
       const storedRegion = await getStoredRegionCode();
-      if (storedRegion !== null && storedRegion.length > 0) {
-        if (!isMounted) return;
-        setSelectedRegionState(storedRegion);
-        setIsMembershipVerified(true);
+      if (storedRegion === null || storedRegion.trim().length === 0) {
+        if (isMounted) setIsRestoringSession(false);
+        return;
+      }
 
-        // Perform membership verification silently in the background
-        try {
-          const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
-          if (token !== null) {
-            setAuthToken(token);
+      try {
+        if (getTokenRef.current !== undefined) {
+          setTokenProvider(getTokenRef.current);
+        }
+        const token = getTokenRef.current ? await getTokenRef.current() : null;
+        if (token !== null && token.length > 0) {
+          setAuthToken(token);
+        }
+
+        const verifiedClaims = await verifyStaffMembership(token, storedRegion);
+        if (isMounted) {
+          setTenantId(verifiedClaims.tenantId ?? null);
+          setBackendStaffClaims({
+            userId: verifiedClaims.userId,
+            tenantId: verifiedClaims.tenantId,
+            tenantName: verifiedClaims.tenantName,
+            roles: verifiedClaims.assignedRoles,
+            permissions: verifiedClaims.effectivePermissions,
+          });
+          setSelectedRegionState(storedRegion);
+          setIsMembershipVerified(true);
+          setIsRestoringSession(false);
+        }
+      } catch (err: unknown) {
+        if (isMounted) {
+          setTenantId(null);
+          setAuthToken(null);
+          await removeStoredRegionCode();
+          setIsMembershipVerified(false);
+          setSelectedRegionState(undefined);
+          setBackendStaffClaims({});
+
+          if (isHttpStatusError(err, 401)) {
+            try {
+              if (signOutRef.current !== undefined) {
+                await signOutRef.current();
+              }
+            } catch {
+              // Ignore Clerk signOut error
+            }
           }
-          const verifiedClaims = await verifyStaffMembership(token, storedRegion);
-          if (isMounted) {
-            setTenantId(verifiedClaims.tenantId ?? null);
-            setBackendStaffClaims({
-              userId: verifiedClaims.userId,
-              tenantId: verifiedClaims.tenantId,
-              tenantName: verifiedClaims.tenantName,
-              roles: verifiedClaims.assignedRoles,
-              permissions: verifiedClaims.effectivePermissions,
-            });
-          }
-        } catch {
-          // If background check fails (e.g. invalid membership), clear region and prompt modal
-          if (isMounted) {
-            setTenantId(null);
-            await removeStoredRegionCode();
-            setIsMembershipVerified(false);
-            setSelectedRegionState(undefined);
-          }
+
+          setIsRestoringSession(false);
         }
       }
     }
 
-    restoreAndVerifyRegion();
+    void restoreAndVerifyRegion();
 
     return () => {
       isMounted = false;
     };
-  }, [isClerkEnabled, clerkAuth.isSignedIn]);
+  }, [isClerkEnabled, clerkAuth.isLoaded, clerkAuth.isSignedIn]);
 
   const loginWithClerk = async (email: string, password: string) => {
     if (!isClerkEnabled) {
@@ -193,6 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Authentication service is not loaded yet. Please try again.");
     }
 
+    await removeStoredRegionCode();
     setIsMembershipVerified(false);
     setSelectedRegionState(undefined);
     setMfaFactors(null);
@@ -211,19 +329,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (pwErr: unknown) {
         const errMsg = pwErr instanceof Error ? pwErr.message : String(pwErr);
-        const errObj = typeof pwErr === "object" && pwErr !== null ? (pwErr as Record<string, unknown>) : {};
+        const errCode = typeof pwErr === "object" && pwErr !== null ? Reflect.get(pwErr, "code") : undefined;
+        const rawErrors = typeof pwErr === "object" && pwErr !== null ? Reflect.get(pwErr, "errors") : undefined;
+        const hasStrategyInvalidEntry =
+          Array.isArray(rawErrors) &&
+          rawErrors.some(
+            (entry: unknown) =>
+              typeof entry === "object" &&
+              entry !== null &&
+              Reflect.get(entry, "code") === "strategy_for_user_invalid"
+          );
         const isStrategyInvalid =
           errMsg.includes("strategy_for_user_invalid") ||
           errMsg.includes("verification strategy is not valid") ||
-          errObj.code === "strategy_for_user_invalid" ||
-          (Array.isArray(errObj.errors) &&
-            (errObj.errors as Array<{ code?: string }>).some(
-              (e) => e.code === "strategy_for_user_invalid"
-            ));
+          errCode === "strategy_for_user_invalid" ||
+          hasStrategyInvalidEntry;
 
-        const rawSignInObj = signIn as unknown as { create?: (opts: { identifier: string }) => Promise<unknown> };
-        if (isStrategyInvalid && typeof rawSignInObj.create === "function") {
-          await rawSignInObj.create({ identifier: email });
+        const createFn = typeof signIn === "object" && signIn !== null ? Reflect.get(signIn, "create") : undefined;
+        if (isStrategyInvalid && typeof createFn === "function") {
+          await Reflect.apply(createFn, signIn, [{ identifier: email }]);
         } else {
           throw pwErr;
         }
@@ -323,7 +447,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleConfirmRegion = async (selectedRegionCode: string) => {
     try {
+      if (clerkAuth.getToken !== undefined) {
+        setTokenProvider(clerkAuth.getToken);
+      }
       const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
+      if (token !== null && token.length > 0) {
+        setAuthToken(token);
+      }
       const verifiedClaims = await verifyStaffMembership(token, selectedRegionCode);
 
       setTenantId(verifiedClaims.tenantId ?? null);
@@ -416,25 +546,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = async () => {
-    setTenantId(null);
-    await removeStoredRegionCode();
-    setIsMembershipVerified(false);
-    setSelectedRegionState(undefined);
-    setMfaFactors(null);
-    if (isClerkEnabled && clerkAuth.signOut !== undefined) {
-      await clerkAuth.signOut();
-    }
-    setBackendStaffClaims({});
-  };
-
-  // User profile derived from Clerk & Backend verified claims
+  // User profile derived strictly from verified Clerk & Backend claims (never mock-authenticated)
   let user: UserProfile | null = null;
-  const isAuthenticated = isClerkEnabled
-    ? Boolean(clerkAuth.isSignedIn) && isMembershipVerified
-    : true;
+  const isAuthenticated =
+    isClerkEnabled &&
+    Boolean(clerkAuth.isLoaded) &&
+    Boolean(clerkAuth.isSignedIn) &&
+    isMembershipVerified;
 
-  if (isClerkEnabled && clerkUser.user !== null && clerkUser.user !== undefined) {
+  if (isClerkEnabled && Boolean(clerkAuth.isSignedIn) && clerkUser.user !== null && clerkUser.user !== undefined) {
     const cu = clerkUser.user;
     const primaryEmail = cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses[0]?.emailAddress ?? "";
 
@@ -452,22 +572,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       roles: backendStaffClaims.roles,
       permissions: backendStaffClaims.permissions,
     };
-  } else if (!isClerkEnabled) {
-    user = {
-      id: "00000000-0000-0000-0000-000000000001",
-      name: "Staff User",
-      email: "staff@ntc.gov.ph",
-      region: selectedRegionState ?? "NCR",
-      tenantName: "NTC Regional Office - NCR",
-      roles: ["RegionalStaff"],
-      permissions: ["ViewQueues"],
-    };
   }
 
-  const isLoading = isClerkEnabled ? !clerkAuth.isLoaded : false;
+  const isLoading = isClerkEnabled ? !clerkAuth.isLoaded || isRestoringSession : false;
 
-  // Show Region Selection Modal when signed in with Clerk but region is not yet confirmed
-  const showRegionModal = isClerkEnabled && Boolean(clerkAuth.isSignedIn) && !isMembershipVerified;
+  // Show Region Selection Modal when signed in with Clerk, session check completed, and region is not yet confirmed
+  const showRegionModal =
+    isClerkEnabled &&
+    Boolean(clerkAuth.isLoaded) &&
+    Boolean(clerkAuth.isSignedIn) &&
+    !isRestoringSession &&
+    !isMembershipVerified;
 
   return (
     <AuthContext.Provider
