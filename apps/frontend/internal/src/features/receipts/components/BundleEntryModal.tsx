@@ -23,7 +23,7 @@ interface BundleEntryModalProps {
 export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: BundleEntryModalProps) {
   const { colors } = useTheme();
   const { user } = useAuthContext();
-  const { members, isLoading: isLoadingMembers } = useTenantMembers(tenantId);
+  const { members, isLoading: isLoadingMembers } = useTenantMembers(visible ? tenantId : undefined);
 
   const [bookletNumber, setBookletNumber] = useState('');
   const [prefix, setPrefix] = useState('NTC-');

@@ -235,51 +235,65 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const getPermissionsForRole = useCallback(
     (role: UserRole): RolePermissionConfig => {
       const base = permissionMap[role] ?? DEFAULT_PERMISSIONS[role];
+      const hasLoadedPermissions =
+        user?.permissions !== undefined &&
+        user.permissions !== null &&
+        Array.isArray(user.permissions) &&
+        user.permissions.length > 0;
+      const isFullAdmin = isSuperAdmin || isAdmin || role === 'Admin';
 
       const canForwardToAccountant =
-        isSuperAdmin ||
+        isFullAdmin ||
         hasPermission('applications.evaluate') ||
         hasPermission('billing.create') ||
-        base.canForwardToAccountant;
+        (!hasLoadedPermissions && base.canForwardToAccountant);
 
       const canApproveAsAccountant =
-        isSuperAdmin ||
+        isFullAdmin ||
         hasPermission('billing.soa_approve') ||
-        base.canApproveAsAccountant;
+        (!hasLoadedPermissions && base.canApproveAsAccountant);
 
       const canVerifyCashier =
-        isSuperAdmin ||
+        isFullAdmin ||
+        role === 'Cashier' ||
         hasPermission('billing.collect') ||
         hasPermission('receipts.issue') ||
-        base.canVerifyCashier;
+        (!hasLoadedPermissions && base.canVerifyCashier);
 
       const canIssueDocument =
-        isSuperAdmin ||
+        isFullAdmin ||
         hasPermission('applications.issue') ||
         hasPermission('permits.issue') ||
         hasPermission('licenses.issue') ||
-        base.canIssueDocument;
+        (!hasLoadedPermissions && base.canIssueDocument);
 
       const canApprove =
-        isSuperAdmin ||
+        isFullAdmin ||
         hasPermission('applications.approve') ||
-        base.canApprove;
+        (!hasLoadedPermissions && base.canApprove);
 
       const canDecline =
-        isSuperAdmin ||
+        isFullAdmin ||
         hasPermission('applications.approve') ||
         hasPermission('billing.soa_return') ||
+        hasPermission('billing.op_return') ||
         hasPermission('applications.evaluate') ||
-        base.canDecline;
+        (!hasLoadedPermissions && base.canDecline);
 
       const canEndorse =
-        isSuperAdmin ||
+        isFullAdmin ||
         hasPermission('applications.evaluate') ||
         hasPermission('applications.approve') ||
-        base.canEndorse;
+        hasPermission('billing.op_return') ||
+        (!hasLoadedPermissions && base.canEndorse);
+
+      const computedTabs: QueueTab[] = ['activity', 'pending', 'history'];
+      if (canIssueDocument) {
+        computedTabs.push('issuance');
+      }
 
       return {
-        visibleTabs: base.visibleTabs,
+        visibleTabs: hasLoadedPermissions ? computedTabs : base.visibleTabs,
         canForwardToAccountant,
         canApproveAsAccountant,
         canVerifyCashier,
@@ -294,7 +308,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         hasAllPermissions,
       };
     },
-    [permissionMap, isSuperAdmin, isAdmin, hasPermission, hasAnyPermission, hasAllPermissions]
+    [permissionMap, user?.permissions, isSuperAdmin, isAdmin, hasPermission, hasAnyPermission, hasAllPermissions]
   );
 
   return (

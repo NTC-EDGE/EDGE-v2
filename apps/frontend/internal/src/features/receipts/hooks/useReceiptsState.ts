@@ -30,12 +30,52 @@ function isPaymentMethod(value: string): value is PaymentMethod {
   return value === 'Cash' || value === 'Check' || value === 'Online';
 }
 
-export function useReceiptsState() {
+export interface UseReceiptsStateOptions {
+  hasAccess?: boolean;
+  canViewReceiptsTab?: boolean;
+  canViewBookletsTab?: boolean;
+  canViewDepositsTab?: boolean;
+  canViewAccountsTab?: boolean;
+  canViewReportsTab?: boolean;
+}
+
+export function useReceiptsState(options: UseReceiptsStateOptions | boolean = true) {
+  const normalizedOptions: UseReceiptsStateOptions =
+    typeof options === 'boolean'
+      ? {
+          hasAccess: options,
+          canViewReceiptsTab: options,
+          canViewBookletsTab: options,
+          canViewDepositsTab: options,
+          canViewAccountsTab: options,
+          canViewReportsTab: options,
+        }
+      : options;
+
+  const hasAccess = normalizedOptions.hasAccess ?? true;
+  const canViewReceiptsTab = hasAccess && (normalizedOptions.canViewReceiptsTab ?? true);
+  const canViewBookletsTab = hasAccess && (normalizedOptions.canViewBookletsTab ?? true);
+  const canViewDepositsTab = hasAccess && (normalizedOptions.canViewDepositsTab ?? true);
+  const canViewAccountsTab = hasAccess && (normalizedOptions.canViewAccountsTab ?? true);
+  const canViewReportsTab = hasAccess && (normalizedOptions.canViewReportsTab ?? true);
+
   const { user } = useAuthContext();
-  const tenantId = user?.tenantId ?? '';
+  const tenantId = hasAccess ? (user?.tenantId ?? '') : '';
   const currentUserId = user?.id ?? user?.email ?? null;
 
-  const [activeTab, setActiveTab] = useState<ReceiptTab>('receipts');
+  const initialTab: ReceiptTab = canViewReceiptsTab
+    ? 'receipts'
+    : canViewBookletsTab
+    ? 'booklets'
+    : canViewDepositsTab
+    ? 'deposits'
+    : canViewAccountsTab
+    ? 'accounts'
+    : canViewReportsTab
+    ? 'reports'
+    : 'receipts';
+
+  const [activeTab, setActiveTab] = useState<ReceiptTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
@@ -84,18 +124,28 @@ export function useReceiptsState() {
     return { fromDate: start.toISOString(), toDate: end.toISOString() };
   }, [reportDateRange]);
 
-  // Conditional tenant IDs to lazily call endpoints only when the tab or modal is active
-  // Keep pendingPaymentsTenantId active across Receipt Management tabs so the tab badge count remains accurate
-  const isReceiptsActive = activeTab === 'receipts' || activeTab === 'pending_payments';
-  const pendingPaymentsTenantId = tenantId;
-  const bookletsTenantId = (activeTab === 'booklets' || isBundleModalOpen || isIssueModalOpen) ? tenantId : null;
-  const nextOrTenantId = (isReceiptsActive || isIssueModalOpen) ? tenantId : null;
+  // Conditional tenant IDs to lazily call endpoints only when the tab or modal is active AND user has permission
+  const isReceiptsActive = canViewReceiptsTab && (activeTab === 'receipts' || activeTab === 'pending_payments');
+  const pendingPaymentsTenantId = canViewReceiptsTab ? tenantId : null;
+  const bookletsTenantId =
+    (canViewBookletsTab && (activeTab === 'booklets' || isBundleModalOpen)) ||
+    (canViewReceiptsTab && isIssueModalOpen)
+      ? tenantId
+      : null;
+  const nextOrTenantId = canViewReceiptsTab && (isReceiptsActive || isIssueModalOpen) ? tenantId : null;
   const receiptsTenantId = isReceiptsActive ? tenantId : null;
-  const depositsTenantId = activeTab === 'deposits' ? tenantId : null;
-  const undepositedTenantId = (activeTab === 'deposits' || isDepositModalOpen) ? tenantId : null;
-  const bankAccountsTenantId = (activeTab === 'accounts' || activeTab === 'deposits' || isDepositModalOpen || isBankAccountModalOpen) ? tenantId : null;
-  const rcdReportTenantId = (activeTab === 'reports' && reportSubTab === 'rcd') ? tenantId : null;
-  const cancelledReportTenantId = (activeTab === 'reports' && reportSubTab === 'cancelled') ? tenantId : null;
+  const depositsTenantId = canViewDepositsTab && activeTab === 'deposits' ? tenantId : null;
+  const undepositedTenantId =
+    canViewDepositsTab && (activeTab === 'deposits' || isDepositModalOpen) ? tenantId : null;
+  const bankAccountsTenantId =
+    (canViewAccountsTab && (activeTab === 'accounts' || isBankAccountModalOpen)) ||
+    (canViewDepositsTab && (activeTab === 'deposits' || isDepositModalOpen))
+      ? tenantId
+      : null;
+  const rcdReportTenantId =
+    canViewReportsTab && activeTab === 'reports' && reportSubTab === 'rcd' ? tenantId : null;
+  const cancelledReportTenantId =
+    canViewReportsTab && activeTab === 'reports' && reportSubTab === 'cancelled' ? tenantId : null;
 
   // SWR hooks (Invoked on-demand per tab to prevent backend overload)
   const {

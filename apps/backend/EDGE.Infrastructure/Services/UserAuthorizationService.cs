@@ -398,10 +398,7 @@ public class UserAuthorizationService : IUserAuthorizationService
                 Permissions.ReadRoles,
                 Permissions.ReadServices,
                 Permissions.ReadRequirements,
-                Permissions.ReadSchedules,
-                Permissions.ReadUsers,
-                Permissions.ReadChat,
-                Permissions.ReadMeetings
+                Permissions.ReadUsers
             };
 
             foreach (var basePerm in basePermissions)
@@ -409,6 +406,42 @@ public class UserAuthorizationService : IUserAuthorizationService
                 if (!dbPermissions.Contains(basePerm))
                 {
                     dbPermissions.Add(basePerm);
+                }
+            }
+
+            var receiptActionPermissions = new[]
+            {
+                Permissions.ReceiptsBundleEntry,
+                Permissions.ReceiptsIssue,
+                Permissions.ReceiptsEdit,
+                Permissions.ReceiptsCancel,
+                Permissions.ReceiptsDeposit,
+                Permissions.BankAccountsManage,
+                Permissions.CashierReports,
+                Permissions.CollectPayment,
+                Permissions.ReturnOp
+            };
+
+            if (memberRoleKeys.Any(k => k.Equals("cashier", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!dbPermissions.Contains(Permissions.ReceiptsRead))
+                {
+                    dbPermissions.Add(Permissions.ReceiptsRead);
+                }
+                foreach (var cashierPerm in receiptActionPermissions)
+                {
+                    if (!dbPermissions.Contains(cashierPerm))
+                    {
+                        dbPermissions.Add(cashierPerm);
+                    }
+                }
+            }
+            else if (receiptActionPermissions.Any(p => dbPermissions.Contains(p)))
+            {
+                // Anyone granted any Receipt Management action permission by Admin must also have ReceiptsRead
+                if (!dbPermissions.Contains(Permissions.ReceiptsRead))
+                {
+                    dbPermissions.Add(Permissions.ReceiptsRead);
                 }
             }
 
