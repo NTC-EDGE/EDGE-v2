@@ -1,590 +1,592 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, useWindowDimensions, Pressable, Modal, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  useWindowDimensions,
+  Pressable,
+  Modal,
+  ScrollView,
+} from 'react-native';
 import { Meeting, meetService, safeAsync, realTimeService } from '@edge/api';
 import { AlertToast, Button, Icon, useTheme } from '@edge/ui';
-import { useMeetingRoom, RecordingAccessPermission } from '../hooks/useMeetingRoom';
+import { useMeetingRoom } from '../hooks/useMeetingRoom';
+import { MeetingRoomController } from '../context/MeetingSessionContext';
 import { VideoTile } from './VideoTile';
 import { ScreenShareStage } from './ScreenShareStage';
 import { MeetingControlsBar } from './MeetingControlsBar';
 import { FloatingReactionsOverlay } from './FloatingReactionsOverlay';
 import { InMeetingChatSidebar } from './InMeetingChatSidebar';
+import { InMeetingParticipantsSidebar } from './InMeetingParticipantsSidebar';
+import { InMeetingPollsSidebar } from './InMeetingPollsSidebar';
 import { InMeetingPollModal } from '../forms/InMeetingPollModal';
 import { InviteParticipantModal } from '../forms/InviteParticipantModal';
+import { DeviceSettingsModal } from '../forms/DeviceSettingsModal';
 import { CreatePollFormValues } from '../schemas/meetSchemas';
-
-interface PendingJoinRequest {
-  connectionId: string;
-  userId: string;
-  userName: string;
-  avatarUrl?: string;
-  meetingCode: string;
-}
+import { copyTextToClipboard, getMeetingJoinLink, isWebMediaSupported } from '../utils/webDomHelpers';
 
 interface ActiveMeetingRoomProps {
   meeting: Meeting;
   currentUserId?: string;
   currentUserName?: string;
+  roomController?: MeetingRoomController;
   onLeave: () => void;
+  onEndForEveryone?: () => void;
 }
 
 export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
   meeting: initialMeeting,
   currentUserId,
   currentUserName,
+  roomController,
   onLeave,
+  onEndForEveryone,
 }) => {
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 1024;
 
-  const [meeting, setMeeting] = useState<Meeting>(initialMeeting);
-  const [isPollOpen, setIsPollOpen] = useState<boolean>(false);
+  // Use shared MeetingSessionContext controller when provided, or fallback for standalone usage
+  const standaloneRoom = useMeetingRoom(
+    roomController ? null : initialMeeting,
+    currentUserId,
+    currentUserName,
+    undefined,
+    () => onLeave()
+  );
+  const room = roomController ?? standaloneRoom;
+  const activeMeeting = room.meeting ?? initialMeeting;
+
+  const [isCreatePollOpen, setIsCreatePollOpen] = useState<boolean>(false);
   const [isInviteOpen, setIsInviteOpen] = useState<boolean>(false);
-  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
-  const [isRecordingSettingsOpen, setIsRecordingSettingsOpen] = useState<boolean>(false);
-  const [showExistingSessionModal, setShowExistingSessionModal] = useState<boolean>(false);
-  const [pendingRequests, setPendingRequests] = useState<PendingJoinRequest[]>([]);
+  const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState<boolean>(false);
+  const [isPeopleOpen, setIsPeopleOpen] = useState<boolean>(false);
+  const [isPollsOpen, setIsPollsOpen] = useState<boolean>(false);
+  const [useEqualPairGrid, setUseEqualPairGrid] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
+  const [localToast, setLocalToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
 
   const showToast = (message: string, variant: 'success' | 'error') => {
-    setToast({ message, variant });
-    setTimeout(() => setToast(null), 3500);
+    setLocalToast({ message, variant });
+    setTimeout(() => setLocalToast(null), 3800);
   };
 
-  const {
-    isHost,
-    isMicMuted,
-    isVideoMuted,
-    isHandRaised,
-    isScreenSharing,
-    isRecording,
-    formattedRecordingTime,
-    recordingAccess,
-    setRecordingAccess,
-    floatingEmojis,
-    dismissReaction,
-    localStream,
-    screenStream,
-    remoteStreams,
-    connectedUserIds,
-    isSpeaking,
-    mediaError,
-    toggleMic,
-    toggleVideo,
-    toggleScreenShare,
-    toggleRecording,
-    toggleHandRaise,
-    triggerReaction,
-    leaveAndResetRoom,
-  } = useMeetingRoom(meeting, currentUserId);
-
   useEffect(() => {
-    if (mediaError) {
-      showToast(mediaError, 'error');
+    if (room.mediaError) {
+      showToast(room.mediaError, 'error');
     }
-  }, [mediaError]);
+  }, [room.mediaError]);
 
-  // Web Floating Window / Picture-in-Picture when user switches browser tab or minimizes window
   useEffect(() => {
-    if (typeof document === 'undefined' || !('pictureInPictureEnabled' in document)) return;
-
-    const handleVisibilityChange = async () => {
-      if (document.hidden) {
-        const videos = document.querySelectorAll('video');
-        for (const video of Array.from(videos)) {
-          if (video && video.srcObject && !document.pictureInPictureElement) {
-            try {
-              await video.requestPictureInPicture();
-              break;
-            } catch {
-              // Handled browser PiP policy
-            }
-          }
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  // Real-time meeting ended listener
-  useEffect(() => {
-    const unsubEnded = realTimeService.onMeetingEnded((code) => {
-      if (code === meeting.meetingCode) {
-        showToast('The host has ended this meeting.', 'error');
-        leaveAndResetRoom();
-        setTimeout(() => {
-          onLeave();
-        }, 1200);
-      }
-    });
-
-    const unsubSessionDetected = realTimeService.onExistingSessionDetected((code) => {
-      if (code === meeting.meetingCode) {
-        setShowExistingSessionModal(true);
-      }
-    });
-
-    const unsubSessionSwitched = realTimeService.onSessionSwitchedToAnotherDevice((code) => {
-      if (code === meeting.meetingCode) {
-        showToast('Your session was transferred to another device.', 'error');
-        leaveAndResetRoom();
-        setTimeout(() => {
-          onLeave();
-        }, 1200);
-      }
-    });
-
-    return () => {
-      unsubEnded();
-      unsubSessionDetected();
-      unsubSessionSwitched();
-    };
-  }, [meeting.meetingCode, leaveAndResetRoom, onLeave]);
-
-  // Real-time host admission listener
-  useEffect(() => {
-    if (!isHost) return;
-
-    const unsub = realTimeService.onJoinRequested((req) => {
-      if (req.meetingCode === meeting.meetingCode) {
-        setPendingRequests((prev) => {
-          if (prev.some((r) => r.connectionId === req.connectionId)) return prev;
-          return [...prev, req];
-        });
-        showToast(`${req.userName} is in the waiting room.`, 'success');
-      }
-    });
-
-    return () => {
-      unsub();
-    };
-  }, [isHost, meeting.meetingCode]);
-
-  const handleAdmitParticipant = async (req: PendingJoinRequest) => {
-    try {
-      const sanitizedUserId = req.userId && req.userId.length > 0 ? req.userId : '00000000-0000-0000-0000-000000000000';
-      await realTimeService.admitParticipant(meeting.meetingCode, req.connectionId, sanitizedUserId);
-      setPendingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
-      showToast(`Admitted ${req.userName} to the meeting.`, 'success');
-    } catch {
-      showToast(`Failed to admit ${req.userName}. Please try again.`, 'error');
+    if (room.roomNotice) {
+      showToast(room.roomNotice.message, room.roomNotice.variant);
+      room.clearNotice();
     }
-  };
+  }, [room.roomNotice, room.clearNotice]);
 
-  const handleDenyParticipant = async (req: PendingJoinRequest) => {
-    try {
-      const sanitizedUserId = req.userId && req.userId.length > 0 ? req.userId : '00000000-0000-0000-0000-000000000000';
-      await realTimeService.denyParticipant(meeting.meetingCode, req.connectionId, sanitizedUserId);
-      setPendingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
-      showToast(`Declined join request from ${req.userName}.`, 'error');
-    } catch {
-      showToast(`Failed to decline ${req.userName}.`, 'error');
-    }
-  };
-
-  const handleToggleRecording = () => {
-    toggleRecording();
-    if (!isRecording) {
-      showToast('Meeting recording started. All participants have been notified.', 'success');
+  const handleToggleSidebar = (panel: 'people' | 'polls' | 'chat') => {
+    if (panel === 'people') {
+      setIsPeopleOpen((prev) => !prev);
+      setIsPollsOpen(false);
+      room.setIsChatOpen(false);
+    } else if (panel === 'polls') {
+      setIsPollsOpen((prev) => !prev);
+      setIsPeopleOpen(false);
+      room.setIsChatOpen(false);
     } else {
-      showToast('Meeting recording stopped and saved.', 'success');
+      room.toggleChat();
+      setIsPeopleOpen(false);
+      setIsPollsOpen(false);
+    }
+  };
+
+  const handleCopyMeetingLink = async () => {
+    const ok = await copyTextToClipboard(getMeetingJoinLink(activeMeeting.meetingCode));
+    if (ok) {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2400);
+      showToast('Meeting join link copied to clipboard.', 'success');
     }
   };
 
   const handleCreatePoll = async (values: CreatePollFormValues) => {
     setIsSubmitting(true);
     const options = [values.option1, values.option2];
-    if (values.option3) options.push(values.option3);
+    if (values.option3 && values.option3.trim()) options.push(values.option3.trim());
+    if (values.option4 && values.option4.trim()) options.push(values.option4.trim());
 
-    const [poll, err] = await safeAsync(
-      meetService.createPoll({
-        meetingCode: meeting.meetingCode,
-        question: values.question,
-        options,
-        isAnonymous: values.isAnonymous,
-      })
-    );
+    await room.createPoll(values.question, options, values.isAnonymous);
     setIsSubmitting(false);
-    if (err !== null) {
-      showToast(err, 'error');
-      return;
-    }
-    if (poll !== null) {
-      showToast('Live poll published to all participants.', 'success');
-    }
+    setIsPollsOpen(true);
   };
 
   const handleInvite = async (userIds: string[]) => {
     setIsSubmitting(true);
-    const [updated, err] = await safeAsync(meetService.inviteParticipants(meeting.meetingCode, userIds));
+    const [updated, err] = await safeAsync(
+      meetService.inviteParticipants(activeMeeting.meetingCode, userIds, true)
+    );
     setIsSubmitting(false);
     if (err !== null) {
       showToast(err, 'error');
       return;
     }
     if (updated !== null) {
-      setMeeting(updated);
-      showToast(`Invited ${userIds.length} colleague(s) successfully.`, 'success');
+      room.setMeeting(updated);
+      showToast(`Invited ${userIds.length} colleague(s).`, 'success');
     }
   };
 
   const handleRemoveParticipant = async (userId: string) => {
     setIsSubmitting(true);
-    const [success, err] = await safeAsync(meetService.removeParticipant(meeting.meetingCode, userId));
+    const [success, err] = await safeAsync(
+      meetService.removeParticipant(activeMeeting.meetingCode, userId)
+    );
     setIsSubmitting(false);
     if (err !== null) {
       showToast(err, 'error');
       return;
     }
     if (success) {
-      setMeeting((prev) => ({
-        ...prev,
-        participants: prev.participants.filter((p) => p.userId !== userId),
-      }));
+      room.setMeeting((prev) =>
+        prev
+          ? {
+              ...prev,
+              participants: prev.participants.filter((p) => p.userId !== userId),
+            }
+          : prev
+      );
       showToast('Participant removed from meeting.', 'success');
     }
   };
 
-  const handleLeaveRoom = async () => {
-    if (isHost) {
-      await safeAsync(
-        meetService.executeAction({
-          meetingCode: meeting.meetingCode,
-          actionType: 'LeaveMeeting',
-        })
-      );
+  const handleLeaveCall = async () => {
+    if (!roomController) {
+      await room.leaveAndResetRoom();
     }
-    leaveAndResetRoom();
     onLeave();
   };
 
-  const handleEndMeetingForEveryone = async () => {
-    await safeAsync(
-      meetService.executeAction({
-        meetingCode: meeting.meetingCode,
-        actionType: 'EndMeeting',
-      })
+  const handleEndCallForAll = async () => {
+    if (onEndForEveryone) {
+      onEndForEveryone();
+      return;
+    }
+    await room.endMeetingForEveryone();
+    onLeave();
+  };
+
+  const currentParticipants = room.activeConnectedParticipants;
+  const openPollCount = room.polls.filter((p) => !p.isClosed).length;
+
+  // Determine featured/stage participant when in Speaker, Spotlight, or Pinned view
+  const featuredUserId =
+    room.pinnedUserId ??
+    room.spotlightedUserId ??
+    (room.layoutMode === 'speaker'
+      ? room.speakingUserIds.find((id) => id !== currentUserId && id !== 'self') ??
+        currentParticipants.find((p) => p.userId !== currentUserId && p.userId !== 'self')?.userId ??
+        null
+      : null);
+
+  const featuredParticipant = featuredUserId
+    ? currentParticipants.find((p) => p.userId === featuredUserId) ?? null
+    : null;
+
+  const isTwoPersonFloatingView =
+    room.activeScreenShare === null &&
+    featuredParticipant === null &&
+    currentParticipants.length === 2 &&
+    !useEqualPairGrid;
+
+  const remoteInPair = isTwoPersonFloatingView
+    ? currentParticipants.find((p) => p.userId !== currentUserId && p.userId !== 'self') ?? null
+    : null;
+  const selfInPair = isTwoPersonFloatingView
+    ? currentParticipants.find((p) => p.userId === currentUserId || p.userId === 'self') ?? null
+    : null;
+
+  const renderTileForParticipant = (
+    p: (typeof currentParticipants)[number],
+    mode: 'grid' | 'solo' | 'strip' | 'floating' = 'grid'
+  ) => {
+    const isSelf = p.userId === currentUserId || p.userId === 'self';
+    const media = room.peerMediaStates[p.userId];
+    const remoteStream = room.remoteStreams[p.userId] ?? null;
+    const isTileVideoMuted = isSelf ? room.isVideoMuted : Boolean(media?.isVideoMuted);
+    const isTileMicMuted = isSelf
+      ? room.isMicMuted
+      : Boolean(media?.isMicMuted ?? p.isMutedByHost);
+    const isTileSpeaking = room.speakingUserIds.includes(p.userId);
+    const isTilePinned = room.pinnedUserId === p.userId;
+    const isTileSpotlighted = room.spotlightedUserId === p.userId;
+
+    return (
+      <VideoTile
+        key={`${mode}_${p.userId}`}
+        participant={p}
+        isSelf={isSelf}
+        stream={isSelf ? room.localStream : remoteStream}
+        isVideoMuted={isTileVideoMuted}
+        isMicMuted={isTileMicMuted}
+        isSpeaking={isTileSpeaking}
+        isHandRaised={isSelf ? room.isHandRaised : p.isHandRaised}
+        isPinned={isTilePinned}
+        isSpotlighted={isTileSpotlighted}
+        canModerate={room.isHostOrAdmin}
+        speakerDeviceId={room.selectedSpeakerId}
+        totalParticipants={currentParticipants.length}
+        layoutMode={mode}
+        onTogglePin={() =>
+          room.setPinnedUserId(room.pinnedUserId === p.userId ? null : p.userId)
+        }
+        onMuteParticipant={() => void room.muteParticipant(p.userId)}
+        onSpotlightParticipant={() =>
+          void room.spotlightParticipant(isTileSpotlighted ? null : p.userId)
+        }
+      />
     );
-    leaveAndResetRoom();
-    showToast('Meeting ended for all participants.', 'success');
-    onLeave();
   };
-
-  // Only render participants who have ACTUALLY joined the call into the video grid
-  const allParticipants = [...meeting.participants];
-  const selfParticipant = allParticipants.find((p) => p.userId === currentUserId) ?? {
-    userId: currentUserId ?? 'self',
-    fullName: currentUserName ?? 'You',
-    email: '',
-    role: isHost ? 'Owner' : 'Member',
-    isMutedByHost: false,
-    isHandRaised: isHandRaised,
-    isSpotlighted: false,
-  };
-
-  const activeConnectedParticipants = allParticipants.filter((p) => {
-    if (p.userId === currentUserId || p.userId === 'self') return false;
-    return connectedUserIds.includes(p.userId) || Boolean(remoteStreams[p.userId]);
-  });
-
-  const currentParticipants = [selfParticipant, ...activeConnectedParticipants];
 
   return (
     <View style={styles.roomContainer}>
-      {toast !== null && (
+      {localToast !== null && (
         <View style={styles.toastWrapper} pointerEvents="box-none">
-          <AlertToast message={toast.message} variant={toast.variant} onDismiss={() => setToast(null)} />
+          <AlertToast
+            message={localToast.message}
+            variant={localToast.variant}
+            onDismiss={() => setLocalToast(null)}
+          />
         </View>
       )}
 
       {/* Top Meeting Header Bar */}
-      <View style={[styles.topBar, { backgroundColor: 'rgba(15, 23, 42, 0.85)' }]}>
+      <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.meetingTitleText} numberOfLines={1}>
-            {meeting.title}
+            {activeMeeting.title}
           </Text>
-          <View style={styles.meetingBadge}>
-            <Text style={styles.meetingBadgeText}>{meeting.meetingCode}</Text>
+
+          <Pressable style={styles.meetingBadge} onPress={() => void handleCopyMeetingLink()}>
+            <Icon name={copiedLink ? 'check' : 'link'} size={11} color="#93C5FD" />
+            <Text style={styles.meetingBadgeText}>
+              {copiedLink ? 'Link Copied' : activeMeeting.meetingCode}
+            </Text>
+          </Pressable>
+
+          <View style={styles.durationPill}>
+            <Icon name="clock" size={11} color="#94A3B8" />
+            <Text style={styles.durationText}>{room.formattedCallDuration}</Text>
           </View>
         </View>
 
-        {isRecording && (
-          <Pressable
-            style={styles.recordingBanner}
-            onPress={() => isHost && setIsRecordingSettingsOpen(true)}
-            accessibilityLabel="Recording status"
-          >
-            <View style={styles.redDot} />
-            <Text style={styles.recordingText}>REC {formattedRecordingTime}</Text>
-            {isHost && <Icon name="settings" size={12} color="#EF4444" />}
-          </Pressable>
-        )}
+        <View style={styles.topBarRight}>
+          {room.isAnyRecordingActive && (
+            <View style={styles.recordingBanner}>
+              <View style={styles.redDot} />
+              <Text style={styles.recordingText}>
+                {room.isRecording
+                  ? `REC ${room.formattedRecordingTime}`
+                  : `REC • ${room.remoteRecordingHost ?? 'Host'}`}
+              </Text>
+            </View>
+          )}
 
-        {isScreenSharing && (
-          <View style={styles.screenShareBanner}>
-            <Icon name="monitor" size={14} color="#60A5FA" />
-            <Text style={styles.screenShareText}>Sharing Screen</Text>
-          </View>
-        )}
+          {room.isLargeRoomEconomyMode && (
+            <View style={styles.economyBadge}>
+              <Text style={styles.economyText}>Active Speaker Video Mode (9+)</Text>
+            </View>
+          )}
+
+          {currentParticipants.length >= 2 && room.activeScreenShare === null && (
+            <Pressable
+              style={styles.layoutSwitchBtn}
+              onPress={() => {
+                if (currentParticipants.length === 2 && featuredParticipant === null) {
+                  setUseEqualPairGrid((v) => !v);
+                } else {
+                  room.setPinnedUserId(null);
+                  room.setLayoutMode(room.layoutMode === 'speaker' ? 'auto' : 'speaker');
+                }
+              }}
+            >
+              <Icon name="grid" size={12} color="#E2E8F0" />
+              <Text style={styles.layoutSwitchText}>
+                {currentParticipants.length === 2 && featuredParticipant === null
+                  ? useEqualPairGrid
+                    ? 'PiP View'
+                    : 'Equal Grid'
+                  : room.layoutMode === 'speaker'
+                    ? 'Grid View'
+                    : 'Speaker View'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
+      {/* Native Mobile Notice */}
+      {!isWebMediaSupported() && (
+        <View style={styles.nativeInfoBanner}>
+          <Icon name="info" size={14} color="#93C5FD" />
+          <Text style={styles.nativeInfoText}>
+            Signaling, live chat, polls, and moderation are active. Join from a Web/Desktop browser for live camera & audio streaming.
+          </Text>
+        </View>
+      )}
+
       {/* Host Waiting Room Admission Notification Banner */}
-      {isHost && pendingRequests.length > 0 && (
+      {room.isHostOrAdmin && room.waitingRequests.length > 0 && (
         <View style={styles.waitingRoomHostBanner}>
           <View style={styles.waitingRoomBannerLeft}>
             <View style={styles.waitingBadgePulse}>
-              <Icon name="users" size={14} color="#FFFFFF" />
+              <Icon name="users" size={13} color="#FFFFFF" />
             </View>
             <Text style={styles.waitingRoomBannerText}>
-              {pendingRequests.length === 1
-                ? `${pendingRequests[0].userName} is in the waiting room`
-                : `${pendingRequests.length} people are in the waiting room`}
+              {room.waitingRequests.length === 1 && room.waitingRequests[0]
+                ? `${room.waitingRequests[0].userName} is waiting in the lobby`
+                : `${room.waitingRequests.length} people are waiting in the lobby`}
             </Text>
           </View>
 
           <View style={styles.waitingRoomActionsRow}>
-            {pendingRequests.map((req) => (
+            {room.waitingRequests.slice(0, 3).map((req) => (
               <View key={req.connectionId} style={styles.pendingUserChip}>
                 <Text style={styles.pendingUserName} numberOfLines={1}>
                   {req.userName}
                 </Text>
                 <Pressable
                   style={styles.admitBtn}
-                  onPress={() => handleAdmitParticipant(req)}
-                  accessibilityLabel={`Admit ${req.userName}`}
+                  onPress={() => void room.admitWaitingParticipant(req)}
                 >
                   <Text style={styles.admitBtnText}>Admit</Text>
                 </Pressable>
                 <Pressable
                   style={styles.denyBtn}
-                  onPress={() => handleDenyParticipant(req)}
-                  accessibilityLabel={`Deny ${req.userName}`}
+                  onPress={() => void room.denyWaitingParticipant(req)}
                 >
-                  <Icon name="x" size={14} color="#EF4444" />
+                  <Icon name="x" size={13} color="#EF4444" />
                 </Pressable>
               </View>
             ))}
+            {room.waitingRequests.length > 1 && (
+              <Pressable
+                style={styles.admitBtn}
+                onPress={() => void room.admitAllWaitingParticipants()}
+              >
+                <Text style={styles.admitBtnText}>Admit All</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       )}
 
+      {/* Main Stage Area */}
       <View style={styles.stageWrapper}>
-        {screenStream !== null ? (
-          <View style={[styles.screenShareLayout, isLargeScreen ? styles.screenShareLayoutRow : styles.screenShareLayoutColumn]}>
+        {room.activeScreenShare !== null ? (
+          <View
+            style={[
+              styles.screenShareLayout,
+              isLargeScreen ? styles.screenShareLayoutRow : styles.screenShareLayoutColumn,
+            ]}
+          >
             <View style={styles.screenShareMainStage}>
               <ScreenShareStage
-                screenStream={screenStream}
-                presenterName={currentUserName ?? 'You'}
-                isSelfPresenter={true}
-                onStopSharing={toggleScreenShare}
+                screenStream={room.activeScreenShare.stream}
+                presenterName={room.activeScreenShare.presenterName}
+                isSelfPresenter={room.activeScreenShare.isSelf}
+                onStopSharing={room.activeScreenShare.isSelf ? room.toggleScreenShare : undefined}
               />
             </View>
 
-            {isLargeScreen ? (
-              <ScrollView
-                style={styles.cameraStripVertical}
-                contentContainerStyle={styles.cameraStripContentVertical}
-                showsVerticalScrollIndicator={false}
-              >
-                {currentParticipants.map((p, index) => {
-                  const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
-                  const remoteStream = remoteStreams[p.userId] ?? null;
-                  return (
-                    <VideoTile
-                      key={p.userId}
-                      participant={p}
-                      isSelf={isSelf}
-                      stream={isSelf ? localStream : remoteStream}
-                      isVideoMuted={isSelf ? isVideoMuted : false}
-                      isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
-                      isSpeaking={isSelf ? isSpeaking : false}
-                      isHandRaised={isSelf ? isHandRaised : p.isHandRaised}
-                      totalParticipants={currentParticipants.length}
-                      layoutMode="strip"
-                    />
-                  );
-                })}
-              </ScrollView>
-            ) : (
-              <ScrollView
-                horizontal
-                style={styles.cameraStripHorizontal}
-                contentContainerStyle={styles.cameraStripContentHorizontal}
-                showsHorizontalScrollIndicator={false}
-              >
-                {currentParticipants.map((p, index) => {
-                  const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
-                  const remoteStream = remoteStreams[p.userId] ?? null;
-                  return (
-                    <VideoTile
-                      key={p.userId}
-                      participant={p}
-                      isSelf={isSelf}
-                      stream={isSelf ? localStream : remoteStream}
-                      isVideoMuted={isSelf ? isVideoMuted : false}
-                      isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
-                      isSpeaking={isSelf ? isSpeaking : false}
-                      isHandRaised={isSelf ? isHandRaised : p.isHandRaised}
-                      totalParticipants={currentParticipants.length}
-                      layoutMode="strip"
-                    />
-                  );
-                })}
-              </ScrollView>
-            )}
+            <ScrollView
+              horizontal={!isLargeScreen}
+              style={isLargeScreen ? styles.cameraStripVertical : styles.cameraStripHorizontal}
+              contentContainerStyle={
+                isLargeScreen
+                  ? styles.cameraStripContentVertical
+                  : styles.cameraStripContentHorizontal
+              }
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+            >
+              {currentParticipants.map((p) => renderTileForParticipant(p, 'strip'))}
+            </ScrollView>
+          </View>
+        ) : featuredParticipant !== null && currentParticipants.length > 1 ? (
+          <View
+            style={[
+              styles.screenShareLayout,
+              isLargeScreen ? styles.screenShareLayoutRow : styles.screenShareLayoutColumn,
+            ]}
+          >
+            <View style={styles.screenShareMainStage}>
+              {renderTileForParticipant(featuredParticipant, 'solo')}
+            </View>
+            <ScrollView
+              horizontal={!isLargeScreen}
+              style={isLargeScreen ? styles.cameraStripVertical : styles.cameraStripHorizontal}
+              contentContainerStyle={
+                isLargeScreen
+                  ? styles.cameraStripContentVertical
+                  : styles.cameraStripContentHorizontal
+              }
+            >
+              {currentParticipants
+                .filter((p) => p.userId !== featuredParticipant.userId)
+                .map((p) => renderTileForParticipant(p, 'strip'))}
+            </ScrollView>
+          </View>
+        ) : isTwoPersonFloatingView && remoteInPair !== null && selfInPair !== null ? (
+          <View style={styles.pairStage}>
+            {renderTileForParticipant(remoteInPair, 'solo')}
+            <View style={styles.floatingSelfCorner}>
+              {renderTileForParticipant(selfInPair, 'floating')}
+            </View>
           </View>
         ) : (
-          <View style={styles.videoGrid}>
-            {currentParticipants.map((p, index) => {
-              const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
-              const remoteStream = remoteStreams[p.userId] ?? null;
-              return (
-                <VideoTile
-                  key={p.userId}
-                  participant={p}
-                  isSelf={isSelf}
-                  stream={isSelf ? localStream : remoteStream}
-                  isVideoMuted={isSelf ? isVideoMuted : false}
-                  isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
-                  isSpeaking={isSelf ? isSpeaking : false}
-                  isHandRaised={isSelf ? isHandRaised : p.isHandRaised}
-                  totalParticipants={currentParticipants.length}
-                />
-              );
-            })}
+          <ScrollView contentContainerStyle={styles.videoGrid}>
+            {currentParticipants.map((p) =>
+              renderTileForParticipant(p, currentParticipants.length === 1 ? 'solo' : 'grid')
+            )}
+          </ScrollView>
+        )}
+
+        {/* Right Sidebars (Docked on large desktop, Overlay on smaller screens) */}
+        {isPeopleOpen && (
+          <View style={isLargeScreen ? styles.dockedSidebar : styles.overlaySidebar}>
+            <InMeetingParticipantsSidebar
+              visible={isPeopleOpen}
+              onClose={() => setIsPeopleOpen(false)}
+              isHostOrAdmin={room.isHostOrAdmin}
+              hostUserId={activeMeeting.hostUserId}
+              currentUserId={currentUserId}
+              inCallParticipants={currentParticipants}
+              allInvitedParticipants={room.allKnownParticipants}
+              waitingRequests={room.waitingRequests}
+              peerMediaStates={room.peerMediaStates}
+              speakingUserIds={room.speakingUserIds}
+              spotlightedUserId={room.spotlightedUserId}
+              isSelfMicMuted={room.isMicMuted}
+              isSelfVideoMuted={room.isVideoMuted}
+              onOpenInviteModal={() => setIsInviteOpen(true)}
+              onAdmitWaiting={(req) => void room.admitWaitingParticipant(req)}
+              onAdmitAllWaiting={() => void room.admitAllWaitingParticipants()}
+              onDenyWaiting={(req) => void room.denyWaitingParticipant(req)}
+              onMuteParticipant={(uId) => void room.muteParticipant(uId)}
+              onMuteAll={() => void room.muteAllParticipants()}
+              onSpotlightParticipant={(uId) => void room.spotlightParticipant(uId)}
+              onKickParticipant={(uId) => void room.kickParticipant(uId)}
+            />
           </View>
         )}
 
-        {isChatOpen ? (
-          <View style={isLargeScreen ? styles.dockedChat : styles.overlayChat}>
-            <InMeetingChatSidebar
-              meetingCode={meeting.meetingCode}
-              currentUserName={currentUserName}
-              visible={isChatOpen}
-              onClose={() => setIsChatOpen(false)}
+        {isPollsOpen && (
+          <View style={isLargeScreen ? styles.dockedSidebar : styles.overlaySidebar}>
+            <InMeetingPollsSidebar
+              visible={isPollsOpen}
+              onClose={() => setIsPollsOpen(false)}
+              isHostOrAdmin={room.isHostOrAdmin}
+              currentUserId={currentUserId}
+              polls={room.polls}
+              onOpenCreatePoll={() => setIsCreatePollOpen(true)}
+              onVotePoll={(pollId, idx) => void room.votePoll(pollId, idx)}
+              onClosePoll={(pollId) => void room.closePoll(pollId)}
             />
           </View>
-        ) : null}
+        )}
+
+        {room.isChatOpen && (
+          <View style={isLargeScreen ? styles.dockedSidebar : styles.overlaySidebar}>
+            <InMeetingChatSidebar
+              meetingCode={activeMeeting.meetingCode}
+              currentUserName={currentUserName}
+              visible={room.isChatOpen}
+              messages={room.chatMessages}
+              onSendMessage={room.sendChatMessage}
+              onEditMessage={room.editChatMessage}
+              onUnsendMessage={room.unsendChatMessage}
+              onReactMessage={room.reactToChatMessage}
+              onClose={() => room.setIsChatOpen(false)}
+            />
+          </View>
+        )}
       </View>
 
-      <FloatingReactionsOverlay reactions={floatingEmojis} onReactionComplete={dismissReaction} />
+      <FloatingReactionsOverlay
+        reactions={room.floatingEmojis}
+        onReactionComplete={room.dismissReaction}
+      />
 
       <MeetingControlsBar
-        isHost={isHost}
-        isMicMuted={isMicMuted}
-        isVideoMuted={isVideoMuted}
-        isHandRaised={isHandRaised}
-        isScreenSharing={isScreenSharing}
-        isRecording={isRecording}
-        onToggleMic={toggleMic}
-        onToggleVideo={toggleVideo}
-        onToggleHandRaise={toggleHandRaise}
-        onToggleScreenShare={toggleScreenShare}
-        onToggleRecording={isHost ? handleToggleRecording : undefined}
-        onReact={triggerReaction}
-        onOpenPoll={() => setIsPollOpen(true)}
-        onOpenInvite={() => setIsInviteOpen(true)}
-        onToggleChat={() => setIsChatOpen((prev) => !prev)}
-        onLeave={handleLeaveRoom}
-        onEndMeetingForEveryone={isHost ? handleEndMeetingForEveryone : undefined}
+        isHost={room.isHost}
+        isMicMuted={room.isMicMuted}
+        isVideoMuted={room.isVideoMuted}
+        isHandRaised={room.isHandRaised}
+        isScreenSharing={room.isScreenSharing}
+        isRecording={room.isRecording}
+        isPeopleOpen={isPeopleOpen}
+        isPollsOpen={isPollsOpen}
+        isChatOpen={room.isChatOpen}
+        participantCount={currentParticipants.length}
+        waitingCount={room.isHostOrAdmin ? room.waitingRequests.length : 0}
+        openPollCount={openPollCount}
+        unreadChatCount={room.unreadChatCount}
+        onToggleMic={room.toggleMic}
+        onToggleVideo={room.toggleVideo}
+        onToggleHandRaise={() => void room.toggleHandRaise()}
+        onToggleScreenShare={() => void room.toggleScreenShare()}
+        onToggleRecording={
+          room.isHostOrAdmin && room.isRecordingSupported ? room.toggleRecording : undefined
+        }
+        onOpenDeviceSettings={() => {
+          void room.refreshDevices();
+          setIsDeviceSettingsOpen(true);
+        }}
+        onReact={(emoji) => void room.triggerReaction(emoji)}
+        onTogglePeople={() => handleToggleSidebar('people')}
+        onTogglePolls={() => handleToggleSidebar('polls')}
+        onToggleChat={() => handleToggleSidebar('chat')}
+        onLeave={() => void handleLeaveCall()}
+        onEndMeetingForEveryone={room.isHost ? () => void handleEndCallForAll() : undefined}
       />
 
       <InMeetingPollModal
-        visible={isPollOpen}
-        onClose={() => setIsPollOpen(false)}
+        visible={isCreatePollOpen}
+        onClose={() => setIsCreatePollOpen(false)}
         onSubmit={handleCreatePoll}
         isSubmitting={isSubmitting}
       />
 
       <InviteParticipantModal
         visible={isInviteOpen}
-        meeting={meeting}
+        meeting={activeMeeting}
         onClose={() => setIsInviteOpen(false)}
         onInvite={handleInvite}
-        onRemoveParticipant={handleRemoveParticipant}
+        onRemoveParticipant={room.isHostOrAdmin ? handleRemoveParticipant : undefined}
         isSubmitting={isSubmitting}
       />
 
-      {/* Recording Permissions Modal */}
+      <DeviceSettingsModal
+        visible={isDeviceSettingsOpen}
+        onClose={() => setIsDeviceSettingsOpen(false)}
+        microphones={room.microphones}
+        cameras={room.cameras}
+        speakers={room.speakers}
+        selectedMicId={room.selectedMicId}
+        selectedCameraId={room.selectedCameraId}
+        selectedSpeakerId={room.selectedSpeakerId}
+        onSelectMic={room.setSelectedMicId}
+        onSelectCamera={room.setSelectedCameraId}
+        onSelectSpeaker={room.setSelectedSpeakerId}
+      />
+
+      {/* Existing Session Device Switch Modal */}
       <Modal
-        visible={isRecordingSettingsOpen}
+        visible={room.showExistingSessionModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsRecordingSettingsOpen(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setIsRecordingSettingsOpen(false)}>
-          <View
-            style={[
-              styles.settingsModalCard,
-              {
-                backgroundColor: isDark ? colors.cardBg : '#FFFFFF',
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Recording Permissions</Text>
-            <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
-              Control who will have access to view and download this meeting recording after it concludes.
-            </Text>
-
-            <View style={styles.permissionOptions}>
-              {(
-                [
-                  { id: 'HostOnly', label: 'Host Only', desc: 'Only you can view and share recording.' },
-                  { id: 'AllParticipants', label: 'All Participants', desc: 'All invited attendees can view.' },
-                  { id: 'Selected', label: 'Selected Colleagues', desc: 'Manually specify access list.' },
-                ] as { id: RecordingAccessPermission; label: string; desc: string }[]
-              ).map((opt) => (
-                <Pressable
-                  key={opt.id}
-                  style={[
-                    styles.permOptionItem,
-                    {
-                      borderColor: recordingAccess === opt.id ? colors.brand.primary : colors.border,
-                      backgroundColor:
-                        recordingAccess === opt.id ? colors.brand.primary + '15' : 'transparent',
-                    },
-                  ]}
-                  onPress={() => setRecordingAccess(opt.id)}
-                >
-                  <Text
-                    style={[
-                      styles.permLabel,
-                      { color: recordingAccess === opt.id ? colors.brand.primary : colors.text },
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                  <Text style={[styles.permSubDesc, { color: colors.textMuted }]}>{opt.desc}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <Button
-              variant="primary"
-              size="sm"
-              onPress={() => {
-                setIsRecordingSettingsOpen(false);
-                showToast(`Recording permissions updated: ${recordingAccess}`, 'success');
-              }}
-            >
-              Save Preferences
-            </Button>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Existing Session Prompt Modal */}
-      <Modal
-        visible={showExistingSessionModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowExistingSessionModal(false)}
+        onRequestClose={() => room.setShowExistingSessionModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View
@@ -603,38 +605,29 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
               Already Joined on Another Device
             </Text>
             <Text style={[styles.modalDesc, { color: colors.textMuted, textAlign: 'center' }]}>
-              You have already joined this meeting from another device. Would you like to switch to this device?
+              You have an active session in this meeting on another tab or device. Switch here?
             </Text>
             <View style={styles.sessionModalActions}>
               <Button
                 variant="primary"
                 size="md"
                 onPress={async () => {
-                  setShowExistingSessionModal(false);
-                  await realTimeService.switchDevice(meeting.meetingCode);
+                  room.setShowExistingSessionModal(false);
+                  await realTimeService.switchDevice(activeMeeting.meetingCode);
                   showToast('Switched session to this device.', 'success');
                 }}
               >
-                Switch to this device
-              </Button>
-              <Button
-                variant="secondary"
-                size="md"
-                onPress={() => {
-                  setShowExistingSessionModal(false);
-                }}
-              >
-                Stay on current device
+                Switch to This Device
               </Button>
               <Button
                 variant="outline"
                 size="md"
                 onPress={() => {
-                  setShowExistingSessionModal(false);
-                  handleLeaveRoom();
+                  room.setShowExistingSessionModal(false);
+                  void handleLeaveCall();
                 }}
               >
-                Cancel
+                Leave Here
               </Button>
             </View>
           </View>
@@ -667,28 +660,58 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
     zIndex: 50,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   topBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     flex: 1,
+    minWidth: 200,
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   meetingTitleText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
-    maxWidth: 250,
+    maxWidth: 260,
   },
   meetingBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(59, 130, 246, 0.18)',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.35)',
   },
   meetingBadgeText: {
-    color: '#94A3B8',
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  durationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  durationText: {
+    color: '#CBD5E1',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -701,7 +724,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderColor: 'rgba(239, 68, 68, 0.45)',
   },
   redDot: {
     width: 8,
@@ -710,33 +733,136 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   recordingText: {
-    color: '#EF4444',
+    color: '#FCA5A5',
     fontSize: 11,
     fontWeight: '700',
   },
-  screenShareBanner: {
+  economyBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  economyText: {
+    color: '#FDE68A',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  layoutSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  layoutSwitchText: {
+    color: '#E2E8F0',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  nativeInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(59,130,246,0.3)',
+  },
+  nativeInfoText: {
+    flex: 1,
+    color: '#CBD5E1',
+    fontSize: 12,
+  },
+  waitingRoomHostBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
+    backgroundColor: '#1E293B',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(245, 158, 11, 0.4)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    zIndex: 45,
+  },
+  waitingRoomBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  waitingBadgePulse: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#D97706',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  waitingRoomBannerText: {
+    color: '#F8FAFC',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  waitingRoomActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  pendingUserChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.4)',
+    borderRadius: 8,
   },
-  screenShareText: {
-    color: '#60A5FA',
-    fontSize: 11,
+  pendingUserName: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '600',
+    maxWidth: 120,
+  },
+  admitBtn: {
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  admitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  denyBtn: {
+    padding: 3,
   },
   stageWrapper: {
     flex: 1,
     flexDirection: 'row',
     position: 'relative',
   },
-  videoGrid: {
+  pairStage: {
     flex: 1,
+    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  floatingSelfCorner: {
+    position: 'absolute',
+    right: 24,
+    bottom: 20,
+    zIndex: 25,
+  },
+  videoGrid: {
+    flexGrow: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     padding: 16,
@@ -757,10 +883,11 @@ const styles = StyleSheet.create({
   },
   screenShareMainStage: {
     flex: 1,
-    minHeight: 280,
+    minHeight: 260,
+    justifyContent: 'center',
   },
   cameraStripVertical: {
-    width: 250,
+    width: 240,
     maxHeight: '100%',
   },
   cameraStripContentVertical: {
@@ -768,7 +895,7 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   cameraStripHorizontal: {
-    height: 140,
+    height: 135,
     width: '100%',
   },
   cameraStripContentHorizontal: {
@@ -776,131 +903,28 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 4,
   },
-  dockedChat: {
+  dockedSidebar: {
     width: 320,
     height: '100%',
   },
-  overlayChat: {
+  overlaySidebar: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 0,
-    width: 300,
+    width: 310,
     zIndex: 100,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
-  settingsModalCard: {
-    width: '100%',
-    maxWidth: 440,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    gap: 14,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  modalDesc: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  permissionOptions: {
-    gap: 8,
-  },
-  permOptionItem: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 4,
-  },
-  permLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  permSubDesc: {
-    fontSize: 12,
-  },
-  waitingRoomHostBanner: {
-    backgroundColor: '#1E293B',
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 10,
-    zIndex: 100,
-  },
-  waitingRoomBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  waitingBadgePulse: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  waitingRoomBannerText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  waitingRoomActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pendingUserChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#475569',
-    paddingLeft: 10,
-    paddingRight: 4,
-    paddingVertical: 4,
-    gap: 8,
-  },
-  pendingUserName: {
-    color: '#F1F5F9',
-    fontSize: 12,
-    fontWeight: '600',
-    maxWidth: 140,
-  },
-  admitBtn: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  admitBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  denyBtn: {
-    padding: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-  },
   sessionModalCard: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 420,
     borderRadius: 16,
     borderWidth: 1,
     padding: 24,
@@ -908,17 +932,24 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sessionModalIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    alignItems: 'center',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(59, 130, 246, 0.14)',
     justifyContent: 'center',
-    marginBottom: 4,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  modalDesc: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   sessionModalActions: {
     width: '100%',
-    gap: 10,
-    marginTop: 8,
+    gap: 8,
+    marginTop: 6,
   },
 });

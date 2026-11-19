@@ -59,28 +59,24 @@ export function OfficialReceiptsTab({
   const { currentRole } = useRole();
   const { hasPermission, isSuperAdmin, isAdmin, canVerifyCashier } = usePermissions();
 
-  const isCashierRole = currentRole === 'Cashier' || canVerifyCashier;
-  const canIssueReceipt =
+  const isCashierOrRegionalAdmin =
     isSuperAdmin ||
     isAdmin ||
-    isCashierRole ||
+    currentRole === 'Admin' ||
+    currentRole === 'Cashier' ||
+    canVerifyCashier;
+  const canIssueReceipt =
+    isCashierOrRegionalAdmin ||
     hasPermission('receipts.issue') ||
     hasPermission('billing.collect');
   const canEndorse =
-    isSuperAdmin ||
-    isAdmin ||
-    isCashierRole ||
-    hasPermission('billing.op_return') ||
-    hasPermission('applications.evaluate');
+    isCashierOrRegionalAdmin ||
+    hasPermission('billing.op_return');
   const canEditReceiptPerm =
-    isSuperAdmin ||
-    isAdmin ||
-    isCashierRole ||
+    isCashierOrRegionalAdmin ||
     hasPermission('receipts.edit');
   const canCancelReceiptPerm =
-    isSuperAdmin ||
-    isAdmin ||
-    isCashierRole ||
+    isCashierOrRegionalAdmin ||
     hasPermission('receipts.cancel');
 
   return (

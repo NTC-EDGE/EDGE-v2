@@ -267,7 +267,7 @@ public static class ReceiptEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.ReceiptsDeposit)]
+    [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetUndepositedReceipts(
         [FromQuery] string? tenantId,
         IMediator mediator)
@@ -498,7 +498,7 @@ public static class ReceiptEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.ReceiptsDeposit)]
+    [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetBankDeposits(
         [FromQuery] string? tenantId,
         [FromQuery] string? bankAccountId,
@@ -513,7 +513,7 @@ public static class ReceiptEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.ReceiptsDeposit)]
+    [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetBankDepositById(
         Guid id,
         IMediator mediator)
@@ -533,7 +533,7 @@ public static class ReceiptEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.CashierReports)]
+    [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetCashierRcdReport(
         [FromQuery] string? tenantId,
         [FromQuery] DateTime? fromDate,
@@ -558,7 +558,7 @@ public static class ReceiptEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.CashierReports)]
+    [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetCancelledOrReport(
         [FromQuery] string? tenantId,
         [FromQuery] DateTime? fromDate,

@@ -1,30 +1,24 @@
-/**
- * Meeting navigation & direct call session synchronization helpers.
- * Handles SSR safety and cross-platform session storage/URL updates.
- */
-
 export const ACTIVE_MEETING_STORAGE_KEY = 'edge_active_meeting_code';
 export const JOIN_MEETING_EVENT_NAME = 'edge_join_meeting';
 
-/**
- * Type guard to check if a CustomEvent payload contains a valid meeting code.
- */
-export function isCustomEventWithCode(event: Event): event is CustomEvent<{ code: string }> {
+export interface JoinMeetingEventDetail {
+  code: string;
+  immediate?: boolean;
+  audioOnly?: boolean;
+}
+
+export function isCustomEventWithCode(event: Event): event is CustomEvent<JoinMeetingEventDetail> {
   if ('detail' in event && typeof event.detail === 'object' && event.detail !== null) {
-    const detailObj = event.detail;
-    return 'code' in detailObj && typeof Reflect.get(detailObj, 'code') === 'string';
+    const codeVal = Reflect.get(event.detail, 'code');
+    return typeof codeVal === 'string';
   }
   return false;
 }
 
-/**
- * Handles accepting an incoming direct meeting call across web, desktop, and native.
- * Safely persists meeting code to session storage, updates URL query parameters if in browser,
- * dispatches the active join event, and triggers screen navigation.
- */
 export function acceptIncomingCall(
   code: string,
-  onNavigate?: (screenName: string) => void
+  onNavigate?: (screenName: string) => void,
+  options?: { audioOnly?: boolean }
 ): void {
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     try {
@@ -39,14 +33,34 @@ export function acceptIncomingCall(
       }
 
       if (typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
-        window.dispatchEvent(new CustomEvent(JOIN_MEETING_EVENT_NAME, { detail: { code } }));
+        const detail: JoinMeetingEventDetail = {
+          code,
+          immediate: true,
+          audioOnly: options?.audioOnly ?? false,
+        };
+        window.dispatchEvent(new CustomEvent(JOIN_MEETING_EVENT_NAME, { detail }));
       }
     } catch {
-      // Gracefully handle any browser permission or storage restrictions
+      // Gracefully handle browser storage/history restrictions
     }
   }
 
   if (onNavigate !== undefined) {
     onNavigate('Meet');
   }
+}
+
+export function extractMeetingCodeFromInput(rawInput: string): string {
+  const trimmed = rawInput.trim();
+  if (trimmed.includes('code=')) {
+    const idx = trimmed.indexOf('code=');
+    const after = trimmed.slice(idx + 5);
+    const ampIdx = after.indexOf('&');
+    try {
+      return decodeURIComponent(ampIdx >= 0 ? after.slice(0, ampIdx) : after).trim();
+    } catch {
+      return (ampIdx >= 0 ? after.slice(0, ampIdx) : after).trim();
+    }
+  }
+  return trimmed;
 }

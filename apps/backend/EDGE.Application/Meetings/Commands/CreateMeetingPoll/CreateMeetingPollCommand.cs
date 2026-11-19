@@ -20,17 +20,20 @@ public class CreateMeetingPollCommandHandler : IRequestHandler<CreateMeetingPoll
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMeetingNotificationService? _meetingNotificationService;
 
     public CreateMeetingPollCommandHandler(
         IMeetingRepository meetingRepository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IMeetingNotificationService? meetingNotificationService = null)
     {
         _meetingRepository = meetingRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _meetingNotificationService = meetingNotificationService;
     }
 
     public async Task<MeetingPollDto> Handle(CreateMeetingPollCommand request, CancellationToken cancellationToken)
@@ -41,7 +44,7 @@ public class CreateMeetingPollCommandHandler : IRequestHandler<CreateMeetingPoll
         var meeting = await _meetingRepository.GetByCodeAsync(request.MeetingCode, cancellationToken)
             ?? throw new KeyNotFoundException("Meeting not found.");
 
-        var participant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUser.Id);
+        var participant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUser.Id && !p.IsDeleted);
         var isHostOrAdmin = meeting.HostUserId == currentUser.Id ||
                             (participant != null && (participant.Role == ParticipantRole.Owner || participant.Role == ParticipantRole.Admin)) ||
                             currentUser.IsSuperAdmin;
@@ -51,24 +54,37 @@ public class CreateMeetingPollCommandHandler : IRequestHandler<CreateMeetingPoll
             throw new UnauthorizedAccessException("Only the meeting host or administrators can create live polls.");
         }
 
+        var sanitizedOptions = request.Options
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Select(o => o.Trim())
+            .ToList();
+
         var poll = new MeetingPoll
         {
             MeetingId = meeting.Id,
-            Question = request.Question,
-            OptionsJson = JsonSerializer.Serialize(request.Options),
+            Question = request.Question.Trim(),
+            OptionsJson = JsonSerializer.Serialize(sanitizedOptions),
             IsAnonymous = request.IsAnonymous
         };
 
         await _meetingRepository.AddMeetingPollAsync(poll, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new MeetingPollDto
+        var dto = new MeetingPollDto
         {
             Id = poll.Id,
             Question = poll.Question,
-            Options = request.Options,
+            Options = sanitizedOptions,
             IsClosed = poll.IsClosed,
-            IsAnonymous = poll.IsAnonymous
+            IsAnonymous = poll.IsAnonymous,
+            Votes = new List<MeetingPollVoteDto>()
         };
+
+        if (_meetingNotificationService != null)
+        {
+            await _meetingNotificationService.NotifyPollCreatedAsync(meeting.MeetingCode, dto, cancellationToken);
+        }
+
+        return dto;
     }
 }
