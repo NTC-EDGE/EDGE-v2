@@ -91,11 +91,23 @@ export function convertSchemaToBackendSections(fields: FormField[], scopedVarian
     let cleanOptions = field.options;
     if (field.type === "select" || field.type === "radio" || field.type === "checkbox") {
       if (Array.isArray(field.options) && field.options.length > 0) {
-        cleanOptions = field.options.map((opt, idx) => ({
-          id: opt.id || generateId(),
-          label: opt.label || opt.value || `Option ${idx + 1}`,
-          value: opt.value || opt.label || `option_${idx + 1}`,
-        }));
+        cleanOptions = field.options.map((opt, idx) => {
+          const rawLbl = (opt.label || "").trim();
+          const rawVal = (opt.value || "").trim();
+          const isDefaultLbl = /^option\s*\d+$/i.test(rawLbl);
+          const isDefaultVal = /^option[_\s]*\d+$/i.test(rawVal);
+          const resolvedText =
+            isDefaultLbl && rawVal.length > 0 && !isDefaultVal
+              ? rawVal
+              : isDefaultVal && rawLbl.length > 0 && !isDefaultLbl
+              ? rawLbl
+              : rawLbl || rawVal || `Option ${idx + 1}`;
+          return {
+            id: opt.id || generateId(),
+            label: resolvedText,
+            value: rawVal.length > 0 && !isDefaultVal ? rawVal : resolvedText,
+          };
+        });
       }
     }
 

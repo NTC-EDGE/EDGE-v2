@@ -19,6 +19,7 @@ interface ScheduleCardProps {
   onTogglePublish: (schedule: ScheduleItemDto) => void;
   onDelete: (schedule: ScheduleItemDto) => void;
   onViewDetails: (schedule: ScheduleItemDto) => void;
+  onScanQr?: (schedule: ScheduleItemDto) => void;
 }
 
 export function ScheduleCard({
@@ -28,6 +29,7 @@ export function ScheduleCard({
   onTogglePublish,
   onDelete,
   onViewDetails,
+  onScanQr,
 }: ScheduleCardProps) {
   const { colors, isDark } = useTheme();
   const [showMenu, setShowMenu] = useState(false);
@@ -94,7 +96,7 @@ export function ScheduleCard({
 
   const timeBadge = getTimeStatusBadge();
 
-  const handleAction = (action: 'view' | 'edit' | 'togglePublish' | 'delete') => {
+  const handleAction = (action: 'view' | 'edit' | 'togglePublish' | 'delete' | 'scanQr') => {
     setShowMenu(false);
     if (action === 'view') {
       onViewDetails(schedule);
@@ -104,6 +106,8 @@ export function ScheduleCard({
       onTogglePublish(schedule);
     } else if (action === 'delete') {
       onDelete(schedule);
+    } else if (action === 'scanQr' && onScanQr !== undefined) {
+      onScanQr(schedule);
     }
   };
 
@@ -235,6 +239,29 @@ export function ScheduleCard({
                   View Details
                 </Text>
               </Pressable>
+
+              {onScanQr !== undefined && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.popoverItem,
+                    pressed && {
+                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                    },
+                    Platform.select({ web: { cursor: 'pointer' } }),
+                  ]}
+                  onPress={() => handleAction('scanQr')}
+                >
+                  <Lucide
+                    name="maximize"
+                    size={14}
+                    color={COLORS.semantic.success}
+                    style={styles.popoverIcon}
+                  />
+                  <Text style={[styles.popoverItemText, { color: colors.text }]}>
+                    Scan Admission QR
+                  </Text>
+                </Pressable>
+              )}
 
               {!schedule.isPublished && (
                 <Pressable

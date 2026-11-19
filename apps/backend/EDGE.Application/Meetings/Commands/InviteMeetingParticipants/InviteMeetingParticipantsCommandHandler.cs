@@ -62,7 +62,7 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
         }
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id 
+        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id
             ?? allTenants.FirstOrDefault()?.Id;
 
         if (!meeting.TenantId.HasValue || meeting.TenantId.Value == Guid.Empty)
@@ -83,9 +83,9 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
             }
 
             var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
-            var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
+            var pTenantId = pMemberships.FirstOrDefault()?.TenantId
                 ?? pUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
-                ?? meeting.TenantId 
+                ?? meeting.TenantId
                 ?? fallbackTenantId;
 
             var participantTenantId = pTenantId.HasValue && pTenantId.Value != Guid.Empty ? pTenantId : fallbackTenantId;
@@ -153,8 +153,11 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
             HostUserName = updated.HostUser != null
                 ? $"{updated.HostUser.FirstName} {updated.HostUser.LastName}".Trim()
                 : hostName,
+            LinkedConversationId = updated.LinkedConversationId,
             ScheduledStartTime = updated.ScheduledStartTime,
             ScheduledEndTime = updated.ScheduledEndTime,
+            ActualStartTime = updated.ActualStartTime,
+            ActualEndTime = updated.ActualEndTime,
             Status = updated.Status,
             Participants = updated.Participants.Select(p => new MeetingParticipantDto
             {
@@ -170,8 +173,9 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
             }).ToList()
         };
 
+        var shouldRing = request.RingNewParticipants || updated.Status == MeetingStatus.Live;
         var newlyAddedIds = newlyInvitedUserIds.Select(x => x.UserId).Distinct().ToList();
-        if (newlyAddedIds.Any())
+        if (shouldRing && newlyAddedIds.Any())
         {
             await _meetingNotificationService.NotifyIncomingCallAsync(dto, newlyAddedIds, cancellationToken);
         }

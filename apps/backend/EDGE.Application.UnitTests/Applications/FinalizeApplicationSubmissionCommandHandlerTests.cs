@@ -203,4 +203,90 @@ public class FinalizeApplicationSubmissionCommandHandlerTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_ReturnedApplicationWithRetainedRequirements_FinalizesToSubmittedPreservingAppNumber()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var appId = Guid.NewGuid();
+        var applicantId = Guid.NewGuid();
+        var ownerUserId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        var variantId = Guid.NewGuid();
+        var reqId = Guid.NewGuid();
+        var svrId = Guid.NewGuid();
+        var storedFileId = Guid.NewGuid();
+
+        var applicant = new Applicant
+        {
+            Id = applicantId,
+            TenantId = tenantId,
+            UserId = ownerUserId,
+            ServiceId = serviceId,
+            ServiceVariantId = variantId,
+            ApplicantDetail = new ApplicantDetail
+            {
+                FirstName = "Maria",
+                LastName = "Clara",
+                ContactNumber = "09171234567"
+            }
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            TenantId = tenantId,
+            UserId = ownerUserId,
+            CreatedBy = ownerUserId.ToString(),
+            Status = ApplicationStatus.Returned,
+            ApplicationNumber = "APP-20261101-9999",
+            ApplicationApplicants = new List<ApplicationApplicant>
+            {
+                new() { Id = Guid.NewGuid(), ApplicationId = appId, ApplicantId = applicantId, SequenceOrder = 1, Applicant = applicant }
+            },
+            ApplicationRequirements = new List<ApplicationRequirement>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = appId,
+                    ApplicantId = appId, // single-applicant fallback id association
+                    RequirementId = reqId,
+                    ServiceVariantRequirementId = svrId,
+                    StoredFileId = storedFileId,
+                    Url = $"/api/v2/tenants/{tenantId}/storage/files/{storedFileId}"
+                }
+            }
+        };
+
+        _mockAppRepo.Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+        _mockAppRepo.Setup(r => r.GetByIdAsync(appId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+        _mockReqRepo.Setup(r => r.GetServiceVariantRequirementsAsync(serviceId, variantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ServiceVariantRequirement>
+            {
+                new() { Id = svrId, RequirementId = reqId, IsRequired = true }
+            });
+        _mockTenantContextService.Setup(t => t.IsUserActiveMemberAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _mockTenantContextService.Setup(t => t.IsCurrentUserSuperAdminAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _mockCurrentUserService.Setup(u => u.UserId)
+            .Returns(ownerUserId.ToString());
+
+        var command = new FinalizeApplicationSubmissionCommand(appId);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        app.Status.Should().Be(ApplicationStatus.Submitted);
+        app.ApplicationNumber.Should().Be("APP-20261101-9999");
+        _mockAppRepo.Verify(r => r.AddApplicationHistoryAsync(
+            It.Is<ApplicationHistory>(h => h.Action == "Application resubmitted by applicant" && h.FromStatus == ApplicationStatus.Returned && h.ToStatus == ApplicationStatus.Submitted),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

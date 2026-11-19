@@ -67,6 +67,7 @@ export interface UseGeneralServiceWizardOptions {
   setApplicants?: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
   currentApplicantIndex?: number;
   step?: number;
+  existingDraftId?: string | null;
 }
 
 export function useGeneralServiceWizard(
@@ -81,6 +82,7 @@ export function useGeneralServiceWizard(
   const service = isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).service : (optionsOrService as NTCService);
   const currentStep = isOptionsObject ? ((optionsOrService as UseGeneralServiceWizardOptions).step || 1) : stepArg;
   const appMode = isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).appMode : undefined;
+  const existingDraftId = "service" in optionsOrService ? (optionsOrService.existingDraftId ?? null) : null;
 
   const [localApplicantIndex, setLocalApplicantIndex] = useState(0);
   const [localApplicants, setLocalApplicants] = useState<GeneralApplicantData[]>([
@@ -753,6 +755,7 @@ export function useGeneralServiceWizard(
         : [],
       scheduleId: effectiveScheduleId || (isExamService ? null : undefined),
       isDraft: true,
+      existingDraftId: existingDraftId && isGuid(existingDraftId) ? existingDraftId : undefined,
       applicants: mappedApplicants,
     };
 

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
 import { usePermissions } from '../../shell/context/PermissionContext';
+import { useRole } from '../../shell/context/RoleContext';
 import { OrBookletDto } from '@edge/api';
 
 interface OrBookletsTabProps {
@@ -45,11 +46,19 @@ export function OrBookletsTab({
 }: OrBookletsTabProps) {
   const { colors } = useTheme();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const { hasPermission, isSuperAdmin, isAdmin } = usePermissions();
+  const { currentRole } = useRole();
+  const { hasPermission, isSuperAdmin, isAdmin, canVerifyCashier } = usePermissions();
 
-  const canRegisterBundle = isSuperAdmin || isAdmin || hasPermission('receipts.bundle_entry');
-  const canEditSeries = isSuperAdmin || isAdmin || hasPermission('receipts.edit') || hasPermission('receipts.bundle_entry');
-  const canTransferCustody = isSuperAdmin || isAdmin || hasPermission('receipts.bundle_entry') || hasPermission('receipts.edit');
+  const isCashierOrRegionalAdmin =
+    isSuperAdmin ||
+    isAdmin ||
+    currentRole === 'Admin' ||
+    currentRole === 'Cashier' ||
+    canVerifyCashier;
+
+  const canRegisterBundle = isCashierOrRegionalAdmin || hasPermission('receipts.bundle_entry');
+  const canEditSeries = isCashierOrRegionalAdmin || hasPermission('receipts.edit') || hasPermission('receipts.bundle_entry');
+  const canTransferCustody = isCashierOrRegionalAdmin || hasPermission('receipts.bundle_entry') || hasPermission('receipts.edit');
 
   if (isLoading) {
     return (

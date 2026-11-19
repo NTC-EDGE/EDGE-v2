@@ -42,13 +42,23 @@ public class GetApplicantRequirementsQueryHandler
             return ApiResponse<List<ApplicantRequirementItemDto>>.Fail($"Application '{request.ApplicationId}' was not found.");
         }
 
-        var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId);
+        var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa =>
+            aa.ApplicantId == request.ApplicantId ||
+            aa.Id == request.ApplicantId ||
+            (app.ApplicationApplicants.Count == 1 && (request.ApplicantId == app.Id || request.ApplicantId == Guid.Empty)));
+
+        if (appApplicant == null && (request.ApplicantId == app.Id || app.ApplicationApplicants.Count == 1))
+        {
+            appApplicant = app.ApplicationApplicants.FirstOrDefault();
+        }
+
         if (appApplicant == null)
         {
             return ApiResponse<List<ApplicantRequirementItemDto>>.Fail($"Applicant '{request.ApplicantId}' was not linked to application '{request.ApplicationId}'.");
         }
 
         var applicant = appApplicant.Applicant;
+        var targetApplicantId = appApplicant.ApplicantId;
 
         // Resolve ServiceId and ServiceVariantId for this applicant
         Guid? serviceId = applicant?.ServiceId;
@@ -86,7 +96,10 @@ public class GetApplicantRequirementsQueryHandler
 
         // Get submitted requirements for this applicant
         var applicantSubmissions = app.ApplicationRequirements
-            .Where(ar => ar.ApplicantId == request.ApplicantId)
+            .Where(ar =>
+                ar.ApplicantId == targetApplicantId ||
+                ar.ApplicantId == appApplicant.Id ||
+                (app.ApplicationApplicants.Count == 1 && (ar.ApplicantId == app.Id || ar.ApplicantId == Guid.Empty)))
             .ToList();
 
         var resultList = new List<ApplicantRequirementItemDto>();

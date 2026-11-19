@@ -190,6 +190,14 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
     });
   }, [activeFieldOfficesList]);
 
+  const defaultFieldOfficeId = useMemo(() => {
+    const list = activeFieldOfficesList || [];
+    const mainOffice = list.find(
+      (fo) => fo.category === "Main" || fo.code?.toUpperCase().endsWith("-MAIN")
+    );
+    return mainOffice?.id ?? list[0]?.id ?? "";
+  }, [activeFieldOfficesList]);
+
   // Sync default roleId once roles are fetched on-demand
   useEffect(() => {
     if (rolesList.length > 0) {
@@ -197,6 +205,14 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
       setMemberFormData((prev) => (prev.roleId ? prev : { ...prev, roleId: rolesList[0].id }));
     }
   }, [rolesList]);
+
+  // Sync default fieldOfficeId once field offices are fetched on-demand
+  useEffect(() => {
+    if (defaultFieldOfficeId) {
+      setNewEmployeeData((prev) => (prev.fieldOfficeId ? prev : { ...prev, fieldOfficeId: defaultFieldOfficeId }));
+      setMemberFormData((prev) => (prev.fieldOfficeId ? prev : { ...prev, fieldOfficeId: defaultFieldOfficeId }));
+    }
+  }, [defaultFieldOfficeId]);
 
   // Sync default userId once users are fetched in assign mode
   useEffect(() => {
@@ -223,7 +239,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
       suffix: "",
       contactNumber: "",
       roleId: defaultRoleId,
-      fieldOfficeId: "",
+      fieldOfficeId: defaultFieldOfficeId,
       jobTitle: "",
       level: "",
       division: "",
@@ -236,7 +252,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
     setMemberFormData({
       userId: availableUser ? availableUser.value : "",
       roleId: defaultRoleId,
-      fieldOfficeId: "",
+      fieldOfficeId: defaultFieldOfficeId,
       jobTitle: "",
       level: "",
       division: "",
@@ -252,7 +268,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
     setMemberFormData({
       userId: member.userId,
       roleId: member.roleId,
-      fieldOfficeId: member.fieldOfficeId ?? "",
+      fieldOfficeId: member.fieldOfficeId ?? defaultFieldOfficeId,
       jobTitle: member.jobTitle ?? "",
       level: member.level ?? "",
       division: member.division ?? "",
@@ -280,6 +296,11 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
         showToast.error("Please select a security role for the employee.");
         return;
       }
+      const resolvedFieldOfficeId = newEmployeeData.fieldOfficeId || defaultFieldOfficeId;
+      if (!resolvedFieldOfficeId) {
+        showToast.error("Please select a field office for the employee.");
+        return;
+      }
       if (!newEmployeeData.division.trim() || !newEmployeeData.position.trim()) {
         showToast.error("Division and position are required.");
         return;
@@ -303,7 +324,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
           contactNumber: newEmployeeData.contactNumber.trim() || undefined,
           roleKey: matchedRole?.key || "evaluator",
           tenantId: tenantId,
-          fieldOfficeId: newEmployeeData.fieldOfficeId || undefined,
+          fieldOfficeId: resolvedFieldOfficeId,
           jobTitle: newEmployeeData.jobTitle.trim() || undefined,
           level: newEmployeeData.level.trim() || undefined,
           division: newEmployeeData.division.trim(),
@@ -333,6 +354,11 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
         showToast.error("Please select a user account and security role.");
         return;
       }
+      const resolvedFieldOfficeId = memberFormData.fieldOfficeId || defaultFieldOfficeId;
+      if (!resolvedFieldOfficeId) {
+        showToast.error("Please select a field office for the employee.");
+        return;
+      }
 
       setIsSubmitting(true);
       try {
@@ -340,7 +366,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
           tenantId: tenantId,
           userId: memberFormData.userId,
           roleId: memberFormData.roleId,
-          fieldOfficeId: memberFormData.fieldOfficeId || null,
+          fieldOfficeId: resolvedFieldOfficeId,
           jobTitle: memberFormData.jobTitle || null,
           level: memberFormData.level || null,
           division: memberFormData.division,
@@ -362,13 +388,19 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
     e.preventDefault();
     if (selectedMember === null) return;
 
+    const resolvedFieldOfficeId = memberFormData.fieldOfficeId || defaultFieldOfficeId;
+    if (!resolvedFieldOfficeId) {
+      showToast.error("Please select a field office for the employee.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await updateMemberDetails(tenantId, selectedMember.id, {
         memberId: selectedMember.id,
         tenantId: tenantId,
         roleId: memberFormData.roleId,
-        fieldOfficeId: memberFormData.fieldOfficeId || null,
+        fieldOfficeId: resolvedFieldOfficeId,
         jobTitle: memberFormData.jobTitle || null,
         level: memberFormData.level || null,
         division: memberFormData.division,
@@ -739,15 +771,16 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Field Office Assignment <span className="text-rose-500">*</span>
+                    </label>
                     <SearchableSelect
                       value={newEmployeeData.fieldOfficeId}
                       onChange={(val) => setNewEmployeeData({ ...newEmployeeData, fieldOfficeId: val })}
                       options={fieldOfficeOptions}
-                      placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office (Optional)..."}
+                      placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office..."}
                       searchPlaceholder="Filter offices..."
                       maxHeight="max-h-48"
-                      clearable
                     />
                   </div>
                 </div>
@@ -854,15 +887,16 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Field Office Assignment <span className="text-rose-500">*</span>
+                    </label>
                     <SearchableSelect
                       value={memberFormData.fieldOfficeId}
                       onChange={(val) => setMemberFormData({ ...memberFormData, fieldOfficeId: val })}
                       options={fieldOfficeOptions}
-                      placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office (Optional)..."}
+                      placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office..."}
                       searchPlaceholder="Filter offices..."
                       maxHeight="max-h-48"
-                      clearable
                     />
                   </div>
                 </div>
@@ -984,15 +1018,16 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Field Office Assignment <span className="text-rose-500">*</span>
+                </label>
                 <SearchableSelect
                   value={memberFormData.fieldOfficeId}
                   onChange={(val) => setMemberFormData({ ...memberFormData, fieldOfficeId: val })}
                   options={fieldOfficeOptions}
-                  placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office (Optional)..."}
+                  placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office..."}
                   searchPlaceholder="Filter offices..."
                   maxHeight="max-h-48"
-                  clearable
                 />
               </div>
             </div>

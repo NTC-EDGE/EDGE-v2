@@ -15,8 +15,15 @@ export function parseFieldOptions(rawList: unknown): FieldOption[] | undefined {
       const rawLabel = item["label"];
       const rawVal = item["value"];
       const rawId = item["id"];
-      const label = typeof rawLabel === "string" ? rawLabel : typeof rawVal === "string" ? rawVal : `Option ${i + 1}`;
-      const val = typeof rawVal === "string" ? rawVal : label;
+      let label = typeof rawLabel === "string" ? rawLabel : typeof rawVal === "string" ? rawVal : `Option ${i + 1}`;
+      let val = typeof rawVal === "string" ? rawVal : label;
+      const isDefaultLabel = /^option\s*\d+$/i.test(label.trim());
+      const isDefaultVal = /^option[_\s]*\d+$/i.test(val.trim());
+      if (isDefaultLabel && val.trim().length > 0 && !isDefaultVal) {
+        label = val;
+      } else if (isDefaultVal && label.trim().length > 0 && !isDefaultLabel) {
+        val = label;
+      }
       const id = typeof rawId === "string" && rawId.length > 0 ? rawId : `opt-${i + 1}-${generateId().slice(0, 4)}`;
       result.push({ id, label, value: val });
     } else if (typeof item === "number" || typeof item === "boolean") {

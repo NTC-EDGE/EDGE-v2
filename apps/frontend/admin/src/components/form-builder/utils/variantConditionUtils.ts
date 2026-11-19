@@ -49,13 +49,13 @@ export function variantNamesMatch(item: string, targetVariant: string): boolean 
   const normTarget = normalize(targetVariant);
   if (!normItem || !normTarget || normItem === "none" || normItem === "all") return false;
   if (normItem === normTarget) return true;
-  const parenMatch = targetVariant.match(/\(([^)]+)\)/);
+  const parenMatch = targetVariant.match(/\(([^()]+)\)\s*$/) ?? targetVariant.match(/\(([^)]+)\)/);
   if (parenMatch && normalize(parenMatch[1]) === normItem) return true;
-  const itemParenMatch = item.match(/\(([^)]+)\)/);
+  const itemParenMatch = item.match(/\(([^()]+)\)\s*$/) ?? item.match(/\(([^)]+)\)/);
   if (itemParenMatch && normalize(itemParenMatch[1]) === normTarget) return true;
-  const baseTarget = normalize(targetVariant.replace(/\([^)]*\)/g, ""));
+  const baseTarget = normalize(targetVariant.replace(/\([^()]*\)\s*$/, ""));
   if (baseTarget && baseTarget === normItem) return true;
-  const baseItem = normalize(item.replace(/\([^)]*\)/g, ""));
+  const baseItem = normalize(item.replace(/\([^()]*\)\s*$/, ""));
   if (baseItem && baseItem === normTarget) return true;
   return false;
 }

@@ -24,6 +24,7 @@ export function useAdminApplicationDetails(
       revalidateOnFocus: options?.revalidateOnFocus ?? true,
       refreshInterval: options?.refreshInterval,
       dedupingInterval: options?.dedupingInterval ?? 5000,
+      keepPreviousData: true,
     }
   );
 

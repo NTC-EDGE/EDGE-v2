@@ -94,6 +94,7 @@ public static class WebhookEndpoints
         .WithSummary("Handle Clerk identity webhooks")
         .WithDescription("Processes Clerk authentication webhook events for user creation, profile sync, and session management.")
         .AddEndpointFilter<ClerkWebhookVerificationFilter>()
+        .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.Webhook)
         .AllowAnonymous();
     }
 }

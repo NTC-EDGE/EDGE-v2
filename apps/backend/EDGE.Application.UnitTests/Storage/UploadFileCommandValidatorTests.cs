@@ -84,4 +84,22 @@ public class UploadFileCommandValidatorTests
         result.ShouldHaveValidationErrorFor(c => c.TenantId);
         result.ShouldHaveValidationErrorFor(c => c.UploadedByUserId);
     }
+
+    [Fact]
+    public async Task Validate_WithOversizedFile_ShouldHaveValidationError()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Test bytes"));
+        var command = new UploadFileCommand(
+            FileStream: stream,
+            FileName: "large.pdf",
+            ContentType: "application/pdf",
+            FileSizeBytes: UploadFileCommandValidator.MaxFileSizeBytes + 1,
+            Category: "Requirement",
+            TenantId: Guid.NewGuid(),
+            UploadedByUserId: "user_1"
+        );
+
+        var result = await _validator.TestValidateAsync(command);
+        result.ShouldHaveValidationErrorFor(c => c.FileSizeBytes);
+    }
 }

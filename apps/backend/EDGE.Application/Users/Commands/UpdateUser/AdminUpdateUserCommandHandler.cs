@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 
@@ -19,6 +20,7 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClerkUserService _clerkUserService;
     private readonly ILogger<AdminUpdateUserCommandHandler> _logger;
+    private readonly IFieldOfficeRepository? _fieldOfficeRepository;
 
     public AdminUpdateUserCommandHandler(
         IUserRepository userRepository,
@@ -27,7 +29,8 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
         ITenantContextService tenantContextService,
         IUnitOfWork unitOfWork,
         IClerkUserService clerkUserService,
-        ILogger<AdminUpdateUserCommandHandler> logger)
+        ILogger<AdminUpdateUserCommandHandler> logger,
+        IFieldOfficeRepository? fieldOfficeRepository = null)
     {
         _userRepository = userRepository;
         _tenantMemberRepository = tenantMemberRepository;
@@ -36,6 +39,7 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
         _unitOfWork = unitOfWork;
         _clerkUserService = clerkUserService;
         _logger = logger;
+        _fieldOfficeRepository = fieldOfficeRepository;
     }
 
     public async Task<User?> Handle(AdminUpdateUserCommand request, CancellationToken cancellationToken)
@@ -101,7 +105,27 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
 
                 if (request.FieldOfficeId.HasValue && request.FieldOfficeId.Value != Guid.Empty)
                 {
+                    if (_fieldOfficeRepository != null)
+                    {
+                        var requestedOffice = await _fieldOfficeRepository.GetByIdAsync(request.FieldOfficeId.Value, cancellationToken);
+                        if (requestedOffice == null || requestedOffice.TenantId != request.TenantId.Value)
+                        {
+                            throw new InvalidOperationException("The selected Field Office does not exist or does not belong to the employee's assigned Tenant.");
+                        }
+                    }
                     membership.FieldOfficeId = request.FieldOfficeId.Value;
+                }
+                else if (membership.FieldOfficeId == null && _fieldOfficeRepository != null)
+                {
+                    var tenantOffices = await _fieldOfficeRepository.GetByTenantIdAsync(request.TenantId.Value, cancellationToken);
+                    var mainOffice = tenantOffices.FirstOrDefault(fo => fo.Category == FieldOfficeCategory.Main && fo.IsActive)
+                                     ?? tenantOffices.FirstOrDefault(fo => fo.Category == FieldOfficeCategory.Main)
+                                     ?? tenantOffices.FirstOrDefault(fo => fo.IsActive)
+                                     ?? tenantOffices.FirstOrDefault();
+                    if (mainOffice != null)
+                    {
+                        membership.FieldOfficeId = mainOffice.Id;
+                    }
                 }
                 if (request.JobTitle != null) membership.JobTitle = request.JobTitle.Trim();
                 if (request.Level != null) membership.Level = request.Level.Trim();

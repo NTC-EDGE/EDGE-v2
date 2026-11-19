@@ -317,6 +317,7 @@ export interface FieldOffice {
   tenantId: string;
   name: string;
   code: string;
+  category?: string;
   description?: string | null;
   regionId: string;
   regionName?: string | null;
@@ -803,6 +804,21 @@ export interface ServiceVariantRequirement {
   isRequired: boolean;
 }
 
+export interface ApplicationRequirementDto {
+  id: string;
+  applicantId: string;
+  applicationServiceId?: string | null;
+  requirementId: string;
+  requirementName?: string | null;
+  serviceVariantRequirementId?: string | null;
+  storedFileId?: string | null;
+  fileName?: string | null;
+  contentType?: string | null;
+  fileSizeBytes?: number | null;
+  url: string;
+  isApproved: boolean;
+}
+
 export interface ApplicantRequirementItemDto {
   requirementId: string;
   serviceVariantRequirementId?: string | null;
@@ -1155,6 +1171,7 @@ export interface ApplicationDto {
   filingUser?: FilingUserDto;
   services?: ApplicationServiceDto[];
   applicants: ApplicantDto[];
+  requirements?: ApplicationRequirementDto[];
   formSubmissions?: FormSubmissionSummaryDto[];
   statementsOfAccount: StatementOfAccountDto[];
   ordersOfPayment: OrderOfPaymentDto[];
@@ -1276,6 +1293,9 @@ export interface ApplicationSummaryDto {
   orNumbers?: string[];
   soaNumber?: string;
   opNumber?: string;
+  opStatus?: string;
+  orderOfPaymentId?: string;
+  payorName?: string;
   amountPaid?: number;
   paidAt?: string;
   totalAmountDue?: number;
@@ -1422,6 +1442,7 @@ export interface CreateSoaRequest {
   noOfCopies?: number | null;
   remarks?: string | null;
   soaNoteId?: string | null;
+  soaNumber?: string | null;
 }
 
 export interface VerifyPaymentRequest {

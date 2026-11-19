@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import { Conversation, chatService, safeAsync, useUsers } from '@edge/api';
+import { Conversation, chatService, meetService, safeAsync, useUsers } from '@edge/api';
 import { AlertToast, useTheme } from '@edge/ui';
+import { useAppNavigation } from '../../../navigation/types';
 import { useAuthContext } from '../../auth/context/AuthContext';
+import { useMeetingSession } from '../../meet/context/MeetingSessionContext';
+import { getMeetingJoinLink } from '../../meet/utils/webDomHelpers';
 import { useChatConversations } from '../hooks/useChatConversations';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { ChatSidebar } from '../components/ChatSidebar';
@@ -18,6 +21,8 @@ export const ChatScreenContent: React.FC = () => {
 
   const { user } = useAuthContext();
   const { users } = useUsers();
+  const navigation = useAppNavigation();
+  const meetingSession = useMeetingSession();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState<boolean>(false);
   const [isDirectModalOpen, setIsDirectModalOpen] = useState<boolean>(false);
@@ -188,6 +193,50 @@ export const ChatScreenContent: React.FC = () => {
     showToast('Conversation removed.', 'success');
   };
 
+  const handleStartCallFromChat = async (conv: Conversation) => {
+    setIsSubmitting(true);
+    const otherIds = conv.participants
+      .map((p) => p.userId)
+      .filter((id) => id !== user?.id && id !== 'self');
+
+    const otherName = conv.participants.find(
+      (p) => p.userId !== user?.id && p.userId !== 'self'
+    )?.fullName;
+    const callTitle =
+      conv.title && conv.title.trim().length > 0
+        ? conv.title
+        : otherName
+          ? `Call with ${otherName}`
+          : 'Chat Video Call';
+
+    const [newMeet, err] = await safeAsync(
+      meetService.createMeeting({
+        title: callTitle,
+        scope: conv.scope,
+        scheduledStartTime: new Date().toISOString(),
+        participantUserIds: otherIds,
+        isInstant: true,
+        ringParticipants: true,
+        linkedConversationId: conv.id,
+      })
+    );
+    setIsSubmitting(false);
+
+    if (err !== null) {
+      showToast(err, 'error');
+      return;
+    }
+
+    if (newMeet !== null) {
+      const link = getMeetingJoinLink(newMeet.meetingCode);
+      void sendMessage(
+        `📹 Started a Video Call: "${callTitle}" — Code: ${newMeet.meetingCode} (${link})`
+      );
+      meetingSession?.enterMeetingNow(newMeet);
+      navigation.navigate('Meet');
+    }
+  };
+
   return (
     <View style={[styles.outerContainer, { backgroundColor: colors.bg }]}>
       {toast !== null && (
@@ -241,6 +290,7 @@ export const ChatScreenContent: React.FC = () => {
               onUnsendMessage={unsendMessage}
               onReactMessage={reactToMessage}
               onTyping={sendTypingNotification}
+              onStartVideoCall={(conv) => void handleStartCallFromChat(conv)}
               typingUsers={typingUsers}
               isSending={isSending}
             />

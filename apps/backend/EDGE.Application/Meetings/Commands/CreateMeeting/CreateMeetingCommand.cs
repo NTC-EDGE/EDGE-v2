@@ -11,5 +11,8 @@ public record CreateMeetingCommand(
     Guid? TenantId,
     DateTimeOffset ScheduledStartTime,
     DateTimeOffset? ScheduledEndTime,
-    List<Guid>? ParticipantUserIds = null
+    List<Guid>? ParticipantUserIds = null,
+    bool IsInstant = false,
+    bool RingParticipants = false,
+    Guid? LinkedConversationId = null
 ) : IRequest<MeetingDto>;

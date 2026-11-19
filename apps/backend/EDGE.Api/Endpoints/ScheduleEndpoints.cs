@@ -4,9 +4,12 @@ using EDGE.Application.Schedules.DTOs;
 using EDGE.Application.Schedules.Commands.CreateSchedule;
 using EDGE.Application.Schedules.Commands.UpdateSchedule;
 using EDGE.Application.Schedules.Commands.DeleteSchedule;
+using EDGE.Application.Schedules.Commands.AdmitExaminee;
 using EDGE.Application.Schedules.Queries.GetSchedules;
 using EDGE.Application.Schedules.Queries.GetScheduleById;
 using EDGE.Application.Schedules.Queries.GetAvailableSchedules;
+using EDGE.Application.Schedules.Queries.VerifyExamAdmissionQr;
+using EDGE.Application.Schedules.Queries.GetScheduleExaminees;
 using EDGE.Application.Schedules.Commands.SetSchedulePublishStatus;
 using Microsoft.AspNetCore.Authorization;
 using EDGE.Domain.Authorization;
@@ -68,6 +71,27 @@ public static class ScheduleEndpoints
             .WithName("DeleteSchedule")
             .WithSummary("Delete schedule")
             .WithDescription("Removes a schedule configuration.");
+
+        // GET verify exam admission slip QR code
+        schedules.MapGet("/admission/verify", VerifyExamAdmissionQr)
+            .WithName("VerifyExamAdmissionQr")
+            .WithSummary("Verify Exam Admission Slip QR code")
+            .WithDescription("Verifies an Exam Admission Slip QR verification code, control number, or reference number and returns examinee admission status.")
+            .Produces<ApiResponse<ExamAdmissionVerificationDto>>(StatusCodes.Status200OK);
+
+        // GET schedule examinees roster for admission tracking
+        schedules.MapGet("/admission/examinees", GetScheduleExaminees)
+            .WithName("GetScheduleExaminees")
+            .WithSummary("Get examinees roster for admission")
+            .WithDescription("Retrieves scheduled examinees and their QR admission check-in status.")
+            .Produces<ApiResponse<List<ExamAdmissionVerificationDto>>>(StatusCodes.Status200OK);
+
+        // POST admit examinee via QR code verification
+        schedules.MapPost("/admission/admit", AdmitExaminee)
+            .WithName("AdmitExaminee")
+            .WithSummary("Admit examinee via QR code scan")
+            .WithDescription("Confirms and records examinee admission at the examination venue from a verified Exam Admission Slip QR code.")
+            .Produces<ApiResponse<ExamAdmissionVerificationDto>>(StatusCodes.Status200OK);
 
         return group;
     }
@@ -219,5 +243,48 @@ public static class ScheduleEndpoints
     {
         var success = await mediator.Send(new DeleteScheduleCommand(id));
         return success ? Results.NoContent() : Results.NotFound();
+    }
+
+    [Authorize]
+    public static async Task<IResult> VerifyExamAdmissionQr(
+        string code,
+        string? scheduleId,
+        string? tenantId,
+        IMediator mediator)
+    {
+        Guid? scheduleGuid = Guid.TryParse(scheduleId?.Trim(), out var s) && s != Guid.Empty ? s : null;
+        Guid? tenantGuid = Guid.TryParse(tenantId?.Trim(), out var t) && t != Guid.Empty ? t : null;
+
+        var result = await mediator.Send(new VerifyExamAdmissionQrQuery(code, scheduleGuid, tenantGuid));
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [Authorize]
+    public static async Task<IResult> GetScheduleExaminees(
+        string? scheduleId,
+        string? tenantId,
+        IMediator mediator)
+    {
+        Guid? scheduleGuid = Guid.TryParse(scheduleId?.Trim(), out var s) && s != Guid.Empty ? s : null;
+        Guid? tenantGuid = Guid.TryParse(tenantId?.Trim(), out var t) && t != Guid.Empty ? t : null;
+
+        var result = await mediator.Send(new GetScheduleExamineesQuery(scheduleGuid, tenantGuid));
+        return Results.Ok(result);
+    }
+
+    [Authorize]
+    public static async Task<IResult> AdmitExaminee(
+        AdmitExamineeCommand command,
+        IValidator<AdmitExamineeCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 }

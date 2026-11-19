@@ -121,7 +121,7 @@ public static class FastTrackCatalogSeeder
 
         // 3. Mark any obsolete non-target services as deleted
         var obsoleteServices = existingServices
-            .Where(x => !targetIds.Contains(x.Id) && !x.IsDeleted && !x.Code.Contains("_LEGACY_"))
+            .Where(x => !targetIds.Contains(x.Id) && !x.IsDeleted && x.Code?.Contains("_LEGACY_") != true)
             .ToList();
 
         foreach (var obs in obsoleteServices)
@@ -138,7 +138,7 @@ public static class FastTrackCatalogSeeder
         try
         {
             var legacyServices = existingServices
-                .Where(x => x.Code.Contains("_LEGACY_"))
+                .Where(x => x.Code?.Contains("_LEGACY_") == true)
                 .ToList();
 
             if (legacyServices.Count > 0)

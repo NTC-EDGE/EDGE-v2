@@ -72,6 +72,30 @@ public class TenantMemberRepository : ITenantMemberRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<TenantMember?> GetFirstAvailableMemberAsync(Guid? preferredTenantId = null, CancellationToken cancellationToken = default)
+    {
+        if (preferredTenantId.HasValue && preferredTenantId.Value != Guid.Empty)
+        {
+            var tenantMember = await _context.TenantMembers
+                .Include(m => m.User)
+                .Where(m => m.TenantId == preferredTenantId.Value && !m.IsDeleted)
+                .OrderBy(m => m.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (tenantMember != null)
+            {
+                return tenantMember;
+            }
+        }
+
+        return await _context.TenantMembers
+            .IgnoreQueryFilters()
+            .Include(m => m.User)
+            .OrderBy(m => m.IsDeleted)
+            .ThenBy(m => m.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public void Delete(TenantMember member)
     {
         _context.TenantMembers.Remove(member);

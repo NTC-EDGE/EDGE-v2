@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,36 +7,113 @@ import {
   ScrollView,
   Pressable,
   Platform,
-  TextInput,
+  Animated,
 } from 'react-native';
 import {
   COLORS,
   useTheme,
   Button,
   Icon as Lucide,
-  AnimatedCard,
   SPACING,
   RADIUS,
+  SHADOWS,
   TYPOGRAPHY,
   DatePickerInput,
 } from '@edge/ui';
 import { StatutoryReportMetadata } from '../types/statutoryReports';
-import { ApplicationSummaryDto, TenantTransactionDto, FeedbackDto } from '@edge/api';
+import { FieldOfficeFilterOption } from '../hooks/useReportsState';
+import {
+  ApplicationSummaryDto,
+  TenantTransactionDto,
+  FeedbackDto,
+  reportService,
+} from '@edge/api';
 import {
   generateStatutoryCsv,
   downloadCsvFile,
   generateStatutoryPrintableHtml,
   openPrintableReportWindow,
+  getPaidTransactions,
+  resolveEvaluatorName,
+  resolveServiceName,
+  resolveEntityName,
+  filterApplicationsForStatutoryReport,
 } from '../utils/statutoryReportGenerator';
+
+interface PdfLoadBarProps {
+  height?: number;
+}
+
+function PdfLoadBar({ height = 5 }: PdfLoadBarProps) {
+  const { colors, isDark } = useTheme();
+  const anim = React.useRef(new Animated.Value(0)).current;
+  const [containerWidth, setContainerWidth] = useState(300);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: false,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-containerWidth * 0.4, containerWidth],
+  });
+
+  return (
+    <View
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0) {
+          setContainerWidth(w);
+        }
+      }}
+      style={{
+        width: '100%',
+        height,
+        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200],
+        borderRadius: height / 2,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          width: '35%',
+          backgroundColor: isDark ? colors.brand[400] : colors.brand[600],
+          borderRadius: height / 2,
+          transform: [{ translateX }],
+        }}
+      />
+    </View>
+  );
+}
 
 export interface StatutoryReportPreviewModalProps {
   visible: boolean;
   report: StatutoryReportMetadata | null;
   tenantName: string;
+  tenantId?: string | null;
   period: string;
   startDate?: string;
   endDate?: string;
   onDateRangeChange?: (startDate: string, endDate: string) => void;
+  fieldOfficeOptions?: FieldOfficeFilterOption[];
+  selectedFieldOffices?: string[];
+  isAllFieldOfficesSelected?: boolean;
+  hasBackendFieldOfficeSupport?: boolean;
+  onToggleFieldOffice?: (officeName: string) => void;
+  onSelectAllFieldOffices?: () => void;
+  fieldOfficesParam?: string;
   applications: ApplicationSummaryDto[];
   transactions: TenantTransactionDto[];
   feedback: FeedbackDto[];
@@ -48,10 +125,18 @@ export function StatutoryReportPreviewModal({
   visible,
   report,
   tenantName,
+  tenantId,
   period,
   startDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
   endDate = new Date().toISOString().slice(0, 10),
   onDateRangeChange,
+  fieldOfficeOptions = [],
+  selectedFieldOffices = [],
+  isAllFieldOfficesSelected = true,
+  hasBackendFieldOfficeSupport = false,
+  onToggleFieldOffice,
+  onSelectAllFieldOffices,
+  fieldOfficesParam,
   applications,
   transactions,
   feedback,
@@ -60,8 +145,13 @@ export function StatutoryReportPreviewModal({
 }: StatutoryReportPreviewModalProps) {
   const { colors, isDark } = useTheme();
 
-  // View mode tab state: official document preview vs quick data summary
-  const [viewMode, setViewMode] = useState<'document' | 'summary'>('document');
+  // View format: 'pdf' (Backend QuestPDF vector stream like SOA/OP/OR) vs 'interactive' (HTML replica)
+  const [viewFormat, setViewFormat] = useState<'pdf' | 'interactive'>('pdf');
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState<number>(0);
+  const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
 
   // Local date range state for interactive in-modal filtering
   const [localStartDate, setLocalStartDate] = useState<string>(startDate);
@@ -71,10 +161,134 @@ export function StatutoryReportPreviewModal({
     end: endDate,
   });
 
+  // Report-specific secondary filter (Evaluator / Service / Entity / Exam Class)
+  const [selectedSecondaryFilter, setSelectedSecondaryFilter] = useState<string>('all');
+
+  useEffect(() => {
+    setLocalStartDate(startDate);
+    setLocalEndDate(endDate);
+    setActiveDateRange({ start: startDate, end: endDate });
+  }, [startDate, endDate, visible]);
+
+  useEffect(() => {
+    if (visible) {
+      setSelectedSecondaryFilter('all');
+      setViewFormat('pdf');
+      setShowActionMenu(false);
+      setPdfBlobUrl(null);
+    }
+  }, [report?.code, visible]);
+
+  useEffect(() => {
+    if (!showActionMenu) return;
+    const handleOutsideClick = () => {
+      setShowActionMenu(false);
+    };
+    if (typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        window.addEventListener('click', handleOutsideClick);
+        window.addEventListener('blur', handleOutsideClick);
+      }, 50);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('click', handleOutsideClick);
+        window.removeEventListener('blur', handleOutsideClick);
+      };
+    }
+  }, [showActionMenu]);
+
+  const effectivePeriod =
+    activeDateRange.start && activeDateRange.end
+      ? `${activeDateRange.start} to ${activeDateRange.end}`
+      : period;
+
+  const useClientFilteredPreview =
+    selectedFieldOffices.length > 0 && !hasBackendFieldOfficeSupport;
+
+  // Fetch backend QuestPDF blob whenever modal opens or filters change (matching SoaReportPreviewModal)
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    if (
+      visible &&
+      report !== null &&
+      Platform.OS === 'web' &&
+      viewFormat === 'pdf' &&
+      !useClientFilteredPreview
+    ) {
+      setIsLoadingPdf(true);
+      setPdfError(null);
+
+      const loadBlob = async () => {
+        try {
+          const [blob, err] = await reportService.previewStatutoryReportPdf({
+            code: report.code,
+            tenantId: tenantId ?? undefined,
+            period: effectivePeriod,
+            startDate: activeDateRange.start,
+            endDate: activeDateRange.end,
+            secondaryFilter: selectedSecondaryFilter,
+            fieldOffices: fieldOfficesParam,
+          });
+
+          if (!active) return;
+
+          if (err !== null || blob === null) {
+            const errDetail =
+              typeof err === 'string' && err.trim().length > 0
+                ? err
+                : `Failed to generate official ${report.code} PDF document.`;
+            setPdfError(errDetail);
+            setIsLoadingPdf(false);
+            return;
+          }
+
+          if (typeof window !== 'undefined') {
+            createdUrl = window.URL.createObjectURL(blob);
+            setPdfBlobUrl(createdUrl);
+            setIsLoadingPdf(false);
+          }
+        } catch (fetchErr: unknown) {
+          if (!active) return;
+          const errorMessage =
+            fetchErr instanceof Error ? fetchErr.message : 'Error generating official PDF report';
+          setPdfError(errorMessage);
+          setIsLoadingPdf(false);
+        }
+      };
+
+      void loadBlob();
+    } else {
+      setIsLoadingPdf(false);
+      setPdfError(null);
+    }
+
+    return () => {
+      active = false;
+      if (createdUrl !== null && typeof window !== 'undefined') {
+        window.URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [
+    visible,
+    report,
+    tenantId,
+    effectivePeriod,
+    activeDateRange.start,
+    activeDateRange.end,
+    selectedSecondaryFilter,
+    fieldOfficesParam,
+    useClientFilteredPreview,
+    viewFormat,
+    reloadKey,
+  ]);
+
   // Filter records within active date range
-  const filteredApps = useMemo(() => {
+  const dateFilteredApps = useMemo(() => {
     if (!activeDateRange.start || !activeDateRange.end) return applications;
     const s = new Date(activeDateRange.start);
+    s.setHours(0, 0, 0, 0);
     const e = new Date(activeDateRange.end);
     e.setHours(23, 59, 59, 999);
 
@@ -88,9 +302,57 @@ export function StatutoryReportPreviewModal({
     });
   }, [applications, activeDateRange]);
 
+  const secondaryFilterOptions = useMemo(() => {
+    if (!report) return [];
+    const set = new Set<string>();
+    if (report.code === 'NTC-APP-SUM-EVAL') {
+      for (const app of dateFilteredApps) {
+        const val = resolveEvaluatorName(app, userName);
+        if (val.trim().length > 0) set.add(val.trim());
+      }
+    } else if (report.code === 'NTC-APP-SUM-SVC') {
+      for (const app of dateFilteredApps) {
+        const val = resolveServiceName(app);
+        if (val.trim().length > 0) set.add(val.trim());
+      }
+    } else if (report.code === 'NTC-APP-SUM-ENT') {
+      for (const app of dateFilteredApps) {
+        const val = resolveEntityName(app);
+        if (val.trim().length > 0) set.add(val.trim());
+      }
+    } else if (report.code === 'NTC-EXAM-MST-01') {
+      for (const app of dateFilteredApps) {
+        const cat = `${app.serviceCategory ?? ''} ${app.serviceName ?? ''} ${app.serviceVariantName ?? ''}`.toLowerCase();
+        if (cat.includes('exam') || cat.includes('operator') || cat.includes('roce') || cat.includes('amateur') || cat.includes('rroc')) {
+          const val = (app.serviceVariantName ?? app.element ?? app.serviceName ?? '').trim();
+          if (val.length > 0) set.add(val);
+        }
+      }
+    }
+    return Array.from(set).sort();
+  }, [report, dateFilteredApps, userName]);
+
+  const generatorOptions = useMemo(() => {
+    return {
+      startDate: activeDateRange.start,
+      endDate: activeDateRange.end,
+      evaluatorFilter: report?.code === 'NTC-APP-SUM-EVAL' ? selectedSecondaryFilter : undefined,
+      serviceFilter: report?.code === 'NTC-APP-SUM-SVC' ? selectedSecondaryFilter : undefined,
+      entityFilter: report?.code === 'NTC-APP-SUM-ENT' ? selectedSecondaryFilter : undefined,
+      scheduleFilter: report?.code === 'NTC-EXAM-MST-01' ? selectedSecondaryFilter : undefined,
+      fieldOfficeFilter: selectedFieldOffices.length > 0 ? selectedFieldOffices.join(', ') : undefined,
+    };
+  }, [activeDateRange, report?.code, selectedSecondaryFilter, selectedFieldOffices]);
+
+  const filteredApps = useMemo(() => {
+    if (!report) return dateFilteredApps;
+    return filterApplicationsForStatutoryReport(report.code, dateFilteredApps, generatorOptions, userName);
+  }, [report, dateFilteredApps, generatorOptions, userName]);
+
   const filteredTx = useMemo(() => {
     if (!activeDateRange.start || !activeDateRange.end) return transactions;
     const s = new Date(activeDateRange.start);
+    s.setHours(0, 0, 0, 0);
     const e = new Date(activeDateRange.end);
     e.setHours(23, 59, 59, 999);
 
@@ -104,17 +366,28 @@ export function StatutoryReportPreviewModal({
     });
   }, [transactions, activeDateRange]);
 
+  const paidTx = useMemo(() => {
+    return getPaidTransactions(filteredTx, filteredApps);
+  }, [filteredTx, filteredApps]);
+
+  const printableHtml = useMemo(() => {
+    if (!report) return '';
+    return generateStatutoryPrintableHtml(
+      report,
+      tenantName,
+      effectivePeriod,
+      filteredApps,
+      filteredTx,
+      feedback,
+      userName,
+      generatorOptions
+    );
+  }, [report, tenantName, effectivePeriod, filteredApps, filteredTx, feedback, userName, generatorOptions]);
+
   if (report === null || report === undefined) return null;
 
   const totalApps = filteredApps.length;
-  const approvedApps = filteredApps.filter((a) => a.status === 'Approved' || a.status === 'Completed').length;
-  const evaluatingApps = filteredApps.filter((a) => a.status === 'Evaluating' || a.status === 'Submitted').length;
-  const totalRevenue = filteredTx.reduce((sum, tx) => sum + (tx.amount ?? 0), 0);
-  const avgCsat = feedback.length > 0 ? (feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length).toFixed(1) : '5.0';
-
-  const effectivePeriod = activeDateRange.start && activeDateRange.end
-    ? `${activeDateRange.start} to ${activeDateRange.end}`
-    : period;
+  const totalRevenue = paidTx.reduce((sum, tx) => sum + (tx.amount ?? 0), 0);
 
   const handleApplyDateRange = () => {
     setActiveDateRange({
@@ -126,20 +399,64 @@ export function StatutoryReportPreviewModal({
     }
   };
 
-  const printableHtml = useMemo(() => {
-    return generateStatutoryPrintableHtml(
-      report,
-      tenantName,
-      effectivePeriod,
-      filteredApps,
-      filteredTx,
-      feedback,
-      userName,
-      { startDate: activeDateRange.start, endDate: activeDateRange.end }
-    );
-  }, [report, tenantName, effectivePeriod, filteredApps, filteredTx, feedback, userName, activeDateRange]);
+  const handlePrint = async () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (pdfBlobUrl !== null && viewFormat === 'pdf') {
+        const printWindow = window.open(pdfBlobUrl, '_blank');
+        if (printWindow !== null) {
+          printWindow.focus();
+        }
+        return;
+      }
 
-  const handlePrint = () => {
+      const [blob, err] = await reportService.previewStatutoryReportPdf({
+        code: report.code,
+        tenantId: tenantId ?? undefined,
+        period: effectivePeriod,
+        startDate: activeDateRange.start,
+        endDate: activeDateRange.end,
+        secondaryFilter: selectedSecondaryFilter,
+        fieldOffices: fieldOfficesParam,
+      });
+
+      if (blob !== null && err === null) {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const printWindow = window.open(blobUrl, '_blank');
+        if (printWindow !== null) {
+          printWindow.focus();
+        }
+        return;
+      }
+    }
+
+    openPrintableReportWindow(printableHtml);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const [blob, err] = await reportService.downloadStatutoryReportPdf({
+        code: report.code,
+        tenantId: tenantId ?? undefined,
+        period: effectivePeriod,
+        startDate: activeDateRange.start,
+        endDate: activeDateRange.end,
+        secondaryFilter: selectedSecondaryFilter,
+        fieldOffices: fieldOfficesParam,
+      });
+
+      if (blob !== null && err === null) {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${report.code}_${activeDateRange.start}_to_${activeDateRange.end}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        return;
+      }
+    }
+
     openPrintableReportWindow(printableHtml);
   };
 
@@ -151,7 +468,7 @@ export function StatutoryReportPreviewModal({
       filteredApps,
       filteredTx,
       feedback,
-      { startDate: activeDateRange.start, endDate: activeDateRange.end }
+      generatorOptions
     );
     downloadCsvFile(content, filename);
   };
@@ -165,9 +482,21 @@ export function StatutoryReportPreviewModal({
             { backgroundColor: colors.cardBg, borderColor: colors.border },
           ]}
         >
-          {/* Modal Header */}
+          {/* Modal Header — Identical Action Pattern to SoaReportPreviewModal */}
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <View style={styles.headerLeft}>
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: isDark ? colors.brand[900] : colors.brand[50] },
+                ]}
+              >
+                <Lucide
+                  name="file-text"
+                  size={20}
+                  color={isDark ? colors.brand[400] : colors.brand[600]}
+                />
+              </View>
               <View style={[styles.codeBadge, { backgroundColor: `${report.badgeColor}20`, borderColor: report.badgeColor }]}>
                 <Text style={[styles.codeBadgeText, { color: report.badgeColor }]}>{report.code}</Text>
               </View>
@@ -180,38 +509,147 @@ export function StatutoryReportPreviewModal({
             </View>
 
             <View style={styles.modalHeaderRightActions}>
-              <Button
-                variant="outline"
-                size="sm"
-                fullWidth={false}
-                leftIcon={<Lucide name="download" size={13} color={colors.text} />}
-                onPress={handleCsvDownload}
+              <Pressable
+                style={[
+                  styles.printHeaderBtn,
+                  { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] },
+                  Platform.select({ web: { cursor: 'pointer' } }),
+                ]}
+                onPress={() => {
+                  setShowActionMenu(false);
+                  void handlePrint();
+                }}
               >
-                CSV
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                fullWidth={false}
-                leftIcon={<Lucide name="printer" size={14} color="#FFFFFF" />}
-                onPress={handlePrint}
+                <Lucide name="printer" size={14} color={COLORS.neutral.white} />
+                <Text style={styles.printHeaderBtnText}>Print</Text>
+              </Pressable>
+
+              {/* 3-Dots More Options Menu Button */}
+              <Pressable
+                onPress={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                  setShowActionMenu((prev) => !prev);
+                }}
+                style={[
+                  styles.menuTriggerBtn,
+                  {
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                    backgroundColor: showActionMenu
+                      ? (isDark ? colors.neutral[800] : colors.neutral[100])
+                      : (isDark ? colors.neutral[900] : COLORS.neutral.white),
+                  },
+                  Platform.select({ web: { cursor: 'pointer' } }),
+                ]}
+                accessibilityLabel="More options"
               >
-                Print / PDF Report
-              </Button>
+                <Lucide name="more-vertical" size={17} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
+              </Pressable>
+
               <Pressable
                 style={({ pressed }) => [
                   styles.closeIconBtn,
                   pressed && { opacity: 0.7 },
                   Platform.select({ web: { cursor: 'pointer' } }),
                 ]}
-                onPress={onClose}
+                onPress={() => {
+                  setShowActionMenu(false);
+                  onClose();
+                }}
               >
-                <Lucide name="x" size={18} color={colors.textMuted} />
+                <Lucide name="x" size={20} color={colors.textMuted} />
               </Pressable>
             </View>
+
+            {/* Dropdown Menu from 3-Dots */}
+            {showActionMenu && (
+              <View
+                style={[
+                  styles.dropdownMenu,
+                  {
+                    backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                  },
+                ]}
+                onTouchStart={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                }}
+              >
+                <View style={styles.dropdownSectionHeader}>
+                  <Text style={[styles.dropdownSectionTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                    EXPORT & TEMPLATE OPTIONS
+                  </Text>
+                </View>
+
+                <Pressable
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    void handleDownloadPdf();
+                  }}
+                >
+                  <Lucide name="file-text" size={15} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                      Download Official PDF
+                    </Text>
+                    <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                      Official Vector PDF • {report.code}
+                    </Text>
+                  </View>
+                  <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+                </Pressable>
+
+                <Pressable
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    handleCsvDownload();
+                  }}
+                >
+                  <Lucide name="table" size={15} color={isDark ? '#34d399' : '#059669'} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                      Export CSV Spreadsheet
+                    </Text>
+                    <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                      Comma-Separated Values • {totalApps} records
+                    </Text>
+                  </View>
+                  <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+                </Pressable>
+
+                {Platform.OS === 'web' && (
+                  <>
+                    <View style={[styles.dropdownDivider, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200] }]} />
+                    <Pressable
+                      style={styles.dropdownMenuItem}
+                      onPress={() => {
+                        setShowActionMenu(false);
+                        setViewFormat('pdf');
+                        setReloadKey((k) => k + 1);
+                      }}
+                    >
+                      <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+                      <View style={styles.dropdownMenuTextContainer}>
+                        <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                          Reload Current Template
+                        </Text>
+                        <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                          Fetch fresh QuestPDF document from server
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            )}
           </View>
 
-          {/* Interactive Date Range & Tenant Isolation Bar */}
+          {/* Interactive Date Range, Tenant Context & View Format Bar */}
           <View style={[styles.filterBar, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderBottomColor: colors.border }]}>
             {/* Regional Tenant Context */}
             <View style={styles.tenantBadge}>
@@ -223,7 +661,7 @@ export function StatutoryReportPreviewModal({
             <View style={styles.datePickerRow}>
               <View style={styles.dateField}>
                 <Text style={[styles.dateLabel, { color: colors.textMuted }]}>FROM:</Text>
-                <View style={{ minWidth: 160 }}>
+                <View style={{ minWidth: 155 }}>
                   <DatePickerInput
                     value={localStartDate}
                     onChangeText={setLocalStartDate}
@@ -234,7 +672,7 @@ export function StatutoryReportPreviewModal({
 
               <View style={styles.dateField}>
                 <Text style={[styles.dateLabel, { color: colors.textMuted }]}>TO:</Text>
-                <View style={{ minWidth: 160 }}>
+                <View style={{ minWidth: 155 }}>
                   <DatePickerInput
                     value={localEndDate}
                     onChangeText={setLocalEndDate}
@@ -253,232 +691,451 @@ export function StatutoryReportPreviewModal({
                 Apply Range
               </Button>
             </View>
-          </View>
 
-          {/* View Mode Tabs */}
-          <View style={[styles.tabBar, { borderBottomColor: colors.border, backgroundColor: isDark ? colors.neutral[900] : colors.cardBg }]}>
-            <Pressable
-              style={[
-                styles.tabBtn,
-                viewMode === 'document' && [styles.tabBtnActive, { borderBottomColor: isDark ? colors.brand[500] : colors.brand.primary }],
-                Platform.select({ web: { cursor: 'pointer' } }),
-              ]}
-              onPress={() => setViewMode('document')}
-            >
-              <Lucide
-                name="file-text"
-                size={14}
-                color={viewMode === 'document' ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
-              />
-              <Text
-                style={[
-                  styles.tabBtnText,
-                  { color: viewMode === 'document' ? colors.text : colors.textMuted },
-                  viewMode === 'document' && { fontWeight: TYPOGRAPHY.weights.bold },
-                ]}
-              >
-                Official Document Preview
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.tabBtn,
-                viewMode === 'summary' && [styles.tabBtnActive, { borderBottomColor: isDark ? colors.brand[500] : colors.brand.primary }],
-                Platform.select({ web: { cursor: 'pointer' } }),
-              ]}
-              onPress={() => setViewMode('summary')}
-            >
-              <Lucide
-                name="bar-chart-2"
-                size={14}
-                color={viewMode === 'summary' ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
-              />
-              <Text
-                style={[
-                  styles.tabBtnText,
-                  { color: viewMode === 'summary' ? colors.text : colors.textMuted },
-                  viewMode === 'summary' && { fontWeight: TYPOGRAPHY.weights.bold },
-                ]}
-              >
-                Summary & Analytics
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Modal Body / Document Preview */}
-          {viewMode === 'document' ? (
-            <View style={styles.documentPreviewContainer}>
-              {Platform.OS === 'web' ? (
-                React.createElement('iframe', {
-                  srcDoc: printableHtml,
-                  title: `${report.title} Live Preview`,
-                  style: {
-                    width: '100%',
-                    height: 660,
-                    border: 'none',
-                    backgroundColor: '#FFFFFF',
-                  },
-                })
-              ) : (
-                <ScrollView
-                  style={styles.modalBody}
-                  contentContainerStyle={styles.modalBodyScroll}
-                  showsVerticalScrollIndicator={false}
+            {/* View Format Toggle: Official PDF Template (Direct) vs Interactive Document View */}
+            {Platform.OS === 'web' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.dateLabel, { color: colors.textMuted }]}>VIEW FORMAT:</Text>
+                <Pressable
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: RADIUS.xs,
+                    backgroundColor: viewFormat === 'pdf' ? (isDark ? colors.brand[900] : colors.brand[100]) : 'transparent',
+                    borderWidth: 1,
+                    borderColor: viewFormat === 'pdf' ? (isDark ? colors.brand[500] : colors.brand[600]) : colors.border,
+                  }}
+                  onPress={() => setViewFormat('pdf')}
                 >
-                  <View style={[styles.govHeaderBanner, { backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC', borderColor: colors.border }]}>
-                    <Text style={[styles.govRepText, { color: colors.textMuted }]}>
-                      REPUBLIC OF THE PHILIPPINES • OFFICE OF THE PRESIDENT
-                    </Text>
-                    <Text style={[styles.govAgencyText, { color: colors.text }]}>
-                      NATIONAL TELECOMMUNICATIONS COMMISSION
-                    </Text>
-                    <Text style={[styles.govTenantText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
-                      {tenantName}
-                    </Text>
-                  </View>
-                  <View style={[styles.infoCard, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}>
-                    <Text style={[styles.infoVal, { color: colors.text, textAlign: 'center' }]}>
-                      High-fidelity government print template ready. Tap &quot;Print / PDF Report&quot; below to generate the official printable document.
-                    </Text>
-                  </View>
-                </ScrollView>
-              )}
-            </View>
-          ) : (
-          <ScrollView
-            style={styles.modalBody}
-            contentContainerStyle={styles.modalBodyScroll}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Republic Header Banner */}
-            <View style={[styles.govHeaderBanner, { backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC', borderColor: colors.border }]}>
-              <Text style={[styles.govRepText, { color: colors.textMuted }]}>
-                REPUBLIC OF THE PHILIPPINES • OFFICE OF THE PRESIDENT
-              </Text>
-              <Text style={[styles.govAgencyText, { color: colors.text }]}>
-                NATIONAL TELECOMMUNICATIONS COMMISSION
-              </Text>
-              <Text style={[styles.govTenantText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
-                {tenantName}
-              </Text>
-            </View>
+                  <Lucide
+                    name="file-text"
+                    size={12}
+                    color={viewFormat === 'pdf' ? (isDark ? colors.brand[300] : colors.brand[700]) : colors.textMuted}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: viewFormat === 'pdf' ? '700' : '500',
+                      color: viewFormat === 'pdf' ? (isDark ? colors.brand[300] : colors.brand[700]) : colors.textMuted,
+                    }}
+                  >
+                    Official PDF Template (Direct)
+                  </Text>
+                </Pressable>
 
-            {/* Statutory Overview */}
-            <View style={[styles.infoCard, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}>
-              <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: colors.textMuted }]}>LEGAL AUTHORITY:</Text>
-                <Text style={[styles.infoVal, { color: colors.text }]}>{report.legalBasis}</Text>
+                <Pressable
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: RADIUS.xs,
+                    backgroundColor: viewFormat === 'interactive' ? (isDark ? colors.brand[900] : colors.brand[100]) : 'transparent',
+                    borderWidth: 1,
+                    borderColor: viewFormat === 'interactive' ? (isDark ? colors.brand[500] : colors.brand[600]) : colors.border,
+                  }}
+                  onPress={() => setViewFormat('interactive')}
+                >
+                  <Lucide
+                    name="layout"
+                    size={12}
+                    color={viewFormat === 'interactive' ? (isDark ? colors.brand[300] : colors.brand[700]) : colors.textMuted}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: viewFormat === 'interactive' ? '700' : '500',
+                      color: viewFormat === 'interactive' ? (isDark ? colors.brand[300] : colors.brand[700]) : colors.textMuted,
+                    }}
+                  >
+                    Interactive Form View
+                  </Text>
+                </Pressable>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: colors.textMuted }]}>PURPOSE:</Text>
-                <Text style={[styles.infoVal, { color: colors.text }]}>{report.description}</Text>
-              </View>
-            </View>
+            )}
 
-            {/* Live Metrics Computed */}
-            <View style={styles.metricsGrid}>
-              <View style={[styles.metricBox, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Applications</Text>
-                <Text style={[styles.metricValue, { color: colors.text }]}>{totalApps}</Text>
-                <Text style={[styles.metricSub, { color: COLORS.semantic.success }]}>{approvedApps} Approved</Text>
-              </View>
-
-              <View style={[styles.metricBox, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>In Progress</Text>
-                <Text style={[styles.metricValue, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>{evaluatingApps}</Text>
-                <Text style={[styles.metricSub, { color: colors.textMuted }]}>Technical Queue</Text>
-              </View>
-
-              <View style={[styles.metricBox, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Collections</Text>
-                <Text style={[styles.metricValue, { color: COLORS.semantic.warning }]}>
-                  ₱{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            {/* Field Office Checkbox Filter (Monitoring Only) */}
+            {fieldOfficeOptions.length > 0 && onToggleFieldOffice && onSelectAllFieldOffices && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, width: '100%' }}
+              >
+                <Text style={[styles.dateLabel, { color: colors.textMuted, marginRight: 2 }]}>
+                  FIELD OFFICE (MONITORING):
                 </Text>
-                <Text style={[styles.metricSub, { color: colors.textMuted }]}>Recorded Period</Text>
-              </View>
-
-              <View style={[styles.metricBox, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>CSAT</Text>
-                <Text style={[styles.metricValue, { color: colors.text }]}>{avgCsat} ★</Text>
-                <Text style={[styles.metricSub, { color: colors.textMuted }]}>{feedback.length} Submissions</Text>
-              </View>
-            </View>
-
-            {/* Sample Table Preview */}
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Itemized Submission Sample (Top Entries)</Text>
-            <View style={[styles.tableCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-              <View style={[styles.tableHeader, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderBottomColor: colors.border }]}>
-                <Text style={[styles.th, { flex: 1.5, color: colors.textMuted }]}>APPLICATION / REF #</Text>
-                <Text style={[styles.th, { flex: 2, color: colors.textMuted }]}>APPLICANT</Text>
-                <Text style={[styles.th, { flex: 2, color: colors.textMuted }]}>SERVICE CATEGORY</Text>
-                <Text style={[styles.th, { flex: 1.2, textAlign: 'right', color: colors.textMuted }]}>STATUS</Text>
-              </View>
-              {filteredApps.slice(0, 5).map((app, i) => (
-                <View
-                  key={app.id || i}
+                <Pressable
                   style={[
-                    styles.tableRow,
-                    { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] },
-                    i === Math.min(filteredApps.length, 5) - 1 && { borderBottomWidth: 0 },
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[500] : colors.brand.primary)
+                        : colors.border,
+                      backgroundColor: isAllFieldOfficesSelected
+                        ? (isDark ? colors.neutral[800] : colors.brand.light)
+                        : 'transparent',
+                    },
+                    Platform.select({ web: { cursor: 'pointer' } }),
                   ]}
+                  onPress={onSelectAllFieldOffices}
                 >
-                  <Text style={[styles.td, { flex: 1.5, color: colors.text, fontWeight: '600' }]}>
-                    {app.applicationNumber || app.id}
+                  <View
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 3,
+                      borderWidth: 1.5,
+                      borderColor: isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[400] : colors.brand.primary)
+                        : colors.textMuted,
+                      backgroundColor: isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[500] : colors.brand.primary)
+                        : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {isAllFieldOfficesSelected && <Lucide name="check" size={10} color="#FFFFFF" />}
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: isAllFieldOfficesSelected ? '700' : '500',
+                      color: isAllFieldOfficesSelected
+                        ? (isDark ? colors.brand[400] : colors.brand.primary)
+                        : colors.textMuted,
+                    }}
+                  >
+                    All Field Offices
                   </Text>
-                  <Text style={[styles.td, { flex: 2, color: colors.text }]}>
-                    {app.filingUser?.name ?? app.filingUser?.company?.name ?? 'Applicant'}
-                  </Text>
-                  <Text style={[styles.td, { flex: 2, color: colors.textMuted }]}>
-                    {app.serviceName || app.serviceCategory || 'Radio Permit'}
-                  </Text>
-                  <Text style={[styles.td, { flex: 1.2, textAlign: 'right', color: app.status === 'Approved' ? COLORS.semantic.success : (isDark ? colors.brand[500] : colors.brand.primary), fontWeight: '600' }]}>
-                    {app.status || 'Submitted'}
-                  </Text>
-                </View>
-              ))}
-              {filteredApps.length === 0 && (
-                <View style={{ padding: 16, alignItems: 'center' }}>
-                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>No transactions found for the selected date range.</Text>
-                </View>
-              )}
-            </View>
+                </Pressable>
 
-            {/* Official Signatories Block */}
-            <View style={[styles.signatoriesCard, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}>
-              <Text style={[styles.signTitle, { color: colors.textMuted }]}>STATUTORY ATTESTATION & SIGNATORIES</Text>
-              <View style={styles.signRow}>
-                <View style={styles.signColumn}>
-                  <Text style={[styles.signPerson, { color: colors.text }]}>
-                    {userName || 'Regional Regulatory Evaluator'}
+                {fieldOfficeOptions.map((fo) => {
+                  const isChecked = selectedFieldOffices.some(
+                    (s) => s.toLowerCase() === fo.name.toLowerCase()
+                  );
+                  return (
+                    <Pressable
+                      key={fo.id}
+                      style={[
+                        {
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 6,
+                          borderWidth: 1,
+                          borderColor: isChecked
+                            ? (isDark ? colors.brand[500] : colors.brand.primary)
+                            : colors.border,
+                          backgroundColor: isChecked
+                            ? (isDark ? colors.neutral[800] : colors.brand.light)
+                            : 'transparent',
+                        },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
+                      onPress={() => onToggleFieldOffice(fo.name)}
+                    >
+                      <View
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: 3,
+                          borderWidth: 1.5,
+                          borderColor: isChecked
+                            ? (isDark ? colors.brand[400] : colors.brand.primary)
+                            : colors.textMuted,
+                          backgroundColor: isChecked
+                            ? (isDark ? colors.brand[500] : colors.brand.primary)
+                            : 'transparent',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isChecked && <Lucide name="check" size={10} color="#FFFFFF" />}
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: isChecked ? '700' : '500',
+                          color: isChecked
+                            ? (isDark ? colors.brand[400] : colors.brand.primary)
+                            : colors.text,
+                        }}
+                      >
+                        {fo.name} ({fo.applicationCount})
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            {/* Secondary Report-Specific Filter (Evaluator / Service / Entity / Exam Class) */}
+            {secondaryFilterOptions.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2, width: '100%' }}
+              >
+                <Text style={[styles.dateLabel, { color: colors.textMuted, marginRight: 4 }]}>
+                  {report.code === 'NTC-APP-SUM-EVAL'
+                    ? 'EVALUATOR:'
+                    : report.code === 'NTC-APP-SUM-SVC'
+                    ? 'SERVICE:'
+                    : report.code === 'NTC-APP-SUM-ENT'
+                    ? 'ENTITY:'
+                    : 'EXAM CLASS:'}
+                </Text>
+                <Pressable
+                  style={[
+                    {
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor:
+                        selectedSecondaryFilter === 'all'
+                          ? (isDark ? colors.brand[500] : colors.brand.primary)
+                          : colors.border,
+                      backgroundColor:
+                        selectedSecondaryFilter === 'all'
+                          ? (isDark ? colors.neutral[800] : colors.brand.light)
+                          : 'transparent',
+                    },
+                    Platform.select({ web: { cursor: 'pointer' } }),
+                  ]}
+                  onPress={() => setSelectedSecondaryFilter('all')}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: selectedSecondaryFilter === 'all' ? '700' : '500',
+                      color:
+                        selectedSecondaryFilter === 'all'
+                          ? (isDark ? colors.brand[500] : colors.brand.primary)
+                          : colors.textMuted,
+                    }}
+                  >
+                    All ({dateFilteredApps.length})
                   </Text>
-                  <Text style={[styles.signRole, { color: colors.textMuted }]}>Prepared by (Evaluator)</Text>
-                </View>
-                <View style={styles.signColumn}>
-                  <Text style={[styles.signPerson, { color: colors.text }]}>
-                    Chief, Enforcement & Operations (EOD)
-                  </Text>
-                  <Text style={[styles.signRole, { color: colors.textMuted }]}>Reviewed & Verified by</Text>
-                </View>
-                <View style={styles.signColumn}>
-                  <Text style={[styles.signPerson, { color: colors.text }]}>Regional Director / OIC</Text>
-                  <Text style={[styles.signRole, { color: colors.textMuted }]}>Certified Correct & Submitted</Text>
-                </View>
-              </View>
+                </Pressable>
+                {secondaryFilterOptions.map((opt) => {
+                  const isActive = selectedSecondaryFilter === opt;
+                  return (
+                    <Pressable
+                      key={opt}
+                      style={[
+                        {
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 6,
+                          borderWidth: 1,
+                          borderColor: isActive
+                            ? (isDark ? colors.brand[500] : colors.brand.primary)
+                            : colors.border,
+                          backgroundColor: isActive
+                            ? (isDark ? colors.neutral[800] : colors.brand.light)
+                            : 'transparent',
+                        },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
+                      onPress={() => setSelectedSecondaryFilter(opt)}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: isActive ? '700' : '500',
+                          color: isActive
+                            ? (isDark ? colors.brand[500] : colors.brand.primary)
+                            : colors.textMuted,
+                        }}
+                      >
+                        {opt}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+
+          {Platform.OS === 'web' && isLoadingPdf && (
+            <View style={{ width: '100%', height: 3, overflow: 'hidden' }}>
+              <PdfLoadBar height={3} />
             </View>
-          </ScrollView>
           )}
 
-          {/* Modal Footer */}
-          <View style={[styles.modalFooter, { borderTopColor: colors.border, backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, justifyContent: 'flex-end' }]}>
-            <Button
-              variant="outline"
-              size="sm"
-              fullWidth={false}
-              onPress={onClose}
-            >
-              Close Preview
-            </Button>
+          {/* Document Preview Body — Matching SoaReportPreviewModal */}
+          <View style={[styles.documentPreviewContainer, { backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC' }]}>
+            {Platform.OS === 'web' && viewFormat === 'pdf' && !useClientFilteredPreview ? (
+              <View style={{ flex: 1, minHeight: 680, padding: SPACING[12] }}>
+                {isLoadingPdf && pdfBlobUrl === null ? (
+                  <View
+                    style={{
+                      flex: 1,
+                      minHeight: 640,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      backgroundColor: isDark ? colors.neutral[900] : '#ffffff',
+                      borderRadius: RADIUS.card,
+                      borderWidth: 1,
+                      borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+                      padding: SPACING[24],
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: '100%',
+                        maxWidth: 460,
+                        alignItems: 'center',
+                        gap: SPACING[16],
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 28,
+                          backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderWidth: 1,
+                          borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                        }}
+                      >
+                        <Lucide name="file-text" size={28} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                      </View>
+
+                      <View style={{ alignItems: 'center', gap: 6 }}>
+                        <Text
+                          style={{
+                            fontFamily: TYPOGRAPHY.fonts.primary,
+                            fontSize: 16,
+                            fontWeight: '700',
+                            color: isDark ? colors.neutral[100] : colors.neutral[900],
+                            textAlign: 'center',
+                          }}
+                        >
+                          Generating Official {report.title}...
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: TYPOGRAPHY.fonts.primary,
+                            fontSize: 12,
+                            color: isDark ? colors.neutral[400] : colors.neutral[600],
+                            textAlign: 'center',
+                            lineHeight: 18,
+                          }}
+                        >
+                          Synthesizing official NTC vector report form ({report.code}) using backend QuestPDF services.
+                        </Text>
+                      </View>
+
+                      <View style={{ width: '100%', marginTop: SPACING[8] }}>
+                        <PdfLoadBar height={6} />
+                      </View>
+
+                      <View
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: RADIUS.circle,
+                          backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                          borderWidth: 1,
+                          borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '600',
+                            color: isDark ? colors.neutral[300] : colors.neutral[700],
+                          }}
+                        >
+                          {tenantName} • {effectivePeriod}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : pdfBlobUrl !== null && pdfError === null ? (
+                  React.createElement('iframe', {
+                    src: pdfBlobUrl,
+                    style: {
+                      width: '100%',
+                      height: '100%',
+                      minHeight: '660px',
+                      border: 'none',
+                      borderRadius: '8px',
+                    },
+                    title: `${report.title} Official PDF`,
+                  })
+                ) : (
+                  /* Automatic seamless fallback to the official printable form view if backend PDF stream is unavailable */
+                  React.createElement('iframe', {
+                    srcDoc: printableHtml,
+                    title: `${report.title} Official Form Preview`,
+                    style: {
+                      width: '100%',
+                      height: '100%',
+                      minHeight: '660px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      backgroundColor: '#FFFFFF',
+                    },
+                  })
+                )}
+              </View>
+            ) : Platform.OS === 'web' ? (
+              <View style={{ flex: 1, minHeight: 680, padding: SPACING[12] }}>
+                {React.createElement('iframe', {
+                  srcDoc: printableHtml,
+                  title: `${report.title} Interactive Preview`,
+                  style: {
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '660px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: '#FFFFFF',
+                  },
+                })}
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.modalBody}
+                contentContainerStyle={styles.modalBodyScroll}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={[styles.govHeaderBanner, { backgroundColor: isDark ? colors.neutral[900] : '#F8FAFC', borderColor: colors.border }]}>
+                  <Text style={[styles.govRepText, { color: colors.textMuted }]}>
+                    REPUBLIC OF THE PHILIPPINES • OFFICE OF THE PRESIDENT
+                  </Text>
+                  <Text style={[styles.govAgencyText, { color: colors.text }]}>
+                    NATIONAL TELECOMMUNICATIONS COMMISSION
+                  </Text>
+                  <Text style={[styles.govTenantText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                    {tenantName}
+                  </Text>
+                </View>
+                <View style={[styles.infoCard, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}>
+                  <Text style={[styles.infoVal, { color: colors.text, textAlign: 'center' }]}>
+                    Official report ready ({totalApps} applications • ₱{totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })} collections). Tap &quot;Print&quot; or open the 3-dots menu above to export PDF or CSV.
+                  </Text>
+                </View>
+              </ScrollView>
+            )}
           </View>
         </View>
       </View>
@@ -497,7 +1154,7 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '96%',
     maxWidth: 1340,
-    maxHeight: '92%',
+    maxHeight: '94%',
     borderRadius: RADIUS.dialog,
     borderWidth: 1,
     overflow: 'hidden',
@@ -506,21 +1163,30 @@ const styles = StyleSheet.create({
   modalHeaderRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING[10],
+    gap: SPACING[8],
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING[20],
-    paddingVertical: SPACING[16],
+    paddingVertical: SPACING[12],
     borderBottomWidth: 1,
+    position: 'relative',
+    zIndex: 40,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING[12],
+    gap: SPACING[10],
     flex: 1,
+  },
+  iconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   codeBadge: {
     paddingHorizontal: SPACING[8],
@@ -530,7 +1196,7 @@ const styles = StyleSheet.create({
   },
   codeBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   headerTitleColumn: {
@@ -539,41 +1205,87 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   modalSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
   },
+  printHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
+  },
+  printHeaderBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#FFFFFF',
+  },
+  menuTriggerBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   closeIconBtn: {
     padding: SPACING[6],
     borderRadius: RADIUS.circle,
   },
-  tabBar: {
+  dropdownMenu: {
+    position: 'absolute',
+    top: 58,
+    right: 20,
+    width: 280,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    paddingVertical: 6,
+    zIndex: 999,
+    ...SHADOWS.modal,
+  },
+  dropdownSectionHeader: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  dropdownSectionTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.6,
+  },
+  dropdownMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    paddingHorizontal: SPACING[20],
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
-  tabBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING[6],
-    paddingVertical: SPACING[10],
-    paddingHorizontal: SPACING[12],
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+  dropdownMenuTextContainer: {
+    flex: 1,
+    gap: 1,
   },
-  tabBtnActive: {},
-  tabBtnText: {
+  dropdownMenuItemText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  dropdownMenuItemSubtext: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10.5,
+  },
+  dropdownDivider: {
+    height: 1,
+    marginVertical: 4,
   },
   documentPreviewContainer: {
     flex: 1,
-    minHeight: 660,
-    backgroundColor: '#FFFFFF',
+    minHeight: 680,
   },
   filterBar: {
     flexDirection: 'row',
@@ -610,15 +1322,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  dateInput: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    borderWidth: 1,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    minWidth: 100,
   },
   modalBody: {
     flex: 1,
@@ -657,130 +1360,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 6,
   },
-  infoRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  infoLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    width: 120,
-  },
   infoVal: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     flex: 1,
     lineHeight: 16,
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    gap: SPACING[10],
-    flexWrap: 'wrap',
-  },
-  metricBox: {
-    flex: 1,
-    minWidth: 140,
-    padding: SPACING[12],
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    gap: 2,
-  },
-  metricLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: 'uppercase',
-  },
-  metricValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  metricSub: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-  },
-  sectionTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: 'uppercase',
-  },
-  tableCard: {
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
-  },
-  th: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: 'uppercase',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
-    alignItems: 'center',
-  },
-  td: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-  },
-  signatoriesCard: {
-    padding: SPACING[16],
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    gap: SPACING[10],
-  },
-  signTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.5,
-  },
-  signRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING[12],
-  },
-  signColumn: {
-    flex: 1,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#94A3B8',
-    paddingTop: 4,
-  },
-  signPerson: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  signRole: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING[20],
-    paddingVertical: SPACING[16],
-    borderTopWidth: 1,
-    flexWrap: 'wrap',
-    gap: SPACING[10],
-  },
-  footerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING[8],
   },
 });

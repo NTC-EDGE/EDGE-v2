@@ -101,7 +101,7 @@ public static class TenantMemberEndpoints
         }
     }
 
-    [HasPermission(Permissions.ManageTenantMembers)]
+    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetTenantMembers(Guid tenantId, IMediator mediator)
     {
         try
@@ -115,7 +115,7 @@ public static class TenantMemberEndpoints
         }
     }
 
-    [HasPermission(Permissions.ManageTenantMembers)]
+    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetMemberDetails(Guid tenantId, Guid memberId, IMediator mediator)
     {
         try

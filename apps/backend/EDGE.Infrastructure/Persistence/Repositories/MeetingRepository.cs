@@ -34,6 +34,14 @@ public class MeetingRepository : IMeetingRepository
             .FirstOrDefaultAsync(m => m.MeetingCode == meetingCode, cancellationToken);
     }
 
+    public async Task<MeetingPoll?> GetPollByIdAsync(Guid pollId, CancellationToken cancellationToken = default)
+    {
+        return await _context.MeetingPolls
+            .Include(p => p.Votes)
+            .Include(p => p.Meeting).ThenInclude(m => m.Participants)
+            .FirstOrDefaultAsync(p => p.Id == pollId, cancellationToken);
+    }
+
     public async Task<List<Meeting>> GetUpcomingMeetingsAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default)
     {
         return await GetMeetingsAsync(userId, tenantId, "active", cancellationToken);
@@ -46,13 +54,14 @@ public class MeetingRepository : IMeetingRepository
             .Include(m => m.HostUser)
             .Include(m => m.Tenant)
             .Include(m => m.Participants).ThenInclude(p => p.User)
-            .Where(m => !m.IsDeleted && (m.Participants.Any(p => p.UserId == userId) || m.HostUserId == userId));
+            .Include(m => m.Polls).ThenInclude(p => p.Votes)
+            .Where(m => !m.IsDeleted && (m.Participants.Any(p => p.UserId == userId && !p.IsDeleted) || m.HostUserId == userId));
 
         if (tenantId.HasValue)
         {
-            query = query.Where(m => m.TenantId == tenantId 
-                                  || m.Scope == Domain.Enums.ConversationScope.InterRegional 
-                                  || m.Participants.Any(p => p.UserId == userId) 
+            query = query.Where(m => m.TenantId == tenantId
+                                  || m.Scope == Domain.Enums.ConversationScope.InterRegional
+                                  || m.Participants.Any(p => p.UserId == userId && !p.IsDeleted)
                                   || m.HostUserId == userId);
         }
 
@@ -60,7 +69,6 @@ public class MeetingRepository : IMeetingRepository
 
         if (normalizedFilter == "history")
         {
-            // History: Ended or past scheduled meetings, excluding Cancelled/Deleted
             query = query.Where(m => (m.Status == Domain.Enums.MeetingStatus.Ended || (m.Status == Domain.Enums.MeetingStatus.Scheduled && m.ScheduledEndTime != null && m.ScheduledEndTime < now)))
                          .Where(m => m.Status != Domain.Enums.MeetingStatus.Cancelled)
                          .OrderByDescending(m => m.ActualEndTime ?? m.ScheduledStartTime);
@@ -68,7 +76,7 @@ public class MeetingRepository : IMeetingRepository
         else if (normalizedFilter == "live")
         {
             query = query.Where(m => m.Status == Domain.Enums.MeetingStatus.Live)
-                         .OrderBy(m => m.ScheduledStartTime);
+                         .OrderByDescending(m => m.ActualStartTime ?? m.ScheduledStartTime);
         }
         else if (normalizedFilter == "upcoming")
         {
@@ -77,15 +85,13 @@ public class MeetingRepository : IMeetingRepository
         }
         else if (normalizedFilter == "active")
         {
-            // Active: Live or Upcoming (not Ended, not Cancelled, not past)
             query = query.Where(m => m.Status != Domain.Enums.MeetingStatus.Cancelled && (m.Status == Domain.Enums.MeetingStatus.Live || (m.Status == Domain.Enums.MeetingStatus.Scheduled && (m.ScheduledEndTime == null || m.ScheduledEndTime >= now))))
                          .OrderBy(m => m.ScheduledStartTime);
         }
         else
         {
-            // Default "All": non-cancelled, non-deleted
             query = query.Where(m => m.Status != Domain.Enums.MeetingStatus.Cancelled)
-                         .OrderBy(m => m.ScheduledStartTime);
+                         .OrderByDescending(m => m.ScheduledStartTime);
         }
 
         return await query.ToListAsync(cancellationToken);
@@ -118,7 +124,7 @@ public class MeetingRepository : IMeetingRepository
     public async Task<int> GetHandRaiseQueueCountAsync(Guid meetingId, CancellationToken cancellationToken = default)
     {
         return await _context.MeetingParticipants
-            .CountAsync(p => p.MeetingId == meetingId && p.IsHandRaised, cancellationToken);
+            .CountAsync(p => p.MeetingId == meetingId && p.IsHandRaised && !p.IsDeleted, cancellationToken);
     }
 
     public async Task<List<MeetingParticipant>> GetAllParticipantsAsync(Guid meetingId, CancellationToken cancellationToken = default)

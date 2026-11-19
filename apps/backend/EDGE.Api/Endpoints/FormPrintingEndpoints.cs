@@ -17,7 +17,9 @@ public static class FormPrintingEndpoints
 {
     public static IEndpointRouteBuilder MapFormPrintingEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/forms/demo").WithTags("FormPrintingDemo");
+        var group = app.MapGroup("/api/forms/demo")
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
+            .WithTags("FormPrintingDemo");
 
         /// <summary>GET /api/forms/demo/ntc-1-11 — Construction Permit / Radio Station License.</summary>
         group.MapGet("/ntc-1-11", (IFormPrintingService printingService) =>

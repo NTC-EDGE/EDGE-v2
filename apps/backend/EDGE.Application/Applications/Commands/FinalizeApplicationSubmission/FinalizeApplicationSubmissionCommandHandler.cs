@@ -58,7 +58,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
             return ApiResponse<Guid>.Fail($"Application with ID {request.Id} was not found.");
         }
 
-        if (app.Status != ApplicationStatus.Draft)
+        if (app.Status != ApplicationStatus.Draft && app.Status != ApplicationStatus.Returned)
         {
             return ApiResponse<Guid>.Fail("Application has already been submitted or is not in Draft state.");
         }
@@ -87,7 +87,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
                 {
                     isOwner = true;
                 }
-                else if (app.Status == ApplicationStatus.Draft && !app.UserId.HasValue)
+                else if ((app.Status == ApplicationStatus.Draft || app.Status == ApplicationStatus.Returned) && !app.UserId.HasValue)
                 {
                     isOwner = true;
                 }
@@ -128,13 +128,29 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
                 var mandatorySvr = svrList.Where(r => r.IsRequired).ToList();
                 if (mandatorySvr.Any())
                 {
-                    var uploadedSvrIds = app.ApplicationRequirements
-                        .Where(r => r.ApplicantId == a.Id)
-                        .Select(r => r.ServiceVariantRequirementId ?? r.RequirementId)
-                        .ToHashSet();
+                    var matchingReqs = app.ApplicationRequirements
+                        .Where(r =>
+                            (r.StoredFileId.HasValue || !string.IsNullOrWhiteSpace(r.Url)) &&
+                            (r.ApplicantId == a.Id ||
+                             r.ApplicantId == aa.Id ||
+                             (app.ApplicationApplicants.Count == 1 && (r.ApplicantId == app.Id || r.ApplicantId == Guid.Empty))))
+                        .ToList();
+
+                    var uploadedReqIds = new HashSet<Guid>();
+                    foreach (var r in matchingReqs)
+                    {
+                        if (r.ServiceVariantRequirementId.HasValue && r.ServiceVariantRequirementId.Value != Guid.Empty)
+                        {
+                            uploadedReqIds.Add(r.ServiceVariantRequirementId.Value);
+                        }
+                        if (r.RequirementId != Guid.Empty)
+                        {
+                            uploadedReqIds.Add(r.RequirementId);
+                        }
+                    }
 
                     var missing = mandatorySvr
-                        .Where(m => !uploadedSvrIds.Contains(m.Id) && !uploadedSvrIds.Contains(m.RequirementId))
+                        .Where(m => !uploadedReqIds.Contains(m.Id) && !uploadedReqIds.Contains(m.RequirementId))
                         .ToList();
 
                     if (missing.Any())
@@ -146,7 +162,11 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         }
 
         // 2. Transition status to Submitted & generate ApplicationNumber
-        var targetAppNumber = $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
+        var previousStatus = app.Status;
+        var isResubmission = previousStatus == ApplicationStatus.Returned;
+        var targetAppNumber = !string.IsNullOrWhiteSpace(app.ApplicationNumber)
+            ? app.ApplicationNumber
+            : $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
         var trackedApp = await _applicationRepository.GetByIdAsync(app.Id, cancellationToken);
         if (trackedApp == null)
         {
@@ -154,7 +174,10 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         }
 
         trackedApp.Status = ApplicationStatus.Submitted;
-        trackedApp.ApplicationNumber = targetAppNumber;
+        if (string.IsNullOrWhiteSpace(trackedApp.ApplicationNumber))
+        {
+            trackedApp.ApplicationNumber = targetAppNumber;
+        }
 
         foreach (var aa in app.ApplicationApplicants)
         {
@@ -175,7 +198,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
                     Id = Guid.NewGuid(),
                     ApplicationId = trackedApp.Id,
                     Status = ApplicationStatus.Submitted,
-                    Remarks = "Application finalized and submitted",
+                    Remarks = isResubmission ? "Application resubmitted after return" : "Application finalized and submitted",
                     Timestamp = DateTime.UtcNow,
                     UserId = trackedApp.UserId
                 }, cancellationToken);
@@ -189,13 +212,13 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = trackedApp.Id,
-                    Action = "Application submitted by applicant",
-                    FromStatus = ApplicationStatus.Draft,
+                    Action = isResubmission ? "Application resubmitted by applicant" : "Application submitted by applicant",
+                    FromStatus = previousStatus,
                     ToStatus = ApplicationStatus.Submitted,
                     PerformedByUserId = trackedApp.UserId,
                     StaffName = submitterName,
                     StaffRole = "Applicant",
-                    Remarks = "Application submission finalized",
+                    Remarks = isResubmission ? "Application resubmitted with updated details/requirements" : "Application submission finalized",
                     Timestamp = DateTime.UtcNow
                 }, cancellationToken);
 

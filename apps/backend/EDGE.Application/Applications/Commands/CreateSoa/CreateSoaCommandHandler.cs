@@ -25,6 +25,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly INumberingSeriesService? _numberingSeriesService;
     private readonly ISoaNoteRepository? _soaNoteRepository;
     private readonly IFormRepository? _formRepository;
+    private readonly IRegionalConfigurationService? _regionalConfigService;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
@@ -38,7 +39,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         IServiceVariantFormulaRepository? formulaRepository = null,
         INumberingSeriesService? numberingSeriesService = null,
         ISoaNoteRepository? soaNoteRepository = null,
-        IFormRepository? formRepository = null)
+        IFormRepository? formRepository = null,
+        IRegionalConfigurationService? regionalConfigService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -52,6 +54,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         _numberingSeriesService = numberingSeriesService;
         _soaNoteRepository = soaNoteRepository;
         _formRepository = formRepository;
+        _regionalConfigService = regionalConfigService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
@@ -173,17 +176,51 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 
         var isExistingSoa = existingSoa != null;
 
+        string? requestedManualSoaNumber = !string.IsNullOrWhiteSpace(request.SoaNumber)
+            ? request.SoaNumber.Trim()
+            : null;
+
+        if (requestedManualSoaNumber != null)
+        {
+            var isDifferentFromExisting = existingSoa == null ||
+                !string.Equals(existingSoa.SoaNumber, requestedManualSoaNumber, StringComparison.OrdinalIgnoreCase);
+
+            if (isDifferentFromExisting)
+            {
+                if (_regionalConfigService != null)
+                {
+                    var regionalConfig = await _regionalConfigService.GetConfigurationAsync(app.TenantId, cancellationToken);
+                    if (!regionalConfig.AllowManualSoaNumber)
+                    {
+                        return ApiResponse<Guid>.Fail("Manual SOA number entry is currently disabled for this regional office. Please ask your Regional Administrator to enable manual SOA numbering in Regional Configuration.");
+                    }
+                }
+
+                var duplicateSoaExists = await _repository.SoaNumberExistsAsync(app.TenantId, requestedManualSoaNumber, existingSoa?.Id, cancellationToken);
+                if (duplicateSoaExists)
+                {
+                    return ApiResponse<Guid>.Fail($"SOA number '{requestedManualSoaNumber}' is already in use within this regional office.");
+                }
+            }
+        }
+
         var soa = existingSoa ?? new StatementOfAccount
         {
             Id = Guid.NewGuid(),
             ApplicationId = request.ApplicationId,
             ApplicantId = resolvedApplicantId,
-            SoaNumber = _numberingSeriesService != null
-                ? await _numberingSeriesService.GenerateSoaNumberAsync(app.TenantId, cancellationToken)
-                : $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+            SoaNumber = requestedManualSoaNumber
+                ?? (_numberingSeriesService != null
+                    ? await _numberingSeriesService.GenerateSoaNumberAsync(app.TenantId, cancellationToken)
+                    : $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}"),
             Status = SoaStatus.Pending,
             PreparedByUserId = userContext.UserId,
         };
+
+        if (isExistingSoa && requestedManualSoaNumber != null)
+        {
+            soa.SoaNumber = requestedManualSoaNumber;
+        }
 
         soa.ApplicantId = resolvedApplicantId;
         soa.IssuedToType = issuedToType;

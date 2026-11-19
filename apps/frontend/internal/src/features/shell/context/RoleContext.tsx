@@ -89,7 +89,6 @@ export const ROLE_NAVIGATION_LINKS = {
     { name: 'Activities',           screen: 'Activities',       icon: 'activity',       group: 'Operations' },
     // Temporarily hidden — Form Builder is managed in the Admin portal
     // { name: 'Form Builder',         screen: 'FormBuilder',      icon: 'layout',         group: 'Operations' },
-    { name: 'Receipt Management',   screen: 'ReceiptManagement',icon: 'printer',        group: 'Operations' },
     { name: 'Schedule',             screen: 'Schedule',         icon: 'calendar',       group: 'Operations' },
     { name: 'Announcements',        screen: 'Announcements',    icon: 'volume-2',       group: 'Communication' },
     { name: 'Feedback',             screen: 'Feedback',         icon: 'message-circle', group: 'Communication' },
@@ -124,6 +123,143 @@ export const ROLE_NAVIGATION_LINKS = {
     { name: 'Meet',               screen: 'Meet',             icon: 'video',          group: 'Communication' },
   ],
 } as const satisfies Record<UserRole, readonly NavigationLink[]>;
+
+export const ALL_NAVIGATION_LINKS: readonly NavigationLink[] = ROLE_NAVIGATION_LINKS.Admin;
+
+export const RECEIPT_MANAGEMENT_ACTION_PERMISSIONS = [
+  'receipts.issue',
+  'receipts.bundle_entry',
+  'receipts.edit',
+  'receipts.cancel',
+  'receipts.deposit',
+  'bank_accounts.manage',
+  'reports.cashier',
+  'billing.collect',
+  'billing.op_return',
+] as const;
+
+export function getAuthorizedNavigationLinks(params: {
+  currentRole: UserRole;
+  isSuperAdmin: boolean;
+  isAdmin: boolean;
+  userPermissions?: string[] | null;
+  hasAnyPermission: (...keys: string[]) => boolean;
+}): readonly NavigationLink[] {
+  const { currentRole, isSuperAdmin, isAdmin, userPermissions, hasAnyPermission } = params;
+
+  if (isSuperAdmin || isAdmin || currentRole === 'Admin') {
+    return ROLE_NAVIGATION_LINKS.Admin;
+  }
+
+  const baseLinks = ROLE_NAVIGATION_LINKS[currentRole];
+  const hasLoadedPermissions = Array.isArray(userPermissions) && userPermissions.length > 0;
+
+  if (!hasLoadedPermissions) {
+    if (currentRole !== 'Cashier') {
+      return baseLinks.filter((l) => l.screen !== 'ReceiptManagement');
+    }
+    return baseLinks;
+  }
+
+  const isInBaseRoleLinks = (screen: string) => baseLinks.some((l) => l.screen === screen);
+
+  return ALL_NAVIGATION_LINKS.filter((link) => {
+    switch (link.screen) {
+      case 'Dashboard':
+        return true;
+      case 'Activities':
+        return hasAnyPermission(
+          'applications.view_all',
+          'applications.view_own',
+          'applications.read',
+          'applications.evaluate',
+          'applications.approve',
+          'applications.issue',
+          'billing.create',
+          'billing.soa_approve',
+          'billing.soa_return',
+          'billing.collect',
+          'billing.op_return'
+        );
+      case 'ReceiptManagement':
+        return (
+          currentRole === 'Cashier' ||
+          hasAnyPermission(...RECEIPT_MANAGEMENT_ACTION_PERMISSIONS)
+        );
+      case 'Schedule':
+        return hasAnyPermission(
+          'schedules.read',
+          'schedules.create',
+          'schedules.update',
+          'schedules.delete',
+          'schedules.publish'
+        );
+      case 'Announcements':
+        return isInBaseRoleLinks('Announcements') || hasAnyPermission('tenants.update');
+      case 'Feedback':
+        return isInBaseRoleLinks('Feedback') || hasAnyPermission('tenants.update');
+      case 'Chat':
+        return hasAnyPermission(
+          'chat.read',
+          'chat.create',
+          'chat.send',
+          'chat.participants_manage'
+        );
+      case 'Meet':
+        return hasAnyPermission(
+          'meetings.read',
+          'meetings.create',
+          'meetings.participants_manage',
+          'meetings.host_controls'
+        );
+      case 'AuditLogs':
+        return (
+          isInBaseRoleLinks('AuditLogs') ||
+          hasAnyPermission('tenants.update', 'users.support_diagnostics')
+        );
+      case 'Reports':
+        return (
+          isInBaseRoleLinks('Reports') ||
+          hasAnyPermission('tenants.update', 'billing.soa_approve')
+        );
+      case 'RolesPermission':
+        return hasAnyPermission(
+          'roles.create',
+          'roles.update',
+          'roles.delete',
+          'roles.permissions_assign',
+          'roles.permissions_revoke'
+        );
+      case 'Employees':
+        return hasAnyPermission(
+          'tenants.members_manage',
+          'users.create',
+          'users.update',
+          'users.delete',
+          'users.manage'
+        );
+      case 'Users':
+        return hasAnyPermission(
+          'tenants.members_manage',
+          'users.create',
+          'users.update',
+          'users.delete',
+          'users.manage'
+        );
+      case 'Settings':
+        return hasAnyPermission(
+          'tenants.update',
+          'services.create',
+          'services.update',
+          'services.delete',
+          'requirements.create',
+          'requirements.update'
+        );
+      default:
+        return isInBaseRoleLinks(link.screen);
+    }
+  });
+}
 
 export const ROLE_HIERARCHY_PRIORITY: readonly UserRole[] = [
   'Admin',

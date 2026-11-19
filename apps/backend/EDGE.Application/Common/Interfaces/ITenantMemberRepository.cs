@@ -9,5 +9,6 @@ public interface ITenantMemberRepository
     Task<TenantMember?> GetByTenantAndUserAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default);
     Task<List<TenantMember>> GetMembersByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<List<TenantMember>> GetMembersByUserAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<TenantMember?> GetFirstAvailableMemberAsync(Guid? preferredTenantId = null, CancellationToken cancellationToken = default);
     void Delete(TenantMember member);
 }

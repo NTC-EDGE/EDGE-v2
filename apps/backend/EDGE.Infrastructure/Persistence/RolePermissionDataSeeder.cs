@@ -21,7 +21,8 @@ public static class RolePermissionDataSeeder
         bool forceResetPermissions = true,
         IClerkUserService? clerkUserService = null,
         ILogger? logger = null,
-        bool throwOnPartialFailure = false)
+        bool throwOnPartialFailure = false,
+        bool seedDemoUsers = true)
     {
         var staticDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -231,7 +232,9 @@ public static class RolePermissionDataSeeder
 
             // Regional Director (Regional Executive Authority & Approver)
             (actualRegionalDirectorRoleId, Permissions.ReadTenants),
+            (actualRegionalDirectorRoleId, Permissions.CreateTenants),
             (actualRegionalDirectorRoleId, Permissions.UpdateTenants),
+            (actualRegionalDirectorRoleId, Permissions.DeleteTenants),
             (actualRegionalDirectorRoleId, Permissions.ReadRoles),
             (actualRegionalDirectorRoleId, Permissions.CreateRoles),
             (actualRegionalDirectorRoleId, Permissions.UpdateRoles),
@@ -249,8 +252,6 @@ public static class RolePermissionDataSeeder
             (actualRegionalDirectorRoleId, Permissions.CreateBilling),
             (actualRegionalDirectorRoleId, Permissions.ApproveSoa),
             (actualRegionalDirectorRoleId, Permissions.ReturnSoa),
-            (actualRegionalDirectorRoleId, Permissions.CollectPayment),
-            (actualRegionalDirectorRoleId, Permissions.ReturnOp),
             (actualRegionalDirectorRoleId, Permissions.ReadServices),
             (actualRegionalDirectorRoleId, Permissions.ReadRequirements),
             (actualRegionalDirectorRoleId, Permissions.ReadStorage),
@@ -264,7 +265,6 @@ public static class RolePermissionDataSeeder
             (actualRegionalDirectorRoleId, Permissions.ReadSchedules),
             (actualRegionalDirectorRoleId, Permissions.PublishSchedules),
             (actualRegionalDirectorRoleId, Permissions.ReceiptsRead),
-            (actualRegionalDirectorRoleId, Permissions.CashierReports),
             (actualRegionalDirectorRoleId, Permissions.ReadChat),
             (actualRegionalDirectorRoleId, Permissions.CreateChat),
             (actualRegionalDirectorRoleId, Permissions.ManageChatParticipants),
@@ -316,9 +316,7 @@ public static class RolePermissionDataSeeder
             (actualAccountantRoleId, Permissions.DownloadStorage),
             (actualAccountantRoleId, Permissions.UploadStorage),
             (actualAccountantRoleId, Permissions.ReadSoaNotes),
-            (actualAccountantRoleId, Permissions.BankAccountsManage),
-            (actualAccountantRoleId, Permissions.ReceiptsDeposit),
-            (actualAccountantRoleId, Permissions.CashierReports),
+            (actualAccountantRoleId, Permissions.ReceiptsRead),
             (actualAccountantRoleId, Permissions.ReadChat),
             (actualAccountantRoleId, Permissions.CreateChat),
             (actualAccountantRoleId, Permissions.ManageChatParticipants),
@@ -350,6 +348,7 @@ public static class RolePermissionDataSeeder
             (actualCashierRoleId, Permissions.ReceiptsEdit),
             (actualCashierRoleId, Permissions.ReceiptsCancel),
             (actualCashierRoleId, Permissions.ReceiptsDeposit),
+            (actualCashierRoleId, Permissions.BankAccountsManage),
             (actualCashierRoleId, Permissions.CashierReports),
             (actualCashierRoleId, Permissions.ReadChat),
             (actualCashierRoleId, Permissions.CreateChat),
@@ -366,6 +365,12 @@ public static class RolePermissionDataSeeder
         {
             targetRolePermissions.Add((actualSuperAdminRoleId, permKey));
             targetRolePermissions.Add((actualAdminRoleId, permKey));
+        }
+
+        // Ensure every role in the database (including custom tenant roles) has ReadTenants permission to access tenant & field office endpoints
+        foreach (var dbRole in dbRoles)
+        {
+            targetRolePermissions.Add((dbRole.Id, Permissions.ReadTenants));
         }
 
         var uniqueTargetRolePermissions = targetRolePermissions.Distinct().ToList();
@@ -403,18 +408,25 @@ public static class RolePermissionDataSeeder
         // ── 4. Seed Users ─────────────────────────────────────────────────────────
         var defaultUsers = new List<User>
         {
-            new() { Id = SeedConstants.Users.ClientUserId, AuthUserId = "user_client123", Email = "client@ntcedge.com", FirstName = "John", LastName = "Client", AccountType = ApplicantType.Individual, IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.LiaisonUserId, AuthUserId = "user_liaison123", Email = "rdizon@apexconsulting.ph", FirstName = "Engr. Ricardo", LastName = "Dizon (Liaison Representative)", AccountType = ApplicantType.Company, IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.EvaluatorUserId, AuthUserId = "user_evaluator123", Email = "evaluator@ntcedge.com", FirstName = "Jane", LastName = "Evaluator", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.ChiefEodUserId, AuthUserId = "user_chiefeod123", Email = "chiefeod@ntcedge.com", FirstName = "Engr. Roberto", LastName = "Chief (EOD)", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.AccountantUserId, AuthUserId = "user_accountant123", Email = "accountant@ntcedge.com", FirstName = "Alice", LastName = "Accountant", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.CashierUserId, AuthUserId = "user_cashier123", Email = "cashier@ntcedge.com", FirstName = "Bob", LastName = "Cashier", IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = SeedConstants.Users.SuperAdminUserId, AuthUserId = "user_superadmin123", Email = "superadmin@ntcedge.com", FirstName = "Super", LastName = "Administrator", IsSuperAdmin = true, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.RegionalDirectorUserId, AuthUserId = "user_director123", Email = "director@ntcedge.com", FirstName = "Director", LastName = "Regional", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.LegalUserId, AuthUserId = "user_legal123", Email = "legal@ntcedge.com", FirstName = "Atty. Clara", LastName = "Legal", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.AdminUserId, AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Regional", LastName = "Admin", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = SeedConstants.Users.LegacyHigherUpsUserId, AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer (Legacy)", IsSuperAdmin = false, CreatedAt = staticDate },
         };
+
+        if (seedDemoUsers)
+        {
+            defaultUsers.AddRange(new List<User>
+            {
+                new() { Id = SeedConstants.Users.ClientUserId, AuthUserId = "user_client123", Email = "client@ntcedge.com", FirstName = "John", LastName = "Client", AccountType = ApplicantType.Individual, IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.LiaisonUserId, AuthUserId = "user_liaison123", Email = "rdizon@apexconsulting.ph", FirstName = "Engr. Ricardo", LastName = "Dizon (Liaison Representative)", AccountType = ApplicantType.Company, IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.EvaluatorUserId, AuthUserId = "user_evaluator123", Email = "evaluator@ntcedge.com", FirstName = "Jane", LastName = "Evaluator", IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.ChiefEodUserId, AuthUserId = "user_chiefeod123", Email = "chiefeod@ntcedge.com", FirstName = "Engr. Roberto", LastName = "Chief (EOD)", IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.AccountantUserId, AuthUserId = "user_accountant123", Email = "accountant@ntcedge.com", FirstName = "Alice", LastName = "Accountant", IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.CashierUserId, AuthUserId = "user_cashier123", Email = "cashier@ntcedge.com", FirstName = "Bob", LastName = "Cashier", IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.RegionalDirectorUserId, AuthUserId = "user_director123", Email = "director@ntcedge.com", FirstName = "Director", LastName = "Regional", IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.LegalUserId, AuthUserId = "user_legal123", Email = "legal@ntcedge.com", FirstName = "Atty. Clara", LastName = "Legal", IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.AdminUserId, AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Regional", LastName = "Admin", IsSuperAdmin = false, CreatedAt = staticDate },
+                new() { Id = SeedConstants.Users.LegacyHigherUpsUserId, AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer (Legacy)", IsSuperAdmin = false, CreatedAt = staticDate },
+            });
+        }
 
         foreach (var user in defaultUsers)
         {
@@ -437,17 +449,24 @@ public static class RolePermissionDataSeeder
         // ── 5. Seed Tenant Memberships ────────────────────────────────────────────
         var defaultTenantMembers = new List<TenantMember>
         {
-            new() { Id = SeedConstants.TenantMembers.ClientMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.ClientUserId, RoleId = actualClientRoleId, CreatedAt = staticDate },
-            new() { Id = SeedConstants.TenantMembers.EvaluatorMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.EvaluatorUserId, RoleId = actualEvaluatorRoleId, CreatedAt = staticDate },
-            new() { Id = SeedConstants.TenantMembers.ChiefEodMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.ChiefEodUserId, RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
-            new() { Id = SeedConstants.TenantMembers.AccountantMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.AccountantUserId, RoleId = actualAccountantRoleId, CreatedAt = staticDate },
-            new() { Id = SeedConstants.TenantMembers.CashierMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.CashierUserId, RoleId = actualCashierRoleId, CreatedAt = staticDate },
             new() { Id = SeedConstants.TenantMembers.SuperAdminMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.SuperAdminUserId, RoleId = actualSuperAdminRoleId, CreatedAt = staticDate },
-            new() { Id = SeedConstants.TenantMembers.RegionalDirectorMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.RegionalDirectorUserId, RoleId = actualRegionalDirectorRoleId, CreatedAt = staticDate },
-            new() { Id = SeedConstants.TenantMembers.LegalMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.LegalUserId, RoleId = actualLegalRoleId, CreatedAt = staticDate },
-            new() { Id = SeedConstants.TenantMembers.AdminMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.AdminUserId, RoleId = actualAdminRoleId, CreatedAt = staticDate },
-            new() { Id = SeedConstants.TenantMembers.LegacyHigherUpsMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.LegacyHigherUpsUserId, RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
         };
+
+        if (seedDemoUsers)
+        {
+            defaultTenantMembers.AddRange(new List<TenantMember>
+            {
+                new() { Id = SeedConstants.TenantMembers.ClientMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.ClientUserId, RoleId = actualClientRoleId, CreatedAt = staticDate },
+                new() { Id = SeedConstants.TenantMembers.EvaluatorMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.EvaluatorUserId, RoleId = actualEvaluatorRoleId, CreatedAt = staticDate },
+                new() { Id = SeedConstants.TenantMembers.ChiefEodMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.ChiefEodUserId, RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
+                new() { Id = SeedConstants.TenantMembers.AccountantMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.AccountantUserId, RoleId = actualAccountantRoleId, CreatedAt = staticDate },
+                new() { Id = SeedConstants.TenantMembers.CashierMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.CashierUserId, RoleId = actualCashierRoleId, CreatedAt = staticDate },
+                new() { Id = SeedConstants.TenantMembers.RegionalDirectorMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.RegionalDirectorUserId, RoleId = actualRegionalDirectorRoleId, CreatedAt = staticDate },
+                new() { Id = SeedConstants.TenantMembers.LegalMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.LegalUserId, RoleId = actualLegalRoleId, CreatedAt = staticDate },
+                new() { Id = SeedConstants.TenantMembers.AdminMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.AdminUserId, RoleId = actualAdminRoleId, CreatedAt = staticDate },
+                new() { Id = SeedConstants.TenantMembers.LegacyHigherUpsMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.LegacyHigherUpsUserId, RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
+            });
+        }
 
         foreach (var member in defaultTenantMembers)
         {
@@ -462,6 +481,95 @@ public static class RolePermissionDataSeeder
                 catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
                 {
                     context.Entry(member).State = EntityState.Detached;
+                }
+            }
+        }
+
+        // ── 5b. Ensure Every Tenant Has a Main Office FieldOffice & Every Employee Has a FieldOfficeId ──
+        var allTenants = await context.Tenants.ToListAsync();
+        var allMembers = await context.TenantMembers.ToListAsync();
+        var allFieldOffices = await context.FieldOffices.ToListAsync();
+        var validRegionIds = (await context.Regions.Select(r => r.Id).ToListAsync()).ToHashSet();
+        var fallbackRegionId = validRegionIds.Contains(SeedConstants.CentralRegionId)
+            ? SeedConstants.CentralRegionId
+            : validRegionIds.FirstOrDefault();
+        var fallbackGlobalMemberId = allMembers.FirstOrDefault()?.Id ?? SeedConstants.TenantMembers.SuperAdminMemberId;
+
+        foreach (var tenant in allTenants)
+        {
+            var tenantOffices = allFieldOffices.Where(fo => fo.TenantId == tenant.Id && !fo.IsDeleted).ToList();
+            var mainOffice = tenantOffices.FirstOrDefault(fo => fo.Category == FieldOfficeCategory.Main)
+                             ?? tenantOffices.FirstOrDefault();
+
+            if (mainOffice == null && fallbackRegionId != Guid.Empty)
+            {
+                var tenantMembersForOic = allMembers.Where(m => m.TenantId == tenant.Id && !m.IsDeleted).ToList();
+                var oicMemberId = tenantMembersForOic.FirstOrDefault(m => m.RoleId == actualRegionalDirectorRoleId)?.Id
+                                  ?? tenantMembersForOic.FirstOrDefault(m => m.RoleId == actualAdminRoleId)?.Id
+                                  ?? tenantMembersForOic.FirstOrDefault()?.Id
+                                  ?? fallbackGlobalMemberId;
+
+                var cleanName = tenant.Name.Trim();
+                var mainOfficeName = cleanName.EndsWith("Main Office", StringComparison.OrdinalIgnoreCase)
+                    ? cleanName
+                    : $"{cleanName} - Main Office";
+                var mainOfficeCode = $"{(string.IsNullOrWhiteSpace(tenant.Code) ? "NTC" : tenant.Code.Trim().ToUpperInvariant())}-MAIN";
+                var resolvedRegionId = validRegionIds.Contains(tenant.RegionId) ? tenant.RegionId : fallbackRegionId;
+
+                mainOffice = new FieldOffice
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    Name = mainOfficeName,
+                    Code = mainOfficeCode,
+                    Category = FieldOfficeCategory.Main,
+                    Description = !string.IsNullOrWhiteSpace(tenant.Description)
+                        ? tenant.Description
+                        : $"Regional Main Office for {cleanName}",
+                    RegionId = resolvedRegionId,
+                    Address = cleanName,
+                    ContactPhone = string.Empty,
+                    ContactEmail = string.Empty,
+                    OfficerInChargeId = oicMemberId,
+                    IsActive = true,
+                    AllowSpectrumInspection = true,
+                    AllowPermitIssuance = true,
+                    AllowComplaintReception = true,
+                    CreatedAt = staticDate
+                };
+
+                try
+                {
+                    await context.FieldOffices.AddAsync(mainOffice);
+                    await context.SaveChangesAsync();
+                    allFieldOffices.Add(mainOffice);
+                }
+                catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+                {
+                    context.Entry(mainOffice).State = EntityState.Detached;
+                    mainOffice = await context.FieldOffices.FirstOrDefaultAsync(fo => fo.TenantId == tenant.Id);
+                }
+            }
+
+            if (mainOffice != null)
+            {
+                var validTenantOfficeIds = allFieldOffices
+                    .Where(fo => fo.TenantId == tenant.Id && !fo.IsDeleted)
+                    .Select(fo => fo.Id)
+                    .ToHashSet();
+                validTenantOfficeIds.Add(mainOffice.Id);
+
+                var unassignedMembers = allMembers
+                    .Where(m => m.TenantId == tenant.Id && (!m.FieldOfficeId.HasValue || m.FieldOfficeId.Value == Guid.Empty || !validTenantOfficeIds.Contains(m.FieldOfficeId.Value)))
+                    .ToList();
+
+                if (unassignedMembers.Count > 0)
+                {
+                    foreach (var member in unassignedMembers)
+                    {
+                        member.FieldOfficeId = mainOffice.Id;
+                    }
+                    await context.SaveChangesAsync();
                 }
             }
         }
@@ -564,152 +672,31 @@ public static class RolePermissionDataSeeder
             }
         }
 
-        // ── 7. Seed Initial Staff Collaboration Conversations & Meetings ──────────
-        var allSeededUserIds = defaultUsers.Select(u => u.Id).Distinct().ToList();
+        // ── 7. Clean up legacy seeded mock conversations & meetings if present ──
+        var legacyMeetingId = Guid.Parse("ee000000-0000-0000-0000-000000000001");
+        var legacyMeetings = await context.Meetings
+            .IgnoreQueryFilters()
+            .Where(m => m.Id == legacyMeetingId || m.MeetingCode == "NTC-OPS-2026")
+            .ToListAsync();
 
-        var generalConversationId = SeedConstants.Communication.GeneralConversationId;
-        var existingConversation = await context.Conversations
-            .Include(c => c.Participants)
-            .FirstOrDefaultAsync(c => c.Id == generalConversationId);
-
-        if (existingConversation == null)
+        if (legacyMeetings.Count > 0)
         {
-            var generalConversation = new Conversation
-            {
-                Id = generalConversationId,
-                Title = "NTC Regional Staff Collaboration",
-                Description = "General collaboration channel for all regional staff and department officers",
-                Type = ConversationType.Group,
-                Scope = ConversationScope.IntraRegional,
-                TenantId = defaultTenantId,
-                CreatedAt = staticDate,
-                LastMessageAt = staticDate,
-                LastMessagePreview = "Welcome to the NTC-EDGE Regional Collaboration Hub!",
-                Participants = allSeededUserIds.Select(uid => new ConversationParticipant
-                {
-                    Id = Guid.NewGuid(),
-                    ConversationId = generalConversationId,
-                    UserId = uid,
-                    TenantId = defaultTenantId,
-                    Role = uid == SeedConstants.Users.RegionalDirectorUserId || uid == SeedConstants.Users.SuperAdminUserId
-                        ? ParticipantRole.Owner
-                        : ParticipantRole.Member,
-                    CreatedAt = staticDate
-                }).ToList(),
-                Messages = new List<ChatMessage>
-                {
-                    new()
-                    {
-                        Id = SeedConstants.Communication.WelcomeMessageId,
-                        ConversationId = generalConversationId,
-                        SenderId = SeedConstants.Users.RegionalDirectorUserId,
-                        SenderTenantId = defaultTenantId,
-                        Content = "Welcome to the NTC-EDGE Regional Collaboration Hub! All internal staff have access to coordinate on permits, licensing, and compliance here.",
-                        Type = MessageType.Text,
-                        CreatedAt = staticDate
-                    }
-                }
-            };
-
-            try
-            {
-                await context.Conversations.AddAsync(generalConversation);
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Seeded general collaboration conversation '{Title}' with all roles participating.", generalConversation.Title);
-            }
-            catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
-            {
-                context.Entry(generalConversation).State = EntityState.Detached;
-            }
-        }
-        else
-        {
-            // Ensure any missing staff user is enrolled as participant
-            var existingParticipantIds = existingConversation.Participants.Select(p => p.UserId).ToHashSet();
-            var missingUsers = allSeededUserIds.Where(uid => !existingParticipantIds.Contains(uid)).ToList();
-            if (missingUsers.Count > 0)
-            {
-                foreach (var missingUid in missingUsers)
-                {
-                    context.ConversationParticipants.Add(new ConversationParticipant
-                    {
-                        Id = Guid.NewGuid(),
-                        ConversationId = generalConversationId,
-                        UserId = missingUid,
-                        TenantId = defaultTenantId,
-                        Role = ParticipantRole.Member,
-                        CreatedAt = staticDate
-                    });
-                }
-                await context.SaveChangesAsync();
-            }
+            context.Meetings.RemoveRange(legacyMeetings);
+            await context.SaveChangesAsync();
+            logger?.LogInformation("Removed {Count} legacy seeded mock meeting(s).", legacyMeetings.Count);
         }
 
-        var defaultMeetingId = SeedConstants.Communication.DefaultMeetingId;
-        var existingMeeting = await context.Meetings
-            .Include(m => m.Participants)
-            .FirstOrDefaultAsync(m => m.Id == defaultMeetingId || m.MeetingCode == "NTC-OPS-2026");
+        var legacyConversationId = Guid.Parse("cc000000-0000-0000-0000-000000000001");
+        var legacyConversations = await context.Conversations
+            .IgnoreQueryFilters()
+            .Where(c => c.Id == legacyConversationId)
+            .ToListAsync();
 
-        if (existingMeeting == null)
+        if (legacyConversations.Count > 0)
         {
-            var defaultMeeting = new Meeting
-            {
-                Id = defaultMeetingId,
-                Title = "Weekly Regional Operations & Coordination",
-                Description = "Regular coordination meeting for regional evaluation, cashiering, and management review.",
-                MeetingCode = "NTC-OPS-2026",
-                Scope = ConversationScope.IntraRegional,
-                TenantId = defaultTenantId,
-                HostUserId = SeedConstants.Users.RegionalDirectorUserId, // Regional Director
-                ScheduledStartTime = DateTimeOffset.UtcNow.AddHours(2),
-                ScheduledEndTime = DateTimeOffset.UtcNow.AddHours(3),
-                Status = MeetingStatus.Scheduled,
-                AllowExternalGuests = false,
-                CreatedAt = staticDate,
-                Participants = allSeededUserIds.Select(uid => new MeetingParticipant
-                {
-                    Id = Guid.NewGuid(),
-                    MeetingId = defaultMeetingId,
-                    UserId = uid,
-                    TenantId = defaultTenantId,
-                    Role = uid == SeedConstants.Users.RegionalDirectorUserId
-                        ? ParticipantRole.Owner
-                        : ParticipantRole.Member,
-                    CreatedAt = staticDate
-                }).ToList()
-            };
-
-            try
-            {
-                await context.Meetings.AddAsync(defaultMeeting);
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Seeded default upcoming meeting '{Title}' (Code: {Code}) with all roles participating.", defaultMeeting.Title, defaultMeeting.MeetingCode);
-            }
-            catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
-            {
-                context.Entry(defaultMeeting).State = EntityState.Detached;
-            }
-        }
-        else
-        {
-            var existingParticipantIds = existingMeeting.Participants.Select(p => p.UserId).ToHashSet();
-            var missingUsers = allSeededUserIds.Where(uid => !existingParticipantIds.Contains(uid)).ToList();
-            if (missingUsers.Count > 0)
-            {
-                foreach (var missingUid in missingUsers)
-                {
-                    context.MeetingParticipants.Add(new MeetingParticipant
-                    {
-                        Id = Guid.NewGuid(),
-                        MeetingId = existingMeeting.Id,
-                        UserId = missingUid,
-                        TenantId = defaultTenantId,
-                        Role = ParticipantRole.Member,
-                        CreatedAt = staticDate
-                    });
-                }
-                await context.SaveChangesAsync();
-            }
+            context.Conversations.RemoveRange(legacyConversations);
+            await context.SaveChangesAsync();
+            logger?.LogInformation("Removed {Count} legacy seeded mock conversation(s).", legacyConversations.Count);
         }
     }
 }

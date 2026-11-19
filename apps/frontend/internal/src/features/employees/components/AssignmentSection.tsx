@@ -72,9 +72,7 @@ export function AssignmentSection({
   fieldOffices = [],
   isLoading = false,
 }: AssignmentSectionProps) {
-  const displayFieldOffices = fieldOffices.length > 0
-    ? ['None (Unassigned)', ...Array.from(new Set(fieldOffices.map((f) => f.name)))]
-    : ['None (Unassigned)', 'Regional Main Office (Central Station)', 'Cebu District Office', 'Mandaue Field Office'];
+  const displayFieldOffices = Array.from(new Set(fieldOffices.map((f) => f.name)));
 
   return (
     <View
@@ -139,28 +137,36 @@ export function AssignmentSection({
               nestedScrollEnabled={true}
               keyboardShouldPersistTaps="handled"
             >
-              {displayFieldOffices.map((fo) => {
-                const isSelected = (fo === 'None (Unassigned)' && !fieldOfficeValue) || fieldOfficeValue === fo;
-                return (
-                  <Pressable
-                    key={fo}
-                    style={[
-                      fieldStyles.dropdownOption,
-                      isSelected && fieldStyles.dropdownOptionActive,
-                    ]}
-                    onPress={() => onSelectFieldOffice(fo === 'None (Unassigned)' ? '' : fo)}
-                  >
-                    <Text
+              {displayFieldOffices.length === 0 ? (
+                <View style={{ padding: 14 }}>
+                  <Text style={fieldStyles.dropdownOptionText}>
+                    {isLoading ? 'Loading field offices...' : 'No field offices available.'}
+                  </Text>
+                </View>
+              ) : (
+                displayFieldOffices.map((fo) => {
+                  const isSelected = fieldOfficeValue === fo;
+                  return (
+                    <Pressable
+                      key={fo}
                       style={[
-                        fieldStyles.dropdownOptionText,
-                        isSelected && fieldStyles.dropdownOptionTextActive,
+                        fieldStyles.dropdownOption,
+                        isSelected && fieldStyles.dropdownOptionActive,
                       ]}
+                      onPress={() => onSelectFieldOffice(fo)}
                     >
-                      {fo}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Text
+                        style={[
+                          fieldStyles.dropdownOptionText,
+                          isSelected && fieldStyles.dropdownOptionTextActive,
+                        ]}
+                      >
+                        {fo}
+                      </Text>
+                    </Pressable>
+                  );
+                })
+              )}
             </ScrollView>
           </View>
         )}

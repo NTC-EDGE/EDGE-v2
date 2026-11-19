@@ -43,17 +43,18 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id 
+        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id
             ?? allTenants.FirstOrDefault()?.Id;
 
         var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(currentUser.Id, cancellationToken);
         var hostTenantId = (request.TenantId.HasValue && request.TenantId != Guid.Empty)
             ? request.TenantId
-            : userMemberships.FirstOrDefault()?.TenantId 
+            : userMemberships.FirstOrDefault()?.TenantId
               ?? currentUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
               ?? fallbackTenantId;
 
         var meetingCode = $"edg-{Guid.NewGuid().ToString()[..8]}";
+        var now = DateTimeOffset.UtcNow;
 
         var meeting = new Meeting
         {
@@ -63,9 +64,11 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             Scope = request.Scope,
             TenantId = hostTenantId,
             HostUserId = currentUser.Id,
-            ScheduledStartTime = request.ScheduledStartTime,
+            LinkedConversationId = request.LinkedConversationId,
+            ScheduledStartTime = request.IsInstant ? now : request.ScheduledStartTime,
             ScheduledEndTime = request.ScheduledEndTime,
-            Status = MeetingStatus.Scheduled
+            ActualStartTime = request.IsInstant ? now : null,
+            Status = request.IsInstant ? MeetingStatus.Live : MeetingStatus.Scheduled
         };
 
         meeting.Participants.Add(new MeetingParticipant
@@ -79,7 +82,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
 
         if (request.ParticipantUserIds != null)
         {
-            foreach (var pUserId in request.ParticipantUserIds.Where(id => id != currentUser.Id && id != Guid.Empty))
+            foreach (var pUserId in request.ParticipantUserIds.Where(id => id != currentUser.Id && id != Guid.Empty).Distinct())
             {
                 var pUser = await _userRepository.GetByIdAsync(pUserId, cancellationToken);
                 if (pUser == null)
@@ -88,9 +91,9 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
                 }
 
                 var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(pUserId, cancellationToken);
-                var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
+                var pTenantId = pMemberships.FirstOrDefault()?.TenantId
                     ?? pUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
-                    ?? hostTenantId 
+                    ?? hostTenantId
                     ?? fallbackTenantId;
 
                 var participantTenantId = pTenantId.HasValue && pTenantId.Value != Guid.Empty ? pTenantId : fallbackTenantId;
@@ -118,8 +121,10 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
                 UserId = p.UserId,
                 TenantId = p.TenantId ?? hostTenantId,
                 Type = NotificationType.MeetingInvite,
-                Title = $"Meeting Scheduled: {meeting.Title}",
-                Body = $"You have been invited by {hostName} to join '{meeting.Title}' scheduled on {formattedTime}. Meeting Code: {meeting.MeetingCode}.",
+                Title = request.IsInstant ? $"Live Call: {meeting.Title}" : $"Meeting Scheduled: {meeting.Title}",
+                Body = request.IsInstant
+                    ? $"{hostName} started '{meeting.Title}'. Join now with code: {meeting.MeetingCode}."
+                    : $"You have been invited by {hostName} to join '{meeting.Title}' scheduled on {formattedTime}. Meeting Code: {meeting.MeetingCode}.",
                 ActionUrl = $"/meet?code={meeting.MeetingCode}",
                 ReferenceId = meeting.MeetingCode,
                 IsRead = false
@@ -149,8 +154,11 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             HostUserName = created.HostUser != null
                 ? $"{created.HostUser.FirstName} {created.HostUser.LastName}".Trim()
                 : hostName,
+            LinkedConversationId = created.LinkedConversationId,
             ScheduledStartTime = created.ScheduledStartTime,
             ScheduledEndTime = created.ScheduledEndTime,
+            ActualStartTime = created.ActualStartTime,
+            ActualEndTime = created.ActualEndTime,
             Status = created.Status,
             Participants = created.Participants.Select(p => new MeetingParticipantDto
             {
@@ -166,10 +174,13 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             }).ToList()
         };
 
-        var invitedUserIds = created.Participants.Where(p => p.UserId != currentUser.Id).Select(p => p.UserId).ToList();
-        if (invitedUserIds.Any())
+        if (request.RingParticipants)
         {
-            await _meetingNotificationService.NotifyIncomingCallAsync(dto, invitedUserIds, cancellationToken);
+            var invitedUserIds = created.Participants.Where(p => p.UserId != currentUser.Id).Select(p => p.UserId).ToList();
+            if (invitedUserIds.Any())
+            {
+                await _meetingNotificationService.NotifyIncomingCallAsync(dto, invitedUserIds, cancellationToken);
+            }
         }
 
         return dto;

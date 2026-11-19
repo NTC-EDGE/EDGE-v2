@@ -31,5 +31,6 @@ public record CreateSoaCommand(
     int? AdditionalServicesCount = null,
     int? NoOfCopies = null,
     string? Remarks = null,
-    Guid? SoaNoteId = null
+    Guid? SoaNoteId = null,
+    string? SoaNumber = null
 ) : IRequest<ApiResponse<Guid>>;

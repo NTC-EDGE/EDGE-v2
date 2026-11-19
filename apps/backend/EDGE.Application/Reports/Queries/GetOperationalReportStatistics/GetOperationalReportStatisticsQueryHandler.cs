@@ -23,19 +23,22 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
     private readonly IFeedbackRepository _feedbackRepository;
     private readonly ITenantContextService _tenantContextService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IFieldOfficeRepository? _fieldOfficeRepository;
 
     public GetOperationalReportStatisticsQueryHandler(
         IApplicationFullRepository applicationRepository,
         ITenantRepository tenantRepository,
         IFeedbackRepository feedbackRepository,
         ITenantContextService tenantContextService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IFieldOfficeRepository? fieldOfficeRepository = null)
     {
         _applicationRepository = applicationRepository;
         _tenantRepository = tenantRepository;
         _feedbackRepository = feedbackRepository;
         _tenantContextService = tenantContextService;
         _currentUserService = currentUserService;
+        _fieldOfficeRepository = fieldOfficeRepository;
     }
 
     public async Task<ApiResponse<OperationalReportStatisticsDto>> Handle(GetOperationalReportStatisticsQuery request, CancellationToken cancellationToken)
@@ -77,7 +80,7 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         }
         else
         {
-            targetTenantId = request.TenantId;
+            targetTenantId = request.TenantId ?? _tenantContextService.TenantId;
         }
 
         // Fetch live applications dataset filtered by tenant with batched pagination
@@ -107,37 +110,143 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
             currentAppPage++;
         }
 
-        // Fetch live transactions dataset with batched pagination
+        // Fetch live transactions dataset with batched pagination (Guid.Empty queries all tenants when SuperAdmin views global scope)
         var transactions = new List<TenantTransactionDto>();
-        if (targetTenantId.HasValue)
+        var txQueryTenantId = targetTenantId ?? Guid.Empty;
+        var currentTxPage = 1;
+        while (transactions.Count < ReportConstants.MaxSafetyRecordThreshold)
         {
-            var currentTxPage = 1;
-            while (transactions.Count < ReportConstants.MaxSafetyRecordThreshold)
+            var (txItems, totalTxCount) = await _tenantRepository.GetTenantTransactionsAsync(
+                txQueryTenantId,
+                pageNumber: currentTxPage,
+                pageSize: ReportConstants.DefaultBatchPageSize,
+                cancellationToken: cancellationToken);
+
+            if (txItems == null || txItems.Count == 0)
             {
-                var (txItems, totalTxCount) = await _tenantRepository.GetTenantTransactionsAsync(
-                    targetTenantId.Value,
-                    pageNumber: currentTxPage,
-                    pageSize: ReportConstants.DefaultBatchPageSize,
-                    cancellationToken: cancellationToken);
-
-                if (txItems == null || txItems.Count == 0)
-                {
-                    break;
-                }
-
-                transactions.AddRange(txItems);
-
-                if (transactions.Count >= totalTxCount || txItems.Count < ReportConstants.DefaultBatchPageSize)
-                {
-                    break;
-                }
-
-                currentTxPage++;
+                break;
             }
+
+            transactions.AddRange(txItems);
+
+            if (transactions.Count >= totalTxCount || txItems.Count < ReportConstants.DefaultBatchPageSize)
+            {
+                break;
+            }
+
+            currentTxPage++;
         }
 
         // Fetch live feedback dataset scoped to tenant
         var allFeedback = await _feedbackRepository.GetByTenantAsync(targetTenantId, cancellationToken) ?? new List<FeedbackEntity>();
+
+        string tenantDisplayName = "National Telecommunications Commission - Central Office";
+        if (targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
+        {
+            var tenantEntity = await _tenantRepository.GetByIdAsync(targetTenantId.Value, cancellationToken);
+            tenantDisplayName = tenantEntity != null && !string.IsNullOrWhiteSpace(tenantEntity.Name)
+                ? tenantEntity.Name
+                : $"National Telecommunications Commission - Regional Office ({targetTenantId.Value.ToString()[..8].ToUpperInvariant()})";
+        }
+
+        // Load tenant field offices for monitoring filter
+        var fieldOfficeDtos = new List<ReportFieldOfficeDto>();
+        if (_fieldOfficeRepository != null && targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
+        {
+            var offices = await _fieldOfficeRepository.GetByTenantIdAsync(targetTenantId.Value, cancellationToken);
+            if (offices != null)
+            {
+                fieldOfficeDtos = offices
+                    .OrderByDescending(o => o.Category.ToString().Contains("Main", StringComparison.OrdinalIgnoreCase) || o.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(o => o.Name)
+                    .Select(o => new ReportFieldOfficeDto(
+                        o.Id,
+                        o.Name,
+                        o.Code,
+                        o.Category.ToString(),
+                        o.IsActive))
+                    .ToList();
+            }
+        }
+
+        // Apply optional Field Offices filter (for monitoring purposes when tenant has multiple field offices)
+        if (!string.IsNullOrWhiteSpace(request.FieldOffices) && !string.Equals(request.FieldOffices.Trim(), "all", StringComparison.OrdinalIgnoreCase))
+        {
+            var selectedTokens = request.FieldOffices
+                .Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToList();
+
+            if (selectedTokens.Count > 0)
+            {
+                var selectedSet = new HashSet<string>(selectedTokens, StringComparer.OrdinalIgnoreCase);
+                bool includesMainOffice = selectedTokens.Any(t =>
+                    t.Contains("Main Office", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t, "MainOffice", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t, tenantDisplayName, StringComparison.OrdinalIgnoreCase)) ||
+                    fieldOfficeDtos.Any(fo =>
+                        (fo.Category.Contains("Main", StringComparison.OrdinalIgnoreCase) || fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase)) &&
+                        (selectedSet.Contains(fo.Name) || selectedSet.Contains(fo.Code) || selectedSet.Contains(fo.Id.ToString())));
+
+                bool MatchesSelectedFieldOffice(ApplicationSummaryDto app)
+                {
+                    var appOffice = (app.Office ?? string.Empty).Trim();
+                    if (string.IsNullOrEmpty(appOffice) ||
+                        string.Equals(appOffice, tenantDisplayName, StringComparison.OrdinalIgnoreCase) ||
+                        appOffice.Contains("Main Office", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return includesMainOffice;
+                    }
+                    if (selectedSet.Contains(appOffice))
+                    {
+                        return true;
+                    }
+                    foreach (var fo in fieldOfficeDtos)
+                    {
+                        bool isMainFo = fo.Category.Contains("Main", StringComparison.OrdinalIgnoreCase) ||
+                                        fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase);
+                        if (isMainFo) continue;
+
+                        if (selectedSet.Contains(fo.Name) || selectedSet.Contains(fo.Code) || selectedSet.Contains(fo.Id.ToString()))
+                        {
+                            if (string.Equals(appOffice, fo.Name, StringComparison.OrdinalIgnoreCase) ||
+                                (!string.IsNullOrWhiteSpace(fo.Code) && string.Equals(appOffice, fo.Code, StringComparison.OrdinalIgnoreCase)) ||
+                                appOffice.Contains(fo.Name, StringComparison.OrdinalIgnoreCase) ||
+                                fo.Name.Contains(appOffice, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                var allAppIds = new HashSet<Guid>(tenantApps.Select(a => a.Id));
+                tenantApps = tenantApps.Where(MatchesSelectedFieldOffice).ToList();
+
+                var matchedAppIds = new HashSet<Guid>(tenantApps.Select(a => a.Id));
+                var matchedRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var a in tenantApps)
+                {
+                    if (!string.IsNullOrWhiteSpace(a.OfficialReceiptNumber)) matchedRefs.Add(a.OfficialReceiptNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.OpNumber)) matchedRefs.Add(a.OpNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.SoaNumber)) matchedRefs.Add(a.SoaNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.ApplicationNumber)) matchedRefs.Add(a.ApplicationNumber.Trim());
+                    if (!string.IsNullOrWhiteSpace(a.ReferenceNumber)) matchedRefs.Add(a.ReferenceNumber.Trim());
+                }
+
+                transactions = transactions.Where(tx =>
+                {
+                    if (matchedAppIds.Contains(tx.Id)) return true;
+                    if (!string.IsNullOrWhiteSpace(tx.RefNo) && matchedRefs.Contains(tx.RefNo.Trim())) return true;
+                    // If tx.Id belongs to an application that was filtered out, exclude it
+                    if (allAppIds.Contains(tx.Id)) return false;
+                    // Walk-in or standalone receipt not tied to a filtered-out sub-office application belongs to Main Office
+                    return includesMainOffice;
+                }).ToList();
+            }
+        }
 
         // Selected filter intervals
         var activeYear = request.Year ?? DateTime.UtcNow.Year;
@@ -147,7 +256,7 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
 
         bool IsMatchingPeriod(DateTime dt)
         {
-            if (periodMode == "custom" || (request.StartDate.HasValue && request.EndDate.HasValue))
+            if (periodMode == "custom" || (string.IsNullOrWhiteSpace(request.PeriodMode) && request.StartDate.HasValue && request.EndDate.HasValue))
             {
                 var s = request.StartDate ?? DateTime.MinValue;
                 var e = request.EndDate?.Date.AddDays(1).AddTicks(-1) ?? DateTime.MaxValue;
@@ -179,10 +288,21 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         var filteredFeedback = allFeedback.Where(f => IsMatchingPeriod(f.CreatedAt)).ToList();
 
         // 1. KPI Summary Calculation
+        static bool IsApprovedOrCompleted(ApplicationSummaryDto a) =>
+            string.Equals(a.Status, "Approved", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.Status, "Completed", StringComparison.OrdinalIgnoreCase);
+
+        static bool IsReturnedOrRejected(ApplicationSummaryDto a) =>
+            string.Equals(a.Status, "Returned", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.Status, "Rejected", StringComparison.OrdinalIgnoreCase);
+
+        static bool IsInProcess(ApplicationSummaryDto a) =>
+            !IsApprovedOrCompleted(a) && !IsReturnedOrRejected(a);
+
         var totalApps = filteredApps.Count;
-        var approvedCount = filteredApps.Count(a => string.Equals(a.Status, "Approved", StringComparison.OrdinalIgnoreCase) || string.Equals(a.Status, "Completed", StringComparison.OrdinalIgnoreCase));
-        var evaluatingCount = filteredApps.Count(a => string.Equals(a.Status, "Evaluating", StringComparison.OrdinalIgnoreCase) || string.Equals(a.Status, "Submitted", StringComparison.OrdinalIgnoreCase) || string.Equals(a.Status, "Pending", StringComparison.OrdinalIgnoreCase));
-        var returnedCount = filteredApps.Count(a => string.Equals(a.Status, "Returned", StringComparison.OrdinalIgnoreCase) || string.Equals(a.Status, "Rejected", StringComparison.OrdinalIgnoreCase));
+        var approvedCount = filteredApps.Count(IsApprovedOrCompleted);
+        var evaluatingCount = filteredApps.Count(IsInProcess);
+        var returnedCount = filteredApps.Count(IsReturnedOrRejected);
         var approvalRate = totalApps > 0 ? (int)Math.Round((double)approvedCount / totalApps * 100) : 100;
 
         var totalCollected = filteredTx.Where(t => string.Equals(t.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Amount);
@@ -226,9 +346,9 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
                 var mFb = allFeedback.Where(f => f.CreatedAt.Year == activeYear && f.CreatedAt.Month - 1 == m).ToList();
 
                 var mTotal = mApps.Count;
-                var mAppr = mApps.Count(a => string.Equals(a.Status, "Approved", StringComparison.OrdinalIgnoreCase));
-                var mEval = mApps.Count(a => string.Equals(a.Status, "Evaluating", StringComparison.OrdinalIgnoreCase) || string.Equals(a.Status, "Submitted", StringComparison.OrdinalIgnoreCase));
-                var mRet = mApps.Count(a => string.Equals(a.Status, "Returned", StringComparison.OrdinalIgnoreCase));
+                var mAppr = mApps.Count(IsApprovedOrCompleted);
+                var mEval = mApps.Count(IsInProcess);
+                var mRet = mApps.Count(IsReturnedOrRejected);
                 var mRate = mTotal > 0 ? (int)Math.Round((double)mAppr / mTotal * 100) : 100;
                 var mRev = mTx.Where(t => string.Equals(t.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Amount);
                 var mCsat = mFb.Count > 0 ? mFb.Average(f => f.Rating).ToString("0.0", CultureInfo.InvariantCulture) : "5.0";
@@ -257,9 +377,9 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
                 var qFb = allFeedback.Where(f => f.CreatedAt.Year == activeYear && f.CreatedAt.Month - 1 >= startM && f.CreatedAt.Month - 1 <= endM).ToList();
 
                 var qTotal = qApps.Count;
-                var qAppr = qApps.Count(a => string.Equals(a.Status, "Approved", StringComparison.OrdinalIgnoreCase));
-                var qEval = qApps.Count(a => string.Equals(a.Status, "Evaluating", StringComparison.OrdinalIgnoreCase) || string.Equals(a.Status, "Submitted", StringComparison.OrdinalIgnoreCase));
-                var qRet = qApps.Count(a => string.Equals(a.Status, "Returned", StringComparison.OrdinalIgnoreCase));
+                var qAppr = qApps.Count(IsApprovedOrCompleted);
+                var qEval = qApps.Count(IsInProcess);
+                var qRet = qApps.Count(IsReturnedOrRejected);
                 var qRate = qTotal > 0 ? (int)Math.Round((double)qAppr / qTotal * 100) : 100;
                 var qRev = qTx.Where(t => string.Equals(t.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Amount);
                 var qCsat = qFb.Count > 0 ? qFb.Average(f => f.Rating).ToString("0.0", CultureInfo.InvariantCulture) : "5.0";
@@ -289,9 +409,9 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
                 var yrFb = allFeedback.Where(f => f.CreatedAt.Year == yr).ToList();
 
                 var yrTotal = yrApps.Count;
-                var yrAppr = yrApps.Count(a => string.Equals(a.Status, "Approved", StringComparison.OrdinalIgnoreCase));
-                var yrEval = yrApps.Count(a => string.Equals(a.Status, "Evaluating", StringComparison.OrdinalIgnoreCase) || string.Equals(a.Status, "Submitted", StringComparison.OrdinalIgnoreCase));
-                var yrRet = yrApps.Count(a => string.Equals(a.Status, "Returned", StringComparison.OrdinalIgnoreCase));
+                var yrAppr = yrApps.Count(IsApprovedOrCompleted);
+                var yrEval = yrApps.Count(IsInProcess);
+                var yrRet = yrApps.Count(IsReturnedOrRejected);
                 var yrRate = yrTotal > 0 ? (int)Math.Round((double)yrAppr / yrTotal * 100) : 100;
                 var yrRev = yrTx.Where(t => string.Equals(t.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Amount);
                 var yrCsat = yrFb.Count > 0 ? yrFb.Average(f => f.Rating).ToString("0.0", CultureInfo.InvariantCulture) : "5.0";
@@ -332,8 +452,123 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         }
 
         // 4. Statutory Government Submissions Summaries
+        var paidTx = filteredTx.Where(t => string.Equals(t.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase)).ToList();
+        var examAppsCount = filteredApps.Count(a =>
+            (!string.IsNullOrEmpty(a.ServiceCategory) && (a.ServiceCategory.Contains("Exam", StringComparison.OrdinalIgnoreCase) || a.ServiceCategory.Contains("Operator", StringComparison.OrdinalIgnoreCase))) ||
+            (!string.IsNullOrEmpty(a.ServiceName) && (a.ServiceName.Contains("Exam", StringComparison.OrdinalIgnoreCase) || a.ServiceName.Contains("Operator", StringComparison.OrdinalIgnoreCase) || a.ServiceName.Contains("ROCE", StringComparison.OrdinalIgnoreCase))));
+
         var statutorySummaries = new List<StatutoryReportSummaryDto>
         {
+            new(
+                Code: ReportConstants.MisOps.Code,
+                Title: ReportConstants.MisOps.Title,
+                Agency: ReportConstants.MisOps.Agency,
+                Frequency: ReportConstants.MisOps.Frequency,
+                LegalBasis: ReportConstants.MisOps.LegalBasis,
+                BadgeColor: ReportConstants.MisOps.BadgeColor,
+                RecordCount: totalApps,
+                ComplianceRate: approvalRate,
+                TotalAmount: totalCollected
+            ),
+            new(
+                Code: ReportConstants.CoaApp26Monthly.Code,
+                Title: ReportConstants.CoaApp26Monthly.Title,
+                Agency: ReportConstants.CoaApp26Monthly.Agency,
+                Frequency: ReportConstants.CoaApp26Monthly.Frequency,
+                LegalBasis: ReportConstants.CoaApp26Monthly.LegalBasis,
+                BadgeColor: ReportConstants.CoaApp26Monthly.BadgeColor,
+                RecordCount: paidTx.Count,
+                ComplianceRate: 100,
+                TotalAmount: totalCollected
+            ),
+            new(
+                Code: ReportConstants.CoaApp26Daily.Code,
+                Title: ReportConstants.CoaApp26Daily.Title,
+                Agency: ReportConstants.CoaApp26Daily.Agency,
+                Frequency: ReportConstants.CoaApp26Daily.Frequency,
+                LegalBasis: ReportConstants.CoaApp26Daily.LegalBasis,
+                BadgeColor: ReportConstants.CoaApp26Daily.BadgeColor,
+                RecordCount: paidTx.Count,
+                ComplianceRate: 100,
+                TotalAmount: totalCollected
+            ),
+            new(
+                Code: ReportConstants.BirDst01.Code,
+                Title: ReportConstants.BirDst01.Title,
+                Agency: ReportConstants.BirDst01.Agency,
+                Frequency: ReportConstants.BirDst01.Frequency,
+                LegalBasis: ReportConstants.BirDst01.LegalBasis,
+                BadgeColor: ReportConstants.BirDst01.BadgeColor,
+                RecordCount: paidTx.Count,
+                ComplianceRate: 100,
+                TotalAmount: paidTx.Count * 30m
+            ),
+            new(
+                Code: ReportConstants.BtrInc01.Code,
+                Title: ReportConstants.BtrInc01.Title,
+                Agency: ReportConstants.BtrInc01.Agency,
+                Frequency: ReportConstants.BtrInc01.Frequency,
+                LegalBasis: ReportConstants.BtrInc01.LegalBasis,
+                BadgeColor: ReportConstants.BtrInc01.BadgeColor,
+                RecordCount: paidTx.Count,
+                ComplianceRate: 100,
+                TotalAmount: totalCollected
+            ),
+            new(
+                Code: ReportConstants.AppSumEval.Code,
+                Title: ReportConstants.AppSumEval.Title,
+                Agency: ReportConstants.AppSumEval.Agency,
+                Frequency: ReportConstants.AppSumEval.Frequency,
+                LegalBasis: ReportConstants.AppSumEval.LegalBasis,
+                BadgeColor: ReportConstants.AppSumEval.BadgeColor,
+                RecordCount: totalApps,
+                ComplianceRate: approvalRate,
+                TotalAmount: totalCollected
+            ),
+            new(
+                Code: ReportConstants.AppSumSvc.Code,
+                Title: ReportConstants.AppSumSvc.Title,
+                Agency: ReportConstants.AppSumSvc.Agency,
+                Frequency: ReportConstants.AppSumSvc.Frequency,
+                LegalBasis: ReportConstants.AppSumSvc.LegalBasis,
+                BadgeColor: ReportConstants.AppSumSvc.BadgeColor,
+                RecordCount: totalApps,
+                ComplianceRate: approvalRate,
+                TotalAmount: totalCollected
+            ),
+            new(
+                Code: ReportConstants.AppSumEnt.Code,
+                Title: ReportConstants.AppSumEnt.Title,
+                Agency: ReportConstants.AppSumEnt.Agency,
+                Frequency: ReportConstants.AppSumEnt.Frequency,
+                LegalBasis: ReportConstants.AppSumEnt.LegalBasis,
+                BadgeColor: ReportConstants.AppSumEnt.BadgeColor,
+                RecordCount: totalApps,
+                ComplianceRate: approvalRate,
+                TotalAmount: totalCollected
+            ),
+            new(
+                Code: ReportConstants.AppVol01.Code,
+                Title: ReportConstants.AppVol01.Title,
+                Agency: ReportConstants.AppVol01.Agency,
+                Frequency: ReportConstants.AppVol01.Frequency,
+                LegalBasis: ReportConstants.AppVol01.LegalBasis,
+                BadgeColor: ReportConstants.AppVol01.BadgeColor,
+                RecordCount: totalApps,
+                ComplianceRate: approvalRate,
+                TotalAmount: null
+            ),
+            new(
+                Code: ReportConstants.ExamMst01.Code,
+                Title: ReportConstants.ExamMst01.Title,
+                Agency: ReportConstants.ExamMst01.Agency,
+                Frequency: ReportConstants.ExamMst01.Frequency,
+                LegalBasis: ReportConstants.ExamMst01.LegalBasis,
+                BadgeColor: ReportConstants.ExamMst01.BadgeColor,
+                RecordCount: examAppsCount,
+                ComplianceRate: 100,
+                TotalAmount: null
+            ),
             new(
                 Code: ReportConstants.BarNo1.Code,
                 Title: ReportConstants.BarNo1.Title,
@@ -402,16 +637,13 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
             )
         };
 
-        var tenantDisplayName = targetTenantId.HasValue
-            ? $"National Telecommunications Commission - Regional Office ({targetTenantId.Value.ToString()[..8].ToUpperInvariant()})"
-            : "National Telecommunications Commission - Central Office";
-
         var result = new OperationalReportStatisticsDto(
             TenantDisplayName: tenantDisplayName,
             Summary: kpiSummary,
             CategoryBreakdown: categoryBreakdown,
             PeriodicStatistics: periodicStats,
-            StatutoryReports: statutorySummaries
+            StatutoryReports: statutorySummaries,
+            FieldOffices: fieldOfficeDtos
         );
 
         return ApiResponse<OperationalReportStatisticsDto>.Success(result, "Operational reports statistics aggregated successfully.");

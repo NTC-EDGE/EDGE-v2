@@ -20,6 +20,7 @@ interface ClientBillingNoticeCardProps {
   onViewOr?: () => void;
   onConvertToReal?: () => void;
   onRequestReassessment?: () => void;
+  onOpenOfficialApplication?: (appId: string) => void;
 }
 
 export function ClientBillingNoticeCard({
@@ -32,6 +33,7 @@ export function ClientBillingNoticeCard({
   onViewOr,
   onConvertToReal,
   onRequestReassessment,
+  onOpenOfficialApplication,
 }: ClientBillingNoticeCardProps) {
   const [showFeeDetails, setShowFeeDetails] = useState(true);
 
@@ -355,49 +357,96 @@ export function ClientBillingNoticeCard({
         </View>
 
         {hasOr ? null : isAssessmentOnly ? (
-          <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 10, alignItems: 'center' }}>
-            {onRequestReassessment && (
-              <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  borderColor: '#7C3AED',
-                  borderWidth: 1.5,
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  backgroundColor: '#FFFFFF',
-                }}
-                onPress={onRequestReassessment}
-                activeOpacity={0.85}
-              >
-                <Icon name="rotate-ccw" size={15} color="#7C3AED" />
-                <Text
+          Boolean(app.convertedToRegularAt || app.hasActiveRenewal) ? (
+            <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 10, alignItems: 'center' }}>
+              {onOpenOfficialApplication && app.activeRenewalApplicationId ? (
+                <TouchableOpacity
+                  style={[styles.payBtn, { backgroundColor: '#1D4ED8' }]}
+                  onPress={() => {
+                    if (app.activeRenewalApplicationId) {
+                      onOpenOfficialApplication(app.activeRenewalApplicationId);
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Icon name="external-link" size={15} color="#FFFFFF" />
+                  <Text style={styles.payBtnText}>
+                    View Official Application{app.activeRenewalReferenceNumber ? ` #${app.activeRenewalReferenceNumber}` : ''}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View
                   style={{
-                    fontFamily: TYPOGRAPHY.fonts.primary,
-                    fontWeight: TYPOGRAPHY.weights.semibold,
-                    fontSize: 13,
-                    color: '#7C3AED',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    backgroundColor: '#EFF6FF',
+                    borderColor: '#BFDBFE',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
                   }}
                 >
-                  Request Re-assessment
-                </Text>
-              </TouchableOpacity>
-            )}
+                  <Icon name="check-circle" size={16} color="#1D4ED8" />
+                  <Text
+                    style={{
+                      fontFamily: TYPOGRAPHY.fonts.primary,
+                      fontWeight: TYPOGRAPHY.weights.semibold,
+                      fontSize: 13,
+                      color: '#1E40AF',
+                    }}
+                  >
+                    Official Application Filed{app.activeRenewalReferenceNumber ? ` (#${app.activeRenewalReferenceNumber})` : ''}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 10, alignItems: 'center' }}>
+              {onRequestReassessment && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    borderColor: '#7C3AED',
+                    borderWidth: 1.5,
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    borderRadius: 8,
+                    backgroundColor: '#FFFFFF',
+                  }}
+                  onPress={onRequestReassessment}
+                  activeOpacity={0.85}
+                >
+                  <Icon name="rotate-ccw" size={15} color="#7C3AED" />
+                  <Text
+                    style={{
+                      fontFamily: TYPOGRAPHY.fonts.primary,
+                      fontWeight: TYPOGRAPHY.weights.semibold,
+                      fontSize: 13,
+                      color: '#7C3AED',
+                    }}
+                  >
+                    Request Re-assessment
+                  </Text>
+                </TouchableOpacity>
+              )}
 
-            {onConvertToReal && (
-              <TouchableOpacity
-                style={[styles.payBtn, { backgroundColor: '#0F2C59' }]}
-                onPress={onConvertToReal}
-                activeOpacity={0.85}
-              >
-                <Icon name="check-circle" size={16} color="#FFFFFF" />
-                <Text style={styles.payBtnText}>Submit as Real Application</Text>
-                <Icon name="arrow-right" size={16} color="#FFFFFF" />
-              </TouchableOpacity>
-            )}
-          </View>
+              {onConvertToReal && (
+                <TouchableOpacity
+                  style={[styles.payBtn, { backgroundColor: '#0F2C59' }]}
+                  onPress={onConvertToReal}
+                  activeOpacity={0.85}
+                >
+                  <Icon name="check-circle" size={16} color="#FFFFFF" />
+                  <Text style={styles.payBtnText}>Submit as Real Application</Text>
+                  <Icon name="arrow-right" size={16} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )
         ) : isUnderAccountantReview ? (
           <View
             style={{

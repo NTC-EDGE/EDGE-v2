@@ -22,6 +22,7 @@ export interface ApplicantInformationFormSectionProps {
   sexOptions?: Array<{ label: string; value: string }>;
   civilStatusOptions?: Array<{ label: string; value: string }>;
   suffixOptions?: Array<{ label: string; value: string }>;
+  nationalityOptions?: Array<{ label: string; value: string }>;
 }
 
 const SUFFIX_OPTIONS = [
@@ -68,6 +69,7 @@ export function ApplicantInformationFormSection({
   sexOptions,
   civilStatusOptions,
   suffixOptions,
+  nationalityOptions,
 }: ApplicantInformationFormSectionProps) {
   const effectiveAllowCompany = !isExamService && allowCompany;
   const effectiveAllowIndividual = allowIndividual;
@@ -376,12 +378,22 @@ export function ApplicantInformationFormSection({
             />
           </FormCol>
           <FormCol span={6}>
-            <ValidatedInput
-              label="Nationality"
-              placeholder="e.g. Filipino"
-              value={applicant.nationality || "Filipino"}
-              onChangeText={(val) => onChange({ nationality: val })}
-            />
+            {nationalityOptions && nationalityOptions.length > 0 ? (
+              <Select
+                label="Nationality"
+                options={nationalityOptions}
+                value={applicant.nationality || nationalityOptions[0]?.value || "Filipino"}
+                onValueChange={(val) => onChange({ nationality: val })}
+                error={errors["nationality"]}
+              />
+            ) : (
+              <ValidatedInput
+                label="Nationality"
+                placeholder="e.g. Filipino"
+                value={applicant.nationality || "Filipino"}
+                onChangeText={(val) => onChange({ nationality: val })}
+              />
+            )}
           </FormCol>
         </FormGrid>
       )}

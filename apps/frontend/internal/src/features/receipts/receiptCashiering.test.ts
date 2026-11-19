@@ -1,7 +1,7 @@
 import { receiptService, PendingPaymentDto, ReturnTargetDto } from '@edge/api';
 
 describe('Receipt & Cashiering Management - Access Control & Endorsement Workflow', () => {
-  it('identifies overall access correctly for Cashier, Admin, Regional Director, and permitted users', () => {
+  it('identifies overall access strictly for Cashier, Regional Admin, and users explicitly granted Cashier action permissions', () => {
     function computeHasAccess(params: {
       currentRole: string;
       isSuperAdmin?: boolean;
@@ -10,46 +10,45 @@ describe('Receipt & Cashiering Management - Access Control & Endorsement Workflo
       permissions?: string[];
     }): boolean {
       const isCashier = params.currentRole === 'Cashier';
-      const hasCashierPermission =
+      const isRegionalAdmin =
+        Boolean(params.isSuperAdmin) ||
+        Boolean(params.isAdmin) ||
+        params.currentRole === 'Admin';
+      const hasGrantedCashierPermission =
         Boolean(params.canVerifyCashier) ||
         (params.permissions ?? []).some((p) =>
           [
-            'receipts.read',
             'receipts.issue',
+            'receipts.bundle_entry',
             'receipts.edit',
             'receipts.cancel',
-            'receipts.report',
-            'receipts.bundle',
             'receipts.deposit',
+            'bank_accounts.manage',
+            'reports.cashier',
             'billing.collect',
             'billing.op_return',
           ].includes(p)
         );
 
-      return (
-        Boolean(params.isSuperAdmin) ||
-        Boolean(params.isAdmin) ||
-        params.currentRole === 'Regional Director' ||
-        isCashier ||
-        hasCashierPermission
-      );
+      return isCashier || isRegionalAdmin || hasGrantedCashierPermission;
     }
 
     // Cashier role must have overall access
     expect(computeHasAccess({ currentRole: 'Cashier' })).toBe(true);
 
-    // Admin & Regional Director have overall access
+    // Regional Admin & SuperAdmin have overall access
     expect(computeHasAccess({ currentRole: 'Admin', isAdmin: true })).toBe(true);
-    expect(computeHasAccess({ currentRole: 'Regional Director' })).toBe(true);
     expect(computeHasAccess({ currentRole: 'Evaluator', isSuperAdmin: true })).toBe(true);
 
-    // User with cashier permission has overall access
+    // Multi-role user (e.g. John with Evaluator + Accountant + Cashier permissions granted by Admin) has access
+    expect(computeHasAccess({ currentRole: 'Evaluator', permissions: ['applications.evaluate', 'billing.soa_approve', 'receipts.issue'] })).toBe(true);
     expect(computeHasAccess({ currentRole: 'Accountant', canVerifyCashier: true })).toBe(true);
-    expect(computeHasAccess({ currentRole: 'Evaluator', permissions: ['billing.collect'] })).toBe(true);
-    expect(computeHasAccess({ currentRole: 'Evaluator', permissions: ['receipts.read'] })).toBe(true);
 
-    // Evaluator or Chief of EOD without permissions should be restricted
-    expect(computeHasAccess({ currentRole: 'Evaluator', permissions: ['applications.evaluate'] })).toBe(false);
+    // Non-cashier / non-admin roles (even if they have passive 'receipts.read') do NOT see Receipt Management by default
+    expect(computeHasAccess({ currentRole: 'Regional Director', permissions: ['receipts.read'] })).toBe(false);
+    expect(computeHasAccess({ currentRole: 'Accountant', permissions: ['receipts.read'] })).toBe(false);
+    expect(computeHasAccess({ currentRole: 'Evaluator', permissions: ['applications.evaluate', 'receipts.read'] })).toBe(false);
+    expect(computeHasAccess({ currentRole: 'Chief of EOD', permissions: ['receipts.read'] })).toBe(false);
     expect(computeHasAccess({ currentRole: 'Legal', permissions: [] })).toBe(false);
   });
 

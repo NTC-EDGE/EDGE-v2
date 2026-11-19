@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Applications.Commands.VerifyPayment;
 using EDGE.Application.Applications.Commands.ReturnOp;
+using EDGE.Application.Applications.Commands.UpdateOpNumber;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
@@ -47,7 +48,35 @@ public static class OpEndpoints
             .WithSummary("Return OP")
             .WithDescription("Returns an Order of Payment.");
 
+        group.MapPatch("/{opId:guid}/number", UpdateOpNumber)
+            .WithName("UpdateOpNumber")
+            .WithSummary("Update Order of Payment (OP) Number")
+            .WithDescription("Allows updating the OP number when manual OP numbering is enabled for the regional office.");
+
         return app;
+    }
+
+    [HasPermission(Permissions.ApproveSoa)]
+    public static async Task<IResult> UpdateOpNumber(
+        Guid opId,
+        UpdateOpNumberRequest request,
+        FluentValidation.IValidator<UpdateOpNumberCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateOpNumberCommand(
+            OpId: opId,
+            OpNumber: request?.OpNumber ?? string.Empty,
+            Remarks: request?.Remarks);
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     [HasPermission(Permissions.CollectPayment)]
@@ -289,3 +318,5 @@ public static class OpEndpoints
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 }
+
+public record UpdateOpNumberRequest(string OpNumber, string? Remarks = null);

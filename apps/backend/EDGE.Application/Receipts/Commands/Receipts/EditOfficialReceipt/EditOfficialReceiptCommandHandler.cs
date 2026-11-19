@@ -95,6 +95,7 @@ public class EditOfficialReceiptCommandHandler : IRequestHandler<EditOfficialRec
             {
                 receipt.LineItems.Add(new OfficialReceiptLineItem
                 {
+                    Id = Guid.NewGuid(),
                     OfficialReceiptId = receipt.Id,
                     FeeCode = item.FeeCode.Trim(),
                     Description = item.Description.Trim(),

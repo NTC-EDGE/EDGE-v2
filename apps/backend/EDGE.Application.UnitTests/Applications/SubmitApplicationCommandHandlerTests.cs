@@ -441,4 +441,120 @@ public class SubmitApplicationCommandHandlerTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_ResubmitReturnedApplication_PreservesExistingApplicantAndRetainsAttachedRequirements()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        var regionId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var existingAppId = Guid.NewGuid();
+        var existingApplicantId = Guid.NewGuid();
+        var existingDetailId = Guid.NewGuid();
+
+        _mockCurrentUserService.Setup(u => u.UserId).Returns(userId.ToString());
+        _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "NCR Regional Office" });
+
+        var service = new Service
+        {
+            Id = serviceId,
+            Name = "Radio Operator Exam",
+            Contract = "{\"allowsBulkSubmission\":false}"
+        };
+        _mockServiceRepo.Setup(s => s.GetByIdAsync(serviceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(service);
+
+        var existingApplicantDetail = new ApplicantDetail
+        {
+            Id = existingDetailId,
+            FirstName = "Original",
+            LastName = "Name",
+            EmailAddress = "original@example.com",
+            ContactNumber = "09171234567"
+        };
+
+        var existingApplicant = new Applicant
+        {
+            Id = existingApplicantId,
+            TenantId = tenantId,
+            ApplicantDetailId = existingDetailId,
+            ApplicantDetail = existingApplicantDetail,
+            Status = ApplicantStatus.Incomplete
+        };
+
+        var existingAppApplicant = new ApplicationApplicant
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = existingAppId,
+            ApplicantId = existingApplicantId,
+            Applicant = existingApplicant,
+            SequenceOrder = 1
+        };
+
+        var attachedRequirement = new ApplicationRequirement
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = existingAppId,
+            ApplicantId = existingAppId, // legacy/appId association
+            RequirementId = Guid.NewGuid()
+        };
+
+        var existingApp = new Domain.Entities.Application
+        {
+            Id = existingAppId,
+            TenantId = tenantId,
+            Status = ApplicationStatus.Returned,
+            ReferenceNumber = "REF-RET-1234",
+            ApplicationNumber = "APP-2026-1234",
+            SubmissionMode = SubmissionMode.Single,
+            ApplicationApplicants = new List<ApplicationApplicant> { existingAppApplicant },
+            ApplicationRequirements = new List<ApplicationRequirement> { attachedRequirement }
+        };
+
+        _mockApplicationRepo.Setup(a => a.GetByIdWithDetailsAsync(existingAppId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingApp);
+        _mockApplicationRepo.Setup(a => a.GetByIdAsync(existingAppId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingApp);
+
+        var command = new SubmitApplicationCommand
+        {
+            TenantId = tenantId,
+            ServiceId = serviceId,
+            ExistingDraftId = existingAppId,
+            SubmissionMode = "Single",
+            IsDraft = false,
+            Applicants = new List<ApplicantSubmissionDto>
+            {
+                new()
+                {
+                    FirstName = "Amended",
+                    LastName = "Name",
+                    Email = "amended@example.com",
+                    ContactNumber = "09179876543"
+                }
+            }
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        result.Data.Should().Be(existingAppId);
+
+        // Verified that existing application was updated, not added as a new entity
+        _mockApplicationRepo.Verify(a => a.AddAsync(It.IsAny<Domain.Entities.Application>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockApplicationRepo.Verify(a => a.UpdateAsync(It.Is<Domain.Entities.Application>(app => app.Id == existingAppId && app.Status == ApplicationStatus.Submitted), It.IsAny<CancellationToken>()), Times.Once);
+
+        // Verified that existing applicant ID was preserved and updated
+        _mockApplicantRepo.Verify(a => a.AddApplicantAsync(It.IsAny<Applicant>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockApplicantRepo.Verify(a => a.UpdateApplicant(It.Is<Applicant>(a => a.Id == existingApplicantId && a.Status == ApplicantStatus.Complete)), Times.Once);
+        _mockApplicantRepo.Verify(a => a.UpdateApplicantDetail(It.Is<ApplicantDetail>(d => d.Id == existingDetailId && d.FirstName == "Amended")), Times.Once);
+
+        // Verified that attached requirement was updated to link to the applicant ID
+        _mockApplicationRepo.Verify(a => a.UpdateApplicationRequirementAsync(It.Is<ApplicationRequirement>(r => r.ApplicantId == existingApplicantId), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

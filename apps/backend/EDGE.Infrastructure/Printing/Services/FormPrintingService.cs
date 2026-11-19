@@ -33,6 +33,7 @@ public interface IFormPrintingService
     byte[] PrintStatementOfAccount(StatementOfAccountModel? model = null);
     byte[] PrintIssuedDocument(IssuedDocumentModel? model = null);
     byte[] PrintIssuedDocuments(IReadOnlyList<IssuedDocumentModel> models);
+    byte[] PrintStatutoryReport(StatutoryReportModel model);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -602,6 +603,11 @@ public class FormPrintingService : IFormPrintingService
         using var ms = new MemoryStream();
         outStream.CopyTo(ms);
         return ms.ToArray();
+    }
+
+    public byte[] PrintStatutoryReport(StatutoryReportModel model)
+    {
+        return new StatutoryReportDocument(model).GeneratePdf();
     }
 }
 

@@ -35,7 +35,7 @@ export function useMeetingsList(tenantId?: string) {
   useEffect(() => {
     const unsubEnded = realTimeService.onMeetingEnded((endedCode) => {
       setMeetings((prev) =>
-        prev.map((m) => (m.meetingCode === endedCode ? { ...m, status: 'Cancelled' } : m))
+        prev.map((m) => (m.meetingCode === endedCode ? { ...m, status: 'Ended' } : m))
       );
     });
     return () => {
@@ -50,8 +50,7 @@ export function useMeetingsList(tenantId?: string) {
       for (const m of meetings) {
         if (m.status === 'Scheduled' && !notifiedMeetingCodes.has(m.meetingCode)) {
           const startTime = new Date(m.scheduledStartTime).getTime();
-          // If within 2 minutes before start time or within 10 minutes after start time
-          if (now >= startTime - 60000 && now <= startTime + 600000) {
+          if (now >= startTime - 120000 && now <= startTime + 600000) {
             setNotifiedMeetingCodes((prev) => new Set([...prev, m.meetingCode]));
             setScheduledMeetingNotification(m);
             break;
@@ -69,9 +68,7 @@ export function useMeetingsList(tenantId?: string) {
   }, [meetings, notifiedMeetingCodes]);
 
   const cancelOrDeleteMeeting = useCallback(async (meetingCode: string, meetingId: string) => {
-    setMeetings((prev) =>
-      prev.map((m) => (m.id === meetingId ? { ...m, status: 'Cancelled' } : m))
-    );
+    setMeetings((prev) => prev.filter((m) => m.id !== meetingId));
     await safeAsync(
       meetService.executeAction({
         meetingCode,
@@ -83,7 +80,8 @@ export function useMeetingsList(tenantId?: string) {
   const filteredMeetings = useMemo(() => {
     const now = new Date();
     return meetings.filter((m) => {
-      // 1. Search filter
+      if (m.status === 'Cancelled') return false;
+
       if (searchQuery.trim().length > 0) {
         const query = searchQuery.toLowerCase().trim();
         const titleMatch = (m.title || '').toLowerCase().includes(query);
@@ -99,9 +97,8 @@ export function useMeetingsList(tenantId?: string) {
         ? new Date(m.scheduledEndTime) < now
         : new Date(m.scheduledStartTime).getTime() + 86400000 < now.getTime();
 
-      const isDone = m.status === 'Ended' || m.status === 'Cancelled' || (m.status === 'Scheduled' && isTargetPassed);
+      const isDone = m.status === 'Ended' || (m.status === 'Scheduled' && isTargetPassed);
 
-      // 2. Tab filter
       if (filter === 'Upcoming') {
         return m.status === 'Scheduled' && !isTargetPassed;
       }

@@ -6,6 +6,8 @@ namespace EDGE.Application.Storage.Commands.UploadFile;
 
 public class UploadFileCommandValidator : AbstractValidator<UploadFileCommand>
 {
+    public const long MaxFileSizeBytes = 25 * 1024 * 1024; // 25 MB
+
     public UploadFileCommandValidator(ITenantRepository tenantRepository)
     {
         RuleFor(x => x.FileStream)
@@ -22,7 +24,8 @@ public class UploadFileCommandValidator : AbstractValidator<UploadFileCommand>
             .MaximumLength(100).WithMessage("ContentType cannot exceed 100 characters.");
 
         RuleFor(x => x.FileSizeBytes)
-            .GreaterThan(0).WithMessage("FileSizeBytes must be greater than 0 bytes.");
+            .GreaterThan(0).WithMessage("FileSizeBytes must be greater than 0 bytes.")
+            .LessThanOrEqualTo(MaxFileSizeBytes).WithMessage("File size cannot exceed 25 MB.");
 
         RuleFor(x => x.Category)
             .NotEmpty().WithMessage("Category is required.")

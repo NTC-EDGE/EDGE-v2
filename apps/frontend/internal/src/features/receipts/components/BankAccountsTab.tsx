@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
 import { AgencyBankAccountDto } from '@edge/api';
+import { usePermissions } from '../../shell/context/PermissionContext';
+import { useRole } from '../../shell/context/RoleContext';
 
 interface BankAccountsTabProps {
   bankAccounts: AgencyBankAccountDto[];
@@ -24,6 +26,15 @@ export function BankAccountsTab({
   onEditAccount,
 }: BankAccountsTabProps) {
   const { colors } = useTheme();
+  const { currentRole } = useRole();
+  const { isSuperAdmin, isAdmin, hasPermission } = usePermissions();
+
+  const canManageAccounts =
+    isSuperAdmin ||
+    isAdmin ||
+    currentRole === 'Admin' ||
+    currentRole === 'Cashier' ||
+    hasPermission('bank_accounts.manage');
 
   return (
     <View style={styles.container}>
@@ -36,13 +47,15 @@ export function BankAccountsTab({
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={onOpenAccountModal}
-          style={[styles.addAccountBtn, { backgroundColor: colors.brand.primary }]}
-        >
-          <Lucide name="plus" size={18} color="#fff" />
-          <Text style={styles.addAccountBtnText}>Add Bank Account</Text>
-        </TouchableOpacity>
+        {canManageAccounts && (
+          <TouchableOpacity
+            onPress={onOpenAccountModal}
+            style={[styles.addAccountBtn, { backgroundColor: colors.brand.primary }]}
+          >
+            <Lucide name="plus" size={18} color="#fff" />
+            <Text style={styles.addAccountBtnText}>Add Bank Account</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Account Cards */}
@@ -56,12 +69,14 @@ export function BankAccountsTab({
           <Lucide name="credit-card" size={40} color={colors.neutral[400]} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>No Bank Accounts Registered</Text>
           <Text style={[styles.emptySub, { color: colors.textMuted }]}>Register Land Bank, DBP, or other AGDB depository accounts.</Text>
-          <TouchableOpacity
-            onPress={onOpenAccountModal}
-            style={[styles.emptyActionBtn, { backgroundColor: colors.brand.primary }]}
-          >
-            <Text style={styles.emptyActionBtnText}>Register First Bank Account</Text>
-          </TouchableOpacity>
+          {canManageAccounts && (
+            <TouchableOpacity
+              onPress={onOpenAccountModal}
+              style={[styles.emptyActionBtn, { backgroundColor: colors.brand.primary }]}
+            >
+              <Text style={styles.emptyActionBtnText}>Register First Bank Account</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.accountGrid} showsVerticalScrollIndicator={false}>
@@ -75,9 +90,11 @@ export function BankAccountsTab({
                   <Text style={[styles.bankName, { color: colors.text }]}>{acc.bankName}</Text>
                   <Text style={[styles.branchName, { color: colors.textMuted }]}>{acc.branch ?? 'Main Branch'}</Text>
                 </View>
-                <TouchableOpacity onPress={() => onEditAccount(acc)} style={styles.editBtn}>
-                  <Lucide name="edit-2" size={16} color={colors.neutral[700]} />
-                </TouchableOpacity>
+                {canManageAccounts && (
+                  <TouchableOpacity onPress={() => onEditAccount(acc)} style={styles.editBtn}>
+                    <Lucide name="edit-2" size={16} color={colors.neutral[700]} />
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={styles.cardBody}>

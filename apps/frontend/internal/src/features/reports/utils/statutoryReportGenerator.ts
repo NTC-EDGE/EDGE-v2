@@ -156,6 +156,427 @@ function q(value: string | number | null | undefined): string {
   return `"${str}"`;
 }
 
+export interface StatutoryReportGeneratorOptions {
+  startDate?: string;
+  endDate?: string;
+  evaluatorFilter?: string;
+  serviceFilter?: string;
+  entityFilter?: string;
+  scheduleFilter?: string;
+  fieldOfficeFilter?: string;
+}
+
+export interface UacsBreakdown {
+  dst: number;
+  lic: number;
+  sur: number;
+  pmt: number;
+  exm: number;
+  ins: number;
+  apf: number;
+  srf: number;
+  suf: number;
+  oth: number;
+  total: number;
+  btrCode: string;
+}
+
+export function getPaidTransactions(
+  transactions: TenantTransactionDto[],
+  applications?: ApplicationSummaryDto[]
+): TenantTransactionDto[] {
+  const paidList: TenantTransactionDto[] = [];
+  const seenRefs = new Set<string>();
+  const seenAppIds = new Set<string>();
+
+  for (const tx of transactions) {
+    const status = (tx.paymentStatus ?? 'Paid').toLowerCase();
+    const isPaidStatus = status === 'paid' || status === 'deposited' || status === 'issued' || status === 'completed';
+    if (!isPaidStatus) continue;
+    const amt = tx.amount ?? 0;
+    if (amt <= 0 && (tx.refNo ?? '').toUpperCase().startsWith('APP-')) continue;
+
+    const refKey = (tx.refNo ?? tx.id ?? '').trim().toUpperCase();
+    if (refKey.length > 0) seenRefs.add(refKey);
+    if (tx.id) seenAppIds.add(tx.id);
+    paidList.push(tx);
+  }
+
+  if (applications !== undefined) {
+    for (const app of applications) {
+      if (seenAppIds.has(app.id)) continue;
+      const orNum = (app.officialReceiptNumber ?? app.issuedDocumentDetails?.[0]?.officialReceiptNumber ?? '').trim();
+      const isPaidApp =
+        orNum.length > 0 ||
+        (app.amountPaid ?? 0) > 0 ||
+        app.opStatus === 'Paid' ||
+        app.status === 'ForIssuance' ||
+        app.status === 'Approved' ||
+        app.status === 'Completed';
+      const paidAmt = app.amountPaid ?? (isPaidApp ? (app.totalAmountDue ?? 0) : 0);
+      const effectiveRef =
+        orNum.length > 0
+          ? orNum
+          : (app.opNumber ?? app.soaNumber ?? app.applicationNumber ?? app.referenceNumber ?? '').trim();
+
+      if (isPaidApp && paidAmt > 0 && effectiveRef.length > 0 && !seenRefs.has(effectiveRef.toUpperCase())) {
+        seenRefs.add(effectiveRef.toUpperCase());
+        seenAppIds.add(app.id);
+        paidList.push({
+          id: app.id,
+          refNo: effectiveRef,
+          applicantName:
+            app.filingUser?.company?.name ??
+            app.filingUser?.name ??
+            app.applicants?.[0]?.name ??
+            'Applicant',
+          serviceType: app.serviceName ?? app.serviceCategory ?? 'Regulatory Permit Fee',
+          amount: paidAmt,
+          paymentStatus: 'Paid',
+          date: app.paidAt ?? app.updatedAt ?? app.createdAt,
+        });
+      }
+    }
+  }
+
+  return paidList.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+}
+
+export function classifyUacsBreakdown(tx: TenantTransactionDto): UacsBreakdown {
+  const total = tx.amount ?? 0;
+  const sType = (tx.serviceType ?? '').toLowerCase();
+
+  let dst = 0;
+  let lic = 0;
+  let sur = 0;
+  let pmt = 0;
+  let exm = 0;
+  let ins = 0;
+  let apf = 0;
+  let srf = 0;
+  let suf = 0;
+  let oth = 0;
+  let btrCode = '4-02-01-990';
+
+  if (sType.includes('stamp') || sType.includes('dst')) {
+    if (total <= 60) {
+      dst = total;
+      btrCode = '4-02-01-060';
+    } else {
+      dst = 30;
+      const rem = total - 30;
+      if (sType.includes('license') || sType.includes('rsl')) {
+        lic = rem;
+        btrCode = '4-02-01-060';
+      } else if (sType.includes('permit') || sType.includes('cp')) {
+        pmt = rem;
+        btrCode = '4-02-01-010';
+      } else if (sType.includes('cert') || sType.includes('exam') || sType.includes('clearance')) {
+        exm = rem;
+        btrCode = '4-02-01-040';
+      } else {
+        pmt = rem;
+        btrCode = '4-02-01-010';
+      }
+    }
+  } else if (sType.includes('surcharge') || sType.includes('penalty') || sType.includes('fine')) {
+    sur = total;
+    btrCode = '4-02-01-140';
+  } else if (sType.includes('inspection')) {
+    ins = total;
+    btrCode = '4-02-02-100';
+  } else if (sType.includes('supervision') || sType.includes('srf') || sType.includes('regulation')) {
+    srf = total;
+    btrCode = '4-02-01-070';
+  } else if (sType.includes('spectrum') || sType.includes('suf')) {
+    suf = total;
+    btrCode = '4-02-01-080';
+  } else if (sType.includes('exam') || sType.includes('roce') || sType.includes('clearance') || sType.includes('cert')) {
+    exm = total;
+    btrCode = '4-02-01-040';
+  } else if (sType.includes('registration') || sType.includes('cor')) {
+    lic = total;
+    btrCode = '4-02-01-020';
+  } else if (sType.includes('license') || sType.includes('rsl') || sType.includes('station')) {
+    lic = total;
+    btrCode = '4-02-01-060';
+  } else if (sType.includes('application') || sType.includes('filing') || sType.includes('processing')) {
+    apf = total;
+    btrCode = '4-02-01-130';
+  } else if (sType.includes('permit') || sType.includes('possess') || sType.includes('purchase') || sType.includes('dealer') || sType.includes('accredit')) {
+    pmt = total;
+    btrCode = '4-02-01-010';
+  } else {
+    oth = total;
+    btrCode = '4-02-01-990';
+  }
+
+  return { dst, lic, sur, pmt, exm, ins, apf, srf, suf, oth, total, btrCode };
+}
+
+export function classifyMfoIndex(app: ApplicationSummaryDto): number {
+  const text = `${app.serviceCategory ?? ''} ${app.serviceName ?? ''} ${app.serviceVariantName ?? ''}`.toLowerCase();
+  if (text.includes('exam') || text.includes('roce')) return 4;
+  if (text.includes('inspect') || text.includes('investigat') || text.includes('monitoring')) return 5;
+  if (text.includes('accredit') || text.includes('vas') || text.includes('value added') || text.includes('supplier') || text.includes('service center')) return 3;
+  if (text.includes('cert') || text.includes('roc') || text.includes('goc') || text.includes('rroc') || text.includes('registration') || text.includes('dealer')) return 2;
+  if (text.includes('licens') || text.includes('rsl') || text.includes('ship') || text.includes('aircraft') || text.includes('land mobile') || text.includes('fixed')) return 1;
+  return 0;
+}
+
+export function classifyVolumeStream(app: ApplicationSummaryDto): 'Accreditations' | 'Certificates' | 'Exams' | 'Licenses' | 'Permits' {
+  const mfo = classifyMfoIndex(app);
+  if (mfo === 3) return 'Accreditations';
+  if (mfo === 2) return 'Certificates';
+  if (mfo === 4) return 'Exams';
+  if (mfo === 1) return 'Licenses';
+  return 'Permits';
+}
+
+export function resolveEvaluatorName(app: ApplicationSummaryDto, fallbackUserName?: string | null): string {
+  const evalOfficer = (app.evaluatingOfficer ?? '').trim();
+  if (evalOfficer.length > 0) return evalOfficer;
+  const origEval = (app.issuedDocumentDetails?.[0]?.originalEvaluatorName ?? '').trim();
+  if (origEval.length > 0) return origEval;
+  const assigned = (app.assignedOfficerName ?? '').trim();
+  if (assigned.length > 0) return assigned;
+  const issuer = (app.issuingOfficer ?? app.issuedDocumentDetails?.[0]?.issuedByStaffName ?? '').trim();
+  if (issuer.length > 0) return issuer;
+  if (fallbackUserName && fallbackUserName.trim().length > 0) return fallbackUserName.trim();
+  return 'Regional Evaluator';
+}
+
+export function resolveEntityName(app: ApplicationSummaryDto): string {
+  const compName = (app.filingUser?.company?.name ?? app.applicants?.[0]?.company?.name ?? '').trim();
+  if (compName.length > 0) return compName;
+  const userName = (app.filingUser?.name ?? app.applicants?.[0]?.name ?? '').trim();
+  if (userName.length > 0) return userName;
+  return 'Applicant Entity';
+}
+
+export function resolveServiceName(app: ApplicationSummaryDto): string {
+  const svc = (app.serviceName ?? app.serviceCategory ?? '').trim();
+  return svc.length > 0 ? svc : 'Regulatory Permit Service';
+}
+
+function computeDefaultExpiry(createdAtStr?: string | null): string {
+  if (!createdAtStr) return 'Pending';
+  const d = new Date(createdAtStr);
+  if (isNaN(d.getTime())) return 'Pending';
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+export interface ResolvedApplicationSummaryRow {
+  appType: string;
+  companyName: string;
+  filingType: string;
+  workflowStatus: string;
+  address: string;
+  permitNo: string;
+  refNo: string;
+  dateFiling: string;
+  expDate: string;
+  orNo: string;
+  amount: number;
+  datePaid: string;
+  staffBy: string;
+}
+
+export function resolveApplicationSummaryRow(
+  app: ApplicationSummaryDto,
+  transactions: TenantTransactionDto[],
+  tenantName: string,
+  fallbackUserName?: string | null
+): ResolvedApplicationSummaryRow {
+  const appType = resolveServiceName(app);
+  const companyName = resolveEntityName(app);
+  const rawFilingType =
+    app.services?.[0]?.applicationType ??
+    app.applicants?.[0]?.applicationType ??
+    app.serviceVariantType ??
+    (app.renewedFromApplicationId ? 'RENEWAL' : 'NEW');
+  const filingType = rawFilingType.toUpperCase();
+  const workflowStatus = app.status || 'Submitted';
+  const address = app.filingUser?.company?.address ?? app.office ?? tenantName;
+  const issuedDoc = app.issuedDocumentDetails?.[0];
+  const isApproved = app.status === 'Approved' || app.status === 'Completed';
+  const permitNo =
+    issuedDoc?.licenseNumber ??
+    issuedDoc?.callSign ??
+    issuedDoc?.formNumber ??
+    (isApproved ? app.referenceNumber ?? app.applicationNumber ?? 'Issued' : 'Pending');
+  const refNo = app.applicationNumber ?? app.referenceNumber ?? app.id;
+  const dateFiling = (app.createdAt ?? '').slice(0, 10);
+  const expDate = issuedDoc?.expiryDate
+    ? issuedDoc.expiryDate.slice(0, 10)
+    : isApproved
+    ? computeDefaultExpiry(app.createdAt)
+    : 'Pending';
+
+  const matchedTx = transactions.find((tx) => {
+    if (tx.id === app.id) return true;
+    const txRef = (tx.refNo ?? '').trim().toLowerCase();
+    if (!txRef) return false;
+    return (
+      txRef === (app.officialReceiptNumber ?? '').trim().toLowerCase() ||
+      txRef === (app.opNumber ?? '').trim().toLowerCase() ||
+      txRef === (app.soaNumber ?? '').trim().toLowerCase() ||
+      txRef === (app.referenceNumber ?? '').trim().toLowerCase() ||
+      txRef === (app.applicationNumber ?? '').trim().toLowerCase()
+    );
+  });
+
+  const orNo =
+    app.officialReceiptNumber ??
+    issuedDoc?.officialReceiptNumber ??
+    (matchedTx?.paymentStatus === 'Paid' ? matchedTx.refNo : undefined) ??
+    app.opNumber ??
+    app.soaNumber ??
+    'Unpaid';
+
+  const amount = app.amountPaid ?? app.totalAmountDue ?? matchedTx?.amount ?? 0;
+  const datePaid = app.paidAt
+    ? app.paidAt.slice(0, 10)
+    : matchedTx?.paymentStatus === 'Paid' && matchedTx.date
+    ? matchedTx.date.slice(0, 10)
+    : '-';
+  const staffBy = resolveEvaluatorName(app, fallbackUserName);
+
+  return {
+    appType,
+    companyName,
+    filingType,
+    workflowStatus,
+    address,
+    permitNo,
+    refNo,
+    dateFiling,
+    expDate,
+    orNo,
+    amount,
+    datePaid,
+    staffBy,
+  };
+}
+
+export function filterApplicationsForStatutoryReport(
+  reportCode: StatutoryReportCode,
+  applications: ApplicationSummaryDto[],
+  options?: StatutoryReportGeneratorOptions,
+  fallbackUserName?: string | null
+): ApplicationSummaryDto[] {
+  if (!options) return applications;
+
+  if (reportCode === 'NTC-APP-SUM-EVAL' && options.evaluatorFilter && options.evaluatorFilter !== 'all') {
+    const target = options.evaluatorFilter.trim().toLowerCase();
+    return applications.filter(
+      (app) => resolveEvaluatorName(app, fallbackUserName).toLowerCase() === target
+    );
+  }
+
+  if (reportCode === 'NTC-APP-SUM-SVC' && options.serviceFilter && options.serviceFilter !== 'all') {
+    const target = options.serviceFilter.trim().toLowerCase();
+    return applications.filter(
+      (app) => resolveServiceName(app).toLowerCase() === target
+    );
+  }
+
+  if (reportCode === 'NTC-APP-SUM-ENT' && options.entityFilter && options.entityFilter !== 'all') {
+    const target = options.entityFilter.trim().toLowerCase();
+    return applications.filter(
+      (app) => resolveEntityName(app).toLowerCase() === target
+    );
+  }
+
+  if (reportCode === 'NTC-EXAM-MST-01' && options.scheduleFilter && options.scheduleFilter !== 'all') {
+    const target = options.scheduleFilter.trim().toLowerCase();
+    return applications.filter((app) => {
+      const label = (app.serviceVariantName ?? app.element ?? app.serviceName ?? '').trim().toLowerCase();
+      return label === target || label.includes(target);
+    });
+  }
+
+  return applications;
+}
+
+interface VolumeMonthBucket {
+  label: string;
+  year: number;
+  monthIndex: number; // 0..11
+}
+
+function computeVolumeMonthBuckets(
+  applications: ApplicationSummaryDto[],
+  dateRange?: StatutoryReportGeneratorOptions
+): VolumeMonthBucket[] {
+  const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  if (dateRange?.startDate && dateRange?.endDate) {
+    const parsedStart = new Date(dateRange.startDate);
+    const parsedEnd = new Date(dateRange.endDate);
+    if (!isNaN(parsedStart.getTime()) && !isNaN(parsedEnd.getTime()) && parsedEnd >= parsedStart) {
+      const monthSpan =
+        (parsedEnd.getFullYear() - parsedStart.getFullYear()) * 12 +
+        (parsedEnd.getMonth() - parsedStart.getMonth()) +
+        1;
+      if (monthSpan >= 2 && monthSpan <= 12) {
+        const buckets: VolumeMonthBucket[] = [];
+        for (let i = 0; i < monthSpan; i++) {
+          const d = new Date(parsedStart.getFullYear(), parsedStart.getMonth() + i, 1);
+          const mIdx = d.getMonth();
+          const yr = d.getFullYear();
+          const mName = shortMonths[mIdx] ?? `M${i + 1}`;
+          buckets.push({
+            label: monthSpan > 6 ? mName : `${mName} ${yr}`,
+            year: yr,
+            monthIndex: mIdx,
+          });
+        }
+        return buckets;
+      }
+    }
+  }
+
+  const baseYear = applications[0]?.createdAt
+    ? new Date(applications[0].createdAt).getFullYear()
+    : new Date().getFullYear();
+
+  const buckets: VolumeMonthBucket[] = [];
+  for (let i = 0; i < 6; i++) {
+    const mName = shortMonths[i] ?? `M${i + 1}`;
+    buckets.push({
+      label: `${mName} ${baseYear}`,
+      year: baseYear,
+      monthIndex: i,
+    });
+  }
+  return buckets;
+}
+
+function countAppsByVolumeBuckets(
+  streamApps: ApplicationSummaryDto[],
+  buckets: VolumeMonthBucket[]
+): number[] {
+  const counts = new Array<number>(buckets.length).fill(0);
+  for (const app of streamApps) {
+    const d = app.createdAt ? new Date(app.createdAt) : null;
+    if (d === null || isNaN(d.getTime())) continue;
+    const m = d.getMonth();
+    const yr = d.getFullYear();
+    const exactIdx = buckets.findIndex((b) => b.monthIndex === m && b.year === yr);
+    if (exactIdx >= 0) {
+      counts[exactIdx] = (counts[exactIdx] ?? 0) + 1;
+    } else {
+      const monthOnlyIdx = buckets.findIndex((b) => b.monthIndex === m);
+      if (monthOnlyIdx >= 0) {
+        counts[monthOnlyIdx] = (counts[monthOnlyIdx] ?? 0) + 1;
+      }
+    }
+  }
+  return counts;
+}
+
 export function generateStatutoryCsv(
   reportCode: StatutoryReportCode,
   tenantName: string,
@@ -163,7 +584,7 @@ export function generateStatutoryCsv(
   applications: ApplicationSummaryDto[],
   transactions: TenantTransactionDto[],
   feedback: FeedbackDto[],
-  dateRange?: { startDate?: string; endDate?: string }
+  dateRange?: StatutoryReportGeneratorOptions
 ): { content: string; filename: string } {
   const cleanTenant = tenantName.replace(/[^a-zA-Z0-9_-]/g, '_');
   const dateStamp = new Date().toISOString().slice(0, 10);
@@ -173,6 +594,9 @@ export function generateStatutoryCsv(
   let filename = `${reportCode}_${periodLabel}_${dateStamp}.csv`;
   let content = '';
 
+  const scopedApplications = filterApplicationsForStatutoryReport(reportCode, applications, dateRange);
+  const paidTransactions = getPaidTransactions(transactions, applications);
+
   switch (reportCode) {
     // ----------------------------------------------------
     // Row 12: MIS (Management Information System)
@@ -180,19 +604,30 @@ export function generateStatutoryCsv(
     case 'NTC-MIS-OPS': {
       filename = `NTC_MIS_Operations_${periodLabel}_${dateStamp}.csv`;
       content = 'Category,Total Applied,Approved / Issued,In Evaluation,Returned,SLA Compliance Rate (%)\n';
-      const categories = ['Permits', 'Licenses', 'Certificates', 'Accreditations', 'Exams'];
-      for (const cat of categories) {
-        const catApps = applications.filter((a) => {
-          const c = (a.serviceCategory ?? a.serviceName ?? '').toLowerCase();
-          return c.includes(cat.toLowerCase().slice(0, -1));
-        });
+      const categories = [
+        'Radio Permits (CP / RSL / POS)',
+        'Licenses (Ship / Aircraft / Fixed / Land Mobile)',
+        'Certificates (ROC / GOC / RROC / Dealer)',
+        'Accreditations & Value Added Services',
+        'Radio Operator Examination (ROCE)',
+        'Radio Station Inspections & Investigations',
+      ];
+      for (let i = 0; i < categories.length; i++) {
+        const cat = categories[i] ?? 'Regulatory Category';
+        const catApps = scopedApplications.filter((a) => classifyMfoIndex(a) === i);
         const total = catApps.length;
         const approved = catApps.filter((a) => a.status === 'Approved' || a.status === 'Completed').length;
-        const evaluating = catApps.filter((a) => a.status === 'Evaluating' || a.status === 'Submitted').length;
+        const evaluating = catApps.filter((a) => a.status === 'Evaluating' || a.status === 'Submitted' || a.status === 'ForAccountant' || a.status === 'PendingPayment').length;
         const returned = catApps.filter((a) => a.status === 'Returned').length;
         const slaRate = total > 0 ? Math.round((approved / total) * 100) : 100;
         content += `${q(cat)},${total},${approved},${evaluating},${returned},${slaRate}%\n`;
       }
+      const grandTotal = scopedApplications.length;
+      const grandApproved = scopedApplications.filter((a) => a.status === 'Approved' || a.status === 'Completed').length;
+      const grandEval = scopedApplications.filter((a) => a.status === 'Evaluating' || a.status === 'Submitted' || a.status === 'ForAccountant' || a.status === 'PendingPayment').length;
+      const grandRet = scopedApplications.filter((a) => a.status === 'Returned').length;
+      const grandSla = grandTotal > 0 ? Math.round((grandApproved / grandTotal) * 100) : 100;
+      content += `"TOTAL",${grandTotal},${grandApproved},${grandEval},${grandRet},${grandSla}%\n`;
       break;
     }
 
@@ -212,37 +647,40 @@ export function generateStatutoryCsv(
       content += `Reporting Period: ${q(period)}\n\n`;
       content += 'Date,Official Receipt No,Payor Name,4-02-01-060 Doc Stamps,4-02-01-020 Licensing Fees,4-02-01-140 Surcharges,4-02-01-010 Permit Fees,4-02-01-040 Exam Fees,4-02-02-030 Inspection Fees,4-02-01-100 Application Fees,4-02-01-130 Supervision Fees,4-02-01-990 Spectrum Users Fees,Other Service Income,Total Amount\n';
 
-      for (const tx of transactions) {
-        const d = q(tx.date ?? '');
+      let sumDst = 0;
+      let sumLic = 0;
+      let sumSur = 0;
+      let sumPmt = 0;
+      let sumExm = 0;
+      let sumIns = 0;
+      let sumApf = 0;
+      let sumSrf = 0;
+      let sumSuf = 0;
+      let sumOth = 0;
+      let sumTotal = 0;
+
+      for (const tx of paidTransactions) {
+        const d = q((tx.date ?? '').slice(0, 10));
         const orNo = q(tx.refNo ?? '');
         const payor = q(tx.applicantName ?? '');
-        const total = tx.amount ?? 0;
-        const sType = (tx.serviceType ?? '').toLowerCase();
+        const b = classifyUacsBreakdown(tx);
 
-        let dst = 0;
-        let license = 0;
-        let surcharge = 0;
-        let permit = 0;
-        let exam = 0;
-        let inspection = 0;
-        let appFee = 0;
-        let srf = 0;
-        let suf = 0;
-        let other = 0;
+        sumDst += b.dst;
+        sumLic += b.lic;
+        sumSur += b.sur;
+        sumPmt += b.pmt;
+        sumExm += b.exm;
+        sumIns += b.ins;
+        sumApf += b.apf;
+        sumSrf += b.srf;
+        sumSuf += b.suf;
+        sumOth += b.oth;
+        sumTotal += b.total;
 
-        if (sType.includes('stamp')) dst = total;
-        else if (sType.includes('license')) license = total;
-        else if (sType.includes('surcharge') || sType.includes('penalty')) surcharge = total;
-        else if (sType.includes('permit')) permit = total;
-        else if (sType.includes('exam')) exam = total;
-        else if (sType.includes('inspection')) inspection = total;
-        else if (sType.includes('supervision') || sType.includes('srf')) srf = total;
-        else if (sType.includes('spectrum') || sType.includes('suf')) suf = total;
-        else if (sType.includes('application')) appFee = total;
-        else other = total;
-
-        content += `${d},${orNo},${payor},${dst},${license},${surcharge},${permit},${exam},${inspection},${appFee},${srf},${suf},${other},${total}\n`;
+        content += `${d},${orNo},${payor},${b.dst},${b.lic},${b.sur},${b.pmt},${b.exm},${b.ins},${b.apf},${b.srf},${b.suf},${b.oth},${b.total}\n`;
       }
+
+      content += `"TOTAL","","",${sumDst},${sumLic},${sumSur},${sumPmt},${sumExm},${sumIns},${sumApf},${sumSrf},${sumSuf},${sumOth},${sumTotal}\n`;
       break;
     }
 
@@ -258,7 +696,7 @@ export function generateStatutoryCsv(
       content += 'DATE ISSUED,INCLUSIVE SERIAL NUMBER OF GOR (FROM),INCLUSIVE SERIAL NUMBER OF GOR (TO),NO. OF CERTIFICATIONS ISSUED,AMOUNT OF DST COLLECTED,TOTAL AMOUNT,REMITTANCE STATUS\n';
 
       const dateMap = new Map<string, TenantTransactionDto[]>();
-      for (const tx of transactions) {
+      for (const tx of paidTransactions) {
         const d = (tx.date ?? '').slice(0, 10);
         if (!dateMap.has(d)) dateMap.set(d, []);
         const list = dateMap.get(d);
@@ -309,20 +747,33 @@ export function generateStatutoryCsv(
         { title: 'Other Service Income', code: '4-02-01-990' },
       ];
 
-      const totalTxAmount = transactions.reduce((sum, t) => sum + (t.amount ?? 0), 0);
-      const perAccountEst = totalTxAmount > 0 ? totalTxAmount / accounts.length : 0;
+      let sumMonthCollected = 0;
+      let sumDst = 0;
+      let sumDeposited = 0;
+      let sumUndeposited = 0;
 
       for (const acc of accounts) {
-        const thisMonthCollected = perAccountEst;
-        const dstCollected = perAccountEst * 0.05;
+        const matchingTx = paidTransactions.filter((tx) => classifyUacsBreakdown(tx).btrCode === acc.code);
+        const thisMonthCollected = matchingTx.reduce((sum, t) => sum + (t.amount ?? 0), 0);
+        const dstCollected = matchingTx.reduce((sum, t) => {
+          const amt = t.amount ?? 0;
+          return sum + (amt >= 30 ? 30 : 0);
+        }, 0);
         const remittedDst = dstCollected;
-        const depositedBtr = thisMonthCollected * 0.95;
-        const ytdCollected = thisMonthCollected * 3.5;
-        const ytdDeposited = depositedBtr * 3.5;
-        const undeposited = thisMonthCollected - depositedBtr;
+        const depositedBtr = Math.max(0, thisMonthCollected - remittedDst);
+        const ytdCollected = thisMonthCollected;
+        const ytdDeposited = depositedBtr;
+        const undeposited = Math.max(0, thisMonthCollected - remittedDst - depositedBtr);
+
+        sumMonthCollected += thisMonthCollected;
+        sumDst += dstCollected;
+        sumDeposited += depositedBtr;
+        sumUndeposited += undeposited;
 
         content += `${q(acc.title)},${q(acc.code)},${thisMonthCollected.toFixed(2)},${dstCollected.toFixed(2)},${remittedDst.toFixed(2)},${depositedBtr.toFixed(2)},${ytdCollected.toFixed(2)},${ytdDeposited.toFixed(2)},${undeposited.toFixed(2)}\n`;
       }
+
+      content += `"TOTAL","",${sumMonthCollected.toFixed(2)},${sumDst.toFixed(2)},${sumDst.toFixed(2)},${sumDeposited.toFixed(2)},${sumMonthCollected.toFixed(2)},${sumDeposited.toFixed(2)},${sumUndeposited.toFixed(2)}\n`;
       break;
     }
 
@@ -344,33 +795,33 @@ export function generateStatutoryCsv(
       content += `Reporting Period: ${q(period)}\n\n`;
       content += 'Application Type,COMPANY NAME / NAME,STATUS(NEW/REN/DUP),FULL ADDRESS,PERMIT NO.,REFERENCE NUMBER,DATE OF FILING,EXPIRATION DATE,OR NUMBER,AMOUNT,DATE PAID,BY\n';
 
-      const typeCounter = new Map<string, number>();
+      const groupCounter = new Map<string, { count: number; totalAmount: number }>();
+      let grandTotalAmount = 0;
 
-      for (const app of applications) {
-        const appType = q(app.serviceName ?? app.serviceCategory ?? 'Amateur Station Permit');
-        const companyName = q(app.filingUser?.company?.name ?? app.filingUser?.name ?? 'Applicant Entity');
-        const status = '"NEW"';
-        const address = q(app.office ?? tenantName);
-        const permitNo = q(app.referenceNumber ?? 'PRM-2026-001');
-        const refNo = q(app.applicationNumber ?? app.id);
-        const dateFiling = q((app.createdAt ?? '').slice(0, 10));
-        const expDate = '"2027-12-31"';
-        const orNo = '"OR-2026-991"';
-        const amount = '1500.00';
-        const datePaid = q((app.createdAt ?? '').slice(0, 10));
-        const staffBy = '"Evaluator"';
+      for (const app of scopedApplications) {
+        const row = resolveApplicationSummaryRow(app, paidTransactions, tenantName);
+        grandTotalAmount += row.amount;
 
-        content += `${appType},${companyName},${status},${address},${permitNo},${refNo},${dateFiling},${expDate},${orNo},${amount},${datePaid},${staffBy}\n`;
+        content += `${q(row.appType)},${q(row.companyName)},${q(`${row.filingType} (${row.workflowStatus})`)},${q(row.address)},${q(row.permitNo)},${q(row.refNo)},${q(row.dateFiling)},${q(row.expDate)},${q(row.orNo)},${row.amount.toFixed(2)},${q(row.datePaid)},${q(row.staffBy)}\n`;
 
-        const rawType = app.serviceName ?? 'General Permit';
-        typeCounter.set(rawType, (typeCounter.get(rawType) ?? 0) + 1);
+        const groupKey =
+          reportCode === 'NTC-APP-SUM-EVAL'
+            ? row.staffBy
+            : reportCode === 'NTC-APP-SUM-ENT'
+            ? row.companyName
+            : row.appType;
+        const prev = groupCounter.get(groupKey) ?? { count: 0, totalAmount: 0 };
+        groupCounter.set(groupKey, {
+          count: prev.count + 1,
+          totalAmount: prev.totalAmount + row.amount,
+        });
       }
 
-      content += '\nSUMMARY\nTYPE,NUMBER(S)\n';
-      for (const [tName, count] of typeCounter.entries()) {
-        content += `${q(tName)},${count}\n`;
+      content += '\nSUMMARY\nTYPE / GROUP,NUMBER(S),TOTAL AMOUNT (PHP)\n';
+      for (const [gName, statsObj] of groupCounter.entries()) {
+        content += `${q(gName)},${statsObj.count},${statsObj.totalAmount.toFixed(2)}\n`;
       }
-      content += `TOTAL,${applications.length}\n`;
+      content += `TOTAL,${scopedApplications.length},${grandTotalAmount.toFixed(2)}\n`;
       break;
     }
 
@@ -379,26 +830,53 @@ export function generateStatutoryCsv(
     // ----------------------------------------------------
     case 'NTC-APP-VOL-01': {
       filename = `NTC_Application_Volume_Report_${periodLabel}_${dateStamp}.csv`;
-      content = 'EDGE APPLICATION VOLUME REPORT\n';
+      const buckets = computeVolumeMonthBuckets(scopedApplications, dateRange);
+      content = 'EDGE APPLICATION VOLUME & DEPOSIT ACCOUNTABILITY REPORT\n';
       content += `Regional Office: ${q(tenantName)}\n`;
       content += `Coverage: ${q(period)}\n\n`;
-      content += 'Service Name,Month 1,Month 2,Month 3,Month 4,Month 5,Month 6,TOTAL\n';
+      content += `Service Name,${buckets.map((b) => q(b.label)).join(',')},TOTAL APPS,ISSUED,IN-PROCESS,COLLECTED (PHP),DEPOSITED (PHP)\n`;
 
-      const streams = ['Accreditations', 'Certificates', 'Exams', 'Licenses', 'Permits'];
+      const streams: Array<'Accreditations' | 'Certificates' | 'Exams' | 'Licenses' | 'Permits'> = [
+        'Accreditations',
+        'Certificates',
+        'Exams',
+        'Licenses',
+        'Permits',
+      ];
+      const colTotals = new Array<number>(buckets.length).fill(0);
+      let grandTotal = 0;
+      let grandIssued = 0;
+      let grandInProc = 0;
+      let grandCollected = 0;
+      let grandDeposited = 0;
+
       for (const s of streams) {
-        const streamApps = applications.filter((a) => {
-          const cat = (a.serviceCategory ?? a.serviceName ?? '').toLowerCase();
-          return cat.includes(s.toLowerCase().slice(0, -1));
-        });
-        const count = streamApps.length;
-        const m1 = Math.round(count * 0.15);
-        const m2 = Math.round(count * 0.2);
-        const m3 = Math.round(count * 0.1);
-        const m4 = Math.round(count * 0.25);
-        const m5 = Math.round(count * 0.15);
-        const m6 = count - (m1 + m2 + m3 + m4 + m5);
-        content += `${q(s)},${m1},${m2},${m3},${m4},${m5},${m6},${count}\n`;
+        const streamApps = scopedApplications.filter((a) => classifyVolumeStream(a) === s);
+        const mCounts = countAppsByVolumeBuckets(streamApps, buckets);
+        const rowSum = streamApps.length;
+        const issued = streamApps.filter((a) => a.status === 'Approved' || a.status === 'Completed').length;
+        const returned = streamApps.filter((a) => a.status === 'Returned').length;
+        const inProc = Math.max(0, rowSum - issued - returned);
+
+        const streamAppIds = new Set(streamApps.map((a) => a.id));
+        const streamTx = paidTransactions.filter((t) => streamAppIds.has(t.id));
+        const collected = streamTx.reduce((sum, t) => sum + (t.amount ?? 0), 0);
+        const deposited = streamTx
+          .filter((t) => (t.paymentStatus ?? '').toLowerCase() === 'deposited' || (t.paymentStatus ?? '').toLowerCase() === 'paid')
+          .reduce((sum, t) => sum + (t.amount ?? 0), 0);
+
+        grandTotal += rowSum;
+        grandIssued += issued;
+        grandInProc += inProc;
+        grandCollected += collected;
+        grandDeposited += deposited;
+
+        for (let idx = 0; idx < buckets.length; idx++) {
+          colTotals[idx] = (colTotals[idx] ?? 0) + (mCounts[idx] ?? 0);
+        }
+        content += `${q(s)},${mCounts.join(',')},${rowSum},${issued},${inProc},${collected.toFixed(2)},${deposited.toFixed(2)}\n`;
       }
+      content += `"TOTAL",${colTotals.join(',')},${grandTotal},${grandIssued},${grandInProc},${grandCollected.toFixed(2)},${grandDeposited.toFixed(2)}\n`;
       break;
     }
 
@@ -411,25 +889,27 @@ export function generateStatutoryCsv(
       content += `Regional Office: ${q(tenantName)}\n`;
       content += 'MASTERLIST FOR COMMERCIAL AND NON-COMMERCIAL RADIO OPERATOR EXAMINATION\n';
       content += `Schedule Date: ${q(period)}\n\n`;
-      content += 'ROOM #,Exam Classification,No.,Examinee Full Name,Sex,Signature\n';
+      content += 'ROOM #,Exam Classification,No.,Application / Admission Ref,Examinee Full Name,Status,Signature\n';
 
-      const examApps = applications.filter((a) => {
-        const cat = (a.serviceCategory ?? a.serviceName ?? '').toLowerCase();
-        return cat.includes('exam') || cat.includes('operator');
+      const examApps = scopedApplications.filter((a) => {
+        const cat = `${a.serviceCategory ?? ''} ${a.serviceName ?? ''} ${a.serviceVariantName ?? ''}`.toLowerCase();
+        return cat.includes('exam') || cat.includes('operator') || cat.includes('roce') || cat.includes('amateur') || cat.includes('rroc');
       });
 
-      const candidates = examApps.length > 0 ? examApps : applications.slice(0, 15);
+      const candidates = examApps.length > 0 ? examApps : scopedApplications;
       for (let i = 0; i < candidates.length; i++) {
         const c = candidates[i];
-        const room = i < 10 ? 'Room 1' : 'Room 2';
-        const examClass = i < 5
-          ? 'Amateur Class A - Elements 8, 9, 10 & Code (5 wpm)'
-          : i < 10
-          ? 'Amateur Class B - Elements 5, 6 & 7'
-          : 'Restricted Radiotelephone Operator (RROC)';
-        const examineeName = q((c?.filingUser?.name ?? 'Candidate Name').toUpperCase());
-        const sex = i % 2 === 0 ? 'M' : 'F';
-        content += `${q(room)},${q(examClass)},${i + 1},${examineeName},"${sex}","____________________"\n`;
+        const roomNum = Math.floor(i / 30) + 1;
+        const room = `Room ${roomNum}`;
+        const examClass =
+          c?.serviceVariantName ??
+          c?.element ??
+          c?.serviceName ??
+          'Radio Operator Examination (Commercial / Amateur)';
+        const refNo = c?.applicationNumber ?? c?.referenceNumber ?? `EXM-${i + 1}`;
+        const examineeName = (c?.applicants?.[0]?.name ?? c?.filingUser?.name ?? 'Candidate Name').toUpperCase();
+        const status = c?.status ?? 'Registered';
+        content += `${q(room)},${q(examClass)},${i + 1},${q(refNo)},${q(examineeName)},${q(status)},"____________________"\n`;
       }
       break;
     }
@@ -596,22 +1076,31 @@ function renderMisOpsHtml(
 
   const totalApps = applications.length;
   const totalApproved = applications.filter((a) => a.status === 'Approved' || a.status === 'Completed').length;
-  const totalEvaluating = applications.filter((a) => a.status === 'Evaluating' || a.status === 'Submitted').length;
+  const totalEvaluating = applications.filter(
+    (a) =>
+      a.status === 'Evaluating' ||
+      a.status === 'Submitted' ||
+      a.status === 'ForAccountant' ||
+      a.status === 'PendingPayment'
+  ).length;
   const totalReturned = applications.filter((a) => a.status === 'Returned').length;
-  const totalRevenue = transactions.reduce((sum, tx) => sum + (tx.amount ?? 0), 0);
+  const paidTransactions = getPaidTransactions(transactions, applications);
+  const totalRevenue = paidTransactions.reduce((sum, tx) => sum + (tx.amount ?? 0), 0);
   const avgCsat = feedback.length > 0
     ? (feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length).toFixed(1)
     : '5.0';
 
   const rows = categories.map((cat, i) => {
-    const catApps = applications.filter((a) => {
-      const c = (a.serviceCategory ?? a.serviceName ?? '').toLowerCase();
-      const kw = cat.name.split(' ')[0].toLowerCase().slice(0, -1);
-      return c.includes(kw);
-    });
+    const catApps = applications.filter((a) => classifyMfoIndex(a) === i);
     const filed = catApps.length;
     const issued = catApps.filter((a) => a.status === 'Approved' || a.status === 'Completed').length;
-    const pending = catApps.filter((a) => a.status === 'Evaluating' || a.status === 'Submitted').length;
+    const pending = catApps.filter(
+      (a) =>
+        a.status === 'Evaluating' ||
+        a.status === 'Submitted' ||
+        a.status === 'ForAccountant' ||
+        a.status === 'PendingPayment'
+    ).length;
     const returned = catApps.filter((a) => a.status === 'Returned').length;
     const accomplishmentRate = cat.target > 0 ? Math.min(Math.round((issued / cat.target) * 100), 100) : 100;
     const slaCompliance = filed > 0 ? Math.round((issued / filed) * 100) : 100;
@@ -803,49 +1292,72 @@ function renderAppendix26Html(
   transactions: TenantTransactionDto[],
   userName?: string | null
 ): string {
-  const currentDateStr = new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-
   const refs = transactions.map((t) => t.refNo ?? '').filter((r) => r.length > 0).sort();
   const minOr = refs.length > 0 ? refs[0] : 'N/A';
   const maxOr = refs.length > 0 ? refs[refs.length - 1] : 'N/A';
 
+  let sumTotal = 0;
+  let sumDst = 0;
+  let sumLic = 0;
+  let sumSur = 0;
+  let sumPmt = 0;
+  let sumExm = 0;
+  let sumIns = 0;
+  let sumApf = 0;
+  let sumSrf = 0;
+  let sumSuf = 0;
+  let sumOth = 0;
+
   const rows = transactions.map((tx, idx) => {
-    const amt = tx.amount ?? 0;
-    const sType = (tx.serviceType ?? '').toLowerCase();
-    const dst = sType.includes('stamp') ? amt : 0;
-    const lic = sType.includes('license') ? amt : 0;
-    const sur = sType.includes('surcharge') || sType.includes('penalty') ? amt : 0;
-    const pmt = sType.includes('permit') ? amt : 0;
-    const exm = sType.includes('exam') ? amt : 0;
-    const ins = sType.includes('inspection') ? amt : 0;
-    const apf = sType.includes('application') ? amt : 0;
-    const srf = sType.includes('supervision') || sType.includes('srf') ? amt : 0;
-    const suf = sType.includes('spectrum') || sType.includes('suf') ? amt : 0;
-    const oth = (!dst && !lic && !sur && !pmt && !exm && !ins && !apf && !srf && !suf) ? amt : 0;
+    const b = classifyUacsBreakdown(tx);
+    sumTotal += b.total;
+    sumDst += b.dst;
+    sumLic += b.lic;
+    sumSur += b.sur;
+    sumPmt += b.pmt;
+    sumExm += b.exm;
+    sumIns += b.ins;
+    sumApf += b.apf;
+    sumSrf += b.srf;
+    sumSuf += b.suf;
+    sumOth += b.oth;
 
     return `
       <tr>
         <td style="border: 1px solid #000; padding: 4px; text-align: center;">${(tx.date ?? '').slice(0, 10)}</td>
         <td style="border: 1px solid #000; padding: 4px; font-weight: bold; text-align: center;">${tx.refNo ?? `OR-${idx + 1}`}</td>
         <td style="border: 1px solid #000; padding: 4px;">${tx.applicantName ?? 'Payor'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right; font-weight: bold;">${amt.toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${dst > 0 ? dst.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${lic > 0 ? lic.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${sur > 0 ? sur.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${pmt > 0 ? pmt.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${exm > 0 ? exm.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${ins > 0 ? ins.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${apf > 0 ? apf.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${srf > 0 ? srf.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${suf > 0 ? suf.toFixed(2) : '-'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${oth > 0 ? oth.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right; font-weight: bold;">${b.total.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.dst > 0 ? b.dst.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.lic > 0 ? b.lic.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.sur > 0 ? b.sur.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.pmt > 0 ? b.pmt.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.exm > 0 ? b.exm.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.ins > 0 ? b.ins.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.apf > 0 ? b.apf.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.srf > 0 ? b.srf.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.suf > 0 ? b.suf.toFixed(2) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${b.oth > 0 ? b.oth.toFixed(2) : '-'}</td>
       </tr>
     `;
   }).join('');
+
+  const totalsRow = `
+    <tr style="background-color: #f1f5f9; font-weight: bold;">
+      <td colspan="3" style="border: 1px solid #000; padding: 5px; text-align: right;">TOTAL COLLECTIONS (${transactions.length} O.R.s):</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right; color: #059669;">₱${sumTotal.toFixed(2)}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumDst > 0 ? sumDst.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumLic > 0 ? sumLic.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumSur > 0 ? sumSur.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumPmt > 0 ? sumPmt.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumExm > 0 ? sumExm.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumIns > 0 ? sumIns.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumApf > 0 ? sumApf.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumSrf > 0 ? sumSrf.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumSuf > 0 ? sumSuf.toFixed(2) : '-'}</td>
+      <td style="border: 1px solid #000; padding: 5px; text-align: right;">${sumOth > 0 ? sumOth.toFixed(2) : '-'}</td>
+    </tr>
+  `;
 
   return `
 <!DOCTYPE html>
@@ -922,6 +1434,7 @@ function renderAppendix26Html(
     </thead>
     <tbody>
       ${rows || '<tr><td colspan="14" style="text-align: center; padding: 12px; border: 1px solid #000;">No collections recorded for this period.</td></tr>'}
+      ${totalsRow}
     </tbody>
   </table>
 
@@ -1079,17 +1592,28 @@ function renderBtrIncomeHtml(
     { title: 'Other Service Income', code: '4-02-01-990' },
   ];
 
-  const totalTx = transactions.reduce((sum, t) => sum + (t.amount ?? 0), 0);
-  const perAcc = totalTx > 0 ? totalTx / accounts.length : 0;
+  let sumIncThis = 0;
+  let sumDstThis = 0;
+  let sumDepBtr = 0;
+  let sumUndep = 0;
 
   const rows = accounts.map((acc) => {
-    const incThis = perAcc;
-    const dstThis = perAcc * 0.05;
+    const matchingTx = transactions.filter((tx) => classifyUacsBreakdown(tx).btrCode === acc.code);
+    const incThis = matchingTx.reduce((sum, t) => sum + (t.amount ?? 0), 0);
+    const dstThis = matchingTx.reduce((sum, t) => {
+      const amt = t.amount ?? 0;
+      return sum + (amt >= 30 ? 30 : 0);
+    }, 0);
     const remDst = dstThis;
-    const depBtr = incThis * 0.95;
-    const incYtd = incThis * 3.5;
-    const depYtd = depBtr * 3.5;
-    const undep = incThis - depBtr;
+    const depBtr = Math.max(0, incThis - remDst);
+    const incYtd = incThis;
+    const depYtd = depBtr;
+    const undep = Math.max(0, incThis - remDst - depBtr);
+
+    sumIncThis += incThis;
+    sumDstThis += dstThis;
+    sumDepBtr += depBtr;
+    sumUndep += undep;
 
     return `
       <tr>
@@ -1153,13 +1677,13 @@ function renderBtrIncomeHtml(
       ${rows}
       <tr style="font-weight: bold; background-color: #f1f5f9;">
         <td colspan="2" style="border: 1px solid #000; padding: 6px; text-align: right;">TOTAL:</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${totalTx.toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${(totalTx * 0.05).toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${(totalTx * 0.05).toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${(totalTx * 0.95).toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${(totalTx * 3.5).toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${(totalTx * 0.95 * 3.5).toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: right; color: #166534;">₱${(totalTx * 0.05).toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${sumIncThis.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${sumDstThis.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${sumDstThis.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${sumDepBtr.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${sumIncThis.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right;">₱${sumDepBtr.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right; color: #166534;">₱${sumUndep.toFixed(2)}</td>
       </tr>
     </tbody>
   </table>
@@ -1187,6 +1711,7 @@ function renderApplicationSummaryHtml(
   tenantName: string,
   period: string,
   applications: ApplicationSummaryDto[],
+  transactions: TenantTransactionDto[],
   userName?: string | null
 ): string {
   const isEvaluator = reportMetadata.code === 'NTC-APP-SUM-EVAL';
@@ -1197,36 +1722,49 @@ function renderApplicationSummaryHtml(
     ? 'APPLICATION SUMMARY REPORT BY SERVICE'
     : 'Application Summary Report by Entity';
 
-  const typeCounter = new Map<string, number>();
+  const groupCounter = new Map<string, { count: number; totalAmount: number }>();
+  let grandTotalAmount = 0;
 
   const rows = applications.map((app) => {
-    const sName = app.serviceName ?? app.serviceCategory ?? 'Amateur Radio Station';
-    typeCounter.set(sName, (typeCounter.get(sName) ?? 0) + 1);
+    const r = resolveApplicationSummaryRow(app, transactions, tenantName, userName);
+    grandTotalAmount += r.amount;
+
+    const groupKey = isEvaluator
+      ? r.staffBy
+      : reportMetadata.code === 'NTC-APP-SUM-ENT'
+      ? r.companyName
+      : r.appType;
+    const prev = groupCounter.get(groupKey) ?? { count: 0, totalAmount: 0 };
+    groupCounter.set(groupKey, {
+      count: prev.count + 1,
+      totalAmount: prev.totalAmount + r.amount,
+    });
 
     return `
       <tr>
-        <td style="border: 1px solid #000; padding: 4px;">${sName}</td>
-        <td style="border: 1px solid #000; padding: 4px; font-weight: bold;">${app.filingUser?.company?.name ?? app.filingUser?.name ?? 'Applicant'}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: center;">NEW</td>
-        <td style="border: 1px solid #000; padding: 4px;">${app.office ?? tenantName}</td>
-        <td style="border: 1px solid #000; padding: 4px;">${app.referenceNumber ?? 'PRM-2026-001'}</td>
-        <td style="border: 1px solid #000; padding: 4px; font-weight: 600;">${app.applicationNumber ?? app.id}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${(app.createdAt ?? '').slice(0, 10)}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: center;">2027-12-31</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: center;">OR-2026-991</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: right;">1,500.00</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${(app.createdAt ?? '').slice(0, 10)}</td>
-        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${userName || 'Evaluator'}</td>
+        <td style="border: 1px solid #000; padding: 4px;">${r.appType}</td>
+        <td style="border: 1px solid #000; padding: 4px; font-weight: bold;">${r.companyName}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${r.filingType}<br/><span style="font-size: 7px; color: #475569;">(${r.workflowStatus})</span></td>
+        <td style="border: 1px solid #000; padding: 4px;">${r.address}</td>
+        <td style="border: 1px solid #000; padding: 4px;">${r.permitNo}</td>
+        <td style="border: 1px solid #000; padding: 4px; font-weight: 600;">${r.refNo}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${r.dateFiling}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${r.expDate}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${r.orNo}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: right;">${r.amount > 0 ? r.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${r.datePaid}</td>
+        <td style="border: 1px solid #000; padding: 4px; text-align: center;">${r.staffBy}</td>
       </tr>
     `;
   }).join('');
 
   let summaryRows = '';
-  for (const [tName, count] of typeCounter.entries()) {
+  for (const [gName, statsObj] of groupCounter.entries()) {
     summaryRows += `
       <tr>
-        <td style="border: 1px solid #000; padding: 3px 6px;">${tName}</td>
-        <td style="border: 1px solid #000; padding: 3px 6px; text-align: center; font-weight: bold;">${count}</td>
+        <td style="border: 1px solid #000; padding: 3px 6px;">${gName}</td>
+        <td style="border: 1px solid #000; padding: 3px 6px; text-align: center; font-weight: bold;">${statsObj.count}</td>
+        <td style="border: 1px solid #000; padding: 3px 6px; text-align: right; font-weight: bold;">₱${statsObj.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       </tr>
     `;
   }
@@ -1245,7 +1783,7 @@ function renderApplicationSummaryHtml(
     .header h3 { margin: 2px; font-size: 11px; color: #2563eb; }
     .grid { width: 100%; border-collapse: collapse; border: 1.5px solid #000; margin-bottom: 12px; font-size: 8px; }
     .grid th { border: 1px solid #000; padding: 4px; background-color: #f1f5f9; text-align: center; font-weight: bold; }
-    .sum-box { width: 340px; border-collapse: collapse; border: 1.5px solid #000; margin-top: 8px; font-size: 8.5px; }
+    .sum-box { width: 460px; border-collapse: collapse; border: 1.5px solid #000; margin-top: 8px; font-size: 8.5px; }
     .sum-box th { border: 1px solid #000; padding: 4px; background-color: #f1f5f9; text-align: left; }
     .footer-meta { margin-top: 14px; font-size: 9px; }
   </style>
@@ -1261,16 +1799,16 @@ function renderApplicationSummaryHtml(
       <tr>
         <th>Application Type</th>
         <th>COMPANY NAME / NAME</th>
-        <th style="width: 50px;">STATUS</th>
+        <th style="width: 65px;">STATUS</th>
         <th>FULL ADDRESS</th>
         <th style="width: 80px;">PERMIT NO.</th>
         <th style="width: 80px;">REFERENCE NUMBER</th>
         <th style="width: 60px;">DATE OF FILING</th>
         <th style="width: 60px;">EXPIRATION DATE</th>
-        <th style="width: 60px;">OR NUMBER</th>
-        <th style="width: 50px;">AMOUNT</th>
+        <th style="width: 65px;">OR NUMBER</th>
+        <th style="width: 55px;">AMOUNT</th>
         <th style="width: 60px;">DATE PAID</th>
-        <th style="width: 50px;">BY</th>
+        <th style="width: 75px;">BY</th>
       </tr>
     </thead>
     <tbody>
@@ -1282,8 +1820,9 @@ function renderApplicationSummaryHtml(
   <table class="sum-box">
     <thead>
       <tr>
-        <th>TYPE</th>
+        <th>${isEvaluator ? 'EVALUATOR' : reportMetadata.code === 'NTC-APP-SUM-ENT' ? 'ENTITY / APPLICANT' : 'SERVICE TYPE'}</th>
         <th style="width: 80px; text-align: center;">NUMBER(S)</th>
+        <th style="width: 110px; text-align: right;">TOTAL AMOUNT</th>
       </tr>
     </thead>
     <tbody>
@@ -1291,6 +1830,7 @@ function renderApplicationSummaryHtml(
       <tr style="font-weight: bold; background-color: #f1f5f9;">
         <td style="border: 1px solid #000; padding: 3px 6px;">TOTAL:</td>
         <td style="border: 1px solid #000; padding: 3px 6px; text-align: center;">${applications.length}</td>
+        <td style="border: 1px solid #000; padding: 3px 6px; text-align: right;">₱${grandTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       </tr>
     </tbody>
   </table>
@@ -1311,21 +1851,34 @@ function renderExamMasterlistHtml(
   applications: ApplicationSummaryDto[]
 ): string {
   const examApps = applications.filter((a) => {
-    const cat = (a.serviceCategory ?? a.serviceName ?? '').toLowerCase();
-    return cat.includes('exam') || cat.includes('operator');
+    const cat = `${a.serviceCategory ?? ''} ${a.serviceName ?? ''} ${a.serviceVariantName ?? ''}`.toLowerCase();
+    return cat.includes('exam') || cat.includes('operator') || cat.includes('roce') || cat.includes('amateur') || cat.includes('rroc');
   });
 
-  const candidates = examApps.length > 0 ? examApps : applications.slice(0, 15);
+  const candidates = examApps.length > 0 ? examApps : applications;
+  const distinctClasses = Array.from(
+    new Set(
+      candidates
+        .map((c) => c.serviceVariantName ?? c.element ?? c.serviceName ?? '')
+        .filter((s) => s.trim().length > 0)
+    )
+  );
+  const classHeaderLabel =
+    distinctClasses.length > 0
+      ? distinctClasses.join(' • ')
+      : 'Amateur Class A & B / Commercial Radio Operator Examination';
 
   const rows = candidates.map((c, i) => {
-    const sex = i % 2 === 0 ? 'M' : 'F';
-    const name = (c?.filingUser?.name ?? 'Candidate Name').toUpperCase();
+    const name = (c?.applicants?.[0]?.name ?? c?.filingUser?.name ?? 'Candidate Name').toUpperCase();
+    const refNo = c?.applicationNumber ?? c?.referenceNumber ?? `EXM-${i + 1}`;
+    const examClass = c?.serviceVariantName ?? c?.element ?? c?.serviceName ?? 'ROCE';
     return `
       <tr>
         <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">${i + 1}</td>
         <td style="border: 1px solid #000; padding: 6px; font-weight: bold; font-size: 11px;">${name}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: center;">${sex}</td>
-        <td style="border: 1px solid #000; padding: 6px; width: 220px; border-bottom: 1.5px solid #000;">&nbsp;</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 9px;">${refNo}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 9px;">${examClass}</td>
+        <td style="border: 1px solid #000; padding: 6px; width: 200px; border-bottom: 1.5px solid #000;">&nbsp;</td>
         <td style="border: 1px solid #000; padding: 6px; text-align: center;">${i + 1}</td>
       </tr>
     `;
@@ -1360,24 +1913,25 @@ function renderExamMasterlistHtml(
 
   <div class="room-header">
     <span>EXAMINATION ROOM NO. 1</span>
-    <span>CAPACITY: 30 EXAMINEES</span>
+    <span>TOTAL EXAMINEES: ${candidates.length} / CAPACITY: 30 EXAMINEES</span>
   </div>
   <div class="class-header">
-    Amateur Class A & B - Elements 5, 6, 7, 8, 9, 10 & Code (5 wpm)
+    ${classHeaderLabel}
   </div>
 
   <table class="grid">
     <thead>
       <tr>
-        <th style="width: 40px;">No.</th>
+        <th style="width: 35px;">No.</th>
         <th>Examinee Full Name (LASTNAME, FIRSTNAME M.I.)</th>
-        <th style="width: 50px;">Sex</th>
-        <th style="width: 220px;">Signature (Examinee Checkoff)</th>
-        <th style="width: 40px;">No.</th>
+        <th style="width: 110px;">Admission / App Ref</th>
+        <th style="width: 130px;">Exam Class / Element</th>
+        <th style="width: 200px;">Signature (Examinee Checkoff)</th>
+        <th style="width: 35px;">No.</th>
       </tr>
     </thead>
     <tbody>
-      ${rows}
+      ${rows || '<tr><td colspan="6" style="text-align: center; padding: 14px;">No examinees registered for the selected schedule.</td></tr>'}
     </tbody>
   </table>
 
@@ -1400,45 +1954,65 @@ function renderExamMasterlistHtml(
 function renderVolumeReportHtml(
   tenantName: string,
   period: string,
-  applications: ApplicationSummaryDto[]
+  applications: ApplicationSummaryDto[],
+  transactions: TenantTransactionDto[],
+  dateRange?: StatutoryReportGeneratorOptions
 ): string {
-  const streams = ['Accreditations', 'Certificates', 'Exams', 'Licenses', 'Permits'];
-  const monthLabels = ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5', 'Month 6'];
+  const streams: Array<'Accreditations' | 'Certificates' | 'Exams' | 'Licenses' | 'Permits'> = [
+    'Accreditations',
+    'Certificates',
+    'Exams',
+    'Licenses',
+    'Permits',
+  ];
+  const buckets = computeVolumeMonthBuckets(applications, dateRange);
 
   let grandTotal = 0;
-  const colTotals = [0, 0, 0, 0, 0, 0];
+  let grandIssued = 0;
+  let grandInProc = 0;
+  let grandReturned = 0;
+  let grandCollected = 0;
+  let grandDeposited = 0;
+  let grandUndeposited = 0;
+  const colTotals = new Array<number>(buckets.length).fill(0);
 
   const rows = streams.map((s) => {
-    const streamApps = applications.filter((a) => {
-      const cat = (a.serviceCategory ?? a.serviceName ?? '').toLowerCase();
-      return cat.includes(s.toLowerCase().slice(0, -1));
-    });
+    const streamApps = applications.filter((a) => classifyVolumeStream(a) === s);
+    const mCounts = countAppsByVolumeBuckets(streamApps, buckets);
     const count = streamApps.length;
-    grandTotal += count;
-    const m1 = Math.round(count * 0.15);
-    const m2 = Math.round(count * 0.2);
-    const m3 = Math.round(count * 0.1);
-    const m4 = Math.round(count * 0.25);
-    const m5 = Math.round(count * 0.15);
-    const m6 = count - (m1 + m2 + m3 + m4 + m5);
+    const issued = streamApps.filter((a) => a.status === 'Approved' || a.status === 'Completed').length;
+    const returned = streamApps.filter((a) => a.status === 'Returned').length;
+    const inProc = Math.max(0, count - issued - returned);
 
-    colTotals[0] += m1;
-    colTotals[1] += m2;
-    colTotals[2] += m3;
-    colTotals[3] += m4;
-    colTotals[4] += m5;
-    colTotals[5] += m6;
+    const streamAppIds = new Set(streamApps.map((a) => a.id));
+    const streamTx = transactions.filter((t) => streamAppIds.has(t.id));
+    const collected = streamTx.reduce((sum, t) => sum + (t.amount ?? 0), 0);
+    const deposited = streamTx
+      .filter((t) => (t.paymentStatus ?? '').toLowerCase() === 'deposited' || (t.paymentStatus ?? '').toLowerCase() === 'paid')
+      .reduce((sum, t) => sum + (t.amount ?? 0), 0);
+    const undeposited = Math.max(0, collected - deposited);
+
+    grandTotal += count;
+    grandIssued += issued;
+    grandInProc += inProc;
+    grandReturned += returned;
+    grandCollected += collected;
+    grandDeposited += deposited;
+    grandUndeposited += undeposited;
+
+    for (let idx = 0; idx < buckets.length; idx++) {
+      colTotals[idx] = (colTotals[idx] ?? 0) + (mCounts[idx] ?? 0);
+    }
 
     return `
       <tr>
         <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">${s}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: center;">${m1}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: center;">${m2}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: center;">${m3}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: center;">${m4}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: center;">${m5}</td>
-        <td style="border: 1px solid #000; padding: 6px; text-align: center;">${m6}</td>
+        ${mCounts.map((mVal) => `<td style="border: 1px solid #000; padding: 6px; text-align: center;">${mVal}</td>`).join('')}
         <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; background-color: #f1f5f9;">${count}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: center; color: #166534; font-weight: bold;">${issued}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: center;">${inProc}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right; font-weight: bold;">₱${collected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td style="border: 1px solid #000; padding: 6px; text-align: right; color: #1e40af; font-weight: bold;">₱${deposited.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       </tr>
     `;
   }).join('');
@@ -1448,18 +2022,18 @@ function renderVolumeReportHtml(
 <html>
 <head>
   <meta charset="utf-8">
-  <title>EDGE Application Volume Report</title>
+  <title>EDGE Application Volume & Deposit Accountability Report</title>
   <style>
-    @media print { @page { margin: 15mm; size: A4 landscape; } }
-    body { font-family: Arial, sans-serif; font-size: 11px; padding: 20px; color: #000; }
-    .header { text-align: center; margin-bottom: 20px; }
-    .grid { width: 100%; border-collapse: collapse; border: 1.5px solid #000; margin-bottom: 20px; }
-    .grid th { border: 1px solid #000; padding: 8px; background-color: #f1f5f9; text-align: center; font-weight: bold; font-size: 10px; }
+    @media print { @page { margin: 12mm; size: A4 landscape; } }
+    body { font-family: Arial, sans-serif; font-size: 10px; padding: 16px; color: #000; }
+    .header { text-align: center; margin-bottom: 16px; }
+    .grid { width: 100%; border-collapse: collapse; border: 1.5px solid #000; margin-bottom: 16px; }
+    .grid th { border: 1px solid #000; padding: 6px; background-color: #f1f5f9; text-align: center; font-weight: bold; font-size: 9px; }
   </style>
 </head>
 <body>
   <div class="header">
-    <div style="font-size: 14px; font-weight: bold;">EDGE APPLICATION VOLUME REPORT</div>
+    <div style="font-size: 14px; font-weight: bold;">EDGE APPLICATION VOLUME & DEPOSIT ACCOUNTABILITY REPORT</div>
     <div style="font-size: 12px; font-weight: bold; color: #2563eb; margin-top: 4px;">${tenantName}</div>
     <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Reporting Coverage: <strong>${period}</strong></div>
   </div>
@@ -1467,23 +2041,31 @@ function renderVolumeReportHtml(
   <table class="grid">
     <thead>
       <tr>
-        <th style="text-align: left; width: 180px;">Service Category</th>
-        ${monthLabels.map((m) => `<th>${m}</th>`).join('')}
-        <th style="width: 100px; background-color: #e2e8f0;">TOTAL</th>
+        <th style="text-align: left; width: 140px;">Service Category</th>
+        ${buckets.map((b) => `<th>${b.label}</th>`).join('')}
+        <th style="width: 60px; background-color: #e2e8f0;">TOTAL</th>
+        <th style="width: 60px; background-color: #dcfce7;">ISSUED</th>
+        <th style="width: 65px;">IN-PROC</th>
+        <th style="width: 95px;">COLLECTED</th>
+        <th style="width: 95px;">DEPOSITED</th>
       </tr>
     </thead>
     <tbody>
       ${rows}
       <tr style="font-weight: bold; background-color: #e2e8f0;">
-        <td style="border: 1px solid #000; padding: 8px;">TOTAL</td>
-        ${colTotals.map((tot) => `<td style="border: 1px solid #000; padding: 8px; text-align: center;">${tot}</td>`).join('')}
-        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 13px;">${grandTotal}</td>
+        <td style="border: 1px solid #000; padding: 7px;">TOTAL</td>
+        ${colTotals.map((tot) => `<td style="border: 1px solid #000; padding: 7px; text-align: center;">${tot}</td>`).join('')}
+        <td style="border: 1px solid #000; padding: 7px; text-align: center; font-size: 12px;">${grandTotal}</td>
+        <td style="border: 1px solid #000; padding: 7px; text-align: center;">${grandIssued}</td>
+        <td style="border: 1px solid #000; padding: 7px; text-align: center;">${grandInProc}</td>
+        <td style="border: 1px solid #000; padding: 7px; text-align: right;">₱${grandCollected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td style="border: 1px solid #000; padding: 7px; text-align: right;">₱${grandDeposited.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       </tr>
     </tbody>
   </table>
 
-  <div style="margin-top: 20px; font-size: 10px; color: #64748b;">
-    Report automatically generated by NTC-EDGE Reporting Subsystem. Verified against regional application databases.
+  <div style="margin-top: 16px; font-size: 10px; color: #64748b;">
+    Report automatically generated by NTC-EDGE Reporting Subsystem. Verified against regional application, Official Receipt, and Bank Deposit databases.
   </div>
 
 </body>
@@ -1499,41 +2081,54 @@ export function generateStatutoryPrintableHtml(
   transactions: TenantTransactionDto[],
   feedback: FeedbackDto[],
   userName?: string | null,
-  dateRange?: { startDate?: string; endDate?: string }
+  dateRange?: StatutoryReportGeneratorOptions
 ): string {
   const effectivePeriod = dateRange?.startDate && dateRange?.endDate
     ? `${dateRange.startDate} to ${dateRange.endDate}`
     : period;
 
+  const effectiveTenantName =
+    dateRange?.fieldOfficeFilter && dateRange.fieldOfficeFilter.trim().length > 0
+      ? `${tenantName} — Field Office (Monitoring): ${dateRange.fieldOfficeFilter.trim()}`
+      : tenantName;
+
+  const scopedApplications = filterApplicationsForStatutoryReport(
+    reportMetadata.code,
+    applications,
+    dateRange,
+    userName
+  );
+  const paidTransactions = getPaidTransactions(transactions, scopedApplications);
+
   // Route to the exact dedicated government layout corresponding to the report
   switch (reportMetadata.code) {
     case 'NTC-MIS-OPS':
-      return renderMisOpsHtml(reportMetadata, tenantName, effectivePeriod, applications, transactions, feedback, userName);
+      return renderMisOpsHtml(reportMetadata, effectiveTenantName, effectivePeriod, scopedApplications, paidTransactions, feedback, userName);
 
     case 'NTC-COA-APP26-M':
     case 'NTC-COA-APP26-D':
-      return renderAppendix26Html(reportMetadata, tenantName, effectivePeriod, transactions, userName);
+      return renderAppendix26Html(reportMetadata, effectiveTenantName, effectivePeriod, paidTransactions, userName);
 
     case 'NTC-BIR-DST-01':
-      return renderDstRemittanceHtml(tenantName, effectivePeriod, transactions);
+      return renderDstRemittanceHtml(effectiveTenantName, effectivePeriod, paidTransactions);
 
     case 'NTC-BTR-INC-01':
-      return renderBtrIncomeHtml(tenantName, effectivePeriod, transactions);
+      return renderBtrIncomeHtml(effectiveTenantName, effectivePeriod, paidTransactions);
 
     case 'NTC-APP-SUM-EVAL':
     case 'NTC-APP-SUM-SVC':
     case 'NTC-APP-SUM-ENT':
-      return renderApplicationSummaryHtml(reportMetadata, tenantName, effectivePeriod, applications, userName);
+      return renderApplicationSummaryHtml(reportMetadata, effectiveTenantName, effectivePeriod, scopedApplications, paidTransactions, userName);
 
     case 'NTC-EXAM-MST-01':
-      return renderExamMasterlistHtml(tenantName, effectivePeriod, applications);
+      return renderExamMasterlistHtml(effectiveTenantName, effectivePeriod, scopedApplications);
 
     case 'NTC-APP-VOL-01':
-      return renderVolumeReportHtml(tenantName, effectivePeriod, applications);
+      return renderVolumeReportHtml(effectiveTenantName, effectivePeriod, scopedApplications, paidTransactions, dateRange);
 
     default:
       // General Statutory Reports (NTC-BAR-1, ARTA, SPECTRUM, CSMR, NOV)
-      return renderGenericStatutoryHtml(reportMetadata, tenantName, effectivePeriod, applications, transactions, feedback, userName);
+      return renderGenericStatutoryHtml(reportMetadata, effectiveTenantName, effectivePeriod, scopedApplications, paidTransactions, feedback, userName);
   }
 }
 

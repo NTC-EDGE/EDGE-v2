@@ -7,5 +7,6 @@ namespace EDGE.Application.Meetings.Commands.InviteMeetingParticipants;
 
 public record InviteMeetingParticipantsCommand(
     string MeetingCode,
-    List<Guid> UserIds
+    List<Guid> UserIds,
+    bool RingNewParticipants = false
 ) : IRequest<MeetingDto>;

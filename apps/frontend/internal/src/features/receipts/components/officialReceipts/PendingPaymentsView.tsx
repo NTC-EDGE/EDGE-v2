@@ -84,6 +84,13 @@ export function PendingPaymentsView({
               });
               const daysSinceBilled = Math.floor((Date.now() - billedDate.getTime()) / (1000 * 60 * 60 * 24));
               const isOverdue = daysSinceBilled >= 30;
+              const breakdown = parsePaymentBreakdown(payment.remarks);
+              const isClientConfirmed =
+                breakdown !== null ||
+                Boolean(payment.paymentMethod) ||
+                Boolean(payment.paymentReferenceNumber) ||
+                Boolean(payment.checkNumber) ||
+                Boolean(payment.checkBank);
 
               return (
                 <View
@@ -93,10 +100,19 @@ export function PendingPaymentsView({
                   {/* Card Header */}
                   <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
                     <View style={styles.headerLeft}>
-                      <View style={[styles.statusBadgePending, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
-                        <View style={[styles.statusDot, { backgroundColor: '#16A34A' }]} />
-                        <Text style={[styles.statusTextPending, { color: '#166534' }]}>SUBJECT FOR PAYMENT</Text>
-                      </View>
+                      {isClientConfirmed ? (
+                        <View style={[styles.statusBadgePending, { backgroundColor: '#EDE9FE', borderColor: '#C4B5FD' }]}>
+                          <View style={[styles.statusDot, { backgroundColor: '#7C3AED' }]} />
+                          <Text style={[styles.statusTextPending, { color: '#5B21B6' }]}>
+                            CLIENT CONFIRMED • FOR VERIFICATION
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.statusBadgePending, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
+                          <View style={[styles.statusDot, { backgroundColor: '#16A34A' }]} />
+                          <Text style={[styles.statusTextPending, { color: '#166534' }]}>SUBJECT FOR PAYMENT</Text>
+                        </View>
+                      )}
                       <Text style={[styles.opNumber, { color: colors.brand.primary }]}>{payment.opNumber}</Text>
                     </View>
                     <View style={styles.headerRightBox}>
@@ -233,6 +249,19 @@ export function PendingPaymentsView({
                                   <Text style={{ fontWeight: '700' }}>Reference #:</Text> {payment.paymentReferenceNumber || 'Pending Gateway Verification'}
                                 </Text>
                               </View>
+                            </View>
+                          </View>
+                        );
+                      }
+
+                      if (payment.paymentMethod === 'Cash') {
+                        return (
+                          <View style={[styles.clientPrefBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                            <View style={styles.clientPrefHeader}>
+                              <Lucide name="dollar-sign" size={13} color="#16A34A" />
+                              <Text style={[styles.clientPrefTitle, { color: '#15803D' }]}>
+                                Client Payment: Cash (Walk-in / Over-the-Counter)
+                              </Text>
                             </View>
                           </View>
                         );

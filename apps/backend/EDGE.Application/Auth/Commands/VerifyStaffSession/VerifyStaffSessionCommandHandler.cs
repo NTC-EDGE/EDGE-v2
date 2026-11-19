@@ -178,6 +178,34 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
             if (rolePerms != null && rolePerms.Count > 0)
             {
                 effectivePermissions.AddRange(rolePerms);
+                if (!effectivePermissions.Contains(Permissions.ReadTenants))
+                {
+                    effectivePermissions.Add(Permissions.ReadTenants);
+                }
+
+                var receiptActionPermissions = new[]
+                {
+                    Permissions.ReceiptsBundleEntry,
+                    Permissions.ReceiptsIssue,
+                    Permissions.ReceiptsEdit,
+                    Permissions.ReceiptsCancel,
+                    Permissions.ReceiptsDeposit,
+                    Permissions.BankAccountsManage,
+                    Permissions.CashierReports,
+                    Permissions.CollectPayment,
+                    Permissions.ReturnOp
+                };
+
+                if (string.Equals(resolvedRole.Key, "cashier", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(resolvedRole.Name, "Cashier", StringComparison.OrdinalIgnoreCase))
+                {
+                    effectivePermissions.Add(Permissions.ReceiptsRead);
+                    effectivePermissions.AddRange(receiptActionPermissions);
+                }
+                else if (receiptActionPermissions.Any(p => effectivePermissions.Contains(p)))
+                {
+                    effectivePermissions.Add(Permissions.ReceiptsRead);
+                }
             }
             else
             {

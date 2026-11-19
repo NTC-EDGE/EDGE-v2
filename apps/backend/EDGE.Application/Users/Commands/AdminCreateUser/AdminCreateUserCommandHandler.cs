@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Users.Commands.AdminCreateUser;
 
@@ -18,6 +19,7 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly ITenantRepository _tenantRepository;
+    private readonly IFieldOfficeRepository? _fieldOfficeRepository;
     private readonly ITenantContextService _tenantContextService;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserAuthorizationService _userAuthorizationService;
@@ -34,7 +36,8 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
         ICurrentUserService currentUserService,
         IUserAuthorizationService userAuthorizationService,
         IUnitOfWork unitOfWork,
-        ILogger<AdminCreateUserCommandHandler> logger)
+        ILogger<AdminCreateUserCommandHandler> logger,
+        IFieldOfficeRepository? fieldOfficeRepository = null)
     {
         _clerkUserService = clerkUserService;
         _userRepository = userRepository;
@@ -46,6 +49,7 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
         _userAuthorizationService = userAuthorizationService;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _fieldOfficeRepository = fieldOfficeRepository;
     }
 
     public async Task<AdminCreateUserResultDto> Handle(AdminCreateUserCommand request, CancellationToken cancellationToken)
@@ -224,29 +228,56 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
         };
         await _userRepository.AddAsync(user, cancellationToken);
 
-        // 7. Create or Update Tenant Membership
+        // 7. Create or Update Tenant Membership (Ensuring TenantId and FieldOfficeId are always assigned)
+        Guid? resolvedFieldOfficeId = request.FieldOfficeId;
+        FieldOffice? mainFieldOffice = null;
+
+        if (_fieldOfficeRepository != null)
+        {
+            var tenantOffices = await _fieldOfficeRepository.GetByTenantIdAsync(targetTenantId, cancellationToken);
+            mainFieldOffice = tenantOffices.FirstOrDefault(f => f.Category == FieldOfficeCategory.Main)
+                              ?? tenantOffices.FirstOrDefault();
+
+            if (resolvedFieldOfficeId.HasValue && resolvedFieldOfficeId.Value != Guid.Empty)
+            {
+                var selectedOffice = tenantOffices.FirstOrDefault(f => f.Id == resolvedFieldOfficeId.Value)
+                                     ?? await _fieldOfficeRepository.GetByIdAsync(resolvedFieldOfficeId.Value, cancellationToken);
+                if (selectedOffice == null || selectedOffice.TenantId != targetTenantId)
+                {
+                    throw new InvalidOperationException("The selected field office does not belong to the specified regional tenant.");
+                }
+                resolvedFieldOfficeId = selectedOffice.Id;
+            }
+            else if (mainFieldOffice != null)
+            {
+                resolvedFieldOfficeId = mainFieldOffice.Id;
+            }
+        }
+
+        TenantMember targetMember;
         var existingMembership = await _tenantMemberRepository.GetByTenantAndUserAsync(targetTenantId, user.Id, cancellationToken);
         if (existingMembership == null)
         {
-            var member = new TenantMember
+            targetMember = new TenantMember
             {
                 Id = Guid.NewGuid(),
                 TenantId = targetTenantId,
                 UserId = user.Id,
                 RoleId = role.Id,
-                FieldOfficeId = request.FieldOfficeId,
+                FieldOfficeId = resolvedFieldOfficeId,
                 JobTitle = request.JobTitle?.Trim(),
                 Level = request.Level?.Trim(),
                 Division = request.Division?.Trim() ?? string.Empty,
                 Position = request.Position?.Trim() ?? string.Empty,
                 Designation = request.Designation?.Trim()
             };
-            await _tenantMemberRepository.AddAsync(member, cancellationToken);
+            await _tenantMemberRepository.AddAsync(targetMember, cancellationToken);
         }
         else
         {
+            targetMember = existingMembership;
             existingMembership.RoleId = role.Id;
-            if (request.FieldOfficeId.HasValue) existingMembership.FieldOfficeId = request.FieldOfficeId.Value;
+            if (resolvedFieldOfficeId.HasValue) existingMembership.FieldOfficeId = resolvedFieldOfficeId.Value;
             if (!string.IsNullOrWhiteSpace(request.JobTitle)) existingMembership.JobTitle = request.JobTitle.Trim();
             if (!string.IsNullOrWhiteSpace(request.Level)) existingMembership.Level = request.Level.Trim();
             if (!string.IsNullOrWhiteSpace(request.Division)) existingMembership.Division = request.Division.Trim();
@@ -255,6 +286,45 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // If the tenant had no Main Office yet, auto-create it now using the newly created member as OIC
+        if (_fieldOfficeRepository != null && mainFieldOffice == null)
+        {
+            var cleanTenantName = targetTenant.Name.Trim();
+            var mainOfficeName = cleanTenantName.EndsWith("Main Office", StringComparison.OrdinalIgnoreCase)
+                ? cleanTenantName
+                : $"{cleanTenantName} - Main Office";
+            var mainOfficeCode = $"{(string.IsNullOrWhiteSpace(targetTenant.Code) ? "NTC" : targetTenant.Code.Trim().ToUpperInvariant())}-MAIN";
+
+            mainFieldOffice = new FieldOffice
+            {
+                Id = Guid.NewGuid(),
+                TenantId = targetTenantId,
+                Name = mainOfficeName,
+                Code = mainOfficeCode,
+                Category = FieldOfficeCategory.Main,
+                Description = !string.IsNullOrWhiteSpace(targetTenant.Description)
+                    ? targetTenant.Description
+                    : $"Regional Main Office for {cleanTenantName}",
+                RegionId = targetTenant.RegionId,
+                Address = cleanTenantName,
+                ContactPhone = string.Empty,
+                ContactEmail = string.Empty,
+                OfficerInChargeId = targetMember.Id,
+                IsActive = true,
+                AllowSpectrumInspection = true,
+                AllowPermitIssuance = true,
+                AllowComplaintReception = true
+            };
+
+            await _fieldOfficeRepository.AddAsync(mainFieldOffice, cancellationToken);
+            if (!targetMember.FieldOfficeId.HasValue || targetMember.FieldOfficeId.Value == Guid.Empty)
+            {
+                targetMember.FieldOfficeId = mainFieldOffice.Id;
+                resolvedFieldOfficeId = mainFieldOffice.Id;
+            }
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         return new AdminCreateUserResultDto
         {
@@ -268,7 +338,7 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
             ContactNumber = user.ContactNumber,
             RoleKey = role.Key,
             TenantId = targetTenantId,
-            FieldOfficeId = request.FieldOfficeId,
+            FieldOfficeId = resolvedFieldOfficeId,
             JobTitle = request.JobTitle,
             Level = request.Level,
             Division = request.Division,

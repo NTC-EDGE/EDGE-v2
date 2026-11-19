@@ -71,6 +71,17 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         var phoneConfig = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:SupportPhone", cancellationToken)
             ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:SupportPhone", cancellationToken);
 
+        var allowManualSoaConfig = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:AllowManualSoaNumber", cancellationToken)
+            ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:AllowManualSoaNumber", cancellationToken)
+            ?? await _systemConfigRepository.GetByKeyAsync("AllowManualSoaNumber", cancellationToken);
+
+        var allowManualOpConfig = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:AllowManualOpNumber", cancellationToken)
+            ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:AllowManualOpNumber", cancellationToken)
+            ?? await _systemConfigRepository.GetByKeyAsync("AllowManualOpNumber", cancellationToken);
+
+        var allowManualSoa = bool.TryParse(allowManualSoaConfig?.Value, out var parsedManualSoa) && parsedManualSoa;
+        var allowManualOp = bool.TryParse(allowManualOpConfig?.Value, out var parsedManualOp) && parsedManualOp;
+
         return new RegionalConfigurationDto
         {
             TenantId = resolvedTenantId,
@@ -82,7 +93,9 @@ public class RegionalConfigurationService : IRegionalConfigurationService
             FundCluster = !string.IsNullOrWhiteSpace(fundConfig?.Value) ? fundConfig.Value : "01",
             RequestAndComplaintRouting = !string.IsNullOrWhiteSpace(routingConfig?.Value) ? routingConfig.Value : "DirectToLegal",
             SupportEmail = !string.IsNullOrWhiteSpace(emailConfig?.Value) ? emailConfig.Value : "region10@ntc.gov.ph",
-            SupportPhone = !string.IsNullOrWhiteSpace(phoneConfig?.Value) ? phoneConfig.Value : "(088) 856-1234 / (02) 8924-4008"
+            SupportPhone = !string.IsNullOrWhiteSpace(phoneConfig?.Value) ? phoneConfig.Value : "(088) 856-1234 / (02) 8924-4008",
+            AllowManualSoaNumber = allowManualSoa,
+            AllowManualOpNumber = allowManualOp
         };
     }
 
@@ -94,6 +107,9 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:RCCodeOP", dto.RcCodeOp ?? "61", $"Responsibility Center Code for OP series in tenant {tenantId}", cancellationToken);
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:FundCluster", dto.FundCluster ?? "01", $"Accounting Fund Cluster for tenant {tenantId}", cancellationToken);
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:RequestAndComplaintRouting", dto.RequestAndComplaintRouting ?? "DirectToLegal", $"Client application routing preference for Requests and Complaints in tenant {tenantId}", cancellationToken);
+        await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:AllowManualSoaNumber", dto.AllowManualSoaNumber.ToString().ToLowerInvariant(), $"Whether manual SOA number entry and editing is allowed for tenant {tenantId}", cancellationToken, "Boolean");
+        await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:AllowManualOpNumber", dto.AllowManualOpNumber.ToString().ToLowerInvariant(), $"Whether manual OP number entry and editing is allowed for tenant {tenantId}", cancellationToken, "Boolean");
+
         if (!string.IsNullOrWhiteSpace(dto.SupportEmail))
         {
             await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:SupportEmail", dto.SupportEmail, $"Support email contact for tenant {tenantId}", cancellationToken);
@@ -105,10 +121,58 @@ public class RegionalConfigurationService : IRegionalConfigurationService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return dto;
+        return await GetConfigurationAsync(tenantId, cancellationToken);
     }
 
-    private async Task SetOrUpdateConfigAsync(string key, string value, string description, CancellationToken cancellationToken)
+    public async Task<RegionalConfigurationDto> UpdateNumberingModeAsync(
+        Guid tenantId,
+        bool allowManualSoaNumber,
+        bool allowManualOpNumber,
+        string? rcCodeSoa = null,
+        string? rcCodeOp = null,
+        CancellationToken cancellationToken = default)
+    {
+        var current = await GetConfigurationAsync(tenantId, cancellationToken);
+        var resolvedTenantId = current.TenantId != Guid.Empty ? current.TenantId : tenantId;
+
+        await SetOrUpdateConfigAsync(
+            $"TenantConfig:{resolvedTenantId}:AllowManualSoaNumber",
+            allowManualSoaNumber.ToString().ToLowerInvariant(),
+            $"Whether manual SOA number entry and editing is allowed for tenant {resolvedTenantId}",
+            cancellationToken,
+            "Boolean");
+
+        await SetOrUpdateConfigAsync(
+            $"TenantConfig:{resolvedTenantId}:AllowManualOpNumber",
+            allowManualOpNumber.ToString().ToLowerInvariant(),
+            $"Whether manual OP number entry and editing is allowed for tenant {resolvedTenantId}",
+            cancellationToken,
+            "Boolean");
+
+        if (!string.IsNullOrWhiteSpace(rcCodeSoa))
+        {
+            await SetOrUpdateConfigAsync(
+                $"TenantConfig:{resolvedTenantId}:RCCodeSOA",
+                rcCodeSoa.Trim(),
+                $"Responsibility Center Code for SOA series in tenant {resolvedTenantId}",
+                cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(rcCodeOp))
+        {
+            await SetOrUpdateConfigAsync(
+                $"TenantConfig:{resolvedTenantId}:RCCodeOP",
+                rcCodeOp.Trim(),
+                $"Responsibility Center Code for OP series in tenant {resolvedTenantId}",
+                cancellationToken);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return await GetConfigurationAsync(resolvedTenantId, cancellationToken);
+    }
+
+    private async Task SetOrUpdateConfigAsync(string key, string value, string description, CancellationToken cancellationToken, string dataType = "String")
     {
         var existing = await _systemConfigRepository.GetByKeyAsync(key, cancellationToken);
         if (existing == null)
@@ -119,7 +183,7 @@ public class RegionalConfigurationService : IRegionalConfigurationService
                 Value = value,
                 Description = description,
                 Category = CategoryName,
-                DataType = "String",
+                DataType = dataType,
                 IsPublic = true
             }, cancellationToken);
         }
@@ -127,6 +191,7 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         {
             existing.Value = value;
             existing.Description = description;
+            existing.DataType = dataType;
             _systemConfigRepository.Update(existing);
         }
     }

@@ -9,13 +9,15 @@ import {
 } from "react-native";
 import { COLORS, useTheme } from "@edge/ui";
 import { useShellState } from "../hooks/useShellState";
-import { ROLE_NAVIGATION_LINKS, NavigationLink } from "../context/RoleContext";
+import { getAuthorizedNavigationLinks } from "../context/RoleContext";
 import { usePermissions } from "../context/PermissionContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { MobileBottomTabBar } from "./MobileBottomTabBar";
 import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
 import { IncomingCallModal } from "../../meet/components/IncomingCallModal";
+import { FloatingMiniCallOverlay } from "../../meet/components/FloatingMiniCallOverlay";
+import { MeetingSessionProvider } from "../../meet/context/MeetingSessionContext";
 import { acceptIncomingCall } from "../../meet/utils/meetingNavigationHelper";
 
 export interface AppLayoutProps {
@@ -77,28 +79,19 @@ export function AppLayout({
     }
   }, [isSidebarOpen, sidebarAnim]);
 
-  const { isSuperAdmin, isAdmin, canVerifyCashier, hasAnyPermission } = usePermissions();
-  const baseLinks = ROLE_NAVIGATION_LINKS[currentRole];
-  const hasCashierAccess =
-    isSuperAdmin ||
-    isAdmin ||
-    currentRole === 'Cashier' ||
-    currentRole === 'Regional Director' ||
-    canVerifyCashier ||
-    hasAnyPermission('receipts.read', 'receipts.issue', 'billing.collect');
+  const { isSuperAdmin, isAdmin, hasAnyPermission } = usePermissions();
 
-  const links = useMemo(() => {
-    if (hasCashierAccess && !baseLinks.some((l) => l.screen === 'ReceiptManagement')) {
-      const receiptLink: NavigationLink = {
-        name: 'Receipt Management',
-        screen: 'ReceiptManagement',
-        icon: 'printer',
-        group: 'Operations',
-      };
-      return [...baseLinks, receiptLink];
-    }
-    return baseLinks;
-  }, [baseLinks, hasCashierAccess]);
+  const links = useMemo(
+    () =>
+      getAuthorizedNavigationLinks({
+        currentRole,
+        isSuperAdmin,
+        isAdmin,
+        userPermissions: user?.permissions,
+        hasAnyPermission,
+      }),
+    [currentRole, isSuperAdmin, isAdmin, user?.permissions, hasAnyPermission]
+  );
 
   const handleLinkPress = (screenName: string) => {
     if (onNavigate !== undefined) {
@@ -120,79 +113,86 @@ export function AppLayout({
   const bgCanvas = isDark ? colors.neutral[900] : colors.bg;
 
   return (
-    <SafeAreaView style={[styles.nativeSafeArea, { backgroundColor: bgCanvas }]}>
-      <View style={[styles.shell, { backgroundColor: bgCanvas }]}>
-        <Header
-          currentRole={currentRole}
-          activeScreen={activeScreen}
-          onRoleSelect={handleRoleSelect}
-          showRoleDropdown={showRoleDropdown}
-          toggleRoleDropdown={toggleRoleDropdown}
-          closeRoleDropdown={closeRoleDropdown}
-          isSwitcherHovered={isSwitcherHovered}
-          setIsSwitcherHovered={setIsSwitcherHovered}
-          isLogoutHovered={isLogoutHovered}
-          setIsLogoutHovered={setIsLogoutHovered}
-          user={user}
-          onLogout={promptSignOut}
-          isMobile={true}
-          onMenuPress={toggleSidebar}
-          onNavigate={handleLinkPress}
-        />
-
-        <View style={styles.bodyWrapper}>
-          {shouldRenderSidebar && (
-            <>
-              <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-                <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
-              </Animated.View>
-              <Animated.View
-                style={[
-                  styles.mobileSidebarContainer,
-                  { transform: [{ translateX }] },
-                ]}
-              >
-                <Sidebar
-                  currentRole={currentRole}
-                  links={links}
-                  activeScreen={activeScreen}
-                  onNavigate={handleLinkPress}
-                  isMobile={true}
-                  onClose={closeSidebar}
-                  onLogout={promptSignOut}
-                  onRoleSelect={handleRoleSelect}
-                />
-              </Animated.View>
-            </>
-          )}
-
-          <View style={styles.mainContentArea}>{children}</View>
-        </View>
-
-        {/* Sign Out Confirmation Modal */}
-        <SignOutConfirmModal
-          visible={isSignOutConfirmVisible}
-          loading={isSigningOut}
-          onClose={closeSignOutModal}
-          onConfirm={confirmSignOut}
-        />
-
-        {/* Incoming Call Ringing Modal */}
-        <IncomingCallModal
-          onAccept={(code) => {
-            acceptIncomingCall(code, handleLinkPress);
-          }}
-        />
-
-        {activeScreen !== "AccountSettings" && (
-          <MobileBottomTabBar
+    <MeetingSessionProvider currentUserId={user?.id} currentUserName={user?.name}>
+      <SafeAreaView style={[styles.nativeSafeArea, { backgroundColor: bgCanvas }]}>
+        <View style={[styles.shell, { backgroundColor: bgCanvas }]}>
+          <Header
+            currentRole={currentRole}
             activeScreen={activeScreen}
-            onNavigate={handleLinkPress}
+            onRoleSelect={handleRoleSelect}
+            showRoleDropdown={showRoleDropdown}
+            toggleRoleDropdown={toggleRoleDropdown}
+            closeRoleDropdown={closeRoleDropdown}
+            isSwitcherHovered={isSwitcherHovered}
+            setIsSwitcherHovered={setIsSwitcherHovered}
+            isLogoutHovered={isLogoutHovered}
+            setIsLogoutHovered={setIsLogoutHovered}
+            user={user}
+            onLogout={promptSignOut}
+            isMobile={true}
             onMenuPress={toggleSidebar}
+            onNavigate={handleLinkPress}
           />
-        )}
-      </View>
-    </SafeAreaView>
+
+          <View style={styles.bodyWrapper}>
+            {shouldRenderSidebar && (
+              <>
+                <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+                  <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
+                </Animated.View>
+                <Animated.View
+                  style={[
+                    styles.mobileSidebarContainer,
+                    { transform: [{ translateX }] },
+                  ]}
+                >
+                  <Sidebar
+                    currentRole={currentRole}
+                    links={links}
+                    activeScreen={activeScreen}
+                    onNavigate={handleLinkPress}
+                    isMobile={true}
+                    onClose={closeSidebar}
+                    onLogout={promptSignOut}
+                    onRoleSelect={handleRoleSelect}
+                  />
+                </Animated.View>
+              </>
+            )}
+
+            <View style={styles.mainContentArea}>{children}</View>
+          </View>
+
+          {/* Sign Out Confirmation Modal */}
+          <SignOutConfirmModal
+            visible={isSignOutConfirmVisible}
+            loading={isSigningOut}
+            onClose={closeSignOutModal}
+            onConfirm={confirmSignOut}
+          />
+
+          <FloatingMiniCallOverlay
+            activeScreen={activeScreen}
+            onReturnToMeet={() => handleLinkPress("Meet")}
+          />
+
+          {/* Incoming Call Ringing Modal */}
+          <IncomingCallModal
+            onAccept={(code, options) => {
+              acceptIncomingCall(code, handleLinkPress, options);
+            }}
+          />
+
+          {activeScreen !== "AccountSettings" && (
+            <MobileBottomTabBar
+              activeScreen={activeScreen}
+              onNavigate={handleLinkPress}
+              onMenuPress={toggleSidebar}
+            />
+          )}
+        </View>
+      </SafeAreaView>
+    </MeetingSessionProvider>
   );
 }
 

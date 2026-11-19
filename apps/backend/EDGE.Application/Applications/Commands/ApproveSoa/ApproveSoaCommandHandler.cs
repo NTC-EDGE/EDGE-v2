@@ -17,19 +17,22 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly INumberingSeriesService? _numberingSeriesService;
+    private readonly IRegionalConfigurationService? _regionalConfigService;
 
     public ApproveSoaCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
-        INumberingSeriesService? numberingSeriesService = null)
+        INumberingSeriesService? numberingSeriesService = null,
+        IRegionalConfigurationService? regionalConfigService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _numberingSeriesService = numberingSeriesService;
+        _regionalConfigService = regionalConfigService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(ApproveSoaCommand request, CancellationToken cancellationToken)
@@ -124,10 +127,24 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         var staffName = !string.IsNullOrWhiteSpace(userContext.StaffName) ? userContext.StaffName : "Accountant";
         var staffRole = !string.IsNullOrWhiteSpace(userContext.StaffRole) ? userContext.StaffRole : "Accountant";
 
+        string? requestedManualOpNumber = !string.IsNullOrWhiteSpace(request.OpNumber)
+            ? request.OpNumber.Trim()
+            : null;
+
+        if (requestedManualOpNumber != null && _regionalConfigService != null)
+        {
+            var regionalConfig = await _regionalConfigService.GetConfigurationAsync(app.TenantId, cancellationToken);
+            if (!regionalConfig.AllowManualOpNumber)
+            {
+                return ApiResponse<Guid>.Fail("Manual Order of Payment (OP) number entry is currently disabled for this regional office. Please ask your Regional Administrator to enable manual OP numbering in Regional Configuration.");
+            }
+        }
+
         OrderOfPayment? primaryOp = null;
 
-        foreach (var targetSoa in soasToProcess)
+        for (var idx = 0; idx < soasToProcess.Count; idx++)
         {
+            var targetSoa = soasToProcess[idx];
             var prevSoaStatus = targetSoa.Status;
             targetSoa.Status = SoaStatus.Approved;
             targetSoa.ApprovedByUserId = validUserId;
@@ -138,11 +155,29 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
                                  ? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Returned)
                                  : null);
 
+            string? manualOpForTarget = null;
+            if (requestedManualOpNumber != null)
+            {
+                manualOpForTarget = (soasToProcess.Count == 1 || targetSoa.Id == soa.Id)
+                    ? requestedManualOpNumber
+                    : $"{requestedManualOpNumber}-{idx + 1}";
+
+                var duplicateOpExists = await _repository.OpNumberExistsAsync(app.TenantId, manualOpForTarget, existingOp?.Id, cancellationToken);
+                if (duplicateOpExists)
+                {
+                    return ApiResponse<Guid>.Fail($"Order of Payment number '{manualOpForTarget}' is already in use within this regional office.");
+                }
+            }
+
             OrderOfPayment op;
             if (existingOp != null)
             {
                 op = existingOp;
-                if (string.IsNullOrWhiteSpace(op.OpNumber) ||
+                if (!string.IsNullOrWhiteSpace(manualOpForTarget))
+                {
+                    op.OpNumber = manualOpForTarget;
+                }
+                else if (string.IsNullOrWhiteSpace(op.OpNumber) ||
                     op.OpNumber.StartsWith("PENDING", StringComparison.OrdinalIgnoreCase) ||
                     op.OpNumber.StartsWith("OP-TEMP", StringComparison.OrdinalIgnoreCase))
                 {
@@ -168,9 +203,11 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
                     Id = Guid.NewGuid(),
                     ApplicationId = targetSoa.ApplicationId,
                     StatementOfAccountId = targetSoa.Id,
-                    OpNumber = _numberingSeriesService != null
-                        ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId != Guid.Empty ? app.TenantId : (targetSoa.Application?.TenantId ?? Guid.Empty), cancellationToken)
-                        : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+                    OpNumber = !string.IsNullOrWhiteSpace(manualOpForTarget)
+                        ? manualOpForTarget
+                        : (_numberingSeriesService != null
+                            ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId != Guid.Empty ? app.TenantId : (targetSoa.Application?.TenantId ?? Guid.Empty), cancellationToken)
+                            : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}"),
                     AmountDue = targetSoa.TotalAmount,
                     Status = OpStatus.Billed,
                     CreatedAt = DateTime.UtcNow

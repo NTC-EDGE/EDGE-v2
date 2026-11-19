@@ -79,10 +79,23 @@ public class CancelOfficialReceiptCommandHandler : IRequestHandler<CancelOfficia
             var op = await _appRepository.GetOpByIdAsync(receipt.OrderOfPaymentId.Value, cancellationToken);
             if (op != null)
             {
+                var allOpReceipts = await _receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+                var remainingValidReceipts = (allOpReceipts ?? Enumerable.Empty<OfficialReceipt>())
+                    .Where(r => r.Id != receipt.Id && r.Status != ReceiptStatus.Cancelled)
+                    .OrderBy(r => r.IssuedAt)
+                    .ToList();
+
                 var prevOpStatus = op.Status;
-                op.Status = OpStatus.Billed;
-                op.OfficialReceiptNumber = null;
-                op.AmountReceived = 0;
+                var remainingAmount = remainingValidReceipts.Sum(r => r.Amount);
+                var remainingOrNumbers = remainingValidReceipts
+                    .Select(r => r.OfficialReceiptNumber)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Distinct()
+                    .ToList();
+
+                op.AmountReceived = remainingAmount;
+                op.OfficialReceiptNumber = remainingOrNumbers.Count > 0 ? string.Join(", ", remainingOrNumbers) : null;
+                op.Status = remainingValidReceipts.Count > 0 ? OpStatus.Processing : OpStatus.Billed;
                 op.PaidAt = null;
 
                 Guid? validUserId = null;
@@ -97,7 +110,7 @@ public class CancelOfficialReceiptCommandHandler : IRequestHandler<CancelOfficia
                     OrderOfPaymentId = op.Id,
                     Action = $"Official Receipt #{receipt.OfficialReceiptNumber} cancelled. Reason: {receipt.CancellationReason}",
                     FromStatus = prevOpStatus,
-                    ToStatus = OpStatus.Billed,
+                    ToStatus = op.Status,
                     PerformedByUserId = validUserId,
                     StaffName = cashierContext.StaffName,
                     StaffRole = cashierContext.StaffRole,
@@ -108,18 +121,30 @@ public class CancelOfficialReceiptCommandHandler : IRequestHandler<CancelOfficia
                 if (op.Application != null)
                 {
                     var prevAppStatus = op.Application.Status;
-                    op.Application.Status = ApplicationStatus.Approved;
+                    op.Application.Status = ApplicationStatus.PendingPayment;
+                    op.Application.Remarks = $"Official Receipt #{receipt.OfficialReceiptNumber} cancelled ({receipt.CancellationReason}). Returned to Pending Payment.";
+
+                    await _appRepository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = op.ApplicationId,
+                        Status = ApplicationStatus.PendingPayment,
+                        Remarks = op.Application.Remarks,
+                        Timestamp = DateTime.UtcNow,
+                        UserId = validUserId
+                    }, cancellationToken);
 
                     await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
                     {
                         Id = Guid.NewGuid(),
                         ApplicationId = op.ApplicationId,
-                        Action = $"Official Receipt #{receipt.OfficialReceiptNumber} cancelled. Status reverted to Approved.",
+                        Action = $"Official Receipt #{receipt.OfficialReceiptNumber} cancelled. Status reverted to Pending Payment.",
                         FromStatus = prevAppStatus,
-                        ToStatus = ApplicationStatus.Approved,
-                        PerformedByUserId = cashierContext.UserId,
+                        ToStatus = ApplicationStatus.PendingPayment,
+                        PerformedByUserId = validUserId,
                         StaffName = cashierContext.StaffName,
                         StaffRole = cashierContext.StaffRole,
+                        Remarks = receipt.CancellationReason,
                         Timestamp = DateTime.UtcNow
                     }, cancellationToken);
                 }
