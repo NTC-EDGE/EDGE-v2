@@ -9,6 +9,7 @@ using EDGE.Domain.Constants;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Applications.Dtos;
+using EDGE.Application.Forms.Dtos;
 using EDGE.Application.Forms.Services;
 
 namespace EDGE.Application.Applications.Queries.GetApplicantServiceFormSubmission;
@@ -156,6 +157,7 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
                             OrderIndex = sf.OrderIndex,
                             ValidationRules = sf.Field?.ValidationRules,
                             VisibilityCondition = sf.VisibilityCondition,
+                            Options = FormFieldDto.ExtractOptions(sf.Field?.ValidationRules),
                             Value = valueMap.TryGetValue(sf.FieldId, out var val) ? val : null
                         }).ToList()
                 }).ToList()

@@ -1293,6 +1293,9 @@ export interface ApplicationSummaryDto {
   orNumbers?: string[];
   soaNumber?: string;
   opNumber?: string;
+  opStatus?: string;
+  orderOfPaymentId?: string;
+  payorName?: string;
   amountPaid?: number;
   paidAt?: string;
   totalAmountDue?: number;

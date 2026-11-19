@@ -189,7 +189,7 @@ public class TenantRepository : ITenantRepository
     {
         var soas = await _context.StatementsOfAccount
             .AsNoTracking()
-            .Where(s => s.Application.TenantId == tenantId)
+            .Where(s => (tenantId == Guid.Empty || s.Application.TenantId == tenantId) && !s.IsDeleted)
             .Include(s => s.Application)
                 .ThenInclude(a => a.User)
             .Include(s => s.Application)
@@ -207,18 +207,64 @@ public class TenantRepository : ITenantRepository
 
         var ops = await _context.OrdersOfPayment
             .AsNoTracking()
-            .Where(op => op.Application.TenantId == tenantId || soaIds.Contains(op.StatementOfAccountId))
+            .Where(op => tenantId == Guid.Empty || op.Application.TenantId == tenantId || soaIds.Contains(op.StatementOfAccountId))
             .Include(op => op.Application)
                 .ThenInclude(a => a.User)
+            .Include(op => op.Application)
+                .ThenInclude(a => a.ApplicationApplicants)
+                    .ThenInclude(aa => aa.Applicant)
+                        .ThenInclude(app => app!.Service)
             .Include(op => op.StatementOfAccount)
             .OrderByDescending(op => op.CreatedAt)
             .ToListAsync(cancellationToken);
 
+        var receipts = await _context.OfficialReceipts
+            .AsNoTracking()
+            .Where(r => (tenantId == Guid.Empty || r.TenantId == tenantId || (r.Application != null && r.Application.TenantId == tenantId)) && r.Status != Domain.Enums.ReceiptStatus.Cancelled)
+            .Include(r => r.LineItems)
+            .Include(r => r.OrderOfPayment)
+            .Include(r => r.Application)
+                .ThenInclude(a => a!.ApplicationApplicants)
+                    .ThenInclude(aa => aa.Applicant)
+                        .ThenInclude(app => app!.Service)
+            .OrderByDescending(r => r.IssuedAt)
+            .ToListAsync(cancellationToken);
+
         var txList = new List<EDGE.Application.Tenants.DTOs.TenantTransactionDto>();
         var coveredApplicationIds = new HashSet<Guid>();
+        var coveredOpIds = new HashSet<Guid>();
+        var coveredOrNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var r in receipts)
+        {
+            if (r.ApplicationId.HasValue) coveredApplicationIds.Add(r.ApplicationId.Value);
+            if (r.OrderOfPaymentId.HasValue) coveredOpIds.Add(r.OrderOfPaymentId.Value);
+            if (!string.IsNullOrWhiteSpace(r.OfficialReceiptNumber)) coveredOrNumbers.Add(r.OfficialReceiptNumber.Trim());
+
+            var appServiceName = r.Application?.ApplicationApplicants?.FirstOrDefault()?.Applicant?.Service?.Name;
+            var lineDescriptions = r.LineItems != null && r.LineItems.Count > 0
+                ? string.Join(", ", r.LineItems.Select(li => li.Description).Where(d => !string.IsNullOrWhiteSpace(d)).Distinct())
+                : null;
+            var serviceType = !string.IsNullOrWhiteSpace(appServiceName) && !string.IsNullOrWhiteSpace(lineDescriptions)
+                ? $"{appServiceName} ({lineDescriptions})"
+                : appServiceName ?? lineDescriptions ?? r.Remarks ?? "Regulatory Collection";
+
+            txList.Add(new EDGE.Application.Tenants.DTOs.TenantTransactionDto(
+                Id: r.Id,
+                RefNo: !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber) ? r.OfficialReceiptNumber : $"OR-{r.Id.ToString()[..8].ToUpper()}",
+                ApplicantName: !string.IsNullOrWhiteSpace(r.PayorName) ? r.PayorName : "Payor",
+                ServiceType: serviceType,
+                Amount: r.Amount,
+                PaymentStatus: "Paid",
+                Date: r.IssuedAt
+            ));
+        }
 
         foreach (var op in ops)
         {
+            if (coveredOpIds.Contains(op.Id)) continue;
+            if (!string.IsNullOrWhiteSpace(op.OfficialReceiptNumber) && coveredOrNumbers.Contains(op.OfficialReceiptNumber.Trim())) continue;
+
             var app = op.Application;
             if (app != null) coveredApplicationIds.Add(app.Id);
 
@@ -234,8 +280,11 @@ public class TenantRepository : ITenantRepository
 
             var serviceType = app?.ApplicationApplicants?.FirstOrDefault()?.Applicant?.Service?.Name ?? "Regulatory Permit Fee";
             var amount = op.AmountReceived > 0 ? op.AmountReceived : op.AmountDue;
-            var paymentStatus = op.Status == Domain.Enums.OpStatus.Paid ? "Paid" : "Pending";
-            var date = op.LastModifiedAt ?? op.PaidAt ?? op.CreatedAt;
+            var isPaidOp = op.Status == Domain.Enums.OpStatus.Paid
+                || !string.IsNullOrWhiteSpace(op.OfficialReceiptNumber)
+                || (app != null && (app.Status == Domain.Enums.ApplicationStatus.ForIssuance || app.Status == Domain.Enums.ApplicationStatus.Approved || app.Status == Domain.Enums.ApplicationStatus.Completed));
+            var paymentStatus = isPaidOp ? "Paid" : "Pending";
+            var date = op.PaidAt ?? op.LastModifiedAt ?? op.CreatedAt;
 
             txList.Add(new EDGE.Application.Tenants.DTOs.TenantTransactionDto(
                 Id: op.Id,
@@ -262,48 +311,15 @@ public class TenantRepository : ITenantRepository
                               ?? soa.Applicant?.Service?.Name
                               ?? "Regulatory Permit & Fee Assessment";
             var amount = soa.TotalAmount;
-            var paymentStatus = soa.Status == Domain.Enums.SoaStatus.Approved ? "Assessed" : "Pending";
+            var isAppPaid = soa.Application != null && (
+                soa.Application.Status == Domain.Enums.ApplicationStatus.ForIssuance ||
+                soa.Application.Status == Domain.Enums.ApplicationStatus.Approved ||
+                soa.Application.Status == Domain.Enums.ApplicationStatus.Completed);
+            var paymentStatus = isAppPaid ? "Paid" : (soa.Status == Domain.Enums.SoaStatus.Approved ? "Assessed" : "Pending");
             var date = soa.LastModifiedAt ?? soa.CreatedAt;
 
             txList.Add(new EDGE.Application.Tenants.DTOs.TenantTransactionDto(
                 Id: soa.Id,
-                RefNo: refNo,
-                ApplicantName: applicantName,
-                ServiceType: serviceType,
-                Amount: amount,
-                PaymentStatus: paymentStatus,
-                Date: date
-            ));
-        }
-
-        var applications = await _context.Applications
-            .AsNoTracking()
-            .Where(a => a.TenantId == tenantId && !coveredApplicationIds.Contains(a.Id))
-            .Include(a => a.User)
-            .Include(a => a.ApplicationApplicants)
-                .ThenInclude(aa => aa.Applicant)
-                    .ThenInclude(app => app!.Service)
-            .OrderByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
-            .ToListAsync(cancellationToken);
-
-        foreach (var app in applications)
-        {
-            var applicantName = app.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : "Client Entity";
-            if (string.IsNullOrWhiteSpace(applicantName) && app.User != null) applicantName = app.User.Email;
-
-            var refNo = !string.IsNullOrWhiteSpace(app.ReferenceNumber)
-                ? app.ReferenceNumber
-                : !string.IsNullOrWhiteSpace(app.ApplicationNumber)
-                    ? app.ApplicationNumber
-                    : $"APP-{app.Id.ToString()[..8].ToUpper()}";
-
-            var serviceType = app.ApplicationApplicants?.FirstOrDefault()?.Applicant?.Service?.Name ?? "Radio Operator / Station Permit";
-            var amount = 0m;
-            var paymentStatus = app.Status == Domain.Enums.ApplicationStatus.Approved || app.Status == Domain.Enums.ApplicationStatus.Completed ? "Paid" : "Pending";
-            var date = app.LastModifiedAt ?? app.CreatedAt;
-
-            txList.Add(new EDGE.Application.Tenants.DTOs.TenantTransactionDto(
-                Id: app.Id,
                 RefNo: refNo,
                 ApplicantName: applicantName,
                 ServiceType: serviceType,

@@ -217,7 +217,7 @@ export function parseOptions(field: FieldDto): Array<{ label: string; value: str
       const rawName = item["name"];
       const rawValue = item["value"];
       const rawId = item["id"];
-      const label =
+      let label =
         typeof rawLabel === "string"
           ? rawLabel.trim()
           : typeof rawName === "string"
@@ -225,12 +225,19 @@ export function parseOptions(field: FieldDto): Array<{ label: string; value: str
           : typeof rawValue === "string"
           ? rawValue.trim()
           : "";
-      const value =
+      let value =
         typeof rawValue === "string"
           ? rawValue.trim()
           : typeof rawId === "string"
           ? rawId.trim()
           : label;
+      const isDefaultLabel = /^option\s*\d+$/i.test(label);
+      const isDefaultVal = /^option[_\s]*\d+$/i.test(value);
+      if (isDefaultLabel && value.length > 0 && !isDefaultVal) {
+        label = value;
+      } else if (isDefaultVal && label.length > 0 && !isDefaultLabel) {
+        value = label;
+      }
       if (label.length > 0 || value.length > 0) {
         return {
           label: label.length > 0 ? label : value,
@@ -241,21 +248,7 @@ export function parseOptions(field: FieldDto): Array<{ label: string; value: str
     return null;
   };
 
-  // 1. Direct field.options (if provided in DTO)
-  if (field.options !== null && field.options !== undefined && Array.isArray(field.options) && field.options.length > 0) {
-    const list: Array<{ label: string; value: string }> = [];
-    for (let i = 0; i < field.options.length; i++) {
-      const norm = normalizeItem(field.options[i]);
-      if (norm !== null) {
-        list.push(norm);
-      }
-    }
-    if (list.length > 0) {
-      return list;
-    }
-  }
-
-  // 2. Parsed from validationRules (supports raw JSON array string and { options: [...] } envelope, string or object)
+  // 1. Parsed from validationRules (always reflects the latest saved Form Builder JSON)
   if (field.validationRules !== null && field.validationRules !== undefined) {
     let parsed: unknown = field.validationRules;
     if (typeof parsed === "string" && parsed.trim().length > 0) {
@@ -290,6 +283,20 @@ export function parseOptions(field: FieldDto): Array<{ label: string; value: str
       if (list.length > 0) {
         return list;
       }
+    }
+  }
+
+  // 2. Direct field.options fallback (if provided in DTO)
+  if (field.options !== null && field.options !== undefined && Array.isArray(field.options) && field.options.length > 0) {
+    const list: Array<{ label: string; value: string }> = [];
+    for (let i = 0; i < field.options.length; i++) {
+      const norm = normalizeItem(field.options[i]);
+      if (norm !== null) {
+        list.push(norm);
+      }
+    }
+    if (list.length > 0) {
+      return list;
     }
   }
 
@@ -596,24 +603,27 @@ export function matchesVariantRule(v: string, context: FormEvaluationContext): b
     return true;
   }
 
-  // 3. Parentheses handling: e.g. v = "Commercial Broadcast (New)"
+  // 3. Parentheses handling: e.g. v = "Commercial Broadcast (New)" or "Radio Operator Certificates (ROC) (New)"
   if (v.includes("(")) {
-    const vParenMatch = v.match(/\(([^)]+)\)/);
+    const vParenMatch = v.match(/\(([^()]+)\)\s*$/) ?? v.match(/\(([^)]+)\)/);
     const parenContent = vParenMatch ? normalizeAlphaNum(vParenMatch[1]) : "";
-    const baseContent = normalizeAlphaNum(v.replace(/\([^)]*\)/g, ""));
+    const baseContent = normalizeAlphaNum(v.replace(/\([^()]*\)\s*$/, ""));
 
-    // Both base and paren must match context if both exist
     const baseMatches =
       baseContent.length >= 3 &&
       ((normDesc.length >= 3 && (normDesc.includes(baseContent) || baseContent.includes(normDesc))) ||
-        (normName.length >= 3 && (normName.includes(baseContent) || baseContent.includes(normName))));
+        (normName.length >= 3 && (normName.includes(baseContent) || baseContent.includes(normName))) ||
+        (normCombined.length >= 3 && (normCombined.includes(baseContent) || baseContent.includes(normCombined))));
 
-    const parenMatches = parenContent.length > 0 && normType.length > 0 && parenContent === normType;
+    const isNaParen = parenContent === "na";
+    const parenMatches =
+      (parenContent.length > 0 && normType.length > 0 && parenContent === normType) ||
+      (isNaParen && (normType.length === 0 || normType === "na")) ||
+      (normType.length === 0 && parenContent.length > 0);
 
     if (baseMatches && parenMatches) {
       return true;
     }
-    return false;
   }
 
   // 4. Containment match for non-parenthesized rules (e.g. v = "Commercial Broadcast")

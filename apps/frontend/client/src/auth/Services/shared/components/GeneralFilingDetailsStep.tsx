@@ -68,8 +68,15 @@ export function GeneralFilingDetailsStep({
 
   const effectiveForm: FormDto | null = form && form.sections && form.sections.length > 0 ? form : null;
 
-  const { sexOptions, civilStatusOptions, suffixOptions } = useMemo(() => {
-    if (!effectiveForm?.sections) return { sexOptions: undefined, civilStatusOptions: undefined, suffixOptions: undefined };
+  const { sexOptions, civilStatusOptions, suffixOptions, nationalityOptions } = useMemo(() => {
+    if (!effectiveForm?.sections) {
+      return {
+        sexOptions: undefined,
+        civilStatusOptions: undefined,
+        suffixOptions: undefined,
+        nationalityOptions: undefined,
+      };
+    }
 
     const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
     const effectiveVariantName =
@@ -83,6 +90,7 @@ export function GeneralFilingDetailsStep({
       serviceTitle: service.title,
       serviceName: effectiveForm.serviceName || service.title,
       serviceCode: effectiveForm.serviceCode || service.code,
+      applicationType: matchedVariantItem?.type ? String(matchedVariantItem.type) : effectiveVariantName,
       variantType: matchedVariantItem?.type ? String(matchedVariantItem.type) : undefined,
       variantId: activeApplicant.selectedVariantId || effectiveForm.serviceVariantId,
       variantName: effectiveVariantName || effectiveForm.serviceVariantName,
@@ -93,26 +101,43 @@ export function GeneralFilingDetailsStep({
     let sOpts: Array<{ label: string; value: string }> | undefined;
     let csOpts: Array<{ label: string; value: string }> | undefined;
     let sufOpts: Array<{ label: string; value: string }> | undefined;
+    let natOpts: Array<{ label: string; value: string }> | undefined;
+
+    let fallbackSOpts: Array<{ label: string; value: string }> | undefined;
+    let fallbackCsOpts: Array<{ label: string; value: string }> | undefined;
+    let fallbackSufOpts: Array<{ label: string; value: string }> | undefined;
+    let fallbackNatOpts: Array<{ label: string; value: string }> | undefined;
 
     for (const sec of effectiveForm.sections) {
       for (const f of sec.fields || []) {
-        if (!isFieldContextVisible(f, sec, ctx)) continue;
         const idLower = (f.fieldId || f.id || "").toLowerCase();
         const lblLower = (f.label || "").toLowerCase();
         const opts = parseOptions(f);
-        if (opts.length > 0) {
-          if (!sOpts && (idLower.includes("sex") || idLower.includes("gender") || lblLower === "sex" || lblLower === "gender")) {
-            sOpts = opts;
-          } else if (!csOpts && (idLower.includes("civilstatus") || idLower.includes("civil_status") || lblLower.includes("civil status"))) {
-            csOpts = opts;
-          } else if (!sufOpts && (idLower.includes("suffix") || lblLower.includes("suffix"))) {
-            sufOpts = opts;
-          }
+        if (opts.length === 0) continue;
+
+        const isVisible = isFieldContextVisible(f, sec, ctx);
+        if (idLower.includes("sex") || idLower.includes("gender") || lblLower === "sex" || lblLower === "gender") {
+          fallbackSOpts = opts;
+          if (isVisible) sOpts = opts;
+        } else if (idLower.includes("civilstatus") || idLower.includes("civil_status") || lblLower.includes("civil status")) {
+          fallbackCsOpts = opts;
+          if (isVisible) csOpts = opts;
+        } else if (idLower.includes("suffix") || lblLower.includes("suffix")) {
+          fallbackSufOpts = opts;
+          if (isVisible) sufOpts = opts;
+        } else if (idLower.includes("nationality") || idLower.includes("citizenship") || lblLower.includes("nationality") || lblLower.includes("citizenship")) {
+          fallbackNatOpts = opts;
+          if (isVisible) natOpts = opts;
         }
       }
     }
 
-    return { sexOptions: sOpts, civilStatusOptions: csOpts, suffixOptions: sufOpts };
+    return {
+      sexOptions: sOpts ?? fallbackSOpts,
+      civilStatusOptions: csOpts ?? fallbackCsOpts,
+      suffixOptions: sufOpts ?? fallbackSufOpts,
+      nationalityOptions: natOpts ?? fallbackNatOpts,
+    };
   }, [
     effectiveForm,
     variants,
@@ -448,6 +473,7 @@ export function GeneralFilingDetailsStep({
         sexOptions={sexOptions}
         civilStatusOptions={civilStatusOptions}
         suffixOptions={suffixOptions}
+        nationalityOptions={nationalityOptions}
       />
 
       {/* 2. Dynamic Service Specifications Section (100% Schema-Driven from Form Builder) */}

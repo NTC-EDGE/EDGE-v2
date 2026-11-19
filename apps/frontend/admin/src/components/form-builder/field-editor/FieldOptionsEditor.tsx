@@ -13,11 +13,17 @@ export function FieldOptionsEditor({
   field: FormField;
   onUpdateField: (updates: Partial<FormField>) => void;
 }) {
-  const handleOptionChange = (optionId: string, key: "label" | "value", value: string) => {
+  const handleOptionChange = (optionId: string, value: string) => {
     if (!field.options) return;
     onUpdateField({
       options: field.options.map((opt) =>
-        opt.id === optionId ? { ...opt, [key]: value } : opt
+        opt.id === optionId
+          ? {
+              ...opt,
+              label: value,
+              value,
+            }
+          : opt
       ),
     });
   };
@@ -27,7 +33,7 @@ export function FieldOptionsEditor({
     const newOption = {
       id: generateId(),
       label: `Option ${nextIdx}`,
-      value: `option_${nextIdx}`,
+      value: `Option ${nextIdx}`,
     };
     onUpdateField({ options: [...(field.options ?? []), newOption] });
   };
@@ -83,21 +89,22 @@ export function FieldOptionsEditor({
                 <ChevronDown className="w-3 h-3" />
               </button>
             </div>
+            <span className="text-[10px] font-bold text-slate-400 font-mono px-1 shrink-0">
+              #{idx + 1}
+            </span>
             <input
               type="text"
-              value={option.label}
-              onChange={(e) => handleOptionChange(option.id, "label", e.target.value)}
+              value={
+                /^option\s*\d+$/i.test((option.label ?? "").trim()) &&
+                option.value &&
+                !/^option[_\s]*\d+$/i.test(option.value.trim())
+                  ? option.value
+                  : option.label
+              }
+              onChange={(e) => handleOptionChange(option.id, e.target.value)}
               className={`${inputClass} flex-1`}
-              placeholder="Display Label"
-              title="Display Label"
-            />
-            <input
-              type="text"
-              value={option.value}
-              onChange={(e) => handleOptionChange(option.id, "value", e.target.value)}
-              className={`${inputClass} w-24 font-mono text-[11px]`}
-              placeholder="Value Code"
-              title="Stored Value Code"
+              placeholder={`Option ${idx + 1}`}
+              title="Option Choice Text"
             />
             <button
               type="button"

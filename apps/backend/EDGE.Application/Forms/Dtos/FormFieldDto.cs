@@ -65,6 +65,26 @@ public class FormFieldDto
 
                         if (string.IsNullOrEmpty(label) && !string.IsNullOrEmpty(val)) label = val;
                         if (string.IsNullOrEmpty(val) && !string.IsNullOrEmpty(label)) val = label;
+                        if (!string.IsNullOrEmpty(label) && !string.IsNullOrEmpty(val))
+                        {
+                            bool isDefaultLabel = System.Text.RegularExpressions.Regex.IsMatch(
+                                label.Trim(),
+                                @"^Option\s*\d+$",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                            bool isDefaultVal = System.Text.RegularExpressions.Regex.IsMatch(
+                                val.Trim(),
+                                @"^option[_\s]*\d+$",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                            if (isDefaultLabel && !isDefaultVal)
+                            {
+                                label = val;
+                            }
+                            else if (isDefaultVal && !isDefaultLabel)
+                            {
+                                val = label;
+                            }
+                        }
 
                         if (!string.IsNullOrEmpty(label) || !string.IsNullOrEmpty(val))
                         {

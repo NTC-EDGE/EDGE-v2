@@ -120,7 +120,7 @@ export function useFormSaveAndNavigation(params: {
           baseFormId: undefined,
           name: formToSave.name,
           version: formToSave.version || "1.0",
-          isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
+          isActive: formToSave.isActive ?? formToSave.isPublished ?? true,
           categorySelectionRequired: false,
           sections,
         };
@@ -128,6 +128,17 @@ export function useFormSaveAndNavigation(params: {
         try {
           const updateRes = await updateForm(formToSave.id, payload);
           if (updateRes && updateRes.succeeded) {
+            if (updateRes.data) {
+              const freshSchema = convertBackendFormToSchema(updateRes.data);
+              current = {
+                ...freshSchema,
+                name: formToSave.name || freshSchema.name,
+                description: formToSave.description || freshSchema.description,
+                serviceName: formToSave.serviceName || freshSchema.serviceName,
+                serviceCode: formToSave.serviceCode || freshSchema.serviceCode,
+              };
+              setActiveForm(current);
+            }
             await mutate();
             setMasterBaseForm(current);
             return { success: true, message: updateRes.message || "Form template updated successfully.", form: current };

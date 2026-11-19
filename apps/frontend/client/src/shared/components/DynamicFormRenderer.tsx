@@ -231,12 +231,17 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         fIdLower === "fd000000-0000-0000-0000-000000000245" ||
         labelLower === "type" ||
         labelLower.includes("permit type"));
+    const isExplicitSelect =
+      rawType === "dropdown" ||
+      rawType === "select" ||
+      rawType === "radio";
     const isNatureOfComplaintField =
-      fIdLower === "complaint_types" ||
-      fIdLower === "fd000000-0000-0000-0000-000000000327" ||
-      labelLower === "nature of complaint" ||
-      labelLower.includes("nature of complaint") ||
-      labelLower.includes("complaint category");
+      !isExplicitSelect &&
+      (fIdLower === "complaint_types" ||
+        fIdLower === "fd000000-0000-0000-0000-000000000327" ||
+        labelLower === "nature of complaint" ||
+        labelLower.includes("nature of complaint") ||
+        labelLower.includes("complaint category"));
     const isOthersSpecificationField =
       fIdLower === "others_specification" ||
       fIdLower === "fd000000-0000-0000-0000-000000000328" ||
@@ -283,8 +288,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
     const isBsdField = fIdLower.includes("bsd") || labelLower.includes("bsd no");
     const isVasRegField = fIdLower.includes("vasregistration") || fIdLower.includes("vasregno");
-    const isIntendedUseField = fIdLower.includes("intendeduse") || labelLower.includes("intended use");
-    const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
+    const isIntendedUseField = !isExplicitSelect && (fIdLower.includes("intendeduse") || labelLower.includes("intended use"));
+    const isVasServicesField = !isExplicitSelect && (fIdLower.includes("valueaddedservices") || labelLower.includes("value added service"));
     const parsedFieldOptions = parseOptions(field);
     const isSignature = rawType === "signature" || labelLower.includes("signature");
     const isCheckbox =
@@ -411,13 +416,22 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         labelLower.includes("particular") ||
         rawTargetId === "fd000000-0000-0000-0000-000000000340");
 
-    const customRepeaterColumns = isAmateurPurchaseParticulars
+    const baseCustomRepeaterColumns = isAmateurPurchaseParticulars
       ? DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS
       : isAmateurSellTransferParticulars
       ? DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS
       : isAmateurVanityParticulars
       ? DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS
       : undefined;
+
+    const customRepeaterColumns =
+      baseCustomRepeaterColumns && parsedFieldOptions.length > 0
+        ? baseCustomRepeaterColumns.map((col) =>
+            col.key === "stationClass" || col.key === "classOfStation"
+              ? { ...col, options: parsedFieldOptions }
+              : col
+          )
+        : baseCustomRepeaterColumns;
 
     const customAddButtonLabel =
       isAmateurPurchaseParticulars || isAmateurSellTransferParticulars
@@ -526,15 +540,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     );
   };
 
-  const visibleSections = sections.filter((sec) => {
-    if (!sec) return false;
+  const isPersonalInfoSection = (sec: FormSectionDto): boolean => {
     const k = (sec.key || sec.id || "").trim().toLowerCase();
     const t = (sec.title || "").trim().toLowerCase();
-    if (hideSections.includes(k) || hideSections.includes(t)) return false;
-
-    // Personal Information is kept separately in ApplicantInformationFormSection.
-    // All other sections configured in Form Builder remain available on client.
-    const isPersonalInfoSec =
+    return (
       k === "applicant" ||
       k === "applicantperson" ||
       k === "applicantparticulars" ||
@@ -543,10 +552,89 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       k === "applicant_information" ||
       t === "applicant particulars" ||
       t === "applicant details" ||
-      t === "applicant information";
+      t === "applicant information"
+    );
+  };
 
-    if (isPersonalInfoSec) {
-      return false;
+  const isStandardPersonalProfileField = (field: FieldDto): boolean => {
+    const idLower = (field.fieldId || field.id || "").trim().toLowerCase();
+    const lblLower = (field.label || "").trim().toLowerCase();
+    if (!lblLower && !idLower) return true;
+
+    const standardExactOrSubstrings = [
+      "first name",
+      "firstname",
+      "middle name",
+      "middlename",
+      "last name",
+      "lastname",
+      "suffix",
+      "full name",
+      "fullname",
+      "applicant name",
+      "applicantname",
+      "name of applicant",
+      "company name",
+      "companyname",
+      "business name",
+      "businessname",
+      "registered business",
+      "representative",
+      "designation",
+      "position",
+      "sec / dti",
+      "dti / sec",
+      "dtisec",
+      "birth",
+      "date of birth",
+      "dob",
+      "sex",
+      "gender",
+      "civil status",
+      "civilstatus",
+      "marital",
+      "nationality",
+      "citizenship",
+      "contact no",
+      "contact number",
+      "contactnumber",
+      "mobile",
+      "telephone",
+      "phone",
+      "email",
+      "region",
+      "province",
+      "city",
+      "municipality",
+      "barangay",
+      "street",
+      "unit",
+      "building",
+      "address",
+      "zip",
+      "postal",
+      "signature",
+      "declaration",
+    ];
+
+    return standardExactOrSubstrings.some(
+      (kw) => lblLower === kw || lblLower.includes(kw) || idLower === kw || idLower.includes(kw)
+    );
+  };
+
+  const visibleSections = sections.filter((sec) => {
+    if (!sec) return false;
+    const k = (sec.key || sec.id || "").trim().toLowerCase();
+    const t = (sec.title || "").trim().toLowerCase();
+    if (hideSections.includes(k) || hideSections.includes(t)) return false;
+
+    if (isPersonalInfoSection(sec)) {
+      const hasCustomFields = (sec.fields || []).some(
+        (f) => !isStandardPersonalProfileField(f) && isFieldRowVisible(f, sec, evaluationContext)
+      );
+      if (!hasCustomFields) {
+        return false;
+      }
     }
 
     return evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext);
@@ -555,10 +643,23 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   return (
     <View style={styles.container}>
       {visibleSections.map((section, sIdx) => {
-        const rawFields = section.fields || [];
-        const visibleFields = rawFields.filter((f) => {
+        const isPersonalSec = isPersonalInfoSection(section);
+        const rawFields = (section.fields || []).filter(
+          (f) => !isPersonalSec || !isStandardPersonalProfileField(f)
+        );
+        const candidateFields = rawFields.filter((f) => {
           return isFieldRowVisible(f, section, evaluationContext);
         });
+
+        // Deduplicate fields in the same section sharing the same normalized label & type (keep the latest/variant-forked entry)
+        const dedupedByLabel = new Map<string, FieldDto>();
+        candidateFields.forEach((f, idx) => {
+          const lblKey = (f.label || "").trim().toLowerCase();
+          const typeKey = (f.fieldType || f.type || "text").trim().toLowerCase();
+          const mapKey = lblKey.length > 0 ? `${lblKey}::${typeKey}` : `idx-${idx}`;
+          dedupedByLabel.set(mapKey, f);
+        });
+        const visibleFields = Array.from(dedupedByLabel.values());
 
         if (visibleFields.length === 0) {
           // If all fields in this section are conditionally hidden for the current variant, hide the section

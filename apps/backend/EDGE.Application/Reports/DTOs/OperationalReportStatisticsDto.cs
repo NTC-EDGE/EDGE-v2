@@ -47,10 +47,19 @@ public record StatutoryReportSummaryDto(
     decimal? TotalAmount
 );
 
+public record ReportFieldOfficeDto(
+    Guid Id,
+    string Name,
+    string Code,
+    string Category,
+    bool IsActive
+);
+
 public record OperationalReportStatisticsDto(
     string TenantDisplayName,
     KpiSummaryDto Summary,
     List<CategoryBreakdownDto> CategoryBreakdown,
     List<PeriodicStatBucketDto> PeriodicStatistics,
-    List<StatutoryReportSummaryDto> StatutoryReports
+    List<StatutoryReportSummaryDto> StatutoryReports,
+    List<ReportFieldOfficeDto>? FieldOffices = null
 );

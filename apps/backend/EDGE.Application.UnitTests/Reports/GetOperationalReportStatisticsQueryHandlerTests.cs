@@ -202,8 +202,18 @@ public class GetOperationalReportStatisticsQueryHandlerTests
         marchBucket.TotalApplications.Should().Be(3);
         marchBucket.TotalRevenue.Should().Be(5000m);
 
-        // Statutory report summaries: 6 standard forms
-        data.StatutoryReports.Should().HaveCount(6);
+        // Statutory report summaries: 16 standard forms (10 regional + 6 general)
+        data.StatutoryReports.Should().HaveCount(16);
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-MIS-OPS");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-COA-APP26-M");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-COA-APP26-D");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-BIR-DST-01");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-BTR-INC-01");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-APP-SUM-EVAL");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-APP-SUM-SVC");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-APP-SUM-ENT");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-APP-VOL-01");
+        data.StatutoryReports.Should().Contain(r => r.Code == "NTC-EXAM-MST-01");
         data.StatutoryReports.Should().Contain(r => r.Code == "NTC-BAR-1");
         data.StatutoryReports.Should().Contain(r => r.Code == "NTC-BTr-COA-01");
         data.StatutoryReports.Should().Contain(r => r.Code == "ARTA-RA-11032");

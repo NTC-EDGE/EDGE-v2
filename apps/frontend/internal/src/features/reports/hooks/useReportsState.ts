@@ -5,6 +5,10 @@ import {
   useTenantTransactions,
   useAdminFeedback,
   useOperationalReportStatistics,
+  useOfficialReceipts,
+  useBankDeposits,
+  useTenants,
+  useAdminFieldOffices,
   ApplicationSummaryDto,
   TenantTransactionDto,
   FeedbackDto,
@@ -21,6 +25,11 @@ import {
   downloadCsvFile,
   generateStatutoryPrintableHtml,
   openPrintableReportWindow,
+  getPaidTransactions,
+  resolveEvaluatorName,
+  resolveServiceName,
+  resolveEntityName,
+  filterApplicationsForStatutoryReport,
 } from '../utils/statutoryReportGenerator';
 
 export type ReportType = 'applications' | 'financial' | 'compliance' | 'satisfaction' | 'statutory';
@@ -49,28 +58,72 @@ export interface PeriodicStatBucket {
   avgCsat: string;
 }
 
+export interface FieldOfficeFilterOption {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  isMainOffice: boolean;
+  applicationCount: number;
+}
+
 export function useReportsState() {
   const { user } = useAuthContext();
   const [reportType, setReportType] = useState<ReportType>('statutory');
-  const [periodMode, setPeriodMode] = useState<PeriodMode>('monthly');
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('yearly');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedQuarter, setSelectedQuarter] = useState<number>(1);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
-  const [timeRange, setTimeRange] = useState<TimeRangeFilter>('30d');
+  const [timeRange, setTimeRange] = useState<TimeRangeFilter>('ytd');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [selectedPeriod, setSelectedPeriod] = useState<StatutoryPeriod>('Q1 2026');
+  const [selectedPeriodState, setSelectedPeriodState] = useState<StatutoryPeriod>('Annual 2026');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [startDate, setStartDate] = useState<string>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
-  );
-  const [endDate, setEndDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [startDate, setStartDate] = useState<string>('2026-01-01');
+  const [endDate, setEndDate] = useState<string>('2026-12-31');
   const [selectedEvaluatorId, setSelectedEvaluatorId] = useState<string | undefined>(undefined);
   const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined);
   const [selectedApplicantId, setSelectedApplicantId] = useState<string | undefined>(undefined);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | undefined>(undefined);
+  const [selectedFieldOffices, setSelectedFieldOffices] = useState<string[]>([]);
+
+  const setSelectedPeriod = useCallback((period: StatutoryPeriod) => {
+    setSelectedPeriodState(period);
+    if (period === 'Q1 2026') {
+      setPeriodMode('quarterly');
+      setSelectedYear(2026);
+      setSelectedQuarter(1);
+      setStartDate('2026-01-01');
+      setEndDate('2026-03-31');
+    } else if (period === 'Q2 2026') {
+      setPeriodMode('quarterly');
+      setSelectedYear(2026);
+      setSelectedQuarter(2);
+      setStartDate('2026-04-01');
+      setEndDate('2026-06-30');
+    } else if (period === 'Q3 2026') {
+      setPeriodMode('quarterly');
+      setSelectedYear(2026);
+      setSelectedQuarter(3);
+      setStartDate('2026-07-01');
+      setEndDate('2026-09-30');
+    } else if (period === 'Q4 2026') {
+      setPeriodMode('quarterly');
+      setSelectedYear(2026);
+      setSelectedQuarter(4);
+      setStartDate('2026-10-01');
+      setEndDate('2026-12-31');
+    } else {
+      setPeriodMode('yearly');
+      setSelectedYear(2026);
+      setSelectedQuarter(1);
+      setStartDate('2026-01-01');
+      setEndDate('2026-12-31');
+    }
+  }, []);
+
+  const selectedPeriod = selectedPeriodState;
+
   const [statutoryModal, setStatutoryModal] = useState<{
     visible: boolean;
     report: StatutoryReportMetadata | null;
@@ -80,6 +133,11 @@ export function useReportsState() {
   });
   const pageSize = 10;
 
+  const fieldOfficesQueryParam = useMemo(() => {
+    if (selectedFieldOffices.length === 0) return undefined;
+    return selectedFieldOffices.join(',');
+  }, [selectedFieldOffices]);
+
   // Server-Aggregated Operational Reports Statistics (Single Source of Truth)
   const {
     data: serverStats,
@@ -88,13 +146,20 @@ export function useReportsState() {
   } = useOperationalReportStatistics({
     tenantId: user?.tenantId,
     periodMode,
-    startDate,
-    endDate,
+    startDate: periodMode === 'custom' ? startDate : undefined,
+    endDate: periodMode === 'custom' ? endDate : undefined,
     year: selectedYear,
     quarter: selectedQuarter,
     month: selectedMonth + 1,
     category: categoryFilter !== 'all' ? categoryFilter : undefined,
+    fieldOffices: fieldOfficesQueryParam,
   });
+
+  // Live Field Offices of the authenticated tenant (for monitoring filter)
+  const {
+    fieldOffices: adminFieldOffices,
+    refetch: refetchFieldOffices,
+  } = useAdminFieldOffices(user?.tenantId ?? undefined);
 
   // Live Applications Data (Filtered strictly by authenticated tenant and regional scope)
   const {
@@ -105,7 +170,7 @@ export function useReportsState() {
   } = useAdminApplications({
     tenantId: user?.tenantId,
     scope: 'region',
-    pageSize: 200,
+    pageSize: 500,
   });
 
   // Live Tenant Financial Transactions Data (for tabular inspection)
@@ -114,8 +179,29 @@ export function useReportsState() {
     isLoading: loadingTx,
     refetch: refetchTx,
   } = useTenantTransactions(user?.tenantId, {
-    pageSize: 100,
+    pageSize: 500,
   });
+
+  // Live Official Receipts Data (Cashier collections)
+  const {
+    receipts: officialReceipts,
+    isLoading: loadingReceipts,
+    mutate: refetchReceipts,
+  } = useOfficialReceipts({
+    tenantId: user?.tenantId,
+  });
+
+  // Live Bank Deposits Data (AGDB / BTr remittances)
+  const {
+    deposits: bankDeposits,
+    isLoading: loadingDeposits,
+    mutate: refetchDeposits,
+  } = useBankDeposits({
+    tenantId: user?.tenantId,
+  });
+
+  // Live Tenants list to resolve display name accurately
+  const { tenants: allTenants } = useTenants();
 
   // Live Customer Satisfaction & Feedback Data (for tabular inspection)
   const {
@@ -124,9 +210,22 @@ export function useReportsState() {
     refetch: refetchFeedback,
   } = useAdminFeedback();
 
-  const isLoading = loadingServerStats || loadingApps || loadingTx || loadingFeedback;
+  const isLoading =
+    (loadingServerStats && applications.length === 0) ||
+    loadingApps ||
+    loadingTx ||
+    loadingFeedback ||
+    loadingReceipts ||
+    loadingDeposits;
 
   const tenantDisplayName = useMemo(() => {
+    if (user?.tenantId && allTenants.length > 0) {
+      const matched = allTenants.find((t) => t.id === user.tenantId);
+      if (matched?.name) return matched.name;
+    }
+    if (serverStats?.tenantDisplayName && !serverStats.tenantDisplayName.includes('(')) {
+      return serverStats.tenantDisplayName;
+    }
     if (serverStats?.tenantDisplayName) {
       return serverStats.tenantDisplayName;
     }
@@ -134,11 +233,93 @@ export function useReportsState() {
       return `NTC Regional Office (${user.tenantId.toUpperCase().slice(0, 8)})`;
     }
     return 'National Telecommunications Commission - Central Office';
-  }, [serverStats?.tenantDisplayName, user?.tenantId]);
+  }, [allTenants, serverStats?.tenantDisplayName, user?.tenantId]);
 
   const handleRefreshAll = useCallback(async () => {
-    await Promise.allSettled([refetchServerStats(), refetchApps(), refetchTx(), refetchFeedback()]);
-  }, [refetchServerStats, refetchApps, refetchTx, refetchFeedback]);
+    await Promise.allSettled([
+      refetchServerStats(),
+      refetchApps(),
+      refetchTx(),
+      refetchReceipts(),
+      refetchDeposits(),
+      refetchFeedback(),
+      refetchFieldOffices(),
+    ]);
+  }, [refetchServerStats, refetchApps, refetchTx, refetchReceipts, refetchDeposits, refetchFeedback, refetchFieldOffices]);
+
+  // Unified Transactions combining TenantTransactions, OfficialReceipts, and Paid Applications
+  const unifiedTransactions = useMemo(() => {
+    const merged: TenantTransactionDto[] = [];
+    const seenRefs = new Set<string>();
+    const seenAppIds = new Set<string>();
+
+    for (const r of officialReceipts) {
+      if (r.status === 'Cancelled') continue;
+      const ref = (r.officialReceiptNumber ?? '').trim();
+      if (ref.length > 0) seenRefs.add(ref.toUpperCase());
+      if (r.applicationId) seenAppIds.add(r.applicationId);
+      const lineSummary =
+        r.lineItems && r.lineItems.length > 0
+          ? r.lineItems.map((li) => `${li.description} (${li.feeCode})`).join('; ')
+          : r.remarks ?? 'Official Receipt Collection';
+
+      merged.push({
+        id: r.applicationId ?? r.id,
+        refNo: ref || `OR-${r.id.slice(0, 8).toUpperCase()}`,
+        applicantName: r.payorName || 'Payor',
+        serviceType: lineSummary,
+        amount: r.amount ?? 0,
+        paymentStatus: r.status === 'Deposited' || r.depositId ? 'Deposited' : 'Paid',
+        date: r.issuedAt,
+      });
+    }
+
+    for (const tx of transactions) {
+      const ref = (tx.refNo ?? '').trim();
+      if (ref.length > 0 && seenRefs.has(ref.toUpperCase())) continue;
+      if ((tx.amount ?? 0) <= 0 && ref.toUpperCase().startsWith('APP-')) continue;
+      if (ref.length > 0) seenRefs.add(ref.toUpperCase());
+      if (tx.id) seenAppIds.add(tx.id);
+      merged.push(tx);
+    }
+
+    for (const app of applications) {
+      if (seenAppIds.has(app.id)) continue;
+      const orNum = (app.officialReceiptNumber ?? app.issuedDocumentDetails?.[0]?.officialReceiptNumber ?? '').trim();
+      const isPaidApp =
+        orNum.length > 0 ||
+        (app.amountPaid ?? 0) > 0 ||
+        app.opStatus === 'Paid' ||
+        app.status === 'ForIssuance' ||
+        app.status === 'Approved' ||
+        app.status === 'Completed';
+      const paidAmt = app.amountPaid ?? (isPaidApp ? (app.totalAmountDue ?? 0) : 0);
+      const effectiveRef =
+        orNum.length > 0
+          ? orNum
+          : (app.opNumber ?? app.soaNumber ?? app.applicationNumber ?? app.referenceNumber ?? '').trim();
+
+      if (isPaidApp && paidAmt > 0 && effectiveRef.length > 0 && !seenRefs.has(effectiveRef.toUpperCase())) {
+        seenRefs.add(effectiveRef.toUpperCase());
+        seenAppIds.add(app.id);
+        merged.push({
+          id: app.id,
+          refNo: effectiveRef,
+          applicantName:
+            app.filingUser?.company?.name ??
+            app.filingUser?.name ??
+            app.applicants?.[0]?.name ??
+            'Applicant',
+          serviceType: app.serviceName ?? app.serviceCategory ?? 'Regulatory Permit Fee',
+          amount: paidAmt,
+          paymentStatus: 'Paid',
+          date: app.paidAt ?? app.updatedAt ?? app.createdAt,
+        });
+      }
+    }
+
+    return merged.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+  }, [officialReceipts, transactions, applications]);
 
   // Date Filter Predicate based on Period Mode & Custom Date Range
   const isWithinTimeRange = useCallback((dateStr?: string | null): boolean => {
@@ -148,12 +329,18 @@ export function useReportsState() {
       const itemDate = new Date(dateStr);
       if (isNaN(itemDate.getTime())) return true;
 
-      if (periodMode === 'custom' || (startDate.length > 0 && endDate.length > 0)) {
-        const s = new Date(startDate);
-        const e = new Date(endDate);
-        e.setHours(23, 59, 59, 999);
-        if (itemDate < s || itemDate > e) return false;
-        if (periodMode === 'custom') return true;
+      if (periodMode === 'custom') {
+        if (startDate.length > 0) {
+          const s = new Date(startDate);
+          s.setHours(0, 0, 0, 0);
+          if (itemDate < s) return false;
+        }
+        if (endDate.length > 0) {
+          const e = new Date(endDate);
+          e.setHours(23, 59, 59, 999);
+          if (itemDate > e) return false;
+        }
+        return true;
       }
 
       if (periodMode === 'monthly') {
@@ -185,12 +372,209 @@ export function useReportsState() {
       return true;
     }
     return true;
-  }, [periodMode, selectedYear, selectedQuarter, selectedMonth, timeRange]);
+  }, [periodMode, startDate, endDate, selectedYear, selectedQuarter, selectedMonth, timeRange]);
+
+  // Build Tenant Field Offices list (for checkbox monitoring filter)
+  const fieldOfficeOptions = useMemo<FieldOfficeFilterOption[]>(() => {
+    const map = new Map<string, FieldOfficeFilterOption>();
+
+    const registerOffice = (item: {
+      id?: string;
+      name?: string | null;
+      code?: string | null;
+      category?: string | null;
+    }) => {
+      const rawName = (item.name ?? '').trim();
+      if (rawName.length === 0) return;
+      const key = rawName.toLowerCase();
+      if (map.has(key)) return;
+
+      const catStr = (item.category ?? '').trim();
+      const isMain =
+        catStr.toLowerCase().includes('main') ||
+        rawName.toLowerCase().includes('main office') ||
+        rawName.toLowerCase() === tenantDisplayName.toLowerCase();
+
+      map.set(key, {
+        id: item.id ?? rawName,
+        name: rawName,
+        code: (item.code ?? '').trim(),
+        category: catStr || (isMain ? 'MainOffice' : 'FieldOffice'),
+        isMainOffice: isMain,
+        applicationCount: 0,
+      });
+    };
+
+    for (const fo of adminFieldOffices) {
+      registerOffice({
+        id: fo.id,
+        name: fo.name,
+        code: fo.code,
+        category: fo.category,
+      });
+    }
+
+    if (serverStats?.fieldOffices) {
+      for (const fo of serverStats.fieldOffices) {
+        registerOffice({
+          id: fo.id,
+          name: fo.name,
+          code: fo.code,
+          category: fo.category,
+        });
+      }
+    }
+
+    for (const app of applications) {
+      const appOff = (app.office ?? '').trim();
+      if (appOff.length > 0 && appOff.toLowerCase() !== tenantDisplayName.toLowerCase()) {
+        const alreadyCovered = Array.from(map.values()).some(
+          (o) =>
+            o.name.toLowerCase() === appOff.toLowerCase() ||
+            (o.code.length > 0 && o.code.toLowerCase() === appOff.toLowerCase()) ||
+            (o.isMainOffice && appOff.toLowerCase().includes('main office'))
+        );
+        if (!alreadyCovered) {
+          registerOffice({
+            id: appOff,
+            name: appOff,
+            code: '',
+            category: appOff.toLowerCase().includes('main') ? 'MainOffice' : 'FieldOffice',
+          });
+        }
+      }
+    }
+
+    // Ensure a Main Office entry always exists for the tenant
+    const hasMain = Array.from(map.values()).some((o) => o.isMainOffice);
+    if (!hasMain) {
+      const mainName = `${tenantDisplayName} - Main Office`;
+      map.set(mainName.toLowerCase(), {
+        id: 'main-office',
+        name: mainName,
+        code: 'MAIN',
+        category: 'MainOffice',
+        isMainOffice: true,
+        applicationCount: 0,
+      });
+    }
+
+    const list = Array.from(map.values()).sort((a, b) => {
+      if (a.isMainOffice && !b.isMainOffice) return -1;
+      if (!a.isMainOffice && b.isMainOffice) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    const resolveOfficeForApp = (
+      app: ApplicationSummaryDto,
+      optionsList: FieldOfficeFilterOption[]
+    ): FieldOfficeFilterOption | undefined => {
+      const mainOpt = optionsList.find((o) => o.isMainOffice) ?? optionsList[0];
+      const rawOffice = (app.office ?? '').trim();
+      if (
+        rawOffice.length === 0 ||
+        rawOffice.toLowerCase() === tenantDisplayName.toLowerCase() ||
+        rawOffice.toLowerCase().includes('main office')
+      ) {
+        return mainOpt;
+      }
+
+      const exactMatch = optionsList.find(
+        (o) =>
+          o.name.toLowerCase() === rawOffice.toLowerCase() ||
+          (o.code.length > 0 && o.code.toLowerCase() === rawOffice.toLowerCase()) ||
+          o.id.toLowerCase() === rawOffice.toLowerCase()
+      );
+      if (exactMatch) return exactMatch;
+
+      const subMatch = optionsList.find(
+        (o) =>
+          !o.isMainOffice &&
+          (o.name.toLowerCase().includes(rawOffice.toLowerCase()) ||
+            rawOffice.toLowerCase().includes(o.name.toLowerCase()))
+      );
+      if (subMatch) return subMatch;
+
+      return mainOpt;
+    };
+
+    for (const app of applications) {
+      if (!isWithinTimeRange(app.createdAt)) continue;
+      const targetOffice = resolveOfficeForApp(app, list);
+      if (targetOffice) {
+        targetOffice.applicationCount += 1;
+      }
+    }
+
+    return list;
+  }, [adminFieldOffices, serverStats?.fieldOffices, applications, tenantDisplayName, isWithinTimeRange]);
+
+  const isAllFieldOfficesSelected = selectedFieldOffices.length === 0;
+
+  const hasBackendFieldOfficeSupport = useMemo(() => {
+    return Array.isArray(serverStats?.fieldOffices);
+  }, [serverStats?.fieldOffices]);
+
+  const toggleFieldOffice = useCallback((officeName: string) => {
+    setSelectedFieldOffices((prev) => {
+      const exists = prev.some((s) => s.toLowerCase() === officeName.toLowerCase());
+      if (exists) {
+        return prev.filter((s) => s.toLowerCase() !== officeName.toLowerCase());
+      }
+      return [...prev, officeName];
+    });
+    setCurrentPage(1);
+  }, []);
+
+  const selectAllFieldOffices = useCallback(() => {
+    setSelectedFieldOffices([]);
+    setCurrentPage(1);
+  }, []);
+
+  const matchesSelectedFieldOffices = useCallback(
+    (app: ApplicationSummaryDto): boolean => {
+      if (selectedFieldOffices.length === 0) return true;
+
+      const selectedLower = new Set(selectedFieldOffices.map((s) => s.toLowerCase()));
+      const mainOpt = fieldOfficeOptions.find((o) => o.isMainOffice) ?? fieldOfficeOptions[0];
+      const rawOffice = (app.office ?? '').trim();
+
+      let resolvedOffice: FieldOfficeFilterOption | undefined = mainOpt;
+      if (
+        rawOffice.length > 0 &&
+        rawOffice.toLowerCase() !== tenantDisplayName.toLowerCase() &&
+        !rawOffice.toLowerCase().includes('main office')
+      ) {
+        const exactMatch = fieldOfficeOptions.find(
+          (o) =>
+            o.name.toLowerCase() === rawOffice.toLowerCase() ||
+            (o.code.length > 0 && o.code.toLowerCase() === rawOffice.toLowerCase()) ||
+            o.id.toLowerCase() === rawOffice.toLowerCase()
+        );
+        if (exactMatch) {
+          resolvedOffice = exactMatch;
+        } else {
+          const subMatch = fieldOfficeOptions.find(
+            (o) =>
+              !o.isMainOffice &&
+              (o.name.toLowerCase().includes(rawOffice.toLowerCase()) ||
+                rawOffice.toLowerCase().includes(o.name.toLowerCase()))
+          );
+          resolvedOffice = subMatch ?? mainOpt;
+        }
+      }
+
+      if (!resolvedOffice) return true;
+      return selectedLower.has(resolvedOffice.name.toLowerCase());
+    },
+    [selectedFieldOffices, fieldOfficeOptions, tenantDisplayName]
+  );
 
   // Filtered Applications
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
       if (!isWithinTimeRange(app.createdAt)) return false;
+      if (!matchesSelectedFieldOffices(app)) return false;
 
       if (categoryFilter !== 'all') {
         const cat = app.serviceCategory ?? app.serviceName ?? '';
@@ -213,12 +597,41 @@ export function useReportsState() {
 
       return true;
     });
-  }, [applications, isWithinTimeRange, categoryFilter, searchQuery]);
+  }, [applications, isWithinTimeRange, matchesSelectedFieldOffices, categoryFilter, searchQuery]);
 
   // Filtered Financial Transactions
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
+    const allAppIds = new Set(applications.map((a) => a.id));
+    const matchedAppIds = new Set(filteredApplications.map((a) => a.id));
+    const matchedRefs = new Set<string>();
+    for (const a of filteredApplications) {
+      if (a.officialReceiptNumber) matchedRefs.add(a.officialReceiptNumber.trim().toUpperCase());
+      if (a.opNumber) matchedRefs.add(a.opNumber.trim().toUpperCase());
+      if (a.soaNumber) matchedRefs.add(a.soaNumber.trim().toUpperCase());
+      if (a.applicationNumber) matchedRefs.add(a.applicationNumber.trim().toUpperCase());
+      if (a.referenceNumber) matchedRefs.add(a.referenceNumber.trim().toUpperCase());
+    }
+    const mainOption = fieldOfficeOptions.find((o) => o.isMainOffice) ?? fieldOfficeOptions[0];
+    const isMainSelected =
+      isAllFieldOfficesSelected ||
+      Boolean(mainOption && selectedFieldOffices.some((s) => s.toLowerCase() === mainOption.name.toLowerCase())) ||
+      selectedFieldOffices.some((s) => s.toLowerCase().includes('main office'));
+
+    return unifiedTransactions.filter((tx) => {
       if (!isWithinTimeRange(tx.date)) return false;
+
+      if (!isAllFieldOfficesSelected) {
+        const refUpper = (tx.refNo ?? '').trim().toUpperCase();
+        const isMatchedApp = matchedAppIds.has(tx.id) || (refUpper.length > 0 && matchedRefs.has(refUpper));
+        if (!isMatchedApp) {
+          if (allAppIds.has(tx.id)) {
+            return false;
+          }
+          if (!isMainSelected) {
+            return false;
+          }
+        }
+      }
 
       if (searchQuery.trim().length > 0) {
         const q = searchQuery.toLowerCase().trim();
@@ -233,7 +646,56 @@ export function useReportsState() {
 
       return true;
     });
-  }, [transactions, isWithinTimeRange, searchQuery]);
+  }, [
+    unifiedTransactions,
+    isWithinTimeRange,
+    isAllFieldOfficesSelected,
+    applications,
+    filteredApplications,
+    fieldOfficeOptions,
+    selectedFieldOffices,
+    searchQuery,
+  ]);
+
+  // Distinct Filter Options for Evaluator, Service, Entity, and Exam Class
+  const evaluatorOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const app of filteredApplications) {
+      const name = resolveEvaluatorName(app, user?.name);
+      if (name.trim().length > 0) set.add(name.trim());
+    }
+    return Array.from(set).sort();
+  }, [filteredApplications, user?.name]);
+
+  const serviceOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const app of filteredApplications) {
+      const svc = resolveServiceName(app);
+      if (svc.trim().length > 0) set.add(svc.trim());
+    }
+    return Array.from(set).sort();
+  }, [filteredApplications]);
+
+  const entityOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const app of filteredApplications) {
+      const ent = resolveEntityName(app);
+      if (ent.trim().length > 0) set.add(ent.trim());
+    }
+    return Array.from(set).sort();
+  }, [filteredApplications]);
+
+  const scheduleOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const app of filteredApplications) {
+      const cat = `${app.serviceCategory ?? ''} ${app.serviceName ?? ''} ${app.serviceVariantName ?? ''}`.toLowerCase();
+      if (cat.includes('exam') || cat.includes('operator') || cat.includes('roce') || cat.includes('amateur') || cat.includes('rroc')) {
+        const label = (app.serviceVariantName ?? app.element ?? app.serviceName ?? '').trim();
+        if (label.length > 0) set.add(label);
+      }
+    }
+    return Array.from(set).sort();
+  }, [filteredApplications]);
 
   // Filtered Feedback
   const filteredFeedback = useMemo(() => {
@@ -295,37 +757,28 @@ export function useReportsState() {
     }));
   }, [serverStats?.categoryBreakdown, filteredApplications]);
 
-  // Key KPI Aggregates (Server Single Source of Truth with Client Fallback)
+  // Key KPI Aggregates (Live Filtered Records with Server Fallback)
   const stats = useMemo(() => {
-    if (serverStats?.summary) {
-      const s = serverStats.summary;
-      const outstandingBalance = Math.max(0, s.totalInvoiced - s.totalCollected);
-      return {
-        totalApps: s.totalApps,
-        approvedCount: s.approvedCount,
-        evaluatingCount: s.evaluatingCount,
-        returnedCount: s.returnedCount,
-        completedCount: s.approvedCount,
-        approvalRate: s.approvalRate,
-        totalCollected: s.totalCollected,
-        totalInvoiced: s.totalInvoiced,
-        outstandingBalance,
-        csatTotal: s.csatTotal,
-        avgCsat: s.avgCsat,
-      };
-    }
-
     const totalApps = filteredApplications.length;
-    const approvedCount = filteredApplications.filter((a) => a.status === 'Approved').length;
-    const evaluatingCount = filteredApplications.filter((a) => a.status === 'Evaluating' || a.status === 'Submitted').length;
-    const returnedCount = filteredApplications.filter((a) => a.status === 'Returned').length;
+    const approvedCount = filteredApplications.filter(
+      (a) => a.status === 'Approved' || a.status === 'Completed'
+    ).length;
+    const evaluatingCount = filteredApplications.filter(
+      (a) =>
+        a.status === 'Evaluating' ||
+        a.status === 'Submitted' ||
+        a.status === 'ForAccountant' ||
+        a.status === 'PendingPayment'
+    ).length;
+    const returnedCount = filteredApplications.filter(
+      (a) => a.status === 'Returned'
+    ).length;
     const completedCount = filteredApplications.filter((a) => a.status === 'Completed').length;
 
     const approvalRate = totalApps > 0 ? Math.round((approvedCount / totalApps) * 100) : 100;
 
-    const totalCollected = filteredTransactions.reduce((sum, tx) => {
-      return tx.paymentStatus === 'Paid' ? sum + (tx.amount ?? 0) : sum;
-    }, 0);
+    const paidTx = getPaidTransactions(filteredTransactions, filteredApplications);
+    const totalCollected = paidTx.reduce((sum, tx) => sum + (tx.amount ?? 0), 0);
 
     const totalInvoiced = filteredTransactions.reduce((sum, tx) => {
       return sum + (tx.amount ?? 0);
@@ -336,7 +789,7 @@ export function useReportsState() {
     const csatTotal = filteredFeedback.length;
     const avgCsat = csatTotal > 0
       ? (filteredFeedback.reduce((sum, fb) => sum + fb.rating, 0) / csatTotal).toFixed(1)
-      : '5.0';
+      : serverStats?.summary?.avgCsat ?? '5.0';
 
     return {
       totalApps,
@@ -346,12 +799,12 @@ export function useReportsState() {
       completedCount,
       approvalRate,
       totalCollected,
-      totalInvoiced,
+      totalInvoiced: Math.max(totalInvoiced, totalCollected),
       outstandingBalance,
       csatTotal,
       avgCsat,
     };
-  }, [serverStats?.summary, filteredApplications, filteredTransactions, filteredFeedback]);
+  }, [filteredApplications, filteredTransactions, filteredFeedback, serverStats?.summary?.avgCsat]);
 
   // Dynamic Active Total Items & Total Pages
   const activeItemCount = useMemo(() => {
@@ -446,45 +899,64 @@ export function useReportsState() {
     }
   }, [reportType, filteredApplications, filteredTransactions, filteredFeedback]);
 
-  // Computed Statutory Reports with Live Stats (Server Single Source of Truth with Client Fallback)
+  // Computed Statutory Reports with Accurate Live Stats
   const statutoryReports = useMemo(() => {
-    return STATUTORY_REPORTS_LIST.map((meta) => {
-      const serverMatch = serverStats?.statutoryReports?.find((r) => r.code === meta.code);
-      let recordCount = serverMatch !== undefined ? serverMatch.recordCount : filteredApplications.length;
-      let complianceRate = serverMatch !== undefined ? serverMatch.complianceRate : stats.approvalRate;
-      let totalAmount: number | undefined = serverMatch?.totalAmount !== undefined && serverMatch?.totalAmount !== null ? serverMatch.totalAmount : undefined;
+    const paidTx = getPaidTransactions(filteredTransactions, filteredApplications);
+    const filterOpts = {
+      startDate,
+      endDate,
+      evaluatorFilter: selectedEvaluatorId,
+      serviceFilter: selectedServiceId,
+      entityFilter: selectedApplicantId,
+      scheduleFilter: selectedScheduleId,
+    };
 
-      if (!serverMatch) {
-        if (meta.code === 'NTC-BTr-COA-01' || meta.code === 'NTC-COA-APP26-M' || meta.code === 'NTC-COA-APP26-D') {
-          recordCount = filteredTransactions.length;
-          complianceRate = 100;
-          totalAmount = stats.totalCollected;
-        } else if (meta.code === 'NTC-BIR-DST-01') {
-          recordCount = filteredTransactions.length;
-          complianceRate = 100;
-          totalAmount = filteredTransactions.length * 30;
-        } else if (meta.code === 'NTC-BTR-INC-01') {
-          recordCount = filteredTransactions.length;
-          complianceRate = 100;
-          totalAmount = stats.totalCollected;
-        } else if (meta.code === 'NTC-MIS-OPS' || meta.code === 'NTC-BAR-1') {
-          recordCount = filteredApplications.length;
-          complianceRate = stats.approvalRate;
-        } else if (meta.code === 'NTC-APP-SUM-EVAL' || meta.code === 'NTC-APP-SUM-SVC' || meta.code === 'NTC-APP-SUM-ENT' || meta.code === 'NTC-APP-VOL-01') {
-          recordCount = filteredApplications.length;
-          complianceRate = stats.approvalRate;
-        } else if (meta.code === 'NTC-EXAM-MST-01') {
-          recordCount = Math.max(filteredApplications.filter(a => (a.serviceCategory ?? a.serviceName ?? '').toLowerCase().includes('exam')).length, 12);
-          complianceRate = 100;
-        } else if (meta.code === 'NTC-CSMR-8888') {
-          recordCount = filteredFeedback.length;
-          complianceRate = Math.round((Number(stats.avgCsat) / 5) * 100);
-        } else if (meta.code === 'ARTA-RA-11032') {
-          complianceRate = Math.min(100, Math.max(92, stats.approvalRate));
-        } else if (meta.code === 'NTC-NOV-ENF') {
-          recordCount = Math.max(filteredApplications.length, 4);
-          complianceRate = 98;
-        }
+    return STATUTORY_REPORTS_LIST.map((meta) => {
+      let recordCount = filteredApplications.length;
+      let complianceRate = stats.approvalRate;
+      let totalAmount: number | undefined = undefined;
+
+      if (meta.code === 'NTC-BTr-COA-01' || meta.code === 'NTC-COA-APP26-M' || meta.code === 'NTC-COA-APP26-D') {
+        recordCount = paidTx.length;
+        complianceRate = 100;
+        totalAmount = stats.totalCollected;
+      } else if (meta.code === 'NTC-BIR-DST-01') {
+        recordCount = paidTx.length;
+        complianceRate = 100;
+        totalAmount = paidTx.length * 30;
+      } else if (meta.code === 'NTC-BTR-INC-01') {
+        recordCount = paidTx.length;
+        complianceRate = 100;
+        totalAmount = stats.totalCollected;
+      } else if (meta.code === 'NTC-MIS-OPS' || meta.code === 'NTC-BAR-1') {
+        recordCount = filteredApplications.length;
+        complianceRate = stats.approvalRate;
+        totalAmount = stats.totalCollected;
+      } else if (meta.code === 'NTC-APP-SUM-EVAL' || meta.code === 'NTC-APP-SUM-SVC' || meta.code === 'NTC-APP-SUM-ENT') {
+        const scoped = filterApplicationsForStatutoryReport(meta.code, filteredApplications, filterOpts, user?.name);
+        const scopedApproved = scoped.filter((a) => a.status === 'Approved' || a.status === 'Completed').length;
+        recordCount = scoped.length;
+        complianceRate = scoped.length > 0 ? Math.round((scopedApproved / scoped.length) * 100) : 100;
+        totalAmount = stats.totalCollected;
+      } else if (meta.code === 'NTC-APP-VOL-01') {
+        recordCount = filteredApplications.length;
+        complianceRate = stats.approvalRate;
+        totalAmount = stats.totalCollected;
+      } else if (meta.code === 'NTC-EXAM-MST-01') {
+        const examScoped = filterApplicationsForStatutoryReport(meta.code, filteredApplications, filterOpts, user?.name).filter((a) => {
+          const cat = `${a.serviceCategory ?? ''} ${a.serviceName ?? ''} ${a.serviceVariantName ?? ''}`.toLowerCase();
+          return cat.includes('exam') || cat.includes('operator') || cat.includes('roce') || cat.includes('amateur') || cat.includes('rroc');
+        });
+        recordCount = examScoped.length;
+        complianceRate = 100;
+      } else if (meta.code === 'NTC-CSMR-8888') {
+        recordCount = filteredFeedback.length;
+        complianceRate = Math.round((Number(stats.avgCsat) / 5) * 100);
+      } else if (meta.code === 'ARTA-RA-11032') {
+        complianceRate = stats.approvalRate;
+      } else if (meta.code === 'NTC-NOV-ENF') {
+        recordCount = stats.returnedCount;
+        complianceRate = 98;
       }
 
       const status: 'Ready' | 'Needs Review' | 'Complete' = recordCount > 0 ? 'Ready' : 'Complete';
@@ -496,7 +968,19 @@ export function useReportsState() {
         status,
       };
     });
-  }, [serverStats?.statutoryReports, filteredApplications.length, filteredTransactions.length, filteredFeedback.length, stats]);
+  }, [
+    filteredApplications,
+    filteredTransactions,
+    filteredFeedback.length,
+    stats,
+    startDate,
+    endDate,
+    selectedEvaluatorId,
+    selectedServiceId,
+    selectedApplicantId,
+    selectedScheduleId,
+    user?.name,
+  ]);
 
   const handleOpenStatutoryModal = useCallback((report: StatutoryReportMetadata) => {
     setStatutoryModal({
@@ -513,38 +997,78 @@ export function useReportsState() {
   }, []);
 
   const handleDownloadStatutoryCsv = useCallback((reportCode: StatutoryReportCode) => {
-    const tenantName = user?.email ? 'Regional Office No. VII' : 'Regional Office';
     const effectivePeriod = periodMode === 'custom'
       ? `${startDate} to ${endDate}`
       : selectedPeriod;
     const { content, filename } = generateStatutoryCsv(
       reportCode,
-      tenantName,
+      tenantDisplayName,
       effectivePeriod,
       filteredApplications,
       filteredTransactions,
-      filteredFeedback
+      filteredFeedback,
+      {
+        startDate,
+        endDate,
+        evaluatorFilter: selectedEvaluatorId,
+        serviceFilter: selectedServiceId,
+        entityFilter: selectedApplicantId,
+        scheduleFilter: selectedScheduleId,
+      }
     );
     downloadCsvFile(content, filename);
-  }, [user, periodMode, selectedPeriod, startDate, endDate, filteredApplications, filteredTransactions, filteredFeedback]);
+  }, [
+    tenantDisplayName,
+    periodMode,
+    selectedPeriod,
+    startDate,
+    endDate,
+    selectedEvaluatorId,
+    selectedServiceId,
+    selectedApplicantId,
+    selectedScheduleId,
+    filteredApplications,
+    filteredTransactions,
+    filteredFeedback,
+  ]);
 
   const handlePrintStatutoryReport = useCallback((reportMeta: StatutoryReportMetadata) => {
-    const tenantName = user?.email ? 'Regional Office No. VII - Central Visayas' : 'Regional Office';
     const effectivePeriod = periodMode === 'custom'
       ? `${startDate} to ${endDate}`
       : selectedPeriod;
     const html = generateStatutoryPrintableHtml(
       reportMeta,
-      tenantName,
+      tenantDisplayName,
       effectivePeriod,
       filteredApplications,
       filteredTransactions,
       filteredFeedback,
       user?.name,
-      { startDate, endDate }
+      {
+        startDate,
+        endDate,
+        evaluatorFilter: selectedEvaluatorId,
+        serviceFilter: selectedServiceId,
+        entityFilter: selectedApplicantId,
+        scheduleFilter: selectedScheduleId,
+      }
     );
     openPrintableReportWindow(html);
-  }, [user, periodMode, selectedPeriod, startDate, endDate, filteredApplications, filteredTransactions, filteredFeedback]);
+  }, [
+    tenantDisplayName,
+    user?.name,
+    periodMode,
+    selectedPeriod,
+    startDate,
+    endDate,
+    selectedEvaluatorId,
+    selectedServiceId,
+    selectedApplicantId,
+    selectedScheduleId,
+    filteredApplications,
+    filteredTransactions,
+    filteredFeedback,
+  ]);
 
   // Aggregated Periodic Statistics (Server Single Source of Truth with Client Fallback)
   const periodicStatistics: PeriodicStatBucket[] = useMemo(() => {
@@ -780,12 +1304,25 @@ export function useReportsState() {
     setSelectedApplicantId,
     selectedScheduleId,
     setSelectedScheduleId,
+    evaluatorOptions,
+    serviceOptions,
+    entityOptions,
+    scheduleOptions,
+    fieldOfficeOptions,
+    selectedFieldOffices,
+    setSelectedFieldOffices,
+    isAllFieldOfficesSelected,
+    hasBackendFieldOfficeSupport,
+    toggleFieldOffice,
+    selectAllFieldOffices,
+    fieldOfficesQueryParam,
     statutoryReports,
     statutoryModal,
     handleOpenStatutoryModal,
     handleCloseStatutoryModal,
     handleDownloadStatutoryCsv,
     handlePrintStatutoryReport,
+    activeTenantId: user?.tenantId ?? null,
     tenantDisplayName,
     stats,
     isLoading,

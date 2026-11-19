@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using EDGE.Application.Forms.Dtos;
 
 namespace EDGE.Application.Applications.Dtos;
 
@@ -35,5 +36,6 @@ public class ApplicationFormFieldValueDto
     public int OrderIndex { get; set; }
     public string? ValidationRules { get; set; }
     public string? VisibilityCondition { get; set; }
+    public List<FormFieldOptionDto>? Options { get; set; }
     public string? Value { get; set; }
 }

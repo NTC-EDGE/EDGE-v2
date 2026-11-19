@@ -1,4 +1,5 @@
 import { apiClient } from '../apiClient';
+import { safeAsync } from '../utils/safeAsync';
 import { ApiResponse } from '../types';
 
 export interface KpiSummaryDto {
@@ -45,12 +46,21 @@ export interface StatutoryReportSummaryDto {
   totalAmount?: number | null;
 }
 
+export interface ReportFieldOfficeDto {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  isActive: boolean;
+}
+
 export interface OperationalReportStatisticsDto {
   tenantDisplayName: string;
   summary: KpiSummaryDto;
   categoryBreakdown: CategoryBreakdownDto[];
   periodicStatistics: PeriodicStatBucketDto[];
   statutoryReports: StatutoryReportSummaryDto[];
+  fieldOffices?: ReportFieldOfficeDto[] | null;
 }
 
 export interface GetOperationalReportStatisticsParams {
@@ -62,6 +72,17 @@ export interface GetOperationalReportStatisticsParams {
   quarter?: number;
   month?: number;
   category?: string;
+  fieldOffices?: string;
+}
+
+export interface PrintStatutoryReportParams {
+  code: string;
+  tenantId?: string | null;
+  period?: string;
+  startDate?: string;
+  endDate?: string;
+  secondaryFilter?: string;
+  fieldOffices?: string;
 }
 
 export const reportService = {
@@ -77,11 +98,53 @@ export const reportService = {
     if (params?.quarter !== undefined) queryParams.quarter = params.quarter.toString();
     if (params?.month !== undefined) queryParams.month = params.month.toString();
     if (params?.category) queryParams.category = params.category;
+    if (params?.fieldOffices) queryParams.fieldOffices = params.fieldOffices;
 
     const res = await apiClient.get<ApiResponse<OperationalReportStatisticsDto>>(
       '/api/v2/reports/statistics',
       { params: queryParams }
     );
     return res.data;
+  },
+
+  previewStatutoryReportPdf: async (params: PrintStatutoryReportParams) => {
+    return safeAsync(async () => {
+      const queryParams: Record<string, string> = {
+        code: params.code,
+      };
+      if (params.tenantId) queryParams.tenantId = params.tenantId;
+      if (params.period) queryParams.period = params.period;
+      if (params.startDate) queryParams.startDate = params.startDate;
+      if (params.endDate) queryParams.endDate = params.endDate;
+      if (params.secondaryFilter) queryParams.secondaryFilter = params.secondaryFilter;
+      if (params.fieldOffices) queryParams.fieldOffices = params.fieldOffices;
+
+      const response = await apiClient.get<Blob>('/api/v2/reports/statutory/print', {
+        params: queryParams,
+        responseType: 'blob',
+      });
+      return response.data;
+    });
+  },
+
+  downloadStatutoryReportPdf: async (params: PrintStatutoryReportParams) => {
+    return safeAsync(async () => {
+      const queryParams: Record<string, string> = {
+        code: params.code,
+        download: 'true',
+      };
+      if (params.tenantId) queryParams.tenantId = params.tenantId;
+      if (params.period) queryParams.period = params.period;
+      if (params.startDate) queryParams.startDate = params.startDate;
+      if (params.endDate) queryParams.endDate = params.endDate;
+      if (params.secondaryFilter) queryParams.secondaryFilter = params.secondaryFilter;
+      if (params.fieldOffices) queryParams.fieldOffices = params.fieldOffices;
+
+      const response = await apiClient.get<Blob>('/api/v2/reports/statutory/print', {
+        params: queryParams,
+        responseType: 'blob',
+      });
+      return response.data;
+    });
   },
 };

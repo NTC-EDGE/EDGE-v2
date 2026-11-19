@@ -59,8 +59,6 @@ export function ReportsScreen() {
   const state = useReportsState();
 
   const [tenantCategory, setTenantCategory] = useState<TenantReportCategory>('all');
-  const [selectedReportCode, setSelectedReportCode] = useState<StatutoryReportCode>('NTC-MIS-OPS');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Filtered official tenant reports
   const displayedReports = useMemo(() => {
@@ -100,13 +98,6 @@ export function ReportsScreen() {
     });
   }, [state.statutoryReports, tenantCategory, state.searchQuery]);
 
-  const activeReport = useMemo(() => {
-    const found = state.statutoryReports.find((r) => r.metadata.code === selectedReportCode);
-    if (found !== undefined) return found.metadata;
-    const fallback = state.statutoryReports[0];
-    return fallback !== undefined ? fallback.metadata : null;
-  }, [state.statutoryReports, selectedReportCode]);
-
   const formatCurrency = (amount?: number | null) => {
     const safeAmt = amount ?? 0;
     return `₱${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -138,200 +129,175 @@ export function ReportsScreen() {
           }
         />
 
-        {/* Quick Generation Station */}
-        <AnimatedCard
-          style={[
-            styles.quickStationCard,
-            {
-              backgroundColor: colors.cardBg,
-              borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-            },
-          ]}
-        >
-          <View style={styles.quickHeader}>
-            <View style={[styles.quickIconBox, { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light }]}>
-              <Lucide name="printer" size={16} color={isDark ? colors.brand[500] : colors.brand.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.quickTitle, { color: colors.text }]}>Direct Print Station</Text>
-              <Text style={[styles.quickSub, { color: colors.textMuted }]}>
-                Select report & period to print directly
-              </Text>
-            </View>
-          </View>
-
-          {/* Report Dropdown Trigger */}
-          <Pressable
-            style={[
-              styles.dropdownBtn,
-              {
-                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                borderColor: colors.border,
-              },
-            ]}
-            onPress={() => setIsDropdownOpen((prev) => !prev)}
-          >
-            <View style={styles.dropdownBtnContent}>
-              <Text style={[styles.dropdownCode, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
-                {activeReport !== null ? activeReport.code : 'SELECT'}
-              </Text>
-              <Text style={[styles.dropdownTitle, { color: colors.text }]} numberOfLines={1}>
-                {activeReport !== null ? activeReport.title : 'Select report'}
-              </Text>
-            </View>
-            <Lucide name={isDropdownOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
-          </Pressable>
-
-          {/* Dropdown Menu */}
-          {isDropdownOpen && (
-            <View style={[styles.dropdownMenu, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-              <ScrollView style={{ maxHeight: 240 }}>
-                {state.statutoryReports.map((item) => (
-                  <Pressable
-                    key={item.metadata.code}
-                    style={[
-                      styles.dropdownMenuItem,
-                      { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] },
-                      item.metadata.code === selectedReportCode && {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                      },
-                    ]}
-                    onPress={() => {
-                      setSelectedReportCode(item.metadata.code);
-                      setIsDropdownOpen(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.dropdownMenuItemCode,
-                        { color: isDark ? colors.brand[500] : colors.brand.primary },
-                      ]}
-                    >
-                      {item.metadata.code}
-                    </Text>
-                    <Text style={[styles.dropdownMenuItemTitle, { color: colors.text }]} numberOfLines={1}>
-                      {item.metadata.title}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Period selector */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodScroll}>
-            {STATUTORY_PERIODS.map((p) => {
-              const isActive = state.periodMode !== 'custom' && state.selectedPeriod === p.id;
-              return (
-                <Pressable
-                  key={p.id}
-                  style={[
-                    styles.periodPill,
-                    { borderColor: colors.border },
-                    isActive && {
-                      backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                      borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                    },
-                  ]}
-                  onPress={() => {
-                    state.setPeriodMode('quarterly');
-                    state.setSelectedPeriod(p.id);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.periodPillText,
-                      { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                    ]}
-                  >
-                    {p.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-            <Pressable
-              style={[
-                styles.periodPill,
-                { borderColor: colors.border },
-                state.periodMode === 'custom' && {
-                  backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                  borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                },
-              ]}
-              onPress={() => state.setPeriodMode('custom')}
-            >
-              <Text
-                style={[
-                  styles.periodPillText,
-                  { color: state.periodMode === 'custom' ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                ]}
-              >
-                Custom
-              </Text>
-            </Pressable>
-          </ScrollView>
-
-          {/* Custom Date Inputs */}
-          {state.periodMode === 'custom' && (
-            <View style={styles.customDateRow}>
-              <TextInput
-                style={[styles.customInput, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
-                value={state.startDate}
-                onChangeText={state.setStartDate}
-                placeholder="Start Date"
-                placeholderTextColor={colors.textMuted}
-              />
-              <Text style={{ color: colors.textMuted }}>to</Text>
-              <TextInput
-                style={[styles.customInput, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
-                value={state.endDate}
-                onChangeText={state.setEndDate}
-                placeholder="End Date"
-                placeholderTextColor={colors.textMuted}
-              />
-            </View>
-          )}
-
-          {/* Action buttons */}
-          {activeReport !== null && (
-            <View style={styles.quickActionsRow}>
-              <Button
-                variant="primary"
-                size="sm"
-                fullWidth={false}
-                leftIcon={<Lucide name="printer" size={14} color="#FFFFFF" />}
-                onPress={() => state.handlePrintStatutoryReport(activeReport)}
-              >
-                Print / PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                fullWidth={false}
-                leftIcon={<Lucide name="eye" size={14} color={colors.text} />}
-                onPress={() => state.handleOpenStatutoryModal(activeReport)}
-              >
-                Preview
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                fullWidth={false}
-                leftIcon={<Lucide name="download" size={14} color={colors.text} />}
-                onPress={() => state.handleDownloadStatutoryCsv(activeReport.code)}
-              >
-                CSV
-              </Button>
-            </View>
-          )}
-        </AnimatedCard>
-
         {/* Compact Metrics Strip */}
         <View style={[styles.metricsStrip, { backgroundColor: isDark ? colors.neutral[900] : '#F0FDF4', borderColor: isDark ? colors.neutral[800] : '#DCFCE7' }]}>
           <Text style={[styles.metricStripText, { color: colors.text }]}>
             {state.tenantDisplayName} • {state.stats.totalApps} filings • {state.stats.approvalRate}% SLA • {formatCurrency(state.stats.totalCollected)}
           </Text>
         </View>
+
+        {/* Period selector */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodScroll}>
+          {STATUTORY_PERIODS.map((p) => {
+            const isActive = state.periodMode !== 'custom' && state.selectedPeriod === p.id;
+            return (
+              <Pressable
+                key={p.id}
+                style={[
+                  styles.periodPill,
+                  { borderColor: colors.border },
+                  isActive && {
+                    backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                    borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                  },
+                ]}
+                onPress={() => {
+                  state.setSelectedPeriod(p.id);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.periodPillText,
+                    { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                  ]}
+                >
+                  {p.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+          <Pressable
+            style={[
+              styles.periodPill,
+              { borderColor: colors.border },
+              state.periodMode === 'custom' && {
+                backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+              },
+            ]}
+            onPress={() => state.setPeriodMode('custom')}
+          >
+            <Text
+              style={[
+                styles.periodPillText,
+                { color: state.periodMode === 'custom' ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+              ]}
+            >
+              Custom
+            </Text>
+          </Pressable>
+        </ScrollView>
+
+        {/* Custom Date Inputs */}
+        {state.periodMode === 'custom' && (
+          <View style={styles.customDateRow}>
+            <TextInput
+              style={[styles.customInput, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+              value={state.startDate}
+              onChangeText={state.setStartDate}
+              placeholder="Start Date"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={{ color: colors.textMuted }}>to</Text>
+            <TextInput
+              style={[styles.customInput, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+              value={state.endDate}
+              onChangeText={state.setEndDate}
+              placeholder="End Date"
+              placeholderTextColor={colors.textMuted}
+            />
+          </View>
+        )}
+
+        {/* Field Office Checkbox Filter (For Monitoring Only) */}
+        {state.fieldOfficeOptions.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodScroll}>
+            <Pressable
+              style={[
+                styles.periodPill,
+                { borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 6 },
+                state.isAllFieldOfficesSelected && {
+                  backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                  borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                },
+              ]}
+              onPress={state.selectAllFieldOffices}
+            >
+              <View
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 3,
+                  borderWidth: 1.5,
+                  borderColor: state.isAllFieldOfficesSelected
+                    ? (isDark ? colors.brand[400] : colors.brand.primary)
+                    : colors.textMuted,
+                  backgroundColor: state.isAllFieldOfficesSelected
+                    ? (isDark ? colors.brand[500] : colors.brand.primary)
+                    : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {state.isAllFieldOfficesSelected && <Lucide name="check" size={9} color="#FFFFFF" />}
+              </View>
+              <Text
+                style={[
+                  styles.periodPillText,
+                  { color: state.isAllFieldOfficesSelected ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                ]}
+              >
+                All Field Offices
+              </Text>
+            </Pressable>
+            {state.fieldOfficeOptions.map((fo) => {
+              const isChecked = state.selectedFieldOffices.some(
+                (s) => s.toLowerCase() === fo.name.toLowerCase()
+              );
+              return (
+                <Pressable
+                  key={fo.id}
+                  style={[
+                    styles.periodPill,
+                    { borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 6 },
+                    isChecked && {
+                      backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                      borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                    },
+                  ]}
+                  onPress={() => state.toggleFieldOffice(fo.name)}
+                >
+                  <View
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 3,
+                      borderWidth: 1.5,
+                      borderColor: isChecked
+                        ? (isDark ? colors.brand[400] : colors.brand.primary)
+                        : colors.textMuted,
+                      backgroundColor: isChecked
+                        ? (isDark ? colors.brand[500] : colors.brand.primary)
+                        : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {isChecked && <Lucide name="check" size={9} color="#FFFFFF" />}
+                  </View>
+                  <Text
+                    style={[
+                      styles.periodPillText,
+                      { color: isChecked ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.text },
+                    ]}
+                  >
+                    {fo.name} ({fo.applicationCount})
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Category Pills & Search */}
         <View style={styles.categoryRow}>
@@ -432,31 +398,13 @@ export function ReportsScreen() {
 
                 <View style={[styles.cardActions, { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
                   <Button
-                    variant="outline"
-                    size="sm"
-                    fullWidth={false}
-                    leftIcon={<Lucide name="eye" size={12} color={colors.text} />}
-                    onPress={() => state.handleOpenStatutoryModal(meta)}
-                  >
-                    Preview
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    fullWidth={false}
-                    leftIcon={<Lucide name="download" size={12} color={colors.text} />}
-                    onPress={() => state.handleDownloadStatutoryCsv(meta.code)}
-                  >
-                    CSV
-                  </Button>
-                  <Button
                     variant="primary"
                     size="sm"
                     fullWidth={false}
-                    leftIcon={<Lucide name="printer" size={12} color="#FFFFFF" />}
-                    onPress={() => state.handlePrintStatutoryReport(meta)}
+                    leftIcon={<Lucide name="file-text" size={12} color="#FFFFFF" />}
+                    onPress={() => state.handleOpenStatutoryModal(meta)}
                   >
-                    Print
+                    Open Report
                   </Button>
                 </View>
               </AnimatedCard>
@@ -468,6 +416,7 @@ export function ReportsScreen() {
         visible={state.statutoryModal.visible}
         report={state.statutoryModal.report}
         tenantName={state.tenantDisplayName}
+        tenantId={state.activeTenantId}
         period={effectivePeriod}
         startDate={state.startDate}
         endDate={state.endDate}
@@ -475,6 +424,13 @@ export function ReportsScreen() {
           state.setStartDate(s);
           state.setEndDate(e);
         }}
+        fieldOfficeOptions={state.fieldOfficeOptions}
+        selectedFieldOffices={state.selectedFieldOffices}
+        isAllFieldOfficesSelected={state.isAllFieldOfficesSelected}
+        hasBackendFieldOfficeSupport={state.hasBackendFieldOfficeSupport}
+        onToggleFieldOffice={state.toggleFieldOffice}
+        onSelectAllFieldOffices={state.selectAllFieldOffices}
+        fieldOfficesParam={state.fieldOfficesQueryParam}
         applications={state.filteredApplications}
         transactions={state.filteredTransactions}
         feedback={state.filteredFeedback}

@@ -13,5 +13,6 @@ public record GetOperationalReportStatisticsQuery(
     int? Year = null,
     int? Quarter = null,
     int? Month = null,
-    string? Category = null
+    string? Category = null,
+    string? FieldOffices = null
 ) : IRequest<ApiResponse<OperationalReportStatisticsDto>>;

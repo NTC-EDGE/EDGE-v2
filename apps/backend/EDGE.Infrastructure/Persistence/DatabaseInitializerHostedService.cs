@@ -38,6 +38,34 @@ public class DatabaseInitializerHostedService : IHostedService
                 _logger.LogInformation("Public schema dropped and recreated successfully.");
             }
 
+            // Guard: if tables were already created by pre-consolidated migrations or schema dump,
+            // ensure __EFMigrationsHistory records the consolidated '20261117084720_InitialCreate' baseline
+            // so MigrateAsync does not attempt to re-create existing tables (which causes Postgres 42P07 and crashes startup).
+            if (context.Database.IsNpgsql())
+            {
+                await context.Database.ExecuteSqlRawAsync("""
+                    CREATE SCHEMA IF NOT EXISTS public;
+                    SET search_path TO public;
+
+                    CREATE TABLE IF NOT EXISTS public."__EFMigrationsHistory" (
+                        "MigrationId" character varying(150) NOT NULL,
+                        "ProductVersion" character varying(32) NOT NULL,
+                        CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+                    );
+
+                    INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+                    SELECT '20261117084720_InitialCreate', '10.0.0'
+                    WHERE EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'ActivityLogs'
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM public."__EFMigrationsHistory"
+                        WHERE "MigrationId" = '20261117084720_InitialCreate'
+                    );
+                    """, cancellationToken);
+            }
+
             _logger.LogInformation("Applying database migrations...");
             await context.Database.MigrateAsync(cancellationToken);
             _logger.LogInformation("Database migrations applied successfully.");

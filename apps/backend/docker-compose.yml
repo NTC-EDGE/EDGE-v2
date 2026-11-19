@@ -15,3 +15,4 @@ services:
       - CloudflareR2__BucketName
       - StorageEncryption__MasterEncryptionKey
       - ASPNETCORE_ENVIRONMENT
+      - RESET_DATABASE
