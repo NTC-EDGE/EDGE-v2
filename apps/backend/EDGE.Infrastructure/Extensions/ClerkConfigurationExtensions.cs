@@ -33,10 +33,13 @@ public static class ClerkConfigurationExtensions
 
     public static string? GetClerkAuthority(this IConfiguration configuration)
     {
-        var raw = configuration["Clerk:Authority"]
-            ?? configuration["CLERK_AUTHORITY"]
-            ?? configuration["Clerk__Authority"];
+        var envOverride = configuration["CLERK_AUTHORITY"] ?? configuration["Clerk__Authority"];
+        if (!string.IsNullOrWhiteSpace(envOverride))
+        {
+            return envOverride.Trim().Trim('\"', '\'');
+        }
 
+        var raw = configuration["Clerk:Authority"];
         if (string.IsNullOrWhiteSpace(raw)) return null;
 
         return raw.Trim().Trim('\"', '\'');

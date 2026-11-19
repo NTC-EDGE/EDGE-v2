@@ -46,6 +46,8 @@ public static class CorsConfiguration
                               {
                                   var host = uri.Host;
                                   if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                                      host.Equals("ntc.gov.ph", StringComparison.OrdinalIgnoreCase) ||
+                                      host.Equals("ntc-edge.gov.ph", StringComparison.OrdinalIgnoreCase) ||
                                       host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase) ||
                                       host.EndsWith(".nextstep-software.com", StringComparison.OrdinalIgnoreCase) ||
                                       host.EndsWith(".ntc.gov.ph", StringComparison.OrdinalIgnoreCase) ||

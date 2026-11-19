@@ -78,6 +78,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          CLERK_AUTHORITY: ${{ vars.CLERK_AUTHORITY || secrets.CLERK_AUTHORITY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
           CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID || vars.CLOUDFLARE_R2_ACCOUNT_ID }}
@@ -91,10 +92,13 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME
+          envs: DB_CONNECTION_STRING,CLERK_AUTHORITY,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME
           script: |
             # Export environment variables for Docker Compose
             export ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING"
+            if [ -n "$CLERK_AUTHORITY" ]; then
+              export Clerk__Authority="$CLERK_AUTHORITY"
+            fi
             export Clerk__SecretKey="$CLERK_SECRET_KEY"
             export Clerk__WebhookSecret="$CLERK_WEBHOOK_SECRET"
             export CloudflareR2__AccountId="$CLOUDFLARE_R2_ACCOUNT_ID"
