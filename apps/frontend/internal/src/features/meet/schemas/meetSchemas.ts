@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const createMeetingSchema = z.object({
   title: z.string().min(3, 'Meeting title must be at least 3 characters').max(150, 'Title too long'),
-  description: z.string().max(300, 'Description too long').optional(),
+  description: z.string().max(500, 'Description too long').optional(),
   scope: z.enum(['IntraRegional', 'InterRegional']),
   meetingDate: z.string().min(1, 'Meeting date is required'),
   meetingTime: z.string().min(1, 'Meeting time is required'),
@@ -18,8 +18,21 @@ export const joinMeetingSchema = z.object({
   meetingCode: z
     .string()
     .min(3, 'Meeting code must be at least 3 characters')
-    .max(50, 'Meeting code too long')
-    .transform((val) => val.trim()),
+    .max(120, 'Meeting code or link too long')
+    .transform((val) => {
+      const trimmed = val.trim();
+      try {
+        if (trimmed.includes('code=')) {
+          const idx = trimmed.indexOf('code=');
+          const after = trimmed.slice(idx + 5);
+          const ampIdx = after.indexOf('&');
+          return decodeURIComponent(ampIdx >= 0 ? after.slice(0, ampIdx) : after).trim();
+        }
+      } catch {
+        // Fallback to raw input
+      }
+      return trimmed;
+    }),
 });
 
 export type JoinMeetingFormValues = z.infer<typeof joinMeetingSchema>;
@@ -33,10 +46,11 @@ export const createDirectMeetingSchema = z.object({
 export type CreateDirectMeetingFormValues = z.infer<typeof createDirectMeetingSchema>;
 
 export const createPollSchema = z.object({
-  question: z.string().min(5, 'Question must be at least 5 characters').max(200, 'Question too long'),
-  option1: z.string().min(1, 'Option 1 is required'),
-  option2: z.string().min(1, 'Option 2 is required'),
-  option3: z.string().optional(),
+  question: z.string().min(3, 'Question must be at least 3 characters').max(250, 'Question too long'),
+  option1: z.string().min(1, 'Option 1 is required').max(120),
+  option2: z.string().min(1, 'Option 2 is required').max(120),
+  option3: z.string().max(120).optional(),
+  option4: z.string().max(120).optional(),
   isAnonymous: z.boolean(),
 });
 
@@ -61,3 +75,11 @@ export const executeMeetingActionSchema = z.object({
 });
 
 export type ExecuteMeetingActionFormValues = z.infer<typeof executeMeetingActionSchema>;
+
+export function isBooleanValue(value: unknown): value is boolean {
+  return typeof value === 'boolean';
+}
+
+export function isValidParticipantRole(value: unknown): value is 'Member' | 'Admin' | 'Owner' {
+  return value === 'Member' || value === 'Admin' || value === 'Owner';
+}

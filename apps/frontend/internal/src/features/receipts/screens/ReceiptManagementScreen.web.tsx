@@ -45,30 +45,42 @@ export function ReceiptManagementScreen() {
   const navigation = useAppNavigation();
 
   const { currentRole } = useRole();
-  const { isSuperAdmin, isAdmin, canVerifyCashier, hasAnyPermission } = usePermissions();
+  const { isSuperAdmin, isAdmin, canVerifyCashier, hasPermission, hasAnyPermission } = usePermissions();
 
   const isCashier = currentRole === 'Cashier';
-  const hasCashierPermission =
+  const isRegionalAdmin = isSuperAdmin || isAdmin || currentRole === 'Admin';
+  const isFullCashierOrAdmin = isCashier || isRegionalAdmin;
+
+  const canViewReceiptsTab =
+    isFullCashierOrAdmin ||
     canVerifyCashier ||
     hasAnyPermission(
-      'receipts.read',
       'receipts.issue',
       'receipts.edit',
       'receipts.cancel',
-      'receipts.report',
-      'receipts.bundle',
-      'receipts.deposit',
       'billing.collect',
       'billing.op_return'
     );
-  const hasOverallAccess =
-    isSuperAdmin ||
-    isAdmin ||
-    currentRole === 'Regional Director' ||
-    isCashier ||
-    hasCashierPermission;
+  const canViewBookletsTab = isFullCashierOrAdmin || hasPermission('receipts.bundle_entry');
+  const canViewDepositsTab = isFullCashierOrAdmin || hasPermission('receipts.deposit');
+  const canViewAccountsTab = isFullCashierOrAdmin || hasPermission('bank_accounts.manage');
+  const canViewReportsTab = isFullCashierOrAdmin || hasPermission('reports.cashier');
 
-  const state = useReceiptsState();
+  const hasOverallAccess =
+    canViewReceiptsTab ||
+    canViewBookletsTab ||
+    canViewDepositsTab ||
+    canViewAccountsTab ||
+    canViewReportsTab;
+
+  const state = useReceiptsState({
+    hasAccess: hasOverallAccess,
+    canViewReceiptsTab,
+    canViewBookletsTab,
+    canViewDepositsTab,
+    canViewAccountsTab,
+    canViewReportsTab,
+  });
 
   if (!hasOverallAccess) {
     return (
@@ -79,7 +91,7 @@ export function ReceiptManagementScreen() {
           </View>
           <Text style={[styles.restrictedTitle, { color: colors.text }]}>Access Restricted</Text>
           <Text style={[styles.restrictedSubtitle, { color: colors.textMuted }]}>
-            Receipt & Cashiering Management is restricted to Cashiers and authorized collections personnel.
+            Receipt & Cashiering Management is restricted to Cashiers and Regional Administrators.
             Your current role ({currentRole}) does not have permission to access official receipts and cashiering modules.
           </Text>
           <TouchableOpacity
@@ -94,37 +106,43 @@ export function ReceiptManagementScreen() {
     );
   }
 
-  const TABS: TabDefinition[] = [
+  const ALL_TABS: Array<TabDefinition & { visible: boolean }> = [
     {
       id: 'receipts',
       label: 'Official Receipts & Collections',
       icon: 'printer',
       badge: state.pendingPayments.length > 0 ? state.pendingPayments.length : undefined,
+      visible: canViewReceiptsTab,
     },
     {
       id: 'booklets',
       label: 'OR Booklets (Bundles)',
       icon: 'book',
       badge: state.booklets.filter((b) => b.status === 'Active' || (b.status as unknown) === 0).length,
+      visible: canViewBookletsTab,
     },
     {
       id: 'deposits',
       label: 'Bank Deposits & Remittance',
       icon: 'dollar-sign',
       badge: state.undepositedReceipts.length > 0 ? state.undepositedReceipts.length : undefined,
+      visible: canViewDepositsTab,
     },
     {
       id: 'accounts',
       label: 'Depositary Accounts (AGDB)',
       icon: 'credit-card',
       badge: state.bankAccounts.length,
+      visible: canViewAccountsTab,
     },
     {
       id: 'reports',
       label: 'Cashier Reports (RCD & Voids)',
       icon: 'file-text',
+      visible: canViewReportsTab,
     },
   ];
+  const TABS: TabDefinition[] = ALL_TABS.filter((t) => t.visible);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -210,7 +228,7 @@ export function ReceiptManagementScreen() {
 
       {/* Main Content Area */}
       <View style={[styles.contentArea, { width: '100%' }]}>
-        {state.activeTab === 'receipts' && (
+        {state.activeTab === 'receipts' && canViewReceiptsTab && (
           <OfficialReceiptsTab
             receipts={state.receipts}
             isLoadingReceipts={state.isLoadingReceipts}
@@ -234,7 +252,7 @@ export function ReceiptManagementScreen() {
           />
         )}
 
-        {state.activeTab === 'booklets' && (
+        {state.activeTab === 'booklets' && canViewBookletsTab && (
           <OrBookletsTab
             booklets={state.booklets}
             isLoading={state.isLoadingBooklets}
@@ -244,7 +262,7 @@ export function ReceiptManagementScreen() {
           />
         )}
 
-        {state.activeTab === 'deposits' && (
+        {state.activeTab === 'deposits' && canViewDepositsTab && (
           <BankDepositsTab
             deposits={state.deposits}
             isLoading={state.isLoadingDeposits}
@@ -254,7 +272,7 @@ export function ReceiptManagementScreen() {
           />
         )}
 
-        {state.activeTab === 'accounts' && (
+        {state.activeTab === 'accounts' && canViewAccountsTab && (
           <BankAccountsTab
             bankAccounts={state.bankAccounts}
             isLoading={state.isLoadingBankAccounts}
@@ -269,7 +287,7 @@ export function ReceiptManagementScreen() {
           />
         )}
 
-        {state.activeTab === 'reports' && (
+        {state.activeTab === 'reports' && canViewReportsTab && (
           <CashierReportsTab
             reportSubTab={state.reportSubTab}
             onReportSubTabChange={state.setReportSubTab}

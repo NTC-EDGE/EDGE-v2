@@ -14,17 +14,20 @@ public class RemoveMeetingParticipantCommandHandler : IRequestHandler<RemoveMeet
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMeetingNotificationService? _meetingNotificationService;
 
     public RemoveMeetingParticipantCommandHandler(
         IMeetingRepository meetingRepository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IMeetingNotificationService? meetingNotificationService = null)
     {
         _meetingRepository = meetingRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _meetingNotificationService = meetingNotificationService;
     }
 
     public async Task<bool> Handle(RemoveMeetingParticipantCommand request, CancellationToken cancellationToken)
@@ -55,6 +58,15 @@ public class RemoveMeetingParticipantCommandHandler : IRequestHandler<RemoveMeet
         {
             meeting.Participants.Remove(participant);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            if (!isSelf && _meetingNotificationService != null)
+            {
+                await _meetingNotificationService.NotifyParticipantKickedAsync(
+                    meeting.MeetingCode,
+                    request.UserId,
+                    "You were removed from the meeting.",
+                    cancellationToken);
+            }
             return true;
         }
 

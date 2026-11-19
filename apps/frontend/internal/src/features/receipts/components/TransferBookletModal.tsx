@@ -30,7 +30,7 @@ export function TransferBookletModal({
 }: TransferBookletModalProps) {
   const { colors } = useTheme();
   const { user } = useAuthContext();
-  const { members, isLoading: isLoadingMembers } = useTenantMembers(tenantId);
+  const { members, isLoading: isLoadingMembers } = useTenantMembers(visible ? tenantId : undefined);
 
   const [targetUserId, setTargetUserId] = useState<string>('');
   const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([]);

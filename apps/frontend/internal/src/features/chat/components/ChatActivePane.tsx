@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
 import { Conversation } from '@edge/api';
-import { EmptyState, Icon, useTheme } from '@edge/ui';
+import { EmptyState, Button, Icon, useTheme } from '@edge/ui';
 import { MessageBubble } from './MessageBubble';
 import { MessageInputBar } from '../forms/MessageInputBar';
 import { ExtendedChatMessage } from '../hooks/useChatMessages';
@@ -19,6 +19,7 @@ interface ChatActivePaneProps {
   onUnsendMessage?: (messageId: string) => void;
   onReactMessage?: (messageId: string, emoji: string) => void;
   onTyping?: () => void;
+  onStartVideoCall?: (conversation: Conversation) => void;
   typingUsers?: string[];
   isSending: boolean;
 }
@@ -36,6 +37,7 @@ export const ChatActivePane: React.FC<ChatActivePaneProps> = ({
   onUnsendMessage,
   onReactMessage,
   onTyping,
+  onStartVideoCall,
   typingUsers = [],
   isSending,
 }) => {
@@ -101,6 +103,18 @@ export const ChatActivePane: React.FC<ChatActivePaneProps> = ({
             </View>
           </View>
         </View>
+
+        {onStartVideoCall && (
+          <Button
+            variant="secondary"
+            size="sm"
+            fullWidth={false}
+            leftIcon={<Icon name="video" size={14} color={colors.brand.primary} />}
+            onPress={() => onStartVideoCall(conversation)}
+          >
+            Video Meet
+          </Button>
+        )}
       </View>
 
       <FlatList

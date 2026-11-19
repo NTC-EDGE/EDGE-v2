@@ -35,17 +35,17 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
         var meeting = await _meetingRepository.GetByCodeAsync(request.MeetingCode, cancellationToken)
             ?? throw new KeyNotFoundException("Meeting not found.");
 
-        var participant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUser.Id);
+        var participant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUser.Id && !p.IsDeleted);
         if (participant == null)
         {
-            if (meeting.HostUserId == currentUser.Id || currentUser.IsSuperAdmin)
+            if (meeting.HostUserId == currentUser.Id || currentUser.IsSuperAdmin || meeting.Scope == ConversationScope.InterRegional)
             {
                 participant = new MeetingParticipant
                 {
                     MeetingId = meeting.Id,
                     UserId = currentUser.Id,
                     TenantId = meeting.TenantId,
-                    Role = ParticipantRole.Owner,
+                    Role = meeting.HostUserId == currentUser.Id ? ParticipantRole.Owner : ParticipantRole.Member,
                     IsDeleted = false
                 };
                 meeting.Participants.Add(participant);
@@ -61,37 +61,104 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
                             participant.Role == ParticipantRole.Admin ||
                             currentUser.IsSuperAdmin;
 
+        int? raisedQueuePos = null;
+        Guid? spotlightedTarget = null;
+
         if (request.ActionType == MeetingActionType.RaiseHand)
         {
-            var count = await _meetingRepository.GetHandRaiseQueueCountAsync(meeting.Id, cancellationToken);
-            participant.IsHandRaised = true;
-            participant.HandRaiseQueuePosition = count + 1;
-            participant.HandRaisedAt = DateTimeOffset.UtcNow;
+            if (!participant.IsHandRaised)
+            {
+                var count = await _meetingRepository.GetHandRaiseQueueCountAsync(meeting.Id, cancellationToken);
+                participant.IsHandRaised = true;
+                participant.HandRaiseQueuePosition = count + 1;
+                participant.HandRaisedAt = DateTimeOffset.UtcNow;
+            }
+            raisedQueuePos = participant.HandRaiseQueuePosition ?? 1;
         }
         else if (request.ActionType == MeetingActionType.LowerHand)
         {
-            participant.IsHandRaised = false;
-            participant.HandRaiseQueuePosition = null;
-            participant.HandRaisedAt = null;
+            var targetId = (isHostOrAdmin && request.TargetUserId.HasValue) ? request.TargetUserId.Value : currentUser.Id;
+            var targetParticipant = meeting.Participants.FirstOrDefault(p => p.UserId == targetId);
+            if (targetParticipant != null)
+            {
+                targetParticipant.IsHandRaised = false;
+                targetParticipant.HandRaiseQueuePosition = null;
+                targetParticipant.HandRaisedAt = null;
+            }
+
+            // Re-index remaining raised hands in chronological order
+            var remainingRaised = meeting.Participants
+                .Where(p => p.IsHandRaised && p.UserId != targetId)
+                .OrderBy(p => p.HandRaisedAt ?? DateTimeOffset.MaxValue)
+                .ToList();
+            for (var idx = 0; idx < remainingRaised.Count; idx++)
+            {
+                remainingRaised[idx].HandRaiseQueuePosition = idx + 1;
+            }
         }
-        else if (request.ActionType == MeetingActionType.MuteParticipant && request.TargetUserId.HasValue)
+        else if (request.ActionType == MeetingActionType.MuteParticipant)
         {
             if (!isHostOrAdmin)
             {
                 throw new UnauthorizedAccessException("Only the meeting host or administrators can mute participants.");
             }
-            var target = meeting.Participants.FirstOrDefault(p => p.UserId == request.TargetUserId.Value);
-            if (target != null) target.IsMutedByHost = true;
+
+            if (request.TargetUserId.HasValue && request.TargetUserId.Value != Guid.Empty)
+            {
+                var target = meeting.Participants.FirstOrDefault(p => p.UserId == request.TargetUserId.Value);
+                if (target != null) target.IsMutedByHost = true;
+            }
+            else
+            {
+                // Mute All non-caller participants
+                foreach (var p in meeting.Participants.Where(p => p.UserId != currentUser.Id))
+                {
+                    p.IsMutedByHost = true;
+                }
+            }
         }
-        else if (request.ActionType == MeetingActionType.SpotlightParticipant && request.TargetUserId.HasValue)
+        else if (request.ActionType == MeetingActionType.SpotlightParticipant)
         {
             if (!isHostOrAdmin)
             {
                 throw new UnauthorizedAccessException("Only the meeting host or administrators can spotlight participants.");
             }
-            foreach (var p in meeting.Participants)
+
+            if (request.TargetUserId.HasValue && request.TargetUserId.Value != Guid.Empty)
             {
-                p.IsSpotlighted = p.UserId == request.TargetUserId.Value;
+                var currentSpotlight = meeting.Participants.FirstOrDefault(p => p.IsSpotlighted);
+                var clearSpotlight = currentSpotlight != null && currentSpotlight.UserId == request.TargetUserId.Value;
+
+                foreach (var p in meeting.Participants)
+                {
+                    p.IsSpotlighted = !clearSpotlight && p.UserId == request.TargetUserId.Value;
+                }
+                spotlightedTarget = clearSpotlight ? null : request.TargetUserId.Value;
+            }
+            else
+            {
+                foreach (var p in meeting.Participants)
+                {
+                    p.IsSpotlighted = false;
+                }
+                spotlightedTarget = null;
+            }
+        }
+        else if (request.ActionType == MeetingActionType.KickParticipant && request.TargetUserId.HasValue)
+        {
+            if (!isHostOrAdmin)
+            {
+                throw new UnauthorizedAccessException("Only the meeting host or administrators can remove participants.");
+            }
+            if (request.TargetUserId.Value == meeting.HostUserId)
+            {
+                throw new InvalidOperationException("The meeting host cannot be removed.");
+            }
+            var target = meeting.Participants.FirstOrDefault(p => p.UserId == request.TargetUserId.Value);
+            if (target != null)
+            {
+                target.LeftAt = DateTimeOffset.UtcNow;
+                target.IsDeleted = true;
             }
         }
         else if (request.ActionType == MeetingActionType.EndMeeting)
@@ -116,7 +183,8 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
         else if (request.ActionType == MeetingActionType.LeaveMeeting)
         {
             participant.LeftAt = DateTimeOffset.UtcNow;
-            // If host leaves without ending for all, assign co-host / admin role to another active participant if available
+            participant.IsHandRaised = false;
+            participant.HandRaiseQueuePosition = null;
             if (meeting.HostUserId == currentUser.Id)
             {
                 var nextAdmin = meeting.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.IsDeleted && p.LeftAt == null && (p.Role == ParticipantRole.Admin || p.Role == ParticipantRole.Owner));
@@ -150,6 +218,33 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
 
         await _meetingRepository.AddMeetingActionAsync(action, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Dispatch real-time notifications after persistence
+        var actorName = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(actorName)) actorName = "Participant";
+
+        if (request.ActionType == MeetingActionType.RaiseHand && raisedQueuePos.HasValue)
+        {
+            await _meetingNotificationService.NotifyHandRaisedAsync(meeting.MeetingCode, currentUser.Id, actorName, raisedQueuePos.Value, cancellationToken);
+        }
+        else if (request.ActionType == MeetingActionType.LowerHand)
+        {
+            var loweredUserId = (isHostOrAdmin && request.TargetUserId.HasValue) ? request.TargetUserId.Value : currentUser.Id;
+            await _meetingNotificationService.NotifyHandLoweredAsync(meeting.MeetingCode, loweredUserId, cancellationToken);
+        }
+        else if (request.ActionType == MeetingActionType.MuteParticipant)
+        {
+            await _meetingNotificationService.NotifyParticipantMutedAsync(meeting.MeetingCode, request.TargetUserId, currentUser.Id, cancellationToken);
+        }
+        else if (request.ActionType == MeetingActionType.SpotlightParticipant)
+        {
+            await _meetingNotificationService.NotifyParticipantSpotlightedAsync(meeting.MeetingCode, spotlightedTarget, cancellationToken);
+        }
+        else if (request.ActionType == MeetingActionType.KickParticipant && request.TargetUserId.HasValue)
+        {
+            await _meetingNotificationService.NotifyParticipantKickedAsync(meeting.MeetingCode, request.TargetUserId.Value, "You were removed from the meeting by the host.", cancellationToken);
+        }
+
         return true;
     }
 }

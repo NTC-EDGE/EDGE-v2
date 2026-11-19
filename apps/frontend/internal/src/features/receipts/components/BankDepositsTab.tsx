@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
 import { BankDepositDto, OfficialReceiptDto } from '@edge/api';
+import { usePermissions } from '../../shell/context/PermissionContext';
+import { useRole } from '../../shell/context/RoleContext';
 
 interface BankDepositsTabProps {
   deposits: BankDepositDto[];
@@ -32,6 +34,15 @@ export function BankDepositsTab({
   onOpenDepositModal,
 }: BankDepositsTabProps) {
   const { colors } = useTheme();
+  const { currentRole } = useRole();
+  const { isSuperAdmin, isAdmin, hasPermission } = usePermissions();
+
+  const canCreateDeposit =
+    isSuperAdmin ||
+    isAdmin ||
+    currentRole === 'Admin' ||
+    currentRole === 'Cashier' ||
+    hasPermission('receipts.deposit');
 
   const undepositedTotal = undepositedReceipts.reduce((sum, r) => sum + r.amount, 0);
   const totalDeposited = deposits.reduce((sum, d) => sum + d.totalAmount, 0);
@@ -56,21 +67,23 @@ export function BankDepositsTab({
           <Text style={[styles.statSub, { color: colors.neutral[600] }]}>{deposits.length} deposit slips recorded</Text>
         </View>
 
-        <TouchableOpacity
-          onPress={onOpenDepositModal}
-          disabled={undepositedReceipts.length === 0}
-          style={[
-            styles.createDepositBtn,
-            { backgroundColor: colors.brand.primary },
-            undepositedReceipts.length === 0 && { opacity: 0.6 },
-          ]}
-        >
-          <Lucide name="dollar-sign" size={20} color="#fff" />
-          <View>
-            <Text style={styles.depositBtnTitle}>Create Bank Deposit</Text>
-            <Text style={styles.depositBtnSub}>Remit pending collections</Text>
-          </View>
-        </TouchableOpacity>
+        {canCreateDeposit && (
+          <TouchableOpacity
+            onPress={onOpenDepositModal}
+            disabled={undepositedReceipts.length === 0}
+            style={[
+              styles.createDepositBtn,
+              { backgroundColor: colors.brand.primary },
+              undepositedReceipts.length === 0 && { opacity: 0.6 },
+            ]}
+          >
+            <Lucide name="dollar-sign" size={20} color="#fff" />
+            <View>
+              <Text style={styles.depositBtnTitle}>Create Bank Deposit</Text>
+              <Text style={styles.depositBtnSub}>Remit pending collections</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Deposits Feed */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,36 +10,28 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import { Button, ConfirmationModal, Icon, SHADOWS, useTheme } from '@edge/ui';
-import { realTimeService } from '@edge/api';
+import { ConfirmationModal, EmptyState, Icon, SHADOWS, useTheme } from '@edge/ui';
+import { InMeetingChatMessage, InMeetingReactionItem } from '../hooks/useMeetingRoom';
 
 const QUICK_REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '👏', '🎉'];
 
-export interface InMeetingReaction {
-  emoji: string;
-  count: number;
-  users: string[];
-}
-
-export interface InMeetingMessage {
-  id: string;
-  senderName: string;
-  content: string;
-  timestamp: string;
-  isEdited?: boolean;
-  isUnsent?: boolean;
-  reactions?: InMeetingReaction[];
-}
+export type InMeetingReaction = InMeetingReactionItem;
+export type InMeetingMessage = InMeetingChatMessage;
 
 interface InMeetingChatSidebarProps {
   meetingCode: string;
   currentUserName?: string;
   visible: boolean;
+  messages: InMeetingChatMessage[];
+  onSendMessage: (content: string) => void;
+  onEditMessage: (messageId: string, newContent: string) => void;
+  onUnsendMessage: (messageId: string) => void;
+  onReactMessage: (messageId: string, emoji: string) => void;
   onClose: () => void;
 }
 
 interface InMeetingMessageItemProps {
-  item: InMeetingMessage;
+  item: InMeetingChatMessage;
   isSelf: boolean;
   currentUserName: string;
   onEdit: (messageId: string, newContent: string) => void;
@@ -68,7 +60,7 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
   const reactionBtnRef = useRef<View>(null);
 
   const handleOpenMenu = () => {
-    moreBtnRef.current?.measure((x, y, width, height, pageX, pageY) => {
+    moreBtnRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
       const menuWidth = 150;
       const windowWidth = Dimensions.get('window').width;
       const windowHeight = Dimensions.get('window').height;
@@ -85,7 +77,7 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
   };
 
   const handleOpenPicker = () => {
-    reactionBtnRef.current?.measure((x, y, width, height, pageX, pageY) => {
+    reactionBtnRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
       const pickerWidth = 230;
       const windowWidth = Dimensions.get('window').width;
       let leftPos = (pageX !== undefined ? pageX : 0) + width / 2 - pickerWidth / 2;
@@ -122,10 +114,7 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
 
   return (
     <View
-      style={[
-        styles.msgItem,
-        isSelf ? styles.selfMsgItem : styles.otherMsgItem,
-      ]}
+      style={[styles.msgItem, isSelf ? styles.selfMsgItem : styles.otherMsgItem]}
       {...Platform.select({
         web: {
           onMouseEnter: () => setIsHovered(true),
@@ -138,13 +127,7 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
         {item.isEdited && !item.isUnsent ? ' (edited)' : ''}
       </Text>
 
-      <View
-        style={[
-          styles.bubbleRow,
-          isSelf ? styles.bubbleRowSelf : styles.bubbleRowOther,
-        ]}
-      >
-        {/* Action Triggers on Left for Self */}
+      <View style={[styles.bubbleRow, isSelf ? styles.bubbleRowSelf : styles.bubbleRowOther]}>
         {isSelf && !item.isUnsent && (
           <View style={[styles.actionTriggerBar, !showActions && styles.actionTriggerBarHidden]}>
             <View ref={reactionBtnRef} collapsable={false}>
@@ -168,7 +151,6 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
           </View>
         )}
 
-        {/* Message Bubble Body */}
         <View
           style={[
             styles.msgBubble,
@@ -213,7 +195,6 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
           )}
         </View>
 
-        {/* Action Triggers on Right for Others */}
         {!isSelf && !item.isUnsent && (
           <View style={[styles.actionTriggerBar, !showActions && styles.actionTriggerBarHidden]}>
             <View ref={reactionBtnRef} collapsable={false}>
@@ -238,14 +219,8 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
         )}
       </View>
 
-      {/* Reaction Badges */}
       {item.reactions !== undefined && item.reactions.length > 0 && (
-        <View
-          style={[
-            styles.reactionsRow,
-            isSelf ? styles.reactionsRowSelf : styles.reactionsRowOther,
-          ]}
-        >
+        <View style={[styles.reactionsRow, isSelf ? styles.reactionsRowSelf : styles.reactionsRowOther]}>
           {item.reactions.map((r) => {
             const hasReacted = r.users.includes(currentUserName);
             return (
@@ -267,12 +242,7 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
                 onPress={() => onReact(item.id, r.emoji)}
               >
                 <Text style={styles.reactionEmoji}>{r.emoji}</Text>
-                <Text
-                  style={[
-                    styles.reactionCount,
-                    { color: hasReacted ? '#2563EB' : colors.textMuted },
-                  ]}
-                >
+                <Text style={[styles.reactionCount, { color: hasReacted ? '#2563EB' : colors.textMuted }]}>
                   {r.count}
                 </Text>
               </Pressable>
@@ -281,13 +251,7 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
         </View>
       )}
 
-      {/* Emoji Quick Picker Dropdown */}
-      <Modal
-        visible={pickerVisible}
-        transparent
-        animationType="none"
-        onRequestClose={() => setPickerVisible(false)}
-      >
+      <Modal visible={pickerVisible} transparent animationType="none" onRequestClose={() => setPickerVisible(false)}>
         <Pressable
           style={styles.modalBackdrop}
           onPress={(e) => {
@@ -308,11 +272,7 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
             ]}
           >
             {QUICK_REACTION_EMOJIS.map((emoji) => (
-              <Pressable
-                key={emoji}
-                style={styles.emojiBtn}
-                onPress={() => handleSelectReaction(emoji)}
-              >
+              <Pressable key={emoji} style={styles.emojiBtn} onPress={() => handleSelectReaction(emoji)}>
                 <Text style={styles.emojiText}>{emoji}</Text>
               </Pressable>
             ))}
@@ -320,13 +280,7 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
         </Pressable>
       </Modal>
 
-      {/* 3-Dots Action Dropdown */}
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="none"
-        onRequestClose={() => setMenuVisible(false)}
-      >
+      <Modal visible={menuVisible} transparent animationType="none" onRequestClose={() => setMenuVisible(false)}>
         <Pressable
           style={styles.modalBackdrop}
           onPress={(e) => {
@@ -387,7 +341,6 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
         </Pressable>
       </Modal>
 
-      {/* Reusable Unsend Confirmation Modal */}
       <ConfirmationModal
         visible={showUnsendModal}
         title="Unsend Message?"
@@ -406,182 +359,25 @@ const InMeetingMessageItem: React.FC<InMeetingMessageItemProps> = ({
 };
 
 export const InMeetingChatSidebar: React.FC<InMeetingChatSidebarProps> = ({
-  meetingCode,
   currentUserName = 'You',
   visible,
+  messages,
+  onSendMessage,
+  onEditMessage,
+  onUnsendMessage,
+  onReactMessage,
   onClose,
 }) => {
-  const { colors, isDark } = useTheme();
-  const [messages, setMessages] = useState<InMeetingMessage[]>([]);
+  const { colors } = useTheme();
   const [content, setContent] = useState<string>('');
-
-  useEffect(() => {
-    if (!visible || !meetingCode) return;
-
-    const unsubChat = realTimeService.onReceiveMeetingChatMessage((msg) => {
-      setMessages((prev) => {
-        if (msg.id !== undefined && prev.some((m) => m.id === msg.id)) {
-          return prev;
-        }
-        return [
-          ...prev,
-          {
-            id: msg.id ?? `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            senderName: msg.senderName,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            reactions: [],
-          },
-        ];
-      });
-    });
-
-    const unsubEdited = realTimeService.onReceiveMeetingChatEdited(({ messageId, content: newContent }) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId ? { ...msg, content: newContent, isEdited: true } : msg
-        )
-      );
-    });
-
-    const unsubUnsent = realTimeService.onReceiveMeetingChatUnsent(({ messageId }) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId
-            ? { ...msg, content: 'This message was unsent', isUnsent: true }
-            : msg
-        )
-      );
-    });
-
-    const unsubReaction = realTimeService.onReceiveMeetingChatReaction(({ messageId, emoji, userName }) => {
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== messageId) return msg;
-          const reactions = msg.reactions !== undefined ? [...msg.reactions] : [];
-          const existingIdx = reactions.findIndex((r) => r.emoji === emoji);
-          if (existingIdx >= 0) {
-            const existing = reactions[existingIdx];
-            if (existing !== undefined) {
-              const userIdx = existing.users.indexOf(userName);
-              let newUsers = [...existing.users];
-              if (userIdx >= 0) {
-                newUsers = newUsers.filter((u) => u !== userName);
-              } else {
-                newUsers.push(userName);
-              }
-              if (newUsers.length === 0) {
-                reactions.splice(existingIdx, 1);
-              } else {
-                reactions[existingIdx] = {
-                  emoji,
-                  count: newUsers.length,
-                  users: newUsers,
-                };
-              }
-            }
-          } else {
-            reactions.push({
-              emoji,
-              count: 1,
-              users: [userName],
-            });
-          }
-          return { ...msg, reactions };
-        })
-      );
-    });
-
-    return () => {
-      unsubChat();
-      unsubEdited();
-      unsubUnsent();
-      unsubReaction();
-    };
-  }, [visible, meetingCode]);
 
   if (!visible) return null;
 
   const handleSend = () => {
     const trimmed = content.trim();
     if (trimmed.length === 0) return;
-
-    const messageId = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const newMsg: InMeetingMessage = {
-      id: messageId,
-      senderName: currentUserName,
-      content: trimmed,
-      timestamp,
-      reactions: [],
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
-    void realTimeService.broadcastMeetingChat(meetingCode, {
-      id: messageId,
-      senderName: currentUserName,
-      content: trimmed,
-      timestamp,
-    });
+    onSendMessage(trimmed);
     setContent('');
-  };
-
-  const handleEdit = (messageId: string, newContent: string) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId ? { ...msg, content: newContent, isEdited: true } : msg
-      )
-    );
-    void realTimeService.broadcastMeetingChatEdited(meetingCode, { messageId, content: newContent });
-  };
-
-  const handleUnsend = (messageId: string) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId ? { ...msg, content: 'This message was unsent', isUnsent: true } : msg
-      )
-    );
-    void realTimeService.broadcastMeetingChatUnsent(meetingCode, { messageId });
-  };
-
-  const handleReact = (messageId: string, emoji: string) => {
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id !== messageId) return msg;
-        const reactions = msg.reactions !== undefined ? [...msg.reactions] : [];
-        const existingIdx = reactions.findIndex((r) => r.emoji === emoji);
-        if (existingIdx >= 0) {
-          const existing = reactions[existingIdx];
-          if (existing !== undefined) {
-            const userIdx = existing.users.indexOf(currentUserName);
-            let newUsers = [...existing.users];
-            if (userIdx >= 0) {
-              newUsers = newUsers.filter((u) => u !== currentUserName);
-            } else {
-              newUsers.push(currentUserName);
-            }
-            if (newUsers.length === 0) {
-              reactions.splice(existingIdx, 1);
-            } else {
-              reactions[existingIdx] = {
-                emoji,
-                count: newUsers.length,
-                users: newUsers,
-              };
-            }
-          }
-        } else {
-          reactions.push({
-            emoji,
-            count: 1,
-            users: [currentUserName],
-          });
-        }
-        return { ...msg, reactions };
-      })
-    );
-    void realTimeService.broadcastMeetingChatReaction(meetingCode, { messageId, emoji, userName: currentUserName });
   };
 
   const handleKeyPress = (e: { nativeEvent: { key: string; shiftKey?: boolean; preventDefault?: () => void } }) => {
@@ -598,36 +394,45 @@ export const InMeetingChatSidebar: React.FC<InMeetingChatSidebarProps> = ({
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerTitleRow}>
           <Icon name="message-square" size={16} color={colors.brand.primary} />
-          <Text style={[styles.title, { color: colors.text }]}>In-Meeting Chat</Text>
+          <Text style={[styles.title, { color: colors.text }]}>In-Call Messages</Text>
         </View>
         <Pressable onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close chat">
           <Icon name="x" size={18} color={colors.textMuted} />
         </Pressable>
       </View>
 
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          const isSelf = item.senderName === currentUserName || item.senderName === 'You';
-          return (
-            <InMeetingMessageItem
-              item={item}
-              isSelf={isSelf}
-              currentUserName={currentUserName}
-              onEdit={handleEdit}
-              onUnsend={handleUnsend}
-              onReact={handleReact}
-            />
-          );
-        }}
-        style={styles.msgList}
-      />
+      {messages.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <EmptyState
+            title="No messages yet"
+            description="Messages sent here are shared with everyone in this live meeting."
+          />
+        </View>
+      ) : (
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => {
+            const isSelf = item.senderName === currentUserName || item.senderName === 'You';
+            return (
+              <InMeetingMessageItem
+                item={item}
+                isSelf={isSelf}
+                currentUserName={currentUserName}
+                onEdit={onEditMessage}
+                onUnsend={onUnsendMessage}
+                onReact={onReactMessage}
+              />
+            );
+          }}
+          style={styles.msgList}
+        />
+      )}
 
       <View style={[styles.inputRow, { borderTopColor: colors.border, backgroundColor: colors.bg }]}>
         <TextInput
           style={[styles.input, { color: colors.text }]}
-          placeholder="Message all participants... (Enter to send)"
+          placeholder="Message everyone..."
           placeholderTextColor={colors.textMuted}
           value={content}
           onChangeText={setContent}
@@ -675,6 +480,11 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 4,
+  },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 16,
   },
   msgList: {
     flex: 1,
@@ -726,11 +536,6 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      web: {
-        cursor: 'pointer',
-      },
-    }),
   },
   msgBubble: {
     paddingHorizontal: 12,
@@ -740,7 +545,6 @@ const styles = StyleSheet.create({
   },
   unsentBubble: {
     opacity: 0.7,
-    fontStyle: 'italic',
   },
   unsentText: {
     fontStyle: 'italic',
@@ -756,11 +560,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     paddingVertical: 2,
-    ...Platform.select({
-      web: {
-        outlineWidth: 0,
-      },
-    }),
   },
   editActionRow: {
     flexDirection: 'row',
@@ -805,10 +604,10 @@ const styles = StyleSheet.create({
   reactionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 8,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
     borderWidth: 1,
   },
   reactionEmoji: {
@@ -818,63 +617,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-  inputRow: {
-    flexDirection: 'row',
-    padding: 10,
-    borderTopWidth: 1,
-    alignItems: 'center',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    fontSize: 13,
-    maxHeight: 70,
-    paddingVertical: 6,
-    ...Platform.select({
-      web: {
-        outlineWidth: 0,
-        outlineColor: 'transparent',
-      },
-    }),
-  },
-  sendBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   modalBackdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'transparent',
-    zIndex: 99998,
   },
   emojiPickerCard: {
     position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    elevation: 20,
-    zIndex: 99999,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.2), 0 8px 10px -6px rgba(15, 23, 42, 0.1)',
-      },
-    }),
+    gap: 4,
   },
   emojiBtn: {
-    paddingHorizontal: 3,
-    paddingVertical: 2,
-    borderRadius: 6,
-    ...Platform.select({
-      web: {
-        cursor: 'pointer',
-      },
-    }),
+    padding: 4,
   },
   emojiText: {
     fontSize: 16,
@@ -885,13 +643,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     paddingVertical: 4,
-    elevation: 20,
-    zIndex: 99999,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.1)',
-      },
-    }),
   },
   menuItem: {
     flexDirection: 'row',
@@ -899,14 +650,30 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    ...Platform.select({
-      web: {
-        cursor: 'pointer',
-      },
-    }),
   },
   menuItemText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 13,
+    maxHeight: 90,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  sendBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
