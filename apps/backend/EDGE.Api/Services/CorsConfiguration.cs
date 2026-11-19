@@ -19,7 +19,8 @@ public static class CorsConfiguration
         {
             options.AddPolicy("CorsPolicy", policy =>
             {
-                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+                var rawEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+                var env = string.IsNullOrWhiteSpace(rawEnv) ? "Development" : rawEnv.Trim();
                 var isDev = string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase);
 
                 if (isDev)
@@ -32,22 +33,32 @@ public static class CorsConfiguration
                 else
                 {
                     var allowedOriginsSection = configuration.GetSection("Cors:AllowedOrigins");
-                    var allowedOrigins = allowedOriginsSection.Get<string[]>();
+                    var allowedOrigins = allowedOriginsSection.Get<string[]>() ?? Array.Empty<string>();
 
-                    if (allowedOrigins != null && allowedOrigins.Length > 0)
-                    {
-                        policy.WithOrigins(allowedOrigins)
-                              .AllowAnyMethod()
-                              .AllowAnyHeader()
-                              .AllowCredentials();
-                    }
-                    else
-                    {
-                        policy.SetIsOriginAllowed(_ => true)
-                              .AllowAnyMethod()
-                              .AllowAnyHeader()
-                              .AllowCredentials();
-                    }
+                    policy.SetIsOriginAllowed(origin =>
+                          {
+                              if (string.IsNullOrWhiteSpace(origin)) return false;
+                              if (Array.Exists(allowedOrigins, o => string.Equals(o.TrimEnd('/'), origin.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)))
+                              {
+                                  return true;
+                              }
+                              if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                              {
+                                  var host = uri.Host;
+                                  if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                                      host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase) ||
+                                      host.EndsWith(".nextstep-software.com", StringComparison.OrdinalIgnoreCase) ||
+                                      host.EndsWith(".ntc.gov.ph", StringComparison.OrdinalIgnoreCase) ||
+                                      host.EndsWith(".ntc-edge.gov.ph", StringComparison.OrdinalIgnoreCase))
+                                  {
+                                      return true;
+                                  }
+                              }
+                              return false;
+                          })
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials();
                 }
             });
         });

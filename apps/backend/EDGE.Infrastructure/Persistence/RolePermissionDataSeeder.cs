@@ -493,6 +493,10 @@ public static class RolePermissionDataSeeder
         var allTenants = await context.Tenants.ToListAsync();
         var allMembers = await context.TenantMembers.ToListAsync();
         var allFieldOffices = await context.FieldOffices.ToListAsync();
+        var validRegionIds = (await context.Regions.Select(r => r.Id).ToListAsync()).ToHashSet();
+        var fallbackRegionId = validRegionIds.Contains(SeedConstants.CentralRegionId)
+            ? SeedConstants.CentralRegionId
+            : validRegionIds.FirstOrDefault();
         var fallbackGlobalMemberId = allMembers.FirstOrDefault()?.Id ?? SeedConstants.TenantMembers.SuperAdminMemberId;
 
         foreach (var tenant in allTenants)
@@ -501,7 +505,7 @@ public static class RolePermissionDataSeeder
             var mainOffice = tenantOffices.FirstOrDefault(fo => fo.Category == FieldOfficeCategory.Main)
                              ?? tenantOffices.FirstOrDefault();
 
-            if (mainOffice == null)
+            if (mainOffice == null && fallbackRegionId != Guid.Empty)
             {
                 var tenantMembersForOic = allMembers.Where(m => m.TenantId == tenant.Id && !m.IsDeleted).ToList();
                 var oicMemberId = tenantMembersForOic.FirstOrDefault(m => m.RoleId == actualRegionalDirectorRoleId)?.Id
@@ -514,6 +518,7 @@ public static class RolePermissionDataSeeder
                     ? cleanName
                     : $"{cleanName} - Main Office";
                 var mainOfficeCode = $"{(string.IsNullOrWhiteSpace(tenant.Code) ? "NTC" : tenant.Code.Trim().ToUpperInvariant())}-MAIN";
+                var resolvedRegionId = validRegionIds.Contains(tenant.RegionId) ? tenant.RegionId : fallbackRegionId;
 
                 mainOffice = new FieldOffice
                 {
@@ -525,7 +530,7 @@ public static class RolePermissionDataSeeder
                     Description = !string.IsNullOrWhiteSpace(tenant.Description)
                         ? tenant.Description
                         : $"Regional Main Office for {cleanName}",
-                    RegionId = tenant.RegionId,
+                    RegionId = resolvedRegionId,
                     Address = cleanName,
                     ContactPhone = string.Empty,
                     ContactEmail = string.Empty,
