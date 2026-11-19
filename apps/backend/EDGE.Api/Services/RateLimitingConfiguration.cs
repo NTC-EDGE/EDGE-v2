@@ -74,6 +74,7 @@ public static class RateLimitingConfiguration
         var enabled = configuration.GetValue("RateLimiting:Enabled", true);
         var authenticatedPermitLimit = configuration.GetValue("RateLimiting:AuthenticatedPermitLimitPerMinute", 240);
         var anonymousPermitLimit = configuration.GetValue("RateLimiting:AnonymousPermitLimitPerMinute", 90);
+        var realtimePermitLimit = configuration.GetValue("RateLimiting:RealtimePermitLimitPerMinute", 5000);
         var strictMutationPermitLimit = configuration.GetValue("RateLimiting:StrictMutationPermitLimitPerMinute", 30);
         var fileUploadPermitLimit = configuration.GetValue("RateLimiting:FileUploadPermitLimitPerMinute", 20);
         var heavyComputePermitLimit = configuration.GetValue("RateLimiting:HeavyComputePermitLimitPerMinute", 30);
@@ -131,8 +132,24 @@ public static class RateLimitingConfiguration
                     return RateLimitPartition.GetNoLimiter("unlimited");
                 }
 
+                var isRealtimeHub = httpContext.Request.Path.StartsWithSegments("/hubs");
                 var isAuthenticated = httpContext.User.Identity?.IsAuthenticated == true;
                 var partitionKey = ResolvePartitionKey(httpContext);
+
+                if (isRealtimeHub)
+                {
+                    return RateLimitPartition.GetSlidingWindowLimiter(
+                        partitionKey: isAuthenticated ? $"realtime:user:{partitionKey}" : $"realtime:ip:{partitionKey}",
+                        factory: _ => new SlidingWindowRateLimiterOptions
+                        {
+                            PermitLimit = realtimePermitLimit,
+                            Window = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 20,
+                            AutoReplenishment = true
+                        });
+                }
 
                 return RateLimitPartition.GetSlidingWindowLimiter(
                     partitionKey: isAuthenticated ? $"global:user:{partitionKey}" : $"global:ip:{partitionKey}",

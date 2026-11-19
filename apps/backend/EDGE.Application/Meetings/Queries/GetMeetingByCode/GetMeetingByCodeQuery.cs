@@ -37,34 +37,43 @@ public class GetMeetingByCodeQueryHandler : IRequestHandler<GetMeetingByCodeQuer
             TenantName = m.Tenant?.Name,
             HostUserId = m.HostUserId,
             HostUserName = $"{m.HostUser?.FirstName} {m.HostUser?.LastName}".Trim(),
+            LinkedConversationId = m.LinkedConversationId,
             ScheduledStartTime = m.ScheduledStartTime,
             ScheduledEndTime = m.ScheduledEndTime,
+            ActualStartTime = m.ActualStartTime,
+            ActualEndTime = m.ActualEndTime,
             Status = m.Status,
-            Participants = m.Participants.Select(p => new MeetingParticipantDto
-            {
-                UserId = p.UserId,
-                FullName = $"{p.User?.FirstName} {p.User?.LastName}".Trim(),
-                Email = p.User?.Email ?? string.Empty,
-                AvatarUrl = p.User?.ProfilePicture,
-                Role = p.Role,
-                IsHandRaised = p.IsHandRaised,
-                HandRaiseQueuePosition = p.HandRaiseQueuePosition,
-                IsMutedByHost = p.IsMutedByHost,
-                IsSpotlighted = p.IsSpotlighted
-            }).ToList(),
-            Polls = m.Polls.Select(p => new MeetingPollDto
-            {
-                Id = p.Id,
-                Question = p.Question,
-                Options = ParsePollOptions(p.OptionsJson),
-                IsClosed = p.IsClosed,
-                IsAnonymous = p.IsAnonymous,
-                Votes = p.Votes.Select(v => new MeetingPollVoteDto
+            Participants = m.Participants
+                .Where(p => !p.IsDeleted)
+                .Select(p => new MeetingParticipantDto
                 {
-                    UserId = v.UserId,
-                    SelectedOptionIndex = v.SelectedOptionIndex
+                    UserId = p.UserId,
+                    FullName = $"{p.User?.FirstName} {p.User?.LastName}".Trim(),
+                    Email = p.User?.Email ?? string.Empty,
+                    AvatarUrl = p.User?.ProfilePicture,
+                    Role = p.Role,
+                    IsHandRaised = p.IsHandRaised,
+                    HandRaiseQueuePosition = p.HandRaiseQueuePosition,
+                    IsMutedByHost = p.IsMutedByHost,
+                    IsSpotlighted = p.IsSpotlighted
+                }).ToList(),
+            Polls = m.Polls
+                .Where(p => !p.IsDeleted)
+                .Select(p => new MeetingPollDto
+                {
+                    Id = p.Id,
+                    Question = p.Question,
+                    Options = ParsePollOptions(p.OptionsJson),
+                    IsClosed = p.IsClosed,
+                    IsAnonymous = p.IsAnonymous,
+                    Votes = p.Votes
+                        .Where(v => !v.IsDeleted)
+                        .Select(v => new MeetingPollVoteDto
+                        {
+                            UserId = p.IsAnonymous ? Guid.Empty : v.UserId,
+                            SelectedOptionIndex = v.SelectedOptionIndex
+                        }).ToList()
                 }).ToList()
-            }).ToList()
         };
     }
 

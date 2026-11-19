@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Button, ConfirmationModal, Icon, useTheme } from '@edge/ui';
+import { isScreenShareSupported, isWebMediaSupported } from '../utils/webDomHelpers';
 
 interface MeetingControlsBarProps {
   isHost: boolean;
@@ -9,14 +10,22 @@ interface MeetingControlsBarProps {
   isHandRaised: boolean;
   isScreenSharing: boolean;
   isRecording?: boolean;
+  isPeopleOpen?: boolean;
+  isPollsOpen?: boolean;
+  isChatOpen?: boolean;
+  participantCount?: number;
+  waitingCount?: number;
+  openPollCount?: number;
+  unreadChatCount?: number;
   onToggleMic: () => void;
   onToggleVideo: () => void;
   onToggleHandRaise: () => void;
   onToggleScreenShare: () => void;
   onToggleRecording?: () => void;
+  onOpenDeviceSettings?: () => void;
   onReact: (emoji: string) => void;
-  onOpenPoll: () => void;
-  onOpenInvite: () => void;
+  onTogglePeople: () => void;
+  onTogglePolls: () => void;
   onToggleChat: () => void;
   onLeave: () => void;
   onEndMeetingForEveryone?: () => void;
@@ -29,24 +38,28 @@ export const MeetingControlsBar: React.FC<MeetingControlsBarProps> = ({
   isHandRaised,
   isScreenSharing,
   isRecording = false,
+  isPeopleOpen = false,
+  isPollsOpen = false,
+  isChatOpen = false,
+  participantCount = 1,
+  waitingCount = 0,
+  openPollCount = 0,
+  unreadChatCount = 0,
   onToggleMic,
   onToggleVideo,
   onToggleHandRaise,
   onToggleScreenShare,
   onToggleRecording,
+  onOpenDeviceSettings,
   onReact,
-  onOpenPoll,
-  onOpenInvite,
+  onTogglePeople,
+  onTogglePolls,
   onToggleChat,
   onLeave,
   onEndMeetingForEveryone,
 }) => {
   const { colors } = useTheme();
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
-
-  const handleEndCallClick = () => {
-    setShowLeaveModal(true);
-  };
 
   return (
     <View style={styles.outerWrapper}>
@@ -68,23 +81,36 @@ export const MeetingControlsBar: React.FC<MeetingControlsBarProps> = ({
           <Icon name={isVideoMuted ? 'video-off' : 'video'} size={18} color="#FFFFFF" />
         </Pressable>
 
-        {/* Screen Share */}
-        <Pressable
-          style={[styles.btn, isScreenSharing ? styles.btnSelected : styles.btnActive]}
-          onPress={onToggleScreenShare}
-          accessibilityLabel="Share Screen"
-        >
-          <Icon name="monitor" size={18} color="#FFFFFF" />
-        </Pressable>
+        {/* Screen Share (Web Only) */}
+        {isScreenShareSupported() && (
+          <Pressable
+            style={[styles.btn, isScreenSharing ? styles.btnSelected : styles.btnActive]}
+            onPress={onToggleScreenShare}
+            accessibilityLabel="Share Screen"
+          >
+            <Icon name="monitor" size={18} color="#FFFFFF" />
+          </Pressable>
+        )}
 
-        {/* Recording Toggle (Host Only / Configurable) */}
+        {/* Local Recording Toggle (Host/Admin on supported Web browsers only) */}
         {onToggleRecording && (
           <Pressable
             style={[styles.btn, isRecording ? styles.btnRecording : styles.btnActive]}
             onPress={onToggleRecording}
-            accessibilityLabel={isRecording ? 'Stop Recording' : 'Start Recording'}
+            accessibilityLabel={isRecording ? 'Stop & Save Local Recording' : 'Start Local Recording'}
           >
-            <Icon name="circle" size={16} color={isRecording ? '#EF4444' : '#FFFFFF'} />
+            <Icon name="disc" size={17} color={isRecording ? '#EF4444' : '#FFFFFF'} />
+          </Pressable>
+        )}
+
+        {/* Audio/Video Device Settings */}
+        {isWebMediaSupported() && onOpenDeviceSettings && (
+          <Pressable
+            style={styles.btnActive}
+            onPress={onOpenDeviceSettings}
+            accessibilityLabel="Device Settings"
+          >
+            <Icon name="sliders" size={17} color="#FFFFFF" />
           </Pressable>
         )}
 
@@ -106,36 +132,66 @@ export const MeetingControlsBar: React.FC<MeetingControlsBarProps> = ({
           ))}
         </View>
 
-        {/* Invite Participants */}
-        <Pressable style={styles.btnActive} onPress={onOpenInvite} accessibilityLabel="Invite Colleagues">
-          <Icon name="user-plus" size={18} color="#FFFFFF" />
+        {/* People / Roster Sidebar */}
+        <Pressable
+          style={[styles.btnActive, isPeopleOpen && styles.btnSelected]}
+          onPress={onTogglePeople}
+          accessibilityLabel="Participants"
+        >
+          <Icon name="users" size={17} color="#FFFFFF" />
+          <View style={[styles.counterBadge, waitingCount > 0 && styles.warningBadge]}>
+            <Text style={styles.counterText}>
+              {waitingCount > 0 ? `+${waitingCount}` : String(participantCount)}
+            </Text>
+          </View>
         </Pressable>
 
-        {/* Polls */}
-        <Pressable style={styles.btnActive} onPress={onOpenPoll} accessibilityLabel="Open Polls">
-          <Icon name="bar-chart-2" size={18} color="#FFFFFF" />
+        {/* Polls Sidebar */}
+        <Pressable
+          style={[styles.btnActive, isPollsOpen && styles.btnSelected]}
+          onPress={onTogglePolls}
+          accessibilityLabel="Live Polls"
+        >
+          <Icon name="bar-chart-2" size={17} color="#FFFFFF" />
+          {openPollCount > 0 && (
+            <View style={styles.counterBadge}>
+              <Text style={styles.counterText}>{openPollCount}</Text>
+            </View>
+          )}
         </Pressable>
 
         {/* In-Meeting Chat */}
-        <Pressable style={styles.btnActive} onPress={onToggleChat} accessibilityLabel="In-meeting Chat">
-          <Icon name="message-square" size={18} color="#FFFFFF" />
+        <Pressable
+          style={[styles.btnActive, isChatOpen && styles.btnSelected]}
+          onPress={onToggleChat}
+          accessibilityLabel="In-meeting Chat"
+        >
+          <Icon name="message-square" size={17} color="#FFFFFF" />
+          {unreadChatCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.counterText}>{unreadChatCount > 9 ? '9+' : String(unreadChatCount)}</Text>
+            </View>
+          )}
         </Pressable>
 
         {/* Leave Call */}
-        <Pressable style={styles.btnEndCall} onPress={handleEndCallClick} accessibilityLabel="Leave Meeting">
+        <Pressable
+          style={styles.btnEndCall}
+          onPress={() => setShowLeaveModal(true)}
+          accessibilityLabel="Leave Meeting"
+        >
           <Icon name="phone-off" size={18} color="#FFFFFF" />
         </Pressable>
       </View>
 
-      {/* Reusable Confirmation Modal for Leave / End Meeting */}
       {isHost ? (
         <ConfirmationModal
           visible={showLeaveModal}
           title={onEndMeetingForEveryone ? 'End or Leave Meeting?' : 'Leave Meeting?'}
           subtitle={
-            isScreenSharing
-              ? 'You are hosting this meeting and sharing your screen. Ending will disconnect all participants, and leaving will stop your screen share.'
-              : 'As the host, you can end the meeting for all participants or leave the room open.'
+            isRecording
+              ? 'Your local recording will automatically stop and download to your computer before leaving.'
+              : 'As the host, you can end the meeting for everyone or leave the room open for remaining participants.'
           }
           variant="danger"
           confirmText={onEndMeetingForEveryone ? 'End for Everyone' : 'Leave Meeting'}
@@ -171,7 +227,7 @@ export const MeetingControlsBar: React.FC<MeetingControlsBarProps> = ({
           title="Leave Meeting?"
           subtitle={
             isScreenSharing
-              ? 'You are currently sharing your screen. Leaving the meeting will stop your screen share and disconnect you from the call.'
+              ? 'You are currently sharing your screen. Leaving will stop your presentation and disconnect you.'
               : 'Are you sure you want to leave this meeting?'
           }
           variant={isScreenSharing ? 'warning' : 'info'}
@@ -192,14 +248,14 @@ const styles = StyleSheet.create({
   outerWrapper: {
     width: '100%',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 8,
   },
   floatingBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 30,
     borderWidth: 1,
@@ -217,20 +273,22 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   btnActive: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   btnMuted: {
     backgroundColor: '#DC2626',
   },
   btnRecording: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: 'rgba(239, 68, 68, 0.22)',
     borderWidth: 1,
     borderColor: '#EF4444',
   },
@@ -249,11 +307,43 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   emojiBtn: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 4,
   },
   emojiText: {
-    fontSize: 16,
+    fontSize: 15,
+  },
+  counterBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  warningBadge: {
+    backgroundColor: '#F59E0B',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  counterText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
   },
   btnEndCall: {
     width: 40,

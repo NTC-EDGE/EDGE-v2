@@ -10,6 +10,8 @@ import { MobileBottomTabBar } from "./MobileBottomTabBar";
 import { StandardScreenWrapper } from "./StandardScreenWrapper";
 import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
 import { IncomingCallModal } from "../../meet/components/IncomingCallModal";
+import { FloatingMiniCallOverlay } from "../../meet/components/FloatingMiniCallOverlay";
+import { MeetingSessionProvider } from "../../meet/context/MeetingSessionContext";
 import { acceptIncomingCall } from "../../meet/utils/meetingNavigationHelper";
 
 export interface AppLayoutProps {
@@ -110,96 +112,104 @@ export function AppLayout({
   });
 
   return (
-    <View style={[styles.webShell, { backgroundColor: bgCanvas }]}>
-      {/* Top Header Bar */}
-      <Header
-        currentRole={currentRole}
-        activeScreen={activeScreen}
-        onRoleSelect={handleRoleSelect}
-        showRoleDropdown={showRoleDropdown}
-        toggleRoleDropdown={toggleRoleDropdown}
-        closeRoleDropdown={closeRoleDropdown}
-        isSwitcherHovered={isSwitcherHovered}
-        setIsSwitcherHovered={setIsSwitcherHovered}
-        isLogoutHovered={isLogoutHovered}
-        setIsLogoutHovered={setIsLogoutHovered}
-        user={user}
-        onLogout={promptSignOut}
-        isMobile={isMobile}
-        onMenuPress={toggleSidebar}
-        onNavigate={handleLinkPress}
-      />
+    <MeetingSessionProvider currentUserId={user?.id} currentUserName={user?.name}>
+      <View style={[styles.webShell, { backgroundColor: bgCanvas }]}>
+        {/* Top Header Bar */}
+        <Header
+          currentRole={currentRole}
+          activeScreen={activeScreen}
+          onRoleSelect={handleRoleSelect}
+          showRoleDropdown={showRoleDropdown}
+          toggleRoleDropdown={toggleRoleDropdown}
+          closeRoleDropdown={closeRoleDropdown}
+          isSwitcherHovered={isSwitcherHovered}
+          setIsSwitcherHovered={setIsSwitcherHovered}
+          isLogoutHovered={isLogoutHovered}
+          setIsLogoutHovered={setIsLogoutHovered}
+          user={user}
+          onLogout={promptSignOut}
+          isMobile={isMobile}
+          onMenuPress={toggleSidebar}
+          onNavigate={handleLinkPress}
+        />
 
-      <View style={styles.bodyWrapper}>
-        {/* Desktop Sidebar (persistent, collapsible) */}
-        {!isMobile && activeScreen !== "AccountSettings" && (
-          <Sidebar
-            currentRole={currentRole}
-            links={links}
+        <View style={styles.bodyWrapper}>
+          {/* Desktop Sidebar (persistent, collapsible) */}
+          {!isMobile && activeScreen !== "AccountSettings" && (
+            <Sidebar
+              currentRole={currentRole}
+              links={links}
+              activeScreen={activeScreen}
+              onNavigate={handleLinkPress}
+              onLogout={promptSignOut}
+            />
+          )}
+
+          {/* Mobile Sidebar Drawer (animated slide-in) */}
+          {isMobile && shouldRenderSidebar && (
+            <>
+              <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+                <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
+              </Animated.View>
+              <Animated.View
+                style={[
+                  styles.mobileSidebarContainer,
+                  { transform: [{ translateX: sidebarTranslateX }] },
+                ]}
+              >
+                <Sidebar
+                  currentRole={currentRole}
+                  links={links}
+                  activeScreen={activeScreen}
+                  onNavigate={handleLinkPress}
+                  isMobile={true}
+                  onClose={closeSidebar}
+                  onLogout={promptSignOut}
+                  onRoleSelect={handleRoleSelect}
+                />
+              </Animated.View>
+            </>
+          )}
+
+          {/* Main Content Area */}
+          <View style={styles.mainContentArea}>
+            <StandardScreenWrapper activeScreen={activeScreen}>
+              {children}
+            </StandardScreenWrapper>
+          </View>
+        </View>
+
+        {/* Sign Out Confirmation Modal */}
+        <SignOutConfirmModal
+          visible={isSignOutConfirmVisible}
+          loading={isSigningOut}
+          onClose={closeSignOutModal}
+          onConfirm={confirmSignOut}
+        />
+
+        {/* Persistent Floating Mini-Player when browsing other tabs during an active call */}
+        <FloatingMiniCallOverlay
+          activeScreen={activeScreen}
+          onReturnToMeet={() => handleLinkPress("Meet")}
+        />
+
+        {/* Incoming Call Ringing Modal */}
+        <IncomingCallModal
+          onAccept={(code, options) => {
+            acceptIncomingCall(code, handleLinkPress, options);
+          }}
+        />
+
+        {/* Mobile Bottom Tab Bar */}
+        {isMobile && activeScreen !== "AccountSettings" && (
+          <MobileBottomTabBar
             activeScreen={activeScreen}
             onNavigate={handleLinkPress}
-            onLogout={promptSignOut}
+            onMenuPress={toggleSidebar}
           />
         )}
-
-        {/* Mobile Sidebar Drawer (animated slide-in) */}
-        {isMobile && shouldRenderSidebar && (
-          <>
-            <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-              <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
-            </Animated.View>
-            <Animated.View
-              style={[
-                styles.mobileSidebarContainer,
-                { transform: [{ translateX: sidebarTranslateX }] },
-              ]}
-            >
-              <Sidebar
-                currentRole={currentRole}
-                links={links}
-                activeScreen={activeScreen}
-                onNavigate={handleLinkPress}
-                isMobile={true}
-                onClose={closeSidebar}
-                onLogout={promptSignOut}
-                onRoleSelect={handleRoleSelect}
-              />
-            </Animated.View>
-          </>
-        )}
-
-        {/* Main Content Area */}
-        <View style={styles.mainContentArea}>
-          <StandardScreenWrapper activeScreen={activeScreen}>
-            {children}
-          </StandardScreenWrapper>
-        </View>
       </View>
-
-      {/* Sign Out Confirmation Modal */}
-      <SignOutConfirmModal
-        visible={isSignOutConfirmVisible}
-        loading={isSigningOut}
-        onClose={closeSignOutModal}
-        onConfirm={confirmSignOut}
-      />
-
-      {/* Incoming Call Ringing Modal */}
-      <IncomingCallModal
-        onAccept={(code) => {
-          acceptIncomingCall(code, handleLinkPress);
-        }}
-      />
-
-      {/* Mobile Bottom Tab Bar */}
-      {isMobile && activeScreen !== "AccountSettings" && (
-        <MobileBottomTabBar
-          activeScreen={activeScreen}
-          onNavigate={handleLinkPress}
-          onMenuPress={toggleSidebar}
-        />
-      )}
-    </View>
+    </MeetingSessionProvider>
   );
 }
 

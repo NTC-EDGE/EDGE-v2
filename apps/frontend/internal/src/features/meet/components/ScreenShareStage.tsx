@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
-import { ConfirmationModal, Icon, useTheme } from '@edge/ui';
+import { ConfirmationModal, Icon } from '@edge/ui';
 
 interface ScreenShareStageProps {
   screenStream: MediaStream | null;
@@ -15,7 +15,6 @@ export const ScreenShareStage: React.FC<ScreenShareStageProps> = ({
   isSelfPresenter = true,
   onStopSharing,
 }) => {
-  const { colors } = useTheme();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [showStopModal, setShowStopModal] = useState<boolean>(false);
@@ -24,10 +23,10 @@ export const ScreenShareStage: React.FC<ScreenShareStageProps> = ({
     if (Platform.OS === 'web' && videoRef.current && screenStream) {
       if (videoRef.current.srcObject !== screenStream) {
         videoRef.current.srcObject = screenStream;
-        videoRef.current.play().catch(() => {
-          // Handled autoplay error
-        });
       }
+      videoRef.current.play().catch(() => {
+        // Handled autoplay policy
+      });
     }
   }, [screenStream]);
 
@@ -38,18 +37,17 @@ export const ScreenShareStage: React.FC<ScreenShareStageProps> = ({
   return (
     <View style={styles.stageContainer}>
       {Platform.OS === 'web' && screenStream !== null ? (
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         <video
-          ref={(el: HTMLVideoElement | null) => {
+          ref={(el) => {
             videoRef.current = el;
             if (el && screenStream && el.srcObject !== screenStream) {
               el.srcObject = screenStream;
+              el.play().catch(() => {});
             }
           }}
           autoPlay
           playsInline
-          muted
+          muted={isSelfPresenter}
           style={{
             width: '100%',
             height: '100%',
@@ -61,9 +59,11 @@ export const ScreenShareStage: React.FC<ScreenShareStageProps> = ({
       ) : (
         <View style={styles.placeholderContainer}>
           <Icon name="monitor" size={48} color="#3B82F6" />
-          <Text style={styles.placeholderTitle}>Screen Share Preview</Text>
+          <Text style={styles.placeholderTitle}>Screen Share Presentation</Text>
           <Text style={styles.placeholderDesc}>
-            {isSelfPresenter ? 'Preparing your screen presentation...' : 'Waiting for presenter stream...'}
+            {isSelfPresenter
+              ? 'Preparing your screen presentation...'
+              : `Connecting to ${presenterName ?? 'Presenter'}'s screen...`}
           </Text>
         </View>
       )}
@@ -74,7 +74,9 @@ export const ScreenShareStage: React.FC<ScreenShareStageProps> = ({
           <View style={styles.blueDot} />
           <Icon name="monitor" size={13} color="#60A5FA" />
           <Text style={styles.presenterText} numberOfLines={1}>
-            {isSelfPresenter ? 'You are sharing your screen' : `${presenterName ?? 'Presenter'} is sharing`}
+            {isSelfPresenter
+              ? 'You are presenting your screen'
+              : `${presenterName ?? 'Presenter'} is presenting`}
           </Text>
         </View>
 
@@ -95,13 +97,12 @@ export const ScreenShareStage: React.FC<ScreenShareStageProps> = ({
               accessibilityLabel="Stop sharing screen"
             >
               <Icon name="x-circle" size={14} color="#FFFFFF" />
-              <Text style={styles.stopSharingBtnText}>Stop Sharing</Text>
+              <Text style={styles.stopSharingBtnText}>Stop Presenting</Text>
             </Pressable>
           )}
         </View>
       </View>
 
-      {/* Reusable Confirmation Modal to Stop Screen Sharing */}
       <ConfirmationModal
         visible={showStopModal}
         title="Stop Screen Sharing?"

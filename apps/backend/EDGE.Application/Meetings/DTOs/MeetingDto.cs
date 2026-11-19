@@ -42,8 +42,11 @@ public class MeetingDto
     public string? TenantName { get; set; }
     public Guid HostUserId { get; set; }
     public string HostUserName { get; set; } = string.Empty;
+    public Guid? LinkedConversationId { get; set; }
     public DateTimeOffset ScheduledStartTime { get; set; }
     public DateTimeOffset? ScheduledEndTime { get; set; }
+    public DateTimeOffset? ActualStartTime { get; set; }
+    public DateTimeOffset? ActualEndTime { get; set; }
     public MeetingStatus Status { get; set; }
     public List<MeetingParticipantDto> Participants { get; set; } = new();
     public List<MeetingPollDto> Polls { get; set; } = new();

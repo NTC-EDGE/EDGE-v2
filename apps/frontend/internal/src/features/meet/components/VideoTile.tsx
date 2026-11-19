@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
-import { Avatar, Icon, useTheme } from '@edge/ui';
+import { Avatar, Icon } from '@edge/ui';
 import { MeetingParticipant } from '@edge/api';
+import { applyAudioOutputSink } from '../utils/webDomHelpers';
 
 interface VideoTileProps {
   participant: MeetingParticipant;
@@ -11,8 +12,15 @@ interface VideoTileProps {
   isMicMuted?: boolean;
   isSpeaking?: boolean;
   isHandRaised?: boolean;
+  isPinned?: boolean;
+  isSpotlighted?: boolean;
+  canModerate?: boolean;
+  speakerDeviceId?: string;
   totalParticipants?: number;
-  layoutMode?: 'grid' | 'solo' | 'strip';
+  layoutMode?: 'grid' | 'solo' | 'strip' | 'floating';
+  onTogglePin?: () => void;
+  onMuteParticipant?: () => void;
+  onSpotlightParticipant?: () => void;
 }
 
 export const VideoTile: React.FC<VideoTileProps> = ({
@@ -23,26 +31,39 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   isMicMuted = false,
   isSpeaking = false,
   isHandRaised = false,
+  isPinned = false,
+  isSpotlighted = false,
+  canModerate = false,
+  speakerDeviceId,
   totalParticipants = 1,
   layoutMode = 'grid',
+  onTogglePin,
+  onMuteParticipant,
+  onSpotlightParticipant,
 }) => {
-  const { colors } = useTheme();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [fitMode, setFitMode] = useState<'cover' | 'contain'>('cover');
 
-  const hasVideoTrack = stream !== null && stream.getVideoTracks().length > 0 && !isVideoMuted;
+  const liveVideoTracks =
+    stream !== null
+      ? stream.getVideoTracks().filter((t) => t.readyState !== 'ended')
+      : [];
+  const hasVideoTrack = liveVideoTracks.length > 0 && !isVideoMuted;
   const isParticipantHandRaised = isSelf ? isHandRaised : participant.isHandRaised;
 
   useEffect(() => {
     if (Platform.OS === 'web' && videoRef.current && stream) {
       if (videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(() => {
-          // Autoplay policy handled
-        });
+      }
+      videoRef.current.play().catch(() => {
+        // Autoplay policy handled
+      });
+      if (!isSelf && speakerDeviceId) {
+        void applyAudioOutputSink(videoRef.current, speakerDeviceId);
       }
     }
-  }, [stream, hasVideoTrack]);
+  }, [stream, hasVideoTrack, isSelf, speakerDeviceId]);
 
   const toggleFitMode = () => {
     setFitMode((prev) => (prev === 'cover' ? 'contain' : 'cover'));
@@ -65,10 +86,12 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   const isSolo = totalParticipants <= 1;
 
   const getContainerLayout = () => {
-    if (layoutMode === 'strip') {
-      return styles.containerStrip;
-    }
-    return isSolo ? styles.containerSolo : styles.containerGrid;
+    if (layoutMode === 'floating') return styles.containerFloating;
+    if (layoutMode === 'strip') return styles.containerStrip;
+    if (layoutMode === 'solo' || isSolo) return styles.containerSolo;
+    if (totalParticipants === 2) return styles.containerPair;
+    if (totalParticipants <= 4) return styles.containerQuad;
+    return styles.containerGrid;
   };
 
   return (
@@ -78,8 +101,12 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         getContainerLayout(),
         {
           backgroundColor: '#0F172A',
-          borderColor: isSpeaking ? '#22C55E' : 'rgba(255, 255, 255, 0.1)',
-          borderWidth: isSpeaking ? 2 : 1,
+          borderColor: isSpeaking
+            ? '#22C55E'
+            : isSpotlighted || isPinned
+              ? '#3B82F6'
+              : 'rgba(255, 255, 255, 0.12)',
+          borderWidth: isSpeaking || isSpotlighted || isPinned ? 2 : 1,
         },
       ]}
     >
@@ -93,6 +120,9 @@ export const VideoTile: React.FC<VideoTileProps> = ({
               el.play().catch(() => {
                 // Autoplay policy handled
               });
+              if (!isSelf && speakerDeviceId) {
+                void applyAudioOutputSink(el, speakerDeviceId);
+              }
             }
           }}
           autoPlay
@@ -119,47 +149,87 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       {/* Avatar Fallback View when Camera is Off */}
       {(!hasVideoTrack || stream === null) && (
         <View style={[styles.centerAvatar, { zIndex: 2 }]}>
-          <Avatar name={participant.fullName} size="lg" />
-          <View style={styles.camOffBadge}>
-            <Icon name="video-off" size={13} color="#94A3B8" />
-            <Text style={styles.camOffText}>Camera off</Text>
-          </View>
+          <Avatar name={participant.fullName} size={layoutMode === 'floating' ? 'md' : 'lg'} />
+          {layoutMode !== 'floating' && (
+            <View style={styles.camOffBadge}>
+              <Icon name="video-off" size={12} color="#94A3B8" />
+              <Text style={styles.camOffText}>Camera off</Text>
+            </View>
+          )}
         </View>
       )}
 
       {/* Top Floating Controls & Badges Bar */}
       <View style={[styles.topControlRow, { zIndex: 3 }]}>
-        {isSpeaking ? (
-          <View style={styles.speakingTag}>
-            <View style={styles.greenPulse} />
-            <Text style={styles.speakingText}>Speaking</Text>
-          </View>
-        ) : <View />}
+        <View style={styles.topLeftBadges}>
+          {isSpeaking ? (
+            <View style={styles.speakingTag}>
+              <View style={styles.greenPulse} />
+              <Text style={styles.speakingText}>Speaking</Text>
+            </View>
+          ) : null}
+          {isSpotlighted ? (
+            <View style={styles.spotlightTag}>
+              <Icon name="star" size={10} color="#FBBF24" />
+              <Text style={styles.spotlightText}>Spotlight</Text>
+            </View>
+          ) : null}
+        </View>
 
         <View style={styles.topActionsGroup}>
           {isParticipantHandRaised ? (
             <View style={styles.upperRightHandBadge}>
               <Text style={styles.handText}>
-                ✋ {participant.handRaiseQueuePosition ? `#${participant.handRaiseQueuePosition}` : 'Hand Raised'}
+                ✋ {participant.handRaiseQueuePosition ? `#${participant.handRaiseQueuePosition}` : ''}
               </Text>
             </View>
           ) : null}
 
-          {hasVideoTrack && Platform.OS === 'web' && (
+          {layoutMode !== 'floating' && onTogglePin ? (
+            <Pressable
+              style={[styles.fitToggleBtn, isPinned && styles.pinnedBtn]}
+              onPress={onTogglePin}
+              accessibilityLabel={isPinned ? 'Unpin participant' : 'Pin participant'}
+            >
+              <Icon name="anchor" size={11} color="#FFFFFF" />
+            </Pressable>
+          ) : null}
+
+          {layoutMode !== 'floating' && canModerate && !isSelf && onSpotlightParticipant ? (
+            <Pressable
+              style={[styles.fitToggleBtn, isSpotlighted && styles.spotlightBtnActive]}
+              onPress={onSpotlightParticipant}
+              accessibilityLabel="Spotlight participant for everyone"
+            >
+              <Icon name="star" size={11} color="#FFFFFF" />
+            </Pressable>
+          ) : null}
+
+          {layoutMode !== 'floating' && canModerate && !isSelf && !isMicMuted && onMuteParticipant ? (
+            <Pressable
+              style={styles.fitToggleBtn}
+              onPress={onMuteParticipant}
+              accessibilityLabel="Mute participant microphone"
+            >
+              <Icon name="mic-off" size={11} color="#FCA5A5" />
+            </Pressable>
+          ) : null}
+
+          {layoutMode !== 'floating' && hasVideoTrack && Platform.OS === 'web' && (
             <>
               <Pressable
                 style={styles.fitToggleBtn}
-                onPress={togglePictureInPicture}
-                accessibilityLabel="Floating mini window / Picture in picture"
+                onPress={() => void togglePictureInPicture()}
+                accessibilityLabel="Picture in picture"
               >
-                <Icon name="airplay" size={12} color="#FFFFFF" />
+                <Icon name="airplay" size={11} color="#FFFFFF" />
               </Pressable>
               <Pressable
                 style={styles.fitToggleBtn}
                 onPress={toggleFitMode}
                 accessibilityLabel="Toggle video fit mode"
               >
-                <Icon name={fitMode === 'cover' ? 'maximize-2' : 'minimize-2'} size={12} color="#FFFFFF" />
+                <Icon name={fitMode === 'cover' ? 'maximize-2' : 'minimize-2'} size={11} color="#FFFFFF" />
               </Pressable>
             </>
           )}
@@ -175,13 +245,13 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         </View>
 
         <View style={styles.iconRow}>
-          {isMicMuted || participant.isMutedByHost ? (
+          {isMicMuted ? (
             <View style={styles.micMutedBadge}>
-              <Icon name="mic-off" size={12} color="#EF4444" />
+              <Icon name="mic-off" size={11} color="#EF4444" />
             </View>
           ) : (
             <View style={[styles.micActiveBadge, isSpeaking && styles.micSpeakingBadge]}>
-              <Icon name="mic" size={12} color={isSpeaking ? '#22C55E' : '#94A3B8'} />
+              <Icon name="mic" size={11} color={isSpeaking ? '#22C55E' : '#94A3B8'} />
             </View>
           )}
         </View>
@@ -206,25 +276,40 @@ const styles = StyleSheet.create({
   },
   containerSolo: {
     width: '100%',
-    maxWidth: 880,
+    maxWidth: 960,
     maxHeight: '100%',
     alignSelf: 'center',
   },
-  containerGrid: {
-    flexGrow: 1,
+  containerPair: {
+    flex: 1,
+    minWidth: 300,
+    maxWidth: 720,
+  },
+  containerQuad: {
+    width: '48%',
     minWidth: 280,
     maxWidth: 620,
+  },
+  containerGrid: {
+    width: '31%',
+    minWidth: 240,
+    maxWidth: 460,
   },
   containerStrip: {
     width: '100%',
     minWidth: 160,
-    maxWidth: 280,
+    maxWidth: 260,
     aspectRatio: 16 / 9,
+  },
+  containerFloating: {
+    width: 210,
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
   },
   centerAvatar: {
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   camOffBadge: {
     flexDirection: 'row',
@@ -239,18 +324,23 @@ const styles = StyleSheet.create({
   },
   camOffText: {
     color: '#94A3B8',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   topControlRow: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
+    top: 8,
+    left: 8,
+    right: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 10,
+  },
+  topLeftBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   speakingTag: {
     flexDirection: 'row',
@@ -274,16 +364,32 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
+  spotlightTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.82)',
+    borderColor: '#FBBF24',
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  spotlightText: {
+    color: '#FDE68A',
+    fontSize: 10,
+    fontWeight: '700',
+  },
   topActionsGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   fitToggleBtn: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -294,28 +400,36 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  pinnedBtn: {
+    backgroundColor: '#2563EB',
+    borderColor: '#60A5FA',
+  },
+  spotlightBtnActive: {
+    backgroundColor: '#D97706',
+    borderColor: '#FBBF24',
+  },
   bottomBar: {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
-    right: 10,
+    bottom: 8,
+    left: 8,
+    right: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 10,
   },
   nameTagWrapper: {
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    maxWidth: '75%',
+    maxWidth: '78%',
   },
   nameTag: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   iconRow: {
@@ -325,19 +439,12 @@ const styles = StyleSheet.create({
   },
   upperRightHandBadge: {
     backgroundColor: '#F59E0B',
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
   },
   handText: {
     color: '#FFFFFF',

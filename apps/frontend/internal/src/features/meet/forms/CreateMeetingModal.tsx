@@ -3,11 +3,13 @@ import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FormFieldInput, ModalDialog, Icon, useTheme } from '@edge/ui';
+import { Meeting } from '@edge/api';
 import { createMeetingSchema, CreateMeetingFormValues } from '../schemas/meetSchemas';
 import { TenantParticipantPicker } from '../../../shared/components';
 
 interface CreateMeetingModalProps {
   visible: boolean;
+  editingMeeting?: Meeting | null;
   onClose: () => void;
   onSubmit: (values: CreateMeetingFormValues) => Promise<void>;
   isSubmitting: boolean;
@@ -31,22 +33,54 @@ const getDefaultDate = (): string => {
   return `${year}-${month}-${day}`;
 };
 
-const getDefaultTime = (): string => {
-  return '10:00';
-};
+const getDefaultTime = (): string => '10:00';
+
+const SCOPE_OPTIONS: {
+  id: 'IntraRegional' | 'InterRegional';
+  label: string;
+  icon: 'shield' | 'globe';
+}[] = [
+  { id: 'IntraRegional', label: 'Invited / Regional Only', icon: 'shield' },
+  { id: 'InterRegional', label: 'Inter-Regional (Open Code)', icon: 'globe' },
+];
+
+function toDateInputString(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return getDefaultDate();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toTimeInputString(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return getDefaultTime();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
 
 export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   visible,
+  editingMeeting = null,
   onClose,
   onSubmit,
   isSubmitting,
 }) => {
   const { colors, isDark } = useTheme();
+  const isEditing = editingMeeting !== null;
 
   const defaultDate = getDefaultDate();
   const defaultTime = getDefaultTime();
 
-  const { control, handleSubmit, setValue, reset, formState: { errors } } = useForm<CreateMeetingFormValues>({
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<CreateMeetingFormValues>({
     resolver: zodResolver(createMeetingSchema),
     defaultValues: {
       title: '',
@@ -61,12 +95,54 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     },
   });
 
+  useEffect(() => {
+    if (!visible) return;
+    if (editingMeeting) {
+      const mDate = toDateInputString(editingMeeting.scheduledStartTime);
+      const mTime = toTimeInputString(editingMeeting.scheduledStartTime);
+      let mins = 60;
+      if (editingMeeting.scheduledEndTime) {
+        const diff = Math.round(
+          (new Date(editingMeeting.scheduledEndTime).getTime() -
+            new Date(editingMeeting.scheduledStartTime).getTime()) /
+            60000
+        );
+        if (diff >= 15) mins = diff;
+      }
+      reset({
+        title: editingMeeting.title,
+        description: editingMeeting.description ?? '',
+        scope: editingMeeting.scope,
+        meetingDate: mDate,
+        meetingTime: mTime,
+        durationMinutes: mins,
+        scheduledStartTime: editingMeeting.scheduledStartTime,
+        scheduledEndTime: editingMeeting.scheduledEndTime ?? undefined,
+        participantUserIds: editingMeeting.participants.map((p) => p.userId),
+      });
+    } else {
+      const d = getDefaultDate();
+      const t = getDefaultTime();
+      reset({
+        title: '',
+        description: '',
+        scope: 'IntraRegional',
+        meetingDate: d,
+        meetingTime: t,
+        durationMinutes: 60,
+        scheduledStartTime: new Date(`${d}T${t}:00`).toISOString(),
+        scheduledEndTime: new Date(new Date(`${d}T${t}:00`).getTime() + 60 * 60 * 1000).toISOString(),
+        participantUserIds: [],
+      });
+    }
+  }, [visible, editingMeeting, reset]);
+
   const selectedUserIds = useWatch({ control, name: 'participantUserIds' }) || [];
   const meetingDate = useWatch({ control, name: 'meetingDate' }) || defaultDate;
   const meetingTime = useWatch({ control, name: 'meetingTime' }) || defaultTime;
   const durationMinutes = useWatch({ control, name: 'durationMinutes' }) || 60;
+  const scope = useWatch({ control, name: 'scope' }) || 'IntraRegional';
 
-  // Sync scheduledStartTime and scheduledEndTime whenever date, time, or duration changes
   useEffect(() => {
     if (meetingDate && meetingTime) {
       const parsedStart = new Date(`${meetingDate}T${meetingTime}:00`);
@@ -114,10 +190,14 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     <ModalDialog
       visible={visible}
       onClose={onClose}
-      title="Schedule Regional Meeting"
-      subtitle="Set meeting date, time, and invite officers. Invitees will receive scheduled notifications."
-      icon="video"
-      confirmText="Schedule Meeting"
+      title={isEditing ? 'Edit / Reschedule Meeting' : 'Schedule Regional Meeting'}
+      subtitle={
+        isEditing
+          ? 'Update meeting title, scope, agenda, or scheduled date and time.'
+          : 'Set meeting date, time, and invite officers. Invitees receive a scheduled notification without ringing.'
+      }
+      icon={isEditing ? 'edit-3' : 'calendar'}
+      confirmText={isEditing ? 'Save Changes' : 'Schedule Meeting'}
       cancelText="Cancel"
       onConfirm={handleSubmit(handleFormSubmit)}
       isLoading={isSubmitting}
@@ -137,6 +217,50 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           label="Agenda / Notes (Optional)"
           placeholder="Key topics, agenda points, or briefing notes..."
         />
+
+        {/* Scope Selector */}
+        <View style={styles.durationSection}>
+          <Text style={[styles.fieldLabel, { color: colors.text }]}>Access Scope</Text>
+          <View style={styles.scopeRow}>
+            {SCOPE_OPTIONS.map((opt) => {
+              const selected = scope === opt.id;
+              return (
+                <Pressable
+                  key={opt.id}
+                  style={[
+                    styles.scopeChip,
+                    {
+                      borderColor: selected ? colors.brand.primary : colors.border,
+                      backgroundColor: selected
+                        ? colors.brand.primary + '18'
+                        : isDark
+                          ? 'rgba(255,255,255,0.05)'
+                          : '#F8FAFC',
+                    },
+                  ]}
+                  onPress={() => setValue('scope', opt.id, { shouldValidate: true })}
+                >
+                  <Icon
+                    name={opt.icon}
+                    size={13}
+                    color={selected ? colors.brand.primary : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.durationChipText,
+                      {
+                        color: selected ? colors.brand.primary : colors.textMuted,
+                        fontWeight: selected ? '700' : '500',
+                      },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
         {/* Date and Time Row */}
         <View style={styles.dateTimeRow}>
@@ -256,13 +380,14 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           </View>
         </View>
 
-        {/* Participant Picker */}
-        <TenantParticipantPicker
-          label={`Invite Participants (${selectedUserIds.length} selected)`}
-          selectedUserIds={selectedUserIds}
-          onSelectedUserIdsChange={handleSelectedUserIdsChange}
-          listMaxHeight={160}
-        />
+        {!isEditing && (
+          <TenantParticipantPicker
+            label={`Invite Participants (${selectedUserIds.length} selected)`}
+            selectedUserIds={selectedUserIds}
+            onSelectedUserIdsChange={handleSelectedUserIdsChange}
+            listMaxHeight={150}
+          />
+        )}
 
         {/* Preview Summary Banner */}
         <View
@@ -280,7 +405,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               Scheduled for {formattedPreviewDate()} ({durationMinutes} mins)
             </Text>
             <Text style={[styles.previewSub, { color: colors.textMuted }]}>
-              Invitees will be notified of this specific time and date upon scheduling.
+              {isEditing
+                ? 'Meeting schedule will be updated immediately for all participants.'
+                : 'Invitees will see this meeting in Upcoming and receive a calendar notification.'}
             </Text>
           </View>
         </View>
@@ -292,6 +419,22 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
 const styles = StyleSheet.create({
   formContent: {
     gap: 12,
+  },
+  scopeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  scopeChip: {
+    flex: 1,
+    minWidth: 180,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   dateTimeRow: {
     flexDirection: 'row',
@@ -317,7 +460,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   durationSection: {
-    gap: 6,
+    gap: 4,
   },
   durationChipsRow: {
     flexDirection: 'row',
