@@ -38,6 +38,7 @@ type RawSection = {
     id?: string;
     fieldId?: string;
     label?: string;
+    validationRules?: string | null;
     visibilityCondition?: string | null;
   }>;
 };
@@ -56,6 +57,67 @@ function toStringArray(val: unknown): string[] {
       .map((item) => item.trim());
   }
   return [];
+}
+
+function matchesPreviewVariant(ruleItem: string, variantName: string): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const rTrim = ruleItem.trim();
+  if (!rTrim || rTrim.toUpperCase() === '__NONE__') return false;
+  const rNorm = norm(rTrim);
+  const vNorm = norm(variantName);
+  if (!rNorm || !vNorm) return false;
+  if (rNorm === vNorm) return true;
+
+  const rParen = rTrim.match(/\(([^()]+)\)\s*$/);
+  const vParen = variantName.match(/\(([^()]+)\)\s*$/);
+  if (rParen && vParen && norm(rParen[1] ?? '') !== norm(vParen[1] ?? '')) {
+    return false;
+  }
+
+  if (rNorm.length >= 3 && vNorm.length >= 3 && (rNorm.includes(vNorm) || vNorm.includes(rNorm))) {
+    return true;
+  }
+  return false;
+}
+
+function resolvePreviewFieldLabel(
+  field: { label?: string; validationRules?: string | null },
+  variantName: string
+): string {
+  const baseLabel = field.label || '';
+  if (!variantName || !field.validationRules) return baseLabel;
+  try {
+    const parsed: unknown = JSON.parse(field.validationRules);
+    if (isRecord(parsed) && isRecord(parsed['variantOverrides'])) {
+      for (const [key, entry] of Object.entries(parsed['variantOverrides'])) {
+        if (matchesPreviewVariant(key, variantName) && isRecord(entry) && typeof entry['label'] === 'string' && entry['label'].trim()) {
+          return entry['label'].trim();
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return baseLabel;
+}
+
+function resolvePreviewSectionTitle(section: RawSection, sIdx: number, variantName: string): string {
+  const baseTitle = section.title || `Section ${sIdx + 1}`;
+  const firstRules = section.fields?.[0]?.validationRules;
+  if (!variantName || !firstRules) return baseTitle;
+  try {
+    const parsed: unknown = JSON.parse(firstRules);
+    if (isRecord(parsed) && isRecord(parsed['sectionVariantTitles'])) {
+      for (const [key, titleVal] of Object.entries(parsed['sectionVariantTitles'])) {
+        if (matchesPreviewVariant(key, variantName) && typeof titleVal === 'string' && titleVal.trim()) {
+          return titleVal.trim();
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return baseTitle;
 }
 
 /**
@@ -114,16 +176,29 @@ function evaluateConditionForPreview(
       ...toStringArray(parsed['variants']),
       ...toStringArray(parsed['variantType']),
     ];
-    if (variantsList.length > 0 && variantName.length > 0) {
-      const matchesVariant = variantsList.some((v) => {
-        const vLower = v.toLowerCase().trim();
-        return (
-          vLower === variantName ||
-          vLower.includes(variantName) ||
-          variantName.includes(vLower)
-        );
-      });
+    if (variantsList.length > 0) {
+      if (variantsList.every((v) => v.trim().toUpperCase() === '__NONE__')) {
+        return false;
+      }
+      if (variantName.length === 0) {
+        return false;
+      }
+      const matchesVariant = variantsList.some((v) => matchesPreviewVariant(v, variantName));
       if (!matchesVariant) return false;
+    }
+
+    // 3b. Excluded Variants constraint
+    const excludedVariantsList = toStringArray(parsed['excludedVariants']);
+    if (excludedVariantsList.length > 0) {
+      if (excludedVariantsList.some((v) => v.trim().toUpperCase() === 'ALL')) {
+        return false;
+      }
+      if (
+        variantName.length > 0 &&
+        excludedVariantsList.some((v) => matchesPreviewVariant(v, variantName))
+      ) {
+        return false;
+      }
     }
 
     // 4. Application Types constraint (including variantDescription alias)
@@ -255,9 +330,10 @@ export function buildDynamicSections(
   const dynamicSectionsToRender: DynamicSectionGroup[] = [];
 
   if (form?.sections && Array.isArray(form.sections) && form.sections.length > 0) {
+    const previewVarName = (options.selectedVariantName || '').trim();
     form.sections.forEach((section, sIdx) => {
       const sectionKey = section.key || section.id || '';
-      const sectionTitle = section.title || `Section ${sIdx + 1}`;
+      const sectionTitle = resolvePreviewSectionTitle(section, sIdx, previewVarName);
 
       // Mark all fields in a suppressed/skipped section as rendered so they don't leak into remaining fields
       const markSectionRendered = () => {
@@ -348,7 +424,8 @@ export function buildDynamicSections(
 
         if (matchedFv?.value && !isSuppressedValue(matchedFv.value)) {
           const val = matchedFv.value.trim();
-          sectionFields.push({ fieldId, label: fieldLabel || matchedFv.fieldLabel, value: val });
+          const resolvedLabel = resolvePreviewFieldLabel(field, previewVarName) || matchedFv.fieldLabel;
+          sectionFields.push({ fieldId, label: resolvedLabel, value: val });
           renderedIds.add(fieldId);
           renderedIds.add(idLower);
           renderedIds.add(matchedFv.fieldId);

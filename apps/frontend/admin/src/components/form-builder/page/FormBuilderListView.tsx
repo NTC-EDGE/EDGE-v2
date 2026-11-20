@@ -42,6 +42,7 @@ export function FormBuilderListView({
   onPageChange,
   onPageSizeChange,
   onRetry,
+  onRequestFilterOptions,
   onSetDeleteTarget,
   onDeleteFormConfirm,
   onSetPreviewForm,
@@ -84,6 +85,7 @@ export function FormBuilderListView({
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onRetry: () => void;
+  onRequestFilterOptions?: () => void;
   onSetDeleteTarget: (target: FormSchema | null) => void;
   onDeleteFormConfirm: () => void;
   onSetPreviewForm: (form: FormSchema | null) => void;
@@ -121,7 +123,10 @@ export function FormBuilderListView({
           </div>
           <button
             type="button"
-            onClick={() => onSetCreateDialogOpen(true)}
+            onClick={() => {
+              onRequestFilterOptions?.();
+              onSetCreateDialogOpen(true);
+            }}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 shrink-0 transition-colors"
           >
             <ClipboardList className="w-4 h-4" />
@@ -137,7 +142,10 @@ export function FormBuilderListView({
         onDuplicate={onDuplicate}
         onDelete={onDelete}
         onSetActive={onSetActive}
-        onCreateNew={() => onSetCreateDialogOpen(true)}
+        onCreateNew={() => {
+          onRequestFilterOptions?.();
+          onSetCreateDialogOpen(true);
+        }}
         searchTerm={searchTerm}
         onSearchChange={onSearchChange}
         selectedCategoryId={selectedCategoryId}
@@ -156,6 +164,7 @@ export function FormBuilderListView({
         loading={loadingForms}
         isError={Boolean(formsError)}
         onRetry={onRetry}
+        onRequestFilterOptions={onRequestFilterOptions}
       />
 
       <CreateFormDialog
@@ -163,6 +172,8 @@ export function FormBuilderListView({
         onOpenChange={onSetCreateDialogOpen}
         onCreate={onCreateNew}
         existingForms={forms}
+        categories={categories}
+        services={services}
       />
 
       <ConfirmActionDialog

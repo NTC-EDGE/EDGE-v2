@@ -624,6 +624,9 @@ export function matchesVariantRule(v: string, context: FormEvaluationContext): b
     if (baseMatches && parenMatches) {
       return true;
     }
+    if (parenContent.length > 0 && normType.length > 0 && parenContent !== normType) {
+      return false;
+    }
   }
 
   // 4. Containment match for non-parenthesized rules (e.g. v = "Commercial Broadcast")
@@ -722,7 +725,9 @@ export function evaluateContextOnlyVisibility(
       // Negative Variant Match (Excluded)
       const excludedVariants = toStringArray(rule.excludedVariants);
       if (excludedVariants.length > 0) {
-        const isExcluded = excludedVariants.some((v) => matchesVariantRule(v, context));
+        const isExcluded = excludedVariants.some(
+          (v) => v.trim().toUpperCase() === "ALL" || matchesVariantRule(v, context)
+        );
         if (isExcluded) return false;
       }
 
@@ -997,6 +1002,92 @@ export function hasExplicitVariantCondition(
     }
   }
   return false;
+}
+
+export function resolveFieldForContext(
+  field: FieldDto,
+  context: FormEvaluationContext
+): FieldDto {
+  if (!field.validationRules || typeof field.validationRules !== "string") {
+    return field;
+  }
+  try {
+    let parsed: unknown = JSON.parse(field.validationRules.trim());
+    if (typeof parsed === "string" && parsed.trim().startsWith("{")) {
+      parsed = JSON.parse(parsed.trim());
+    }
+    if (!isRecord(parsed) || !isRecord(parsed["variantOverrides"])) {
+      return field;
+    }
+
+    let matchedOverride: Record<string, unknown> | undefined;
+    for (const [key, entry] of Object.entries(parsed["variantOverrides"])) {
+      if (matchesVariantRule(key, context) && isRecord(entry)) {
+        matchedOverride = entry;
+        break;
+      }
+    }
+
+    if (!matchedOverride) return field;
+
+    const updatedRulesObj: Record<string, unknown> = { ...parsed };
+    if (typeof matchedOverride["placeholder"] === "string") {
+      updatedRulesObj["placeholder"] = matchedOverride["placeholder"];
+    }
+    if (typeof matchedOverride["helpText"] === "string") {
+      updatedRulesObj["helpText"] = matchedOverride["helpText"];
+    }
+    if (Array.isArray(matchedOverride["options"])) {
+      updatedRulesObj["options"] = matchedOverride["options"];
+    }
+
+    const nextField: FieldDto = {
+      ...field,
+      label:
+        typeof matchedOverride["label"] === "string" && matchedOverride["label"].trim().length > 0
+          ? matchedOverride["label"]
+          : field.label,
+      isRequired:
+        typeof matchedOverride["required"] === "boolean"
+          ? matchedOverride["required"]
+          : field.isRequired,
+      placeholder:
+        typeof matchedOverride["placeholder"] === "string"
+          ? matchedOverride["placeholder"]
+          : field.placeholder,
+      validationRules: JSON.stringify(updatedRulesObj),
+    };
+    return nextField;
+  } catch {
+    return field;
+  }
+}
+
+export function resolveSectionTitleForContext(
+  section: FormSectionDto,
+  context: FormEvaluationContext
+): string {
+  const baseTitle = section.title || "";
+  const firstRules = section.fields?.[0]?.validationRules;
+  if (!firstRules || typeof firstRules !== "string") {
+    return baseTitle;
+  }
+  try {
+    let parsed: unknown = JSON.parse(firstRules.trim());
+    if (typeof parsed === "string" && parsed.trim().startsWith("{")) {
+      parsed = JSON.parse(parsed.trim());
+    }
+    if (isRecord(parsed) && isRecord(parsed["sectionVariantTitles"])) {
+      for (const [key, val] of Object.entries(parsed["sectionVariantTitles"])) {
+        if (matchesVariantRule(key, context) && typeof val === "string" && val.trim().length > 0) {
+          return val.trim();
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return baseTitle;
 }
 
 

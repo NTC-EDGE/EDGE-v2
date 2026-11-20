@@ -16,5 +16,6 @@ public record UpdateFormCommand(
     bool? IsActive = null,
     string? Key = null,
     Guid? ServiceVariantId = null,
-    Guid? BaseFormId = null
+    Guid? BaseFormId = null,
+    bool PropagateToCustomizedVariants = false
 ) : IRequest<ApiResponse<FormDto>>;

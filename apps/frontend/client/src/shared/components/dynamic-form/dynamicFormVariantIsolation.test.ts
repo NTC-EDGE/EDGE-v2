@@ -1,5 +1,11 @@
-import { evaluateVisibilityCondition, FormEvaluationContext, parseOptions } from "./dynamicFormUtils";
+import {
+  evaluateVisibilityCondition,
+  FormEvaluationContext,
+  parseOptions,
+  resolveFieldForContext,
+} from "./dynamicFormUtils";
 import { FieldDto } from "./dynamicFormTypes";
+import { buildDynamicSections } from "../../formPreview/core/buildDynamicSections";
 
 describe("Client Dynamic Form - Variant Isolation and Base Propagation", () => {
   it("base field without variant conditions renders across all service variants", () => {
@@ -258,5 +264,94 @@ describe("Client Dynamic Form - Variant Isolation and Base Propagation", () => {
     };
 
     expect(evaluateVisibilityCondition(variantCondition, contextWithDifferentNameFormat)).toBe(true);
+  });
+
+  it("resolveFieldForContext projects variantOverrides and buildDynamicSections respects excludedVariants & variantOverrides", () => {
+    const sharedField: FieldDto = {
+      id: "f-station-callsign",
+      fieldId: "f-station-callsign",
+      label: "Call Sign",
+      type: "select",
+      isRequired: false,
+      validationRules: JSON.stringify({
+        options: [{ label: "Standard Band", value: "std" }],
+        variantOverrides: {
+          "Commercial Broadcast (Renewal)": {
+            label: "Existing Broadcast Call Sign",
+            required: true,
+            options: [{ label: "FM Commercial Band", value: "fm-comm" }],
+          },
+        },
+      }),
+    };
+
+    const renewalCtx: FormEvaluationContext = {
+      variantName: "Commercial Broadcast (Renewal)",
+      variantDescription: "Commercial Broadcast",
+      variantType: "Renewal",
+    };
+    const newCtx: FormEvaluationContext = {
+      variantName: "Commercial Broadcast (New)",
+      variantDescription: "Commercial Broadcast",
+      variantType: "New",
+    };
+
+    const resolvedRenewal = resolveFieldForContext(sharedField, renewalCtx);
+    expect(resolvedRenewal.label).toBe("Existing Broadcast Call Sign");
+    expect(resolvedRenewal.isRequired).toBe(true);
+    expect(parseOptions(resolvedRenewal)).toEqual([{ label: "FM Commercial Band", value: "fm-comm" }]);
+
+    const resolvedNew = resolveFieldForContext(sharedField, newCtx);
+    expect(resolvedNew.label).toBe("Call Sign");
+    expect(resolvedNew.isRequired).toBe(false);
+    expect(parseOptions(resolvedNew)).toEqual([{ label: "Standard Band", value: "std" }]);
+
+    // Preview engine respects excludedVariants, __NONE__, and variantOverrides
+    const previewSchema = {
+      sections: [
+        {
+          id: "sec-station",
+          key: "station",
+          title: "Station Particulars",
+          fields: [
+            {
+              fieldId: "f-station-callsign",
+              label: "Call Sign",
+              validationRules: sharedField.validationRules,
+            },
+            {
+              fieldId: "f-hidden-in-renewal",
+              label: "Initial Construction Permit No.",
+              visibilityCondition: JSON.stringify({
+                excludedVariants: ["Commercial Broadcast (Renewal)"],
+              }),
+            },
+            {
+              fieldId: "f-unused",
+              label: "Deprecated Field",
+              visibilityCondition: JSON.stringify({
+                variants: ["__NONE__"],
+              }),
+            },
+          ],
+        },
+      ],
+    };
+
+    const previewResult = buildDynamicSections(
+      previewSchema,
+      [
+        { fieldId: "f-station-callsign", fieldLabel: "Call Sign", value: "DWXX-FM" },
+        { fieldId: "f-hidden-in-renewal", fieldLabel: "Initial Construction Permit No.", value: "CP-123" },
+        { fieldId: "f-unused", fieldLabel: "Deprecated Field", value: "OLD" },
+      ],
+      { selectedVariantName: "Commercial Broadcast (Renewal)" }
+    );
+
+    expect(previewResult.dynamicSectionsToRender.length).toBe(1);
+    const renderedFields = previewResult.dynamicSectionsToRender[0]?.fields ?? [];
+    expect(renderedFields.length).toBe(1);
+    expect(renderedFields[0]?.label).toBe("Existing Broadcast Call Sign");
+    expect(renderedFields[0]?.value).toBe("DWXX-FM");
   });
 });

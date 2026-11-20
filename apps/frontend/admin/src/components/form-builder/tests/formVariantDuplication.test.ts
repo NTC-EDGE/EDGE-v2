@@ -8,10 +8,10 @@ import {
   isFieldApplicableForVariant,
 } from "../utils";
 
-describe("Form Builder - Form Duplication and Variant Reset", () => {
+describe("Form Builder - Form Duplication, Master Superset, and Variant Reset", () => {
   const allVariants = ["Commercial Broadcast", "Amateur Radio"];
 
-  it("duplicating a field in a variant scopes the copy to that variant and hides from ALL", () => {
+  it("duplicating a field in a variant scopes the copy to that variant while keeping it visible in All Sections & Fields", () => {
     const fields: FormField[] = [
       { id: "sec-1", type: "section-header", label: "Station Info", required: false },
       { id: "f-freq", type: "text", label: "Assigned Frequency (MHz)", required: true },
@@ -27,11 +27,11 @@ describe("Form Builder - Form Duplication and Variant Reset", () => {
     expect(copy?.condition?.variants).toEqual(["Commercial Broadcast"]);
 
     expect(isFieldApplicableForVariant(copy ?? fields[1], "Commercial Broadcast")).toBe(true);
-    expect(isFieldApplicableForVariant(copy ?? fields[1], "ALL")).toBe(false);
+    expect(isFieldApplicableForVariant(copy ?? fields[1], "ALL")).toBe(true);
     expect(isFieldApplicableForVariant(copy ?? fields[1], "Amateur Radio")).toBe(false);
   });
 
-  it("duplicating a section header in a variant duplicates the section and its child fields scoped to variant", () => {
+  it("duplicating a section header in a variant scopes the copy to that variant and reflects in All Sections & Fields", () => {
     const fields: FormField[] = [
       { id: "sec-a", type: "section-header", label: "Transmitter Specs", required: false },
       { id: "f-power", type: "number", label: "Power Output (kW)", required: true },
@@ -51,10 +51,11 @@ describe("Form Builder - Form Duplication and Variant Reset", () => {
     expect(copiedField?.type).toBe("number");
     expect(copiedField?.condition?.variants).toEqual(["Commercial Broadcast"]);
 
-    expect(isFieldApplicableForVariant(copiedSection ?? fields[0], "ALL")).toBe(false);
-    expect(isFieldApplicableForVariant(copiedField ?? fields[1], "ALL")).toBe(false);
+    expect(isFieldApplicableForVariant(copiedSection ?? fields[0], "ALL")).toBe(true);
+    expect(isFieldApplicableForVariant(copiedField ?? fields[1], "ALL")).toBe(true);
     expect(isFieldApplicableForVariant(copiedSection ?? fields[0], "Commercial Broadcast")).toBe(true);
     expect(isFieldApplicableForVariant(copiedField ?? fields[1], "Commercial Broadcast")).toBe(true);
+    expect(isFieldApplicableForVariant(copiedField ?? fields[1], "Amateur Radio")).toBe(false);
   });
 
   it("reordering a section block moves all child fields cleanly together", () => {
@@ -66,7 +67,6 @@ describe("Form Builder - Form Duplication and Variant Reset", () => {
       { id: "f-2a", type: "text", label: "Field 2A", required: true },
     ];
 
-    // Reorder Section 2 before Section 1
     const reordered = reorderFieldsWithSections(fields, 3, 0);
 
     expect(reordered[0]?.id).toBe("sec-2");
@@ -112,17 +112,14 @@ describe("Form Builder - Form Duplication and Variant Reset", () => {
 
     const restored = resetVariantToBaseFields(fields, "Commercial Broadcast", allVariants);
 
-    // The variant-exclusive field should be purged
     expect(restored.some((f) => f.id === "f-custom-comm")).toBe(false);
     expect(restored.length).toBe(3);
 
-    // The base field should no longer exclude Commercial Broadcast
     const restoredBase = restored.find((f) => f.id === "f-base-name");
     expect(restoredBase).toBeDefined();
     expect(restoredBase?.condition?.excludedVariants).toBeUndefined();
     expect(isFieldApplicableForVariant(restoredBase ?? fields[1], "Commercial Broadcast")).toBe(true);
 
-    // The section header variantTitles for Commercial Broadcast should be cleared
     const restoredSection = restored.find((f) => f.id === "sec-main");
     expect(restoredSection?.variantTitles).toBeUndefined();
   });

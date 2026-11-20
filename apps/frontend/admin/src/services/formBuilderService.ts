@@ -1,4 +1,5 @@
 import { useApi } from './api';
+import { ServiceCategory, ServiceItem, ServiceVariantItem } from './catalogService';
 
 export interface FormFieldApiDto {
   fieldId: string;
@@ -15,6 +16,7 @@ export interface FormSectionApiDto {
   title: string;
   required: boolean;
   orderIndex: number;
+  visibilityCondition?: string;
   fields: FormFieldApiDto[];
 }
 
@@ -29,6 +31,36 @@ export interface FormVersionSummaryApiDto {
   updatedAt?: string;
   sectionsCount: number;
   fieldsCount: number;
+}
+
+export interface FormSummaryApiDto {
+  formId: string;
+  key?: string;
+  serviceId: string;
+  serviceCategoryId?: string;
+  serviceName?: string;
+  serviceCode?: string;
+  name?: string;
+  description?: string;
+  version: string;
+  isActive?: boolean;
+  categorySelectionRequired?: boolean;
+  linkedVariantsCount?: number;
+  customizedVariantIds?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  availableVersions?: FormVersionSummaryApiDto[];
+}
+
+export interface FormFilterOptionsApiDto {
+  categories: ServiceCategory[];
+  services: ServiceItem[];
+}
+
+export interface FormWorkspaceApiDto {
+  form: FormApiDto;
+  linkedServices: ServiceItem[];
+  serviceVariants: ServiceVariantItem[];
 }
 
 export interface FormApiDto {
@@ -48,6 +80,8 @@ export interface FormApiDto {
   createdAt?: string;
   updatedAt?: string;
   isCustomized?: boolean;
+  linkedVariantsCount?: number;
+  customizedVariantIds?: string[];
   sections: FormSectionApiDto[];
   availableVersions?: FormVersionSummaryApiDto[];
 }
@@ -66,6 +100,8 @@ export interface CreateFormRequest {
 
 export interface UpdateFormRequest {
   id: string;
+  formId?: string;
+  createNewVersion?: boolean;
   serviceId: string;
   key?: string;
   serviceVariantId?: string;
@@ -74,6 +110,7 @@ export interface UpdateFormRequest {
   version: string;
   isActive?: boolean;
   categorySelectionRequired: boolean;
+  propagateToCustomizedVariants?: boolean;
   sections?: FormSectionApiDto[];
 }
 
@@ -109,8 +146,12 @@ export function useFormBuilderService() {
     serviceVariantId?: string,
     formKey?: string,
     serviceCategoryId?: string,
-    isActive?: boolean
+    isActive?: boolean,
+    enabled = true
   ) => {
+    if (!enabled) {
+      return useQuery<PaginatedFormApiResponse<FormApiDto>>(null);
+    }
     const params = new URLSearchParams();
     params.append('pageNumber', pageNumber.toString());
     params.append('pageSize', pageSize.toString());
@@ -132,7 +173,58 @@ export function useFormBuilderService() {
     if (isActive !== undefined && isActive !== null) {
       params.append('isActive', String(isActive));
     }
-    return useQuery<PaginatedFormApiResponse<FormApiDto>>(`/api/v2/forms?${params.toString()}`);
+    return useQuery<PaginatedFormApiResponse<FormApiDto>>(
+      `/api/v2/forms?${params.toString()}`,
+      { revalidateOnFocus: false, keepPreviousData: true, dedupingInterval: 10000 }
+    );
+  };
+
+  const useFormSummaries = (
+    pageNumber = 1,
+    pageSize = 50,
+    searchTerm?: string,
+    serviceId?: string,
+    formKey?: string,
+    serviceCategoryId?: string,
+    isActive?: boolean,
+    enabled = true
+  ) => {
+    if (!enabled) {
+      return useQuery<PaginatedFormApiResponse<FormSummaryApiDto>>(null);
+    }
+    const params = new URLSearchParams();
+    params.append('pageNumber', pageNumber.toString());
+    params.append('pageSize', pageSize.toString());
+    if (searchTerm !== undefined && searchTerm !== null && searchTerm.trim().length > 0) {
+      params.append('searchTerm', searchTerm.trim());
+    }
+    if (serviceId !== undefined && serviceId !== null && serviceId.trim().length > 0) {
+      params.append('serviceId', serviceId.trim());
+    }
+    if (formKey !== undefined && formKey !== null && formKey.trim().length > 0) {
+      params.append('formKey', formKey.trim());
+    }
+    if (serviceCategoryId !== undefined && serviceCategoryId !== null && serviceCategoryId.trim().length > 0) {
+      params.append('serviceCategoryId', serviceCategoryId.trim());
+    }
+    if (isActive !== undefined && isActive !== null) {
+      params.append('isActive', String(isActive));
+    }
+    return useQuery<PaginatedFormApiResponse<FormSummaryApiDto>>(
+      `/api/v2/forms/summaries?${params.toString()}`,
+      { revalidateOnFocus: false, keepPreviousData: true, dedupingInterval: 10000 }
+    );
+  };
+
+  const useFormFilterOptions = (enabled = false) => {
+    return useQuery<FormApiResponse<FormFilterOptionsApiDto>>(
+      enabled ? '/api/v2/forms/filter-options' : null,
+      { revalidateOnFocus: false, dedupingInterval: 60000 }
+    );
+  };
+
+  const getFormWorkspace = async (id: string): Promise<FormApiResponse<FormWorkspaceApiDto>> => {
+    return get<FormApiResponse<FormWorkspaceApiDto>>(`/api/v2/forms/${id}/workspace`);
   };
 
   const useFormById = (id?: string) => {
@@ -185,8 +277,12 @@ export function useFormBuilderService() {
     return post<FormApiResponse<FormApiDto>, Record<string, never>>(`/api/v2/forms/${id}/activate`, {});
   };
 
-  const getVariantForm = async (variantId: string): Promise<FormApiResponse<FormApiDto>> => {
-    return get<FormApiResponse<FormApiDto>>(`/api/v2/service-variants/${variantId}/form`);
+  const getVariantForm = async (
+    variantId: string,
+    formId?: string
+  ): Promise<FormApiResponse<FormApiDto>> => {
+    const qs = formId ? `?formId=${encodeURIComponent(formId)}` : '';
+    return get<FormApiResponse<FormApiDto>>(`/api/v2/service-variants/${variantId}/form${qs}`);
   };
 
   const saveVariantForm = async (
@@ -215,9 +311,12 @@ export function useFormBuilderService() {
 
   return {
     useForms,
+    useFormSummaries,
+    useFormFilterOptions,
     useFormById,
     useFormByServiceId,
     getFormById,
+    getFormWorkspace,
     getFormByServiceId,
     createForm,
     updateForm,

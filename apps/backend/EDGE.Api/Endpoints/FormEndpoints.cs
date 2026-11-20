@@ -11,6 +11,9 @@ using EDGE.Application.Forms.Commands.DeleteForm;
 using EDGE.Application.Forms.Commands.DuplicateForm;
 using EDGE.Application.Forms.Commands.ActivateForm;
 using EDGE.Application.Forms.Queries.GetForms;
+using EDGE.Application.Forms.Queries.GetFormSummaries;
+using EDGE.Application.Forms.Queries.GetFormFilterOptions;
+using EDGE.Application.Forms.Queries.GetFormWorkspace;
 using EDGE.Application.Forms.Queries.GetFormById;
 using EDGE.Application.Forms.Dtos;
 
@@ -33,6 +36,24 @@ public static class FormEndpoints
             .WithSummary("Get all forms")
             .WithDescription("Retrieves paginated dynamic form templates with optional search and service filtering.")
             .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<FormDto>>(StatusCodes.Status200OK);
+
+        forms.MapGet("/summaries", GetFormSummaries)
+            .WithName("GetFormSummaries")
+            .WithSummary("Get lightweight form summaries for Admin Form Builder list")
+            .WithDescription("Retrieves paginated form summaries without heavy section/field JSON payloads.")
+            .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<FormSummaryDto>>(StatusCodes.Status200OK);
+
+        forms.MapGet("/filter-options", GetFormFilterOptions)
+            .WithName("GetFormFilterOptions")
+            .WithSummary("Get lightweight service categories and services for Form Builder filters")
+            .WithDescription("Retrieves lightweight category and service options on demand without service contract payloads.")
+            .Produces<EDGE.Application.Common.Models.ApiResponse<FormFilterOptionsDto>>(StatusCodes.Status200OK);
+
+        forms.MapGet("/{id:guid}/workspace", GetFormWorkspace)
+            .WithName("GetFormWorkspace")
+            .WithSummary("Get complete Form Builder workspace payload by ID")
+            .WithDescription("Retrieves the full form schema, version summaries, linked services, and scoped service variants in one dedicated request.")
+            .Produces<EDGE.Application.Common.Models.ApiResponse<FormWorkspaceDto>>(StatusCodes.Status200OK);
 
         forms.MapGet("/{id:guid}", GetFormById)
             .WithName("GetFormById")
@@ -90,6 +111,32 @@ public static class FormEndpoints
     {
         var result = await mediator.Send(new GetFormsQuery(pageNumber, pageSize, searchTerm, serviceId, serviceVariantId, formKey, serviceCategoryId, isActive));
         return Results.Ok(result);
+    }
+
+    public static async Task<IResult> GetFormSummaries(
+        IMediator mediator,
+        int pageNumber = 1,
+        int pageSize = 50,
+        string? searchTerm = null,
+        Guid? serviceId = null,
+        string? formKey = null,
+        Guid? serviceCategoryId = null,
+        bool? isActive = null)
+    {
+        var result = await mediator.Send(new GetFormSummariesQuery(pageNumber, pageSize, searchTerm, serviceId, formKey, serviceCategoryId, isActive));
+        return Results.Ok(result);
+    }
+
+    public static async Task<IResult> GetFormFilterOptions(IMediator mediator)
+    {
+        var result = await mediator.Send(new GetFormFilterOptionsQuery());
+        return Results.Ok(result);
+    }
+
+    public static async Task<IResult> GetFormWorkspace(Guid id, IMediator mediator)
+    {
+        var result = await mediator.Send(new GetFormWorkspaceQuery(id));
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
     public static async Task<IResult> GetFormById(Guid id, IMediator mediator)

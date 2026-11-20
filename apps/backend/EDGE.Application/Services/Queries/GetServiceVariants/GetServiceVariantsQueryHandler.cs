@@ -41,6 +41,7 @@ public class GetServiceVariantsQueryHandler : IRequestHandler<GetServiceVariants
             Id = v.Id,
             ServiceId = v.ServiceId,
             ServiceName = v.Service?.Name,
+            ServiceCode = v.Service?.Code,
             Type = v.Type.ToString(),
             Description = v.Description,
             IsIndividual = v.IsIndividual

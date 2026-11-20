@@ -13,7 +13,7 @@ import {
   GitBranch,
   Info,
 } from "lucide-react";
-import { FormField, FormSchema, FieldCondition } from "./types";
+import { FormField, FormSchema, FieldCondition, ServiceVariantToolbarItem } from "./types";
 import { parseFieldCondition } from "./utils";
 import {
   NTC_SERVICES,
@@ -23,6 +23,12 @@ import {
 } from "./ntcCatalogConstants";
 
 type DepOperator = "equals" | "not_equals" | "contains" | "is_not_empty" | "is_empty";
+
+const APPLICANT_TYPE_OPTIONS: Array<{ key: "all" | "individual" | "company"; label: string }> = [
+  { key: "all", label: "All Applicants" },
+  { key: "individual", label: "Individual" },
+  { key: "company", label: "Company / Juridical" },
+];
 
 function parseDepOperator(val: string): DepOperator {
   if (
@@ -56,12 +62,14 @@ function matchesParentField(pf: FormField, rawTargetId: string | undefined): boo
 interface ConditionBuilderProps {
   field: FormField;
   form?: FormSchema | null;
+  formVariants?: ServiceVariantToolbarItem[];
   onUpdateField: (updates: Partial<FormField>) => void;
 }
 
 export function ConditionBuilder({
   field,
   form,
+  formVariants = [],
   onUpdateField,
 }: ConditionBuilderProps) {
   const [activeTab, setActiveTab] = useState<
@@ -80,7 +88,8 @@ export function ConditionBuilder({
   }, [field.condition, field.visibilityCondition]);
 
   const selectedServices = condition.services ?? [];
-  const selectedVariants = condition.variants ?? [];
+  const selectedVariants = (condition.variants ?? []).filter((v) => v !== "__NONE__");
+  const excludedVariants = condition.excludedVariants ?? [];
   const selectedApplicationTypes = condition.applicationTypes ?? [];
   const selectedElements = condition.elements ?? [];
   const selectedApplicantTypes = condition.applicantTypes ?? [];
@@ -89,6 +98,8 @@ export function ConditionBuilder({
   const hasAnyCondition =
     selectedServices.length > 0 ||
     selectedVariants.length > 0 ||
+    (condition.variants?.includes("__NONE__") ?? false) ||
+    excludedVariants.length > 0 ||
     selectedApplicationTypes.length > 0 ||
     selectedElements.length > 0 ||
     selectedApplicantTypes.length > 0 ||
@@ -117,6 +128,18 @@ export function ConditionBuilder({
 
   const availableVariants = useMemo(() => {
     const list: string[] = [];
+    // Prioritize real Service Variants linked to this Form!
+    for (const fv of formVariants) {
+      if (fv.name && !list.includes(fv.name)) {
+        list.push(fv.name);
+      }
+    }
+    if (!showAllVariants && list.length > 0) {
+      for (const sv of selectedVariants) {
+        if (sv && !list.includes(sv)) list.push(sv);
+      }
+      return list;
+    }
     if (currentServiceCatalog && currentServiceCatalog.variants.length > 0) {
       for (const v of currentServiceCatalog.variants) {
         if (!list.includes(v)) list.push(v);
@@ -138,10 +161,15 @@ export function ConditionBuilder({
       }
     }
     return list;
-  }, [showAllVariants, currentServiceCatalog, selectedServices]);
+  }, [showAllVariants, formVariants, selectedVariants, currentServiceCatalog, selectedServices]);
 
   const availableApplicationTypes = useMemo(() => {
     const list: string[] = [];
+    for (const fv of formVariants) {
+      if (fv.applicationType && !list.includes(fv.applicationType)) {
+        list.push(fv.applicationType);
+      }
+    }
     if (currentServiceCatalog && currentServiceCatalog.applicationTypes.length > 0) {
       for (const t of currentServiceCatalog.applicationTypes) {
         if (!list.includes(t)) list.push(t);
@@ -158,7 +186,7 @@ export function ConditionBuilder({
       }
     }
     return list;
-  }, [currentServiceCatalog, selectedServices]);
+  }, [formVariants, currentServiceCatalog, selectedServices]);
 
   const availableElements = useMemo(() => {
     if (!showAllElements && currentServiceCatalog && currentServiceCatalog.elements.length > 0) {
@@ -177,6 +205,7 @@ export function ConditionBuilder({
     const hasRules = Boolean(
       (newCondition.services && newCondition.services.length > 0) ||
       (newCondition.variants && newCondition.variants.length > 0) ||
+      (newCondition.excludedVariants && newCondition.excludedVariants.length > 0) ||
       (newCondition.applicationTypes && newCondition.applicationTypes.length > 0) ||
       (newCondition.elements && newCondition.elements.length > 0) ||
       (newCondition.applicantTypes && newCondition.applicantTypes.length > 0) ||
@@ -501,13 +530,13 @@ export function ConditionBuilder({
                     );
                   })}
                 </div>
-                {currentServiceCatalog && currentServiceCatalog.variants.length > 0 && (
+                {(formVariants.length > 0 || (currentServiceCatalog && currentServiceCatalog.variants.length > 0)) && (
                   <button
                     type="button"
                     onClick={() => setShowAllVariants(!showAllVariants)}
                     className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold mt-1.5 block"
                   >
-                    {showAllVariants ? "Show service-specific variants only" : "Show all NTC variants..."}
+                    {showAllVariants ? "Show form-linked variants only" : "Show all NTC variants..."}
                   </button>
                 )}
               </div>
@@ -635,13 +664,7 @@ export function ConditionBuilder({
           {activeTab === "applicant" && (
             <div className="p-2.5 border-t border-slate-100 dark:border-slate-800">
               <div className="grid grid-cols-3 gap-1.5">
-                {(
-                  [
-                    { key: "all", label: "All Applicants" },
-                    { key: "individual", label: "Individual" },
-                    { key: "company", label: "Company / Juridical" },
-                  ] as const
-                ).map((opt) => {
+                {APPLICANT_TYPE_OPTIONS.map((opt) => {
                   const isSelected =
                     opt.key === "all"
                       ? selectedApplicantTypes.length === 0

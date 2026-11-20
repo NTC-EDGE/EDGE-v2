@@ -36,10 +36,10 @@ public class DuplicateFormCommandHandler : IRequestHandler<DuplicateFormCommand,
         var clonedForm = new Form
         {
             ServiceId = sourceForm.ServiceId,
-            Key = !string.IsNullOrWhiteSpace(sourceForm.Key) ? $"{sourceForm.Key}-copy" : string.Empty,
+            Key = sourceForm.Key ?? string.Empty,
             ServiceVariantId = sourceForm.ServiceVariantId,
-            BaseFormId = sourceForm.BaseFormId ?? (sourceForm.ServiceVariantId == null ? sourceForm.Id : null),
-            Name = !string.IsNullOrWhiteSpace(sourceForm.Name) ? $"{sourceForm.Name} (Copy)" : null,
+            BaseFormId = sourceForm.ServiceVariantId.HasValue ? sourceForm.BaseFormId : null,
+            Name = sourceForm.Name,
             Version = newVersion,
             IsActive = false,
             CategorySelectionRequired = sourceForm.CategorySelectionRequired
@@ -57,23 +57,39 @@ public class DuplicateFormCommandHandler : IRequestHandler<DuplicateFormCommand,
 
             foreach (var sourceField in sourceSection.SectionFields)
             {
-                var clonedField = new Field
+                SectionField clonedSectionField;
+                if (sourceField.FieldId != Guid.Empty)
                 {
-                    Label = sourceField.Field?.Label ?? string.Empty,
-                    FieldType = sourceField.Field?.FieldType ?? string.Empty,
-                    ValidationRules = sourceField.Field?.ValidationRules,
-                    IsOtherEnabled = sourceField.Field?.IsOtherEnabled ?? false,
-                    SyncBackOnSubmit = sourceField.Field?.SyncBackOnSubmit ?? false
-                };
+                    clonedSectionField = new SectionField
+                    {
+                        FormSectionId = clonedSection.Id,
+                        FieldId = sourceField.FieldId,
+                        Field = sourceField.Field,
+                        IsRequired = sourceField.IsRequired,
+                        OrderIndex = sourceField.OrderIndex,
+                        VisibilityCondition = sourceField.VisibilityCondition
+                    };
+                }
+                else
+                {
+                    var clonedField = new Field
+                    {
+                        Label = sourceField.Field?.Label ?? string.Empty,
+                        FieldType = sourceField.Field?.FieldType ?? string.Empty,
+                        ValidationRules = sourceField.Field?.ValidationRules,
+                        IsOtherEnabled = sourceField.Field?.IsOtherEnabled ?? false,
+                        SyncBackOnSubmit = sourceField.Field?.SyncBackOnSubmit ?? false
+                    };
 
-                var clonedSectionField = new SectionField
-                {
-                    FormSectionId = clonedSection.Id,
-                    Field = clonedField,
-                    IsRequired = sourceField.IsRequired,
-                    OrderIndex = sourceField.OrderIndex,
-                    VisibilityCondition = sourceField.VisibilityCondition
-                };
+                    clonedSectionField = new SectionField
+                    {
+                        FormSectionId = clonedSection.Id,
+                        Field = clonedField,
+                        IsRequired = sourceField.IsRequired,
+                        OrderIndex = sourceField.OrderIndex,
+                        VisibilityCondition = sourceField.VisibilityCondition
+                    };
+                }
 
                 clonedSection.SectionFields.Add(clonedSectionField);
             }

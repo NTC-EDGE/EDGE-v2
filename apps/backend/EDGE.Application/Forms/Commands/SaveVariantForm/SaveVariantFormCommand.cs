@@ -11,5 +11,7 @@ public record SaveVariantFormCommand(
     List<FormSectionDto>? Sections,
     string? Name = null,
     string? Version = null,
-    bool? IsActive = true
+    bool? IsActive = true,
+    Guid? FormId = null,
+    bool CreateNewVersion = false
 ) : IRequest<ApiResponse<FormDto>>;

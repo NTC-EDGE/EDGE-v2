@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { FileText, Layout, EyeOff, Sparkles } from "lucide-react";
-import { FormField, FormSchema } from "./types";
+import { FileText, Layout, EyeOff, Sparkles, ShieldCheck } from "lucide-react";
+import { FormField, FormSchema, ServiceVariantToolbarItem } from "./types";
 import { ConditionBuilder } from "./ConditionBuilder";
 import { getFieldLabel, getFieldIcon } from "./utils";
 import { LabeledSection, inputClass, FIELDS_WITH_PLACEHOLDER, FIELDS_WITH_OPTIONS } from "./field-editor/FieldEditorPrimitives";
@@ -14,9 +14,11 @@ import { FieldOptionsEditor } from "./field-editor/FieldOptionsEditor";
 interface FieldEditorProps {
   field: FormField | null;
   form?: FormSchema | null;
+  formVariants?: ServiceVariantToolbarItem[];
   onUpdateField: (updates: Partial<FormField>) => void;
   onUpdateForm?: (updates: Partial<FormSchema>) => void;
   onSelectField?: (fieldId: string | null) => void;
+  onRequestSetActive?: () => void;
   selectedVariant?: string;
   isVariantEditMode?: boolean;
   isReadOnly?: boolean;
@@ -25,9 +27,11 @@ interface FieldEditorProps {
 export function FieldEditor({
   field,
   form,
+  formVariants = [],
   onUpdateField,
   onUpdateForm,
   onSelectField,
+  onRequestSetActive,
   selectedVariant = "ALL",
 }: FieldEditorProps) {
   if (!field) {
@@ -36,6 +40,7 @@ export function FieldEditor({
         form={form}
         onUpdateForm={onUpdateForm}
         onSelectField={onSelectField}
+        onRequestSetActive={onRequestSetActive}
       />
     );
   }
@@ -112,6 +117,14 @@ export function FieldEditor({
               icon={FileText}
               description="Optional machine key matching service contract requiredSections (auto-generated from title if blank)."
             >
+              {field.contractRequired && (
+                <div className="mb-2 p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200 text-[11px] flex items-start gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Contract Linked Section:</strong> This section key is referenced by the Service Contract schema. Keep the exact key intact unless updating the backend contract.
+                  </span>
+                </div>
+              )}
               <input
                 type="text"
                 value={field.sectionKey ?? ""}
@@ -185,7 +198,12 @@ export function FieldEditor({
               ? "Control when this section appears based on Service, Variant, Element, Applicant Type, or parent dependency."
               : "Control when this field appears based on Service, Variant, Element, Applicant Type, or field dependency."}
           >
-            <ConditionBuilder field={field} form={form} onUpdateField={onUpdateField} />
+            <ConditionBuilder
+              field={field}
+              form={form}
+              formVariants={formVariants}
+              onUpdateField={onUpdateField}
+            />
           </LabeledSection>
         )}
 

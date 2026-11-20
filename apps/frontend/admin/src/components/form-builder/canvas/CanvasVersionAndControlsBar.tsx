@@ -1,23 +1,33 @@
 "use client";
 
 import React from "react";
-import { Radio, Copy, Trash2, Layers, RotateCcw, Plus } from "lucide-react";
+import { Radio, Copy, Trash2, Layers, RotateCcw, Plus, Lock } from "lucide-react";
 import { FormSchema, FieldType } from "../types";
 
 export function CanvasVersionBar({
   form,
+  selectedVariant = "ALL",
+  linkedVariantsCount = 0,
   onSwitchVersion,
   onSetActive,
   onCreateNewVersion,
   onDeleteVersion,
 }: {
   form: FormSchema;
+  selectedVariant?: string;
+  linkedVariantsCount?: number;
   onSwitchVersion?: (formId: string) => void;
   onSetActive?: () => void;
   onCreateNewVersion?: () => void;
   onDeleteVersion?: () => void;
 }) {
+  const isVariantScope = Boolean(selectedVariant && selectedVariant !== "ALL");
+  const isInheritingVariant = isVariantScope && !form.isCustomized;
   const isLive = Boolean(form.isPublished || form.isActive);
+  const isDeleteProtected = isVariantScope
+    ? isLive
+    : isLive && !form.serviceVariantId && linkedVariantsCount > 0;
+
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -25,9 +35,15 @@ export function CanvasVersionBar({
     >
       <div className="flex items-center gap-2 flex-wrap min-w-0">
         <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-          Version:
+          {isVariantScope ? "Variant Version:" : "Base Form Version:"}
         </span>
-        {form.availableVersions && form.availableVersions.length > 1 ? (
+        {isInheritingVariant ? (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              Inheriting Base Form (v{form.version || "1.0"})
+            </span>
+          </div>
+        ) : form.availableVersions && form.availableVersions.length > 1 ? (
           <div className="flex items-center gap-1.5 flex-wrap">
             {form.availableVersions.map((v) => {
               const isSelected = v.formId === form.id;
@@ -67,14 +83,18 @@ export function CanvasVersionBar({
               }`}
             >
               <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-emerald-500" : "bg-amber-500"}`} />
-              {isLive ? "Active on Client" : "Draft"}
+              {isLive
+                ? isVariantScope
+                  ? "Active for Variant"
+                  : "Active on Client"
+                : "Draft"}
             </span>
           </div>
         )}
       </div>
 
       <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-        {form.serviceId && !isLive && onSetActive && (
+        {!isInheritingVariant && form.serviceId && !isLive && onSetActive && (
           <button
             type="button"
             onClick={onSetActive}
@@ -91,17 +111,30 @@ export function CanvasVersionBar({
             className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
           >
             <Copy className="w-3.5 h-3.5" />
-            <span>New Version</span>
+            <span>{isInheritingVariant ? "New Variant Version" : "New Version"}</span>
           </button>
         )}
-        {onDeleteVersion && (
+        {onDeleteVersion && !isInheritingVariant && (
           <button
             type="button"
-            onClick={onDeleteVersion}
-            className="flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 px-2 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-            title="Delete this version"
+            disabled={isDeleteProtected}
+            onClick={() => {
+              if (!isDeleteProtected) onDeleteVersion();
+            }}
+            className={`flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-xl transition-colors ${
+              isDeleteProtected
+                ? "text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-60"
+                : "text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+            }`}
+            title={
+              isDeleteProtected
+                ? isVariantScope
+                  ? "Cannot delete the active Service Variant version (use 'Revert to Base Form' to remove customization)"
+                  : `Cannot delete an active Base Form used by ${linkedVariantsCount} Service Variant(s)`
+                : "Delete this draft version"
+            }
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            {isDeleteProtected ? <Lock className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
           </button>
         )}
       </div>

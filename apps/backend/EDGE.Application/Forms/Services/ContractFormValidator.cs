@@ -104,11 +104,26 @@ public class ContractFormValidator
                 sectionsEl.ValueKind != JsonValueKind.Array)
                 return new HashSet<string>();
 
-            return sectionsEl.EnumerateArray()
-                .Where(s => s.TryGetProperty("required", out var rEl) && rEl.GetBoolean())
-                .Select(s => s.TryGetProperty("key", out var kEl) ? kEl.GetString() ?? string.Empty : string.Empty)
-                .Where(k => !string.IsNullOrEmpty(k))
-                .ToHashSet();
+            var keys = new HashSet<string>();
+            foreach (var s in sectionsEl.EnumerateArray())
+            {
+                if (s.ValueKind == JsonValueKind.String)
+                {
+                    var str = s.GetString();
+                    if (!string.IsNullOrEmpty(str)) keys.Add(str);
+                }
+                else if (s.ValueKind == JsonValueKind.Object &&
+                         s.TryGetProperty("required", out var rEl) &&
+                         (rEl.ValueKind == JsonValueKind.True || rEl.ValueKind == JsonValueKind.False) &&
+                         rEl.GetBoolean() &&
+                         s.TryGetProperty("key", out var kEl) &&
+                         kEl.ValueKind == JsonValueKind.String)
+                {
+                    var str = kEl.GetString();
+                    if (!string.IsNullOrEmpty(str)) keys.Add(str);
+                }
+            }
+            return keys;
         }
         catch (JsonException)
         {

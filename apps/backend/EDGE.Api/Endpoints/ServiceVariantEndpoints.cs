@@ -27,7 +27,9 @@ public record SaveVariantFormRequest(
     List<FormSectionDto>? Sections,
     string? Name = null,
     string? Version = null,
-    bool? IsActive = true
+    bool? IsActive = true,
+    Guid? FormId = null,
+    bool CreateNewVersion = false
 );
 public record ActivateVariantFormRequest(bool IsActive);
 
@@ -267,10 +269,11 @@ public static class ServiceVariantEndpoints
     [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetVariantForm(
         Guid id,
+        Guid? formId,
         IValidator<GetFormByVariantIdQuery> validator,
         IMediator mediator)
     {
-        var query = new GetFormByVariantIdQuery(id);
+        var query = new GetFormByVariantIdQuery(id, formId);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {
@@ -293,7 +296,9 @@ public static class ServiceVariantEndpoints
             request.Sections,
             request.Name,
             request.Version,
-            request.IsActive
+            request.IsActive,
+            request.FormId,
+            request.CreateNewVersion
         );
 
         var validationResult = await validator.ValidateAsync(command);

@@ -62,4 +62,53 @@ public class GetFormsQueryTests
         item.AvailableVersions.Should().HaveCount(2);
         item.AvailableVersions.Select(v => v.Version).Should().Contain(new[] { "1.0", "2.0" });
     }
+
+    [Fact]
+    public async Task Handle_ServiceIdFilter_ResolvesCanonicalBaseFormForSubService()
+    {
+        var canonicalServiceId = Guid.NewGuid();
+        var subServiceId = Guid.NewGuid();
+        var canonicalService = new Service { Id = canonicalServiceId, Name = "Permit to Purchase/Possess", Code = "NTC_1_09" };
+
+        var baseForm = new Form
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = canonicalServiceId,
+            Service = canonicalService,
+            Key = "NTC_1_09",
+            Name = "NTC 1-09: Permit to Purchase/Possess",
+            Version = "1.0",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow.AddDays(-2),
+            Sections = new List<FormSection>()
+        };
+
+        var variantFormRow = new Form
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = canonicalServiceId,
+            ServiceVariantId = Guid.NewGuid(),
+            Name = "Isolated Variant Row",
+            Version = "1.0",
+            IsActive = true,
+            Sections = new List<FormSection>()
+        };
+
+        _mockFormRepo
+            .Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Form> { baseForm, variantFormRow });
+        _mockFormRepo
+            .Setup(r => r.ResolveCanonicalServiceId(subServiceId))
+            .Returns(canonicalServiceId);
+        _mockFormRepo
+            .Setup(r => r.GetCanonicalServiceGroupIds(subServiceId))
+            .Returns(new HashSet<Guid> { canonicalServiceId, subServiceId });
+
+        var handler = new GetFormsQueryHandler(_mockFormRepo.Object);
+        var result = await handler.Handle(new GetFormsQuery(ServiceId: subServiceId), CancellationToken.None);
+
+        result.Data.Should().HaveCount(1);
+        result.Data.Single().FormId.Should().Be(baseForm.Id);
+        result.Data.Single().AvailableVersions.Should().ContainSingle(v => v.FormId == baseForm.Id);
+    }
 }

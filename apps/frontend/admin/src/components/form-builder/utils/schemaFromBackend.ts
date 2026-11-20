@@ -1,6 +1,12 @@
-import { FieldOption, FormField, FormSchema, FormVersionSummary, RepeaterColumn } from "../types";
+import { FieldOption, FormField, FormSchema, FormVersionSummary, LinkedServiceItem, RepeaterColumn } from "../types";
 import { generateId, isRecord, normalizeFieldType } from "./fieldDefaults";
-import { parseFieldCondition, parseFieldOptions, parseRepeaterColumns } from "./fieldParsers";
+import {
+  parseFieldCondition,
+  parseFieldOptions,
+  parseFieldVariantOverrides,
+  parseFormMetadata,
+  parseRepeaterColumns,
+} from "./fieldParsers";
 import { resolveDefaultRepeaterColumns } from "./repeaterPresets";
 
 export interface BackendFormDtoLike {
@@ -17,8 +23,11 @@ export interface BackendFormDtoLike {
   serviceCode?: string;
   name?: string;
   isActive?: boolean;
+  isCustomized?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  linkedVariantsCount?: number;
+  customizedVariantIds?: string[];
   availableVersions?: FormVersionSummary[];
   sections?: Array<{
     key?: string;
@@ -43,6 +52,9 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
   const formId = dto.formId ?? dto.id ?? generateId();
   const fields: FormField[] = [];
   const seenIds = new Set<string>();
+  let extractedDescription: string | undefined = undefined;
+  let extractedLinkedServices: LinkedServiceItem[] | undefined = undefined;
+  let extractedLinkedVariants: string[] | undefined = undefined;
 
   if (Array.isArray(dto.sections)) {
     for (const section of dto.sections) {
@@ -54,6 +66,14 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
           try {
             const parsedFirst: unknown = JSON.parse(firstRules);
             if (isRecord(parsedFirst)) {
+              if (!extractedDescription && !extractedLinkedServices && !extractedLinkedVariants) {
+                const formMeta = parseFormMetadata(parsedFirst["formMetadata"]);
+                if (formMeta) {
+                  extractedDescription = formMeta.description;
+                  extractedLinkedServices = formMeta.linkedServices;
+                  extractedLinkedVariants = formMeta.linkedVariants;
+                }
+              }
               if (typeof parsedFirst["sectionVisibilityCondition"] === "string") {
                 inferredSecVis = parsedFirst["sectionVisibilityCondition"];
               }
@@ -85,6 +105,7 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
           label: section.title,
           sectionTitle: section.title,
           sectionKey: section.key,
+          contractRequired: Boolean(section.required),
           required: false,
           cols: 2,
           visibilityCondition: inferredSecVis,
@@ -149,6 +170,8 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
             ? undefined
             : parseFieldCondition(f.visibilityCondition);
 
+          const parsedOverrides = parseFieldVariantOverrides(parsedRules["variantOverrides"]);
+
           fields.push({
             id: uniqueId,
             type: normType,
@@ -170,6 +193,7 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
             addButtonLabel: typeof parsedRules["addButtonLabel"] === "string" ? parsedRules["addButtonLabel"] : "Add Equipment",
             visibilityCondition: isInheritedOnly ? undefined : f.visibilityCondition || undefined,
             condition: fieldCondition,
+            variantOverrides: parsedOverrides,
           });
         }
       }
@@ -187,13 +211,22 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
     serviceName: dto.serviceName,
     serviceCode: dto.serviceCode,
     name: dto.name ?? (dto.serviceName ? `${dto.serviceName} Form` : `Service Form (v${dto.version ?? "1.0"})`),
-    description: dto.serviceName ? `Form template for ${dto.serviceName} (v${dto.version ?? "1.0"})` : `Dynamic form schema version ${dto.version ?? "1.0"}`,
+    description:
+      extractedDescription ??
+      (dto.serviceName
+        ? `Form template for ${dto.serviceName} (v${dto.version ?? "1.0"})`
+        : `Dynamic form schema version ${dto.version ?? "1.0"}`),
     version: dto.version ?? "1.0",
     fields,
     createdAt: dto.createdAt ?? new Date().toISOString(),
     updatedAt: dto.updatedAt ?? dto.createdAt ?? new Date().toISOString(),
     isPublished: dto.isActive !== false,
     isActive: dto.isActive !== false,
+    isCustomized: Boolean(dto.isCustomized),
     availableVersions: Array.isArray(dto.availableVersions) ? dto.availableVersions : undefined,
+    linkedServices: extractedLinkedServices,
+    linkedVariants: extractedLinkedVariants,
+    customizedVariantIds: Array.isArray(dto.customizedVariantIds) ? dto.customizedVariantIds : undefined,
+    linkedVariantsCount: typeof dto.linkedVariantsCount === "number" ? dto.linkedVariantsCount : undefined,
   };
 }

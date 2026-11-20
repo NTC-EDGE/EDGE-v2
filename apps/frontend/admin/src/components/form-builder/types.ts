@@ -45,6 +45,14 @@ export interface FieldCondition {
   }>;
 }
 
+export interface FieldVariantOverride {
+  label?: string;
+  required?: boolean;
+  placeholder?: string;
+  helpText?: string;
+  options?: FieldOption[];
+}
+
 export interface FormField {
   id: string;
   type: FieldType;
@@ -62,6 +70,7 @@ export interface FormField {
   cols?: 1 | 2;
   sectionTitle?: string;
   sectionKey?: string;
+  contractRequired?: boolean;
   // Repeatable table / equipment inventory properties
   repeaterColumns?: RepeaterColumn[];
   minRows?: number;
@@ -70,6 +79,7 @@ export interface FormField {
   visibilityCondition?: string;
   condition?: FieldCondition;
   variantTitles?: Record<string, string>;
+  variantOverrides?: Record<string, FieldVariantOverride>;
 }
 
 export interface FormVersionSummary {
@@ -99,7 +109,15 @@ export interface ServiceVariantToolbarItem {
   serviceName?: string;
   serviceCode?: string;
   categoryName?: string;
+  applicationType?: string;
   source: 'service' | 'field-condition' | 'catalog' | 'custom';
+}
+
+export interface SharedChangesImpact {
+  hasSharedUpdates: boolean;
+  modifiedItems: string[];
+  affectedVariantNames: string[];
+  affectedCustomizedVariantNames: string[];
 }
 
 export interface FormSchema {
@@ -116,6 +134,7 @@ export interface FormSchema {
   description: string;
   version?: string;
   isActive?: boolean;
+  isCustomized?: boolean;
   fields: FormField[];
   createdAt: string;
   updatedAt: string;
@@ -124,4 +143,6 @@ export interface FormSchema {
   availableVersions?: FormVersionSummary[];
   linkedServices?: LinkedServiceItem[];
   linkedVariants?: string[];
+  customizedVariantIds?: string[];
+  linkedVariantsCount?: number;
 }

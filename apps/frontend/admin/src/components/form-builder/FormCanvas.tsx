@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
+import { Loader2 } from "lucide-react";
 import { FormSchema, FieldType, LinkedServiceItem, ServiceVariantToolbarItem } from "./types";
 import { ServiceVariantToolbar } from "./ServiceVariantToolbar";
 import { collectAllFormVariants, getEffectiveLinkedServices } from "./canonicalFormServices";
 import { ServiceItem, ServiceCategory } from "@/services/catalogService";
 import { useCanvasSections } from "./canvas/useCanvasSections";
-import { isFieldApplicableForVariant } from "./utils";
+import { isFieldApplicableForVariant } from "./utils/variantConditionUtils";
 import { CanvasVersionBar, CanvasSectionsControlBar } from "./canvas/CanvasVersionAndControlsBar";
 import { CanvasEmptyFormState, CanvasEmptyVariantState } from "./canvas/CanvasEmptyStates";
 import { CanvasSectionCard } from "./canvas/CanvasSectionCard";
@@ -15,6 +16,7 @@ import { CanvasDialogs } from "./canvas/CanvasDialogs";
 interface FormCanvasProps {
   form: FormSchema;
   baseForm?: FormSchema | null;
+  isLoadingWorkspace?: boolean;
   selectedFieldId: string | null;
   onSelectField: (id: string | null) => void;
   onUpdateForm: (updates: Partial<FormSchema>) => void;
@@ -26,6 +28,8 @@ interface FormCanvasProps {
   onCreateNewVersion?: () => void; onDeleteVersion?: () => void;
   catalogServices?: ServiceItem[]; catalogCategories?: ServiceCategory[];
   apiVariants?: ServiceVariantToolbarItem[];
+  onRequestFilterOptions?: () => void;
+  onLinkedServicesChanged?: (services: LinkedServiceItem[]) => void;
   selectedVariant: string; onSelectVariant: (variantName: string) => void;
   isVariantEditMode: boolean; onSetVariantEditMode: (editMode: boolean) => void;
   onCustomizeVariant?: (variantName: string) => void;
@@ -43,6 +47,8 @@ function isFieldType(val: string): val is FieldType {
 
 export function FormCanvas({
   form,
+  baseForm,
+  isLoadingWorkspace = false,
   selectedFieldId,
   onSelectField,
   onUpdateForm,
@@ -57,6 +63,8 @@ export function FormCanvas({
   catalogServices = [],
   catalogCategories = [],
   apiVariants = [],
+  onRequestFilterOptions,
+  onLinkedServicesChanged,
   selectedVariant,
   onSelectVariant,
   onResetFromBaseForm,
@@ -71,6 +79,7 @@ export function FormCanvas({
     id: string;
     title: string;
     childCount: number;
+    contractRequired?: boolean;
   } | null>(null);
 
   const formVariants = useMemo(
@@ -94,8 +103,11 @@ export function FormCanvas({
   } = useCanvasSections(form, selectedVariant, selectedFieldId, onSelectField);
 
   const baseFieldsCount = useMemo(
-    () => form.fields.filter((f) => isFieldApplicableForVariant(f, "ALL")).length,
-    [form.fields]
+    () =>
+      (baseForm ? baseForm.fields : form.fields).filter((f) =>
+        isFieldApplicableForVariant(f, "ALL")
+      ).length,
+    [baseForm, form.fields]
   );
 
   const handleCanvasDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -132,12 +144,23 @@ export function FormCanvas({
     <div className="h-full flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-950" onClick={() => onSelectField(null)}>
       <div className="flex-1 overflow-y-auto">
         <div className="w-full max-w-[1600px] mx-auto py-6 px-6 lg:px-10 min-h-full">
-          <CanvasVersionBar form={form} onSwitchVersion={onSwitchVersion} onSetActive={onSetActive} onCreateNewVersion={onCreateNewVersion} onDeleteVersion={onDeleteVersion} />
+          <CanvasVersionBar
+            form={form}
+            selectedVariant={selectedVariant}
+            linkedVariantsCount={form.linkedVariantsCount ?? formVariants.length}
+            onSwitchVersion={onSwitchVersion}
+            onSetActive={onSetActive}
+            onCreateNewVersion={onCreateNewVersion}
+            onDeleteVersion={onDeleteVersion}
+          />
           <ServiceVariantToolbar
             variants={formVariants}
             selectedVariant={selectedVariant}
             onSelectVariant={onSelectVariant}
-            onOpenLinkServiceModal={() => setIsLinkServiceModalOpen(true)}
+            onOpenLinkServiceModal={() => {
+              onRequestFilterOptions?.();
+              setIsLinkServiceModalOpen(true);
+            }}
             totalFieldsCount={baseFieldsCount}
             applicableFieldsCount={applicableFieldsCount}
             linkedServicesCount={effectiveLinkedServices.length}
@@ -145,7 +168,14 @@ export function FormCanvas({
             onRevertVariantToBase={onRevertVariantToBase}
           />
           <CanvasSectionsControlBar sectionCount={sectionCount} totalFieldsCount={baseFieldsCount} applicableFieldsCount={applicableFieldsCount} selectedVariant={selectedVariant} hasSections={sectionGroups.length > 0} onCollapseAll={collapseAllSections} onExpandAll={expandAllSections} onOpenResetConfirm={() => setIsResetConfirmOpen(true)} onAddField={onAddField} canResetVariant={Boolean(onResetFromBaseForm)} />
-          {form.fields.length === 0 ? (
+          {isLoadingWorkspace ? (
+            <div className="py-24 flex flex-col items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-3" />
+              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                Loading Form Workspace &amp; Service Variants…
+              </p>
+            </div>
+          ) : form.fields.length === 0 ? (
             <CanvasEmptyFormState isDragOverCanvas={isDragOverCanvas} onDragOver={handleCanvasDragOver} onDragLeave={() => setIsDragOverCanvas(false)} onDrop={handleCanvasDrop} />
           ) : displayedSectionGroups.length === 0 ? (
             <CanvasEmptyVariantState selectedVariant={selectedVariant} onSelectVariant={onSelectVariant} />
@@ -156,6 +186,7 @@ export function FormCanvas({
                   key={group.id}
                   group={group}
                   allFields={form.fields}
+                  formVariants={formVariants}
                   isCollapsed={collapsedSectionIds.has(group.id)}
                   selectedFieldId={selectedFieldId}
                   dragOverIndex={dragOverIndex}
@@ -196,7 +227,10 @@ export function FormCanvas({
         selectedVariant={selectedVariant}
         isLinkServiceModalOpen={isLinkServiceModalOpen}
         onCloseLinkServiceModal={() => setIsLinkServiceModalOpen(false)}
-        onSaveLinkedServices={(services: LinkedServiceItem[], variants?: string[]) => onUpdateForm({ linkedServices: services, linkedVariants: variants })}
+        onSaveLinkedServices={(services: LinkedServiceItem[], variants?: string[]) => {
+          onUpdateForm({ linkedServices: services, linkedVariants: variants });
+          onLinkedServicesChanged?.(services);
+        }}
         isResetConfirmOpen={isResetConfirmOpen}
         onCloseResetConfirm={() => setIsResetConfirmOpen(false)}
         onResetFromBaseForm={onResetFromBaseForm}

@@ -68,20 +68,30 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
             : new System.Collections.Generic.HashSet<string>();
 
         var allVersions = (await _formRepository.GetVersionsByServiceIdAsync(form.ServiceId, cancellationToken)) ?? new System.Collections.Generic.List<EDGE.Domain.Entities.Form>();
+        var customizedVariantIds = await _formRepository.GetCustomizedVariantIdsForServiceGroupAsync(form.ServiceId, cancellationToken)
+            ?? new System.Collections.Generic.List<System.Guid>();
+        var linkedVariantsCount = await _formRepository.GetLinkedVariantsCountForServiceGroupAsync(form.ServiceId, cancellationToken);
+
+        bool seenActive = false;
         var versionSummaries = allVersions
             .Where(v => v.ServiceVariantId == form.ServiceVariantId)
-            .Select(v => new FormVersionSummaryDto
+            .Select(v =>
             {
-                FormId = v.Id,
-                Key = v.Key,
-                ServiceVariantId = v.ServiceVariantId,
-                Version = v.Version,
-                Name = v.Name,
-                IsActive = v.IsActive,
-                CreatedAt = v.CreatedAt,
-                UpdatedAt = v.LastModifiedAt,
-                SectionsCount = v.Sections?.Count(s => !s.IsDeleted) ?? 0,
-                FieldsCount = v.Sections?.Where(s => !s.IsDeleted).SelectMany(s => s.SectionFields ?? Enumerable.Empty<EDGE.Domain.Entities.SectionField>()).Count() ?? 0
+                bool effectiveActive = v.IsActive && !seenActive;
+                if (effectiveActive) seenActive = true;
+                return new FormVersionSummaryDto
+                {
+                    FormId = v.Id,
+                    Key = v.Key,
+                    ServiceVariantId = v.ServiceVariantId,
+                    Version = v.Version,
+                    Name = v.Name,
+                    IsActive = effectiveActive,
+                    CreatedAt = v.CreatedAt,
+                    UpdatedAt = v.LastModifiedAt,
+                    SectionsCount = v.Sections?.Count(s => !s.IsDeleted) ?? 0,
+                    FieldsCount = v.Sections?.Where(s => !s.IsDeleted).SelectMany(s => s.SectionFields ?? Enumerable.Empty<EDGE.Domain.Entities.SectionField>()).Count() ?? 0
+                };
             }).ToList();
 
         var dto = new FormDto
@@ -99,7 +109,9 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
             Version = form.Version,
             IsActive = form.IsActive,
             CategorySelectionRequired = form.CategorySelectionRequired,
-            IsCustomized = form.ServiceVariantId != null || form.BaseFormId != null,
+            IsCustomized = form.ServiceVariantId != null,
+            LinkedVariantsCount = linkedVariantsCount,
+            CustomizedVariantIds = customizedVariantIds,
             CreatedAt = form.CreatedAt,
             UpdatedAt = form.LastModifiedAt,
             AvailableVersions = versionSummaries,
@@ -109,22 +121,13 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
                 .Select(fs => new FormSectionDto
                 {
                     Key = fs.Key,
-                    Title = fs.Title,
+                    Title = FormSectionDto.ResolveTitle(fs, form.ServiceVariant),
                     Required = requiredSectionKeys.Contains(fs.Key),
                     OrderIndex = fs.OrderIndex,
+                    VisibilityCondition = FormSectionDto.ExtractSectionVisibilityCondition(fs.SectionFields),
                     Fields = fs.SectionFields
                         .OrderBy(sf => sf.OrderIndex)
-                        .Select(sf => new FormFieldDto
-                        {
-                            FieldId = sf.FieldId,
-                            Label = sf.Field?.Label ?? string.Empty,
-                            Type = sf.Field?.FieldType ?? string.Empty,
-                            IsRequired = sf.IsRequired,
-                            OrderIndex = sf.OrderIndex,
-                            ValidationRules = sf.Field?.ValidationRules,
-                            VisibilityCondition = sf.VisibilityCondition,
-                            Options = FormFieldDto.ExtractOptions(sf.Field?.ValidationRules)
-                        }).ToList()
+                        .Select(sf => FormFieldDto.FromSectionField(sf, form.ServiceVariant)).ToList()
                 }).ToList()
         };
 

@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { GripVertical, Pencil, Copy, Trash2, Star, Layout, ChevronDown, ChevronRight } from "lucide-react";
-import { FormField } from "./types";
+import { GripVertical, Pencil, Copy, Trash2, Star, Layout, ChevronDown, ChevronRight, Lock } from "lucide-react";
+import { FormField, ServiceVariantToolbarItem } from "./types";
 import { getFieldLabel, getFieldIcon } from "./utils";
 import { CanvasFieldPreview } from "./canvas/CanvasFieldPreview";
 import { CanvasFieldBadges } from "./canvas/CanvasFieldBadges";
@@ -22,6 +22,10 @@ interface CanvasFieldProps {
   childFieldCount?: number;
   onToggleCollapse?: () => void;
   allFields?: FormField[];
+  selectedVariant?: string;
+  formVariants?: ServiceVariantToolbarItem[];
+  isDeleteLocked?: boolean;
+  deleteLockTooltip?: string;
   isReadOnly?: boolean;
 }
 
@@ -29,7 +33,8 @@ export function CanvasField(props: CanvasFieldProps) {
   const {
     field, isSelected, onSelect, onEdit, onDuplicate, onDelete,
     onDragStart, onDragOver, onDrop, isDragOver, isCollapsed = false,
-    childFieldCount = 0, onToggleCollapse, allFields, isReadOnly = false,
+    childFieldCount = 0, onToggleCollapse, allFields, selectedVariant = "ALL",
+    formVariants = [], isDeleteLocked = false, deleteLockTooltip, isReadOnly = false,
   } = props;
   const isSectionHeader = field.type === "section-header";
 
@@ -130,7 +135,12 @@ export function CanvasField(props: CanvasFieldProps) {
               </span>
             )}
 
-            <CanvasFieldBadges field={field} allFields={allFields} />
+            <CanvasFieldBadges
+              field={field}
+              allFields={allFields}
+              selectedVariant={selectedVariant}
+              formVariants={formVariants}
+            />
           </div>
 
           {isSectionHeader && isCollapsed ? (
@@ -180,10 +190,20 @@ export function CanvasField(props: CanvasFieldProps) {
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
-              title="Delete field"
+              className={`p-1.5 rounded-lg transition-colors ${
+                isDeleteLocked
+                  ? "text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                  : "text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30"
+              }`}
+              title={
+                isDeleteLocked
+                  ? deleteLockTooltip || "Used by Service Variants — click to view which variants use this field"
+                  : selectedVariant !== "ALL"
+                  ? `Remove from "${selectedVariant}"`
+                  : "Delete field permanently (0 variants use it)"
+              }
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              {isDeleteLocked ? <Lock className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
             </button>
           </div>
         )}
