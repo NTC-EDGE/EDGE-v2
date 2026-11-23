@@ -1,22 +1,23 @@
 import React from "react";
 import { StyleSheet, View, Image, ViewStyle, StyleProp } from "react-native";
+import { useTheme } from "@edge/ui";
 
 const logoAsset = require("../../../../assets/logo.png");
-const whiteLogoAsset = require("../../../../assets/white-ntc-logo.png");
 const footerLogoAsset = require("../../../../assets/footer-logo.png");
 
 interface NtcLogoProps {
   size?: "small" | "medium" | "large" | "xlarge";
-  variant?: "light" | "dark" | "footer";
+  variant?: "light" | "dark" | "footer" | "auto";
   showSubtext?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
 export function NtcLogo({
   size = "medium",
-  variant = "light",
+  variant = "auto",
   style,
 }: NtcLogoProps) {
+  const { isDark } = useTheme();
   const heightMap: Record<"small" | "medium" | "large" | "xlarge", number> = {
     small: 42,
     medium: 68,
@@ -26,8 +27,15 @@ export function NtcLogo({
 
   const height = heightMap[size];
   const width = height * 3.2;
+
+  // 'dark' or 'footer' means dark background (white EDGE text: footer-logo.png)
+  // 'light' means light background (dark blue EDGE text: logo.png)
+  // 'auto' automatically resolves from active theme / device color scheme
+  const resolvedVariant =
+    variant === "auto" ? (isDark ? "dark" : "light") : variant;
+
   const asset =
-    variant === "dark" || variant === "footer"
+    resolvedVariant === "dark" || resolvedVariant === "footer"
       ? footerLogoAsset
       : logoAsset;
 

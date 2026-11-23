@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, Icon as Lucide, useTheme, AnimatedCard } from "@edge/ui";
 import { useAppNavigation } from "../../../navigation/types";
+import { NtcLogo } from "./NtcLogo";
 
 type LucideIconName = ComponentProps<typeof Lucide>["name"];
 
@@ -19,18 +20,18 @@ interface OnboardingStep {
 
 const ONBOARDING_STEPS: ReadonlyArray<OnboardingStep> = [
   {
-    title: "Secure Role Authentication",
-    description: "Login securely with Clerk and choose your assigned internal department role.",
+    title: "Regional RBAC & Tenant Access",
+    description: "Sign in with your NTC staff credentials; your regional office, field office, and role permissions are resolved automatically.",
     icon: "shield",
   },
   {
-    title: "Real-time Queue Management",
-    description: "Process applicants and update application statuses directly from the dashboard.",
+    title: "Accountable Evaluation & SOA/OP",
+    description: "Claim applications in queue, verify requirements, generate Statements of Account (SOA), and approve Orders of Payment (OP).",
     icon: "layers",
   },
   {
-    title: "Streamlined Analytics",
-    description: "Generate reports, manage receipts, and evaluate EOD operations efficiently.",
+    title: "Cashiering, Issuance & Collaboration",
+    description: "Manage Official Receipt (OR) booklets, issue statutory licenses/permits, schedule exams, and collaborate via staff Chat & Meet.",
     icon: "bar-chart-2",
   },
 ];
@@ -62,6 +63,7 @@ export function OnboardingScreen(): React.ReactElement {
       >
         <View style={styles.container}>
           <View style={styles.header}>
+            <NtcLogo size="small" variant="auto" showSubtext={false} />
             <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.7}>
               <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip</Text>
             </TouchableOpacity>
@@ -140,7 +142,8 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: SPACING[12],
   },
   skipButton: {

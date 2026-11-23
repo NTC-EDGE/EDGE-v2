@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, useTheme, AnimatedCard, Icon as Lucide } from "@edge/ui";
 import { useAppNavigation } from "../../../navigation/types";
+import { NtcLogo } from "./NtcLogo";
 
 export function LandingScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
@@ -32,13 +33,8 @@ export function LandingScreen(): React.ReactElement {
         <View style={styles.container}>
           <AnimatedCard delay={0} padding={32} style={styles.cardWrapper}>
             <View style={styles.header}>
-              <View
-                style={[
-                  styles.logoPlaceholder,
-                  { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
-                ]}
-              >
-                <Text style={styles.logoText}>EDGE</Text>
+              <View style={{ marginBottom: SPACING[16] }}>
+                <NtcLogo size="medium" variant={isDark ? "dark" : "light"} showSubtext={false} />
               </View>
 
               <View
@@ -64,18 +60,18 @@ export function LandingScreen(): React.ReactElement {
                 NTC-EDGE Internal Portal
               </Text>
               <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                Secure enterprise access to multi-tenant regional queue management, document evaluation, and staff operations.
+                Secure enterprise access to regional evaluation queues, Statement of Account (SOA) & Order of Payment processing, cashier receipting, and staff collaboration.
               </Text>
             </View>
 
             <View style={styles.featuresRow}>
               <View style={styles.featureItem}>
                 <Lucide name="shield" size={16} color={isDark ? colors.brand.primary : colors.brand.secondary} />
-                <Text style={[styles.featureText, { color: colors.textMuted }]}>RBAC Security</Text>
+                <Text style={[styles.featureText, { color: colors.textMuted }]}>RBAC & Tenant Isolation</Text>
               </View>
               <View style={styles.featureItem}>
                 <Lucide name="zap" size={16} color={colors.semantic.success} />
-                <Text style={[styles.featureText, { color: colors.textMuted }]}>Live Telemetry</Text>
+                <Text style={[styles.featureText, { color: colors.textMuted }]}>SOA, OP & OR Workflow</Text>
               </View>
             </View>
 

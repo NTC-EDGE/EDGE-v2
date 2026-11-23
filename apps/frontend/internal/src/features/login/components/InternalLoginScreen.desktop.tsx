@@ -62,7 +62,7 @@ export function InternalLoginScreen(): React.ReactElement {
               </Text>
 
               <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>
-                Desktop Workstation Client for Multi-Tenant Regional Queue Management, Frequency Spectrum Auditing, and Operations.
+                Desktop Workstation Client for Multi-Role Application Evaluation, Statement of Account (SOA) & Order of Payment Processing, Cashier Receipting, and Regional Operations.
               </Text>
 
               <View
@@ -90,7 +90,7 @@ export function InternalLoginScreen(): React.ReactElement {
 
             <View style={styles.heroRightCol}>
               <View style={styles.ntcLogoWrapper}>
-                <NtcLogo size="large" variant={isDark ? "light" : "dark"} showSubtext={false} />
+                <NtcLogo size="large" variant={isDark ? "dark" : "light"} showSubtext={false} />
               </View>
 
               <AnimatedCard

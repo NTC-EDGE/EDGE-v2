@@ -78,7 +78,7 @@ export function InternalLoginScreen(): React.ReactElement {
               </Text>
 
               <Text style={[styles.heroSubtitle, { color: colors.textMuted }, isMobile && styles.heroSubtitleMobile]}>
-                Next-Generation Internal Governance Platform for Multi-Tenant Regional Queue Management, Spectrum Auditing, and Operations.
+                Next-Generation Internal Governance Platform for Multi-Role Application Evaluation, Statement of Account (SOA) & Order of Payment Processing, Cashier Receipting, and Regional Operations.
               </Text>
 
               {/* Feature Highlights Grid */}
@@ -101,9 +101,9 @@ export function InternalLoginScreen(): React.ReactElement {
                     <LucideIcon name="shield" size={20} color={isDark ? colors.brand.primary : colors.brand.secondary} />
                   </View>
                   <View style={styles.featureTextWrapper}>
-                    <Text style={[styles.featureCardTitle, { color: colors.text }]}>RBAC & Tenant Isolation</Text>
+                    <Text style={[styles.featureCardTitle, { color: colors.text }]}>RBAC & Regional Tenant Isolation</Text>
                     <Text style={[styles.featureCardDesc, { color: colors.textMuted }]}>
-                      Strict Regional Office boundary enforcement & encryption.
+                      Role-scoped access for Evaluators, Accountants, Cashiers, EOD Chiefs, Legal, and Regional Directors.
                     </Text>
                   </View>
                 </View>
@@ -126,9 +126,9 @@ export function InternalLoginScreen(): React.ReactElement {
                     <LucideIcon name="zap" size={20} color={colors.semantic.success} />
                   </View>
                   <View style={styles.featureTextWrapper}>
-                    <Text style={[styles.featureCardTitle, { color: colors.text }]}>Automated Audit Workflows</Text>
+                    <Text style={[styles.featureCardTitle, { color: colors.text }]}>End-to-End Evaluation, SOA, OP & OR</Text>
                     <Text style={[styles.featureCardDesc, { color: colors.textMuted }]}>
-                      Real-time licensing evaluation queues & activity feeds.
+                      Accountable application claiming, inline SOA billing, OP approval, OR receipting, and statutory issuance.
                     </Text>
                   </View>
                 </View>
@@ -148,12 +148,12 @@ export function InternalLoginScreen(): React.ReactElement {
                       { backgroundColor: colors.semantic.warningBg },
                     ]}
                   >
-                    <LucideIcon name="cpu" size={20} color={colors.semantic.warning} />
+                    <LucideIcon name="video" size={20} color={colors.semantic.warning} />
                   </View>
                   <View style={styles.featureTextWrapper}>
-                    <Text style={[styles.featureCardTitle, { color: colors.text }]}>Spectrum Telemetry Integration</Text>
+                    <Text style={[styles.featureCardTitle, { color: colors.text }]}>Exam Schedules & Live Collaboration</Text>
                     <Text style={[styles.featureCardDesc, { color: colors.textMuted }]}>
-                      Direct telemetry monitoring for frequency allocation.
+                      Regional exam venue scheduling, real-time staff Chat & Video Meet, and full correction audit trails.
                     </Text>
                   </View>
                 </View>
@@ -163,7 +163,7 @@ export function InternalLoginScreen(): React.ReactElement {
             {/* Right Form Glass Card Column (enforced maxWidth: 440) */}
             <View style={styles.heroRightCol}>
               <View style={styles.ntcLogoWrapper}>
-                <NtcLogo size={isMobile ? "medium" : "large"} variant={isDark ? "light" : "dark"} showSubtext={false} />
+                <NtcLogo size={isMobile ? "medium" : "large"} variant={isDark ? "dark" : "light"} showSubtext={false} />
               </View>
 
               <AnimatedCard

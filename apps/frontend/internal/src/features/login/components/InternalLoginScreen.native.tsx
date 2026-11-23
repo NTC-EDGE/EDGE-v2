@@ -44,7 +44,7 @@ export function InternalLoginScreen(): React.ReactElement {
         >
           <View style={styles.container}>
             <View style={styles.logoHeader}>
-              <NtcLogo size="medium" variant={isDark ? "light" : "dark"} showSubtext={false} />
+              <NtcLogo size="medium" variant={isDark ? "dark" : "light"} showSubtext={false} />
               <View
                 style={[
                   styles.badgePill,

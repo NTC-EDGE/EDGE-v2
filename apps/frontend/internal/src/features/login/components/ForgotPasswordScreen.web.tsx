@@ -58,7 +58,7 @@ export function ForgotPasswordScreen({ onBackToLogin }: ForgotPasswordScreenProp
           </TouchableOpacity>
 
           <View style={styles.logoWrapper}>
-            <NtcLogo size="medium" variant={isDark ? "light" : "dark"} showSubtext={false} />
+            <NtcLogo size="medium" variant={isDark ? "dark" : "light"} showSubtext={false} />
           </View>
 
           <AnimatedCard
