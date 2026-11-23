@@ -17,6 +17,20 @@ interface JurisdictionParametersCardProps {
   elementsLabel?: string | null;
 }
 
+export function isRedundantApplicationType(
+  variantLabel: string | undefined | null,
+  appTypeLabel: string | undefined | null
+): boolean {
+  if (!appTypeLabel || !appTypeLabel.trim()) return true;
+  if (!variantLabel || !variantLabel.trim()) return false;
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const vNorm = norm(variantLabel);
+  const aNorm = norm(appTypeLabel);
+  if (!aNorm) return true;
+  if (!vNorm) return false;
+  return vNorm === aNorm || vNorm.includes(aNorm);
+}
+
 export function JurisdictionParametersCard({
   service,
   isExamService,
@@ -35,11 +49,19 @@ export function JurisdictionParametersCard({
     ? activeApplicant.selectedElementTitle.trim()
     : null;
 
-  const effectiveAppType = applicationTypeLabel && applicationTypeLabel.trim().length > 0
+  const rawAppType = applicationTypeLabel && applicationTypeLabel.trim().length > 0
     ? applicationTypeLabel.trim()
     : activeApplicant.examineeType && activeApplicant.examineeType.trim().length > 0
     ? activeApplicant.examineeType.trim()
     : null;
+
+  const effectiveAppType = isRedundantApplicationType(variantLabel, rawAppType) ? null : rawAppType;
+  const effectiveExamineeType =
+    isExamService &&
+    activeApplicant.examineeType &&
+    !isRedundantApplicationType(variantLabel, activeApplicant.examineeType)
+      ? activeApplicant.examineeType
+      : null;
 
   return (
     <SectionCard icon="sliders" title="Application & Service Parameters" accentColor="#0F2C59">
@@ -68,10 +90,10 @@ export function JurisdictionParametersCard({
             <SummaryRow label="Filing Mode" value={appModeLabel} />
           </View>
         </View>
-        {isExamService && activeApplicant.examineeType ? (
-          <SummaryRow label="Examinee Classification" value={activeApplicant.examineeType} />
+        {effectiveExamineeType ? (
+          <SummaryRow label="Examinee Classification" value={effectiveExamineeType} />
         ) : null}
-        {effectiveAppType && (!isExamService || !activeApplicant.examineeType) ? (
+        {effectiveAppType && !effectiveExamineeType ? (
           <SummaryRow label="Application Type" value={effectiveAppType} />
         ) : null}
         {effectiveElements ? (

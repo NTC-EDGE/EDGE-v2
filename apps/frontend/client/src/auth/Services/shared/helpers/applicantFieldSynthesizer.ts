@@ -277,6 +277,249 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'noofcopies':               'fd000000-0000-0000-0000-000000000243',
 };
 
+/**
+ * Reverse lookup map (lowercase GUID -> human-readable field label) for friendly error messages.
+ */
+export const FIELD_LABEL_BY_GUID: Record<string, string> = {
+  'fd000000-0000-0000-0000-000000000001': 'Full Legal Name',
+  'fd000000-0000-0000-0000-000000000002': 'Date of Birth',
+  'fd000000-0000-0000-0000-000000000003': 'Complete Address',
+  'fd000000-0000-0000-0000-000000000004': 'Contact / Mobile Number',
+  'fd000000-0000-0000-0000-000000000005': 'Email Address',
+  'fd000000-0000-0000-0000-000000000006': 'Education / School Attended',
+  'fd000000-0000-0000-0000-000000000007': 'Exam Category',
+  'fd000000-0000-0000-0000-000000000008': 'Examinee Type',
+  'fd000000-0000-0000-0000-000000000009': 'Selected Exam Elements',
+  'fd000000-0000-0000-0000-000000000010': 'Special Assistance Details',
+  'fd000000-0000-0000-0000-000000000011': 'Admission Slip Number',
+  'fd000000-0000-0000-0000-000000000012': 'Applicant Signature',
+  'fd000000-0000-0000-0000-000000000013': 'Declaration',
+  'fd000000-0000-0000-0000-000000000014': 'Type of Certificate',
+  'fd000000-0000-0000-0000-000000000015': 'Weight (kg)',
+  'fd000000-0000-0000-0000-000000000016': 'Height (cm)',
+  'fd000000-0000-0000-0000-000000000017': 'Employment Status',
+  'fd000000-0000-0000-0000-000000000018': 'Employment Type',
+  'fd000000-0000-0000-0000-000000000019': 'Exam / Seminar Date',
+  'fd000000-0000-0000-0000-000000000020': 'Rating',
+  'fd000000-0000-0000-0000-000000000021': 'Official Receipt (OR) Number',
+  'fd000000-0000-0000-0000-000000000022': 'Amount Paid',
+  'fd000000-0000-0000-0000-000000000023': 'Payment Date',
+  'fd000000-0000-0000-0000-000000000024': 'Permit / License Type',
+  'fd000000-0000-0000-0000-000000000025': 'Class of Station',
+  'fd000000-0000-0000-0000-000000000026': 'Amateur Club Details',
+  'fd000000-0000-0000-0000-000000000027': 'Vessel Name',
+  'fd000000-0000-0000-0000-000000000028': 'Call Sign',
+  'fd000000-0000-0000-0000-000000000029': 'IMO Number / Gross Tonnage',
+  'fd000000-0000-0000-0000-000000000030': 'Particulars of Equipment',
+  'fd000000-0000-0000-0000-000000000031': 'Radio Officers Details',
+  'fd000000-0000-0000-0000-000000000032': 'Station Location / Coordinates',
+  'fd000000-0000-0000-0000-000000000033': 'Antenna Technical Details',
+  'fd000000-0000-0000-0000-000000000034': 'ECE / Technician Personnel Details',
+  'fd000000-0000-0000-0000-000000000035': 'Registered Devices Details',
+  'fd000000-0000-0000-0000-000000000036': 'Value-Added Services / Category',
+  'fd000000-0000-0000-0000-000000000037': 'Circumstances',
+  'fd000000-0000-0000-0000-000000000038': 'TVRO / CATV Details',
+  'fd000000-0000-0000-0000-000000000041': 'Sex / Gender',
+  'fd000000-0000-0000-0000-000000000042': 'Civil Status',
+  'fd000000-0000-0000-0000-000000000043': 'Nationality / Citizenship',
+  'fd000000-0000-0000-0000-000000000045': 'Registration Type',
+  'fd000000-0000-0000-0000-000000000046': 'Employment Location',
+  'fd000000-0000-0000-0000-000000000047': 'Seminar / Exam Address',
+  'fd000000-0000-0000-0000-000000000051': 'Region',
+  'fd000000-0000-0000-0000-000000000052': 'Province',
+  'fd000000-0000-0000-0000-000000000053': 'City / Municipality',
+  'fd000000-0000-0000-0000-000000000054': 'Barangay',
+  'fd000000-0000-0000-0000-000000000055': 'Street Address / Unit / Building',
+  'fd000000-0000-0000-0000-000000000056': 'Zip / Postal Code',
+  'fd000000-0000-0000-0000-000000000061': 'School / University Attended',
+  'fd000000-0000-0000-0000-000000000062': 'Course / Degree Program',
+  'fd000000-0000-0000-0000-000000000063': 'Year Graduated',
+  'fd000000-0000-0000-0000-000000000071': 'Emergency Contact Person',
+  'fd000000-0000-0000-0000-000000000072': 'Emergency Contact Number',
+  'fd000000-0000-0000-0000-000000000081': 'Company / Business Name',
+  'fd000000-0000-0000-0000-000000000082': 'Authorized Representative Name',
+  'fd000000-0000-0000-0000-000000000083': 'Designation / Position',
+  'fd000000-0000-0000-0000-000000000084': 'Make / Type / Model',
+  'fd000000-0000-0000-0000-000000000085': 'Device / Equipment Type',
+  'fd000000-0000-0000-0000-000000000086': 'SEC / DTI Registration Number',
+  'fd000000-0000-0000-0000-000000000087': 'Serial Number(s)',
+  'fd000000-0000-0000-0000-000000000088': 'Applicant Name',
+  'fd000000-0000-0000-0000-000000000101': 'Station Class',
+  'fd000000-0000-0000-0000-000000000102': 'Service Area',
+  'fd000000-0000-0000-0000-000000000103': 'Frequency / Frequencies',
+  'fd000000-0000-0000-0000-000000000104': 'Bandwidth',
+  'fd000000-0000-0000-0000-000000000105': 'Emission',
+  'fd000000-0000-0000-0000-000000000106': 'Power Output',
+  'fd000000-0000-0000-0000-000000000107': 'Hours of Operation',
+  'fd000000-0000-0000-0000-000000000108': 'Configuration',
+  'fd000000-0000-0000-0000-000000000109': 'Data Rate',
+  'fd000000-0000-0000-0000-000000000110': 'Remarks',
+  'fd000000-0000-0000-0000-000000000111': 'Serial Number',
+  'fd000000-0000-0000-0000-000000000112': 'Frequency Range',
+  'fd000000-0000-0000-0000-000000000113': 'Antenna Type',
+  'fd000000-0000-0000-0000-000000000114': 'Antenna Height',
+  'fd000000-0000-0000-0000-000000000115': 'Antenna Gain',
+  'fd000000-0000-0000-0000-000000000116': 'Antenna Directivity',
+  'fd000000-0000-0000-0000-000000000117': 'Antenna Diameter',
+  'fd000000-0000-0000-0000-000000000118': 'Antenna Polarization',
+  'fd000000-0000-0000-0000-000000000119': 'Antenna Beamwidth',
+  'fd000000-0000-0000-0000-000000000120': 'Name of Dealer',
+  'fd000000-0000-0000-0000-000000000121': 'Authorized Seller / Buyer',
+  'fd000000-0000-0000-0000-000000000122': 'OR / Invoice No.',
+  'fd000000-0000-0000-0000-000000000123': 'Permit / RSL No.',
+  'fd000000-0000-0000-0000-000000000124': 'Seller Address',
+  'fd000000-0000-0000-0000-000000000125': 'Amateur License No.',
+  'fd000000-0000-0000-0000-000000000126': 'Intended Use of Equipment',
+  'fd000000-0000-0000-0000-000000000127': 'Specify Details',
+  'fd000000-0000-0000-0000-000000000128': 'Antenna Remarks',
+  'fd000000-0000-0000-0000-000000000129': 'Nature of Service',
+  'fd000000-0000-0000-0000-000000000130': 'Class of Station',
+  'fd000000-0000-0000-0000-000000000131': 'Class of Station',
+  'fd000000-0000-0000-0000-000000000132': 'Frequency Unit',
+  'fd000000-0000-0000-0000-000000000200': 'Application Type',
+  'fd000000-0000-0000-0000-000000000201': 'Number of Years',
+  'fd000000-0000-0000-0000-000000000202': 'Existing License No.',
+  'fd000000-0000-0000-0000-000000000203': 'License Expiry Date',
+  'fd000000-0000-0000-0000-000000000204': 'Modification Due To',
+  'fd000000-0000-0000-0000-000000000205': 'Place of Exam / Seminar',
+  'fd000000-0000-0000-0000-000000000206': 'Date of Exam / Seminar',
+  'fd000000-0000-0000-0000-000000000207': 'Ratings / Exam Score Details',
+  'fd000000-0000-0000-0000-000000000208': 'Particulars of Radio Equipment',
+  'fd000000-0000-0000-0000-000000000209': 'Station Location / Installation Address',
+  'fd000000-0000-0000-0000-000000000210': 'Middle Name',
+  'fd000000-0000-0000-0000-000000000211': 'Suffix',
+  'fd000000-0000-0000-0000-000000000220': 'Exact Location of TVRO System',
+  'fd000000-0000-0000-0000-000000000221': 'Longitude',
+  'fd000000-0000-0000-0000-000000000222': 'Latitude',
+  'fd000000-0000-0000-0000-000000000223': 'Particulars of Equipment',
+  'fd000000-0000-0000-0000-000000000224': 'Particulars of Antenna System',
+  'fd000000-0000-0000-0000-000000000225': 'Particulars of Signal to be Received',
+  'fd000000-0000-0000-0000-000000000226': 'BSD No.',
+  'fd000000-0000-0000-0000-000000000228': 'Invoice Number',
+  'fd000000-0000-0000-0000-000000000230': 'Entity Type',
+  'fd000000-0000-0000-0000-000000000231': 'CPCN / PA / CA No.',
+  'fd000000-0000-0000-0000-000000000232': 'CPCN / PA / CA No. Date of Expiry',
+  'fd000000-0000-0000-0000-000000000233': 'COR / VAS No.',
+  'fd000000-0000-0000-0000-000000000234': 'Known by other Name',
+  'fd000000-0000-0000-0000-000000000235': 'Operating Trade Name',
+  'fd000000-0000-0000-0000-000000000236': 'VAS Registration No.',
+  'fd000000-0000-0000-0000-000000000237': 'Service Classification',
+  'fd000000-0000-0000-0000-000000000238': 'COR / VAS No. Date of Expiry',
+  'fd000000-0000-0000-0000-000000000240': 'Service',
+  'fd000000-0000-0000-0000-000000000241': 'Certificate Type',
+  'fd000000-0000-0000-0000-000000000242': 'Certificate Number',
+  'fd000000-0000-0000-0000-000000000243': 'No. of Copies',
+  'fd000000-0000-0000-0000-000000000244': 'Details Service',
+  'fd000000-0000-0000-0000-000000000245': 'Permit Type',
+  'fd000000-0000-0000-0000-000000000246': 'Permit No.',
+  'fd000000-0000-0000-0000-000000000250': 'Certificate/ECT No.',
+  'fd000000-0000-0000-0000-000000000251': 'Certificate/Number Date of Expiry',
+  'fd000000-0000-0000-0000-000000000252': 'Supervising Engineer',
+  'fd000000-0000-0000-0000-000000000253': 'Technician Name',
+  'fd000000-0000-0000-0000-000000000254': 'Certificate/Number',
+  'fd000000-0000-0000-0000-000000000255': 'Certificate/ECT No. Date of Expiry',
+  'fd000000-0000-0000-0000-000000000260': 'Bandwidth Unit',
+  'fd000000-0000-0000-0000-000000000261': 'Preferred Call Sign/s',
+  'fd000000-0000-0000-0000-000000000262': 'Number of Units',
+  'fd000000-0000-0000-0000-000000000266': 'Amateur License No. / Permit to Possess No.',
+  'fd000000-0000-0000-0000-000000000267': 'Particulars of Proposed Equipment',
+  'fd000000-0000-0000-0000-000000000270': 'Make / Model',
+  'fd000000-0000-0000-0000-000000000271': 'Officer / Technician Name',
+  'fd000000-0000-0000-0000-000000000272': 'Certificate / Registration Number',
+  'fd000000-0000-0000-0000-000000000273': 'Expiry Date',
+  'fd000000-0000-0000-0000-000000000274': 'Citizenship',
+  'fd000000-0000-0000-0000-000000000275': 'Station License No.',
+  'fd000000-0000-0000-0000-000000000280': 'Class of Amateur',
+  'fd000000-0000-0000-0000-000000000281': 'Handle Name',
+  'fd000000-0000-0000-0000-000000000282': 'Club Name',
+  'fd000000-0000-0000-0000-000000000283': 'Trustee Name',
+  'fd000000-0000-0000-0000-000000000284': 'Trustee Call Sign',
+  'fd000000-0000-0000-0000-000000000285': 'Trustee License No.',
+  'fd000000-0000-0000-0000-000000000286': 'Club Address',
+  'fd000000-0000-0000-0000-000000000287': 'Station Type',
+  'fd000000-0000-0000-0000-000000000288': 'Authorized Power',
+  'fd000000-0000-0000-0000-000000000289': 'Frequency Bands',
+  'fd000000-0000-0000-0000-000000000290': 'Aircraft Registration No. (RP-)',
+  'fd000000-0000-0000-0000-000000000291': 'Aircraft Make / Model',
+  'fd000000-0000-0000-0000-000000000292': 'Aircraft Serial No.',
+  'fd000000-0000-0000-0000-000000000293': 'Registered Owner',
+  'fd000000-0000-0000-0000-000000000294': 'Base of Operation / Home Airport',
+  'fd000000-0000-0000-0000-000000000295': 'Carrier Frequency',
+  'fd000000-0000-0000-0000-000000000296': 'Channel Capacity',
+  'fd000000-0000-0000-0000-000000000297': 'Azimuth Angle',
+  'fd000000-0000-0000-0000-000000000298': 'Elevation Angle',
+  'fd000000-0000-0000-0000-000000000307': 'Action Requested',
+  'fd000000-0000-0000-0000-000000000308': 'Make / Model / Type',
+  'fd000000-0000-0000-0000-000000000309': 'IMEI Number',
+  'fd000000-0000-0000-0000-000000000310': 'SIM / Cell Phone Number',
+  'fd000000-0000-0000-0000-000000000311': 'Government Identification Attached',
+  'fd000000-0000-0000-0000-000000000312': 'Proof of Ownership',
+  'fd000000-0000-0000-0000-000000000313': 'Incident Type',
+  'fd000000-0000-0000-0000-000000000314': 'Age Group',
+  'fd000000-0000-0000-0000-000000000315': 'Place of Incident',
+  'fd000000-0000-0000-0000-000000000316': 'Date of Incident',
+  'fd000000-0000-0000-0000-000000000317': 'Time of Incident',
+  'fd000000-0000-0000-0000-000000000318': 'Please Specify',
+  'fd000000-0000-0000-0000-000000000319': 'Date of Filing',
+  'fd000000-0000-0000-0000-000000000320': 'Date of Recovery',
+  'fd000000-0000-0000-0000-000000000321': 'Details',
+  'fd000000-0000-0000-0000-000000000322': 'Program Name',
+  'fd000000-0000-0000-0000-000000000323': 'Anchor / Commentator',
+  'fd000000-0000-0000-0000-000000000324': 'Provider Business Name',
+  'fd000000-0000-0000-0000-000000000325': 'Provider Business Address',
+  'fd000000-0000-0000-0000-000000000326': 'Provider Contact Number',
+  'fd000000-0000-0000-0000-000000000327': 'Nature of Complaint',
+  'fd000000-0000-0000-0000-000000000328': 'If Others, Please Specify',
+  'fd000000-0000-0000-0000-000000000329': 'Time of Incident / Transaction',
+  'fd000000-0000-0000-0000-000000000330': 'Details of Complaint',
+  'fd000000-0000-0000-0000-000000000331': 'Attached Proof / Supporting Documents',
+  'fd000000-0000-0000-0000-000000000332': 'Device Particulars',
+  'fd000000-0000-0000-0000-000000000333': 'SIM Card / Mobile Numbers',
+  'fd000000-0000-0000-0000-000000000334': 'Broadcast Station',
+  'fd000000-0000-0000-0000-000000000335': 'Time of Airing',
+  'fd000000-0000-0000-0000-000000000340': 'Station / Class Particulars',
+};
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuidString(value: string | undefined | null): boolean {
+  if (!value) return false;
+  return UUID_REGEX.test(value.trim());
+}
+
+/**
+ * Resolves a human-readable field label for validation messages so raw UUIDs are never displayed to clients.
+ */
+export function resolveFriendlyFieldLabel(
+  fieldIdOrKey: string,
+  labelMap?: Map<string, string>,
+  dynamicFieldLabels?: Record<string, string>
+): string {
+  const raw = (fieldIdOrKey || '').trim();
+  const lower = raw.toLowerCase();
+
+  const fromLabelMap = labelMap?.get(lower) || labelMap?.get(raw);
+  if (fromLabelMap && !isUuidString(fromLabelMap)) {
+    return fromLabelMap;
+  }
+
+  const fromDynamicLabels = dynamicFieldLabels?.[raw] || dynamicFieldLabels?.[lower];
+  if (fromDynamicLabels && !isUuidString(fromDynamicLabels)) {
+    return fromDynamicLabels;
+  }
+
+  const fromGuidLookup = FIELD_LABEL_BY_GUID[lower];
+  if (fromGuidLookup) {
+    return fromGuidLookup;
+  }
+
+  if (isUuidString(raw)) {
+    return '';
+  }
+
+  return raw;
+}
+
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -808,6 +1051,14 @@ export function synthesizeAllApplicantFieldValues(
       fallbackVal = elemVal || null;
     } else if (lowerLabel.includes('variant')) {
       fallbackVal = variantVal || null;
+    } else if (lowerLabel.includes('school') || lowerLabel.includes('university')) {
+      fallbackVal = schoolVal || null;
+    } else if (lowerLabel.includes('course') || lowerLabel.includes('degree') || lowerLabel.includes('program')) {
+      fallbackVal = courseVal || null;
+    } else if (lowerLabel.includes('graduat') || lowerLabel.includes('year graduated')) {
+      fallbackVal = applicant.yearGraduated || null;
+    } else if (lowerLabel.includes('special order')) {
+      fallbackVal = applicant.specialOrderNo || null;
     }
 
     if (fallbackVal && !isSuppressedValue(fallbackVal)) {

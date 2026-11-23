@@ -25,7 +25,7 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
 
   const { form } = useServiceForm(service.id, activeApplicant.selectedVariantId);
   const categoryFlags = useMemo(() => resolveServiceCategoryFlags(service), [service]);
-  const particulars = useMemo(() => resolveApplicantParticulars(activeApplicant), [activeApplicant]);
+  const particulars = useMemo(() => resolveApplicantParticulars(activeApplicant, form), [activeApplicant, form]);
 
 
   const regionName =

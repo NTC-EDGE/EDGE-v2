@@ -35,7 +35,14 @@ import {
   FIELD_ID_ADDRESS,
   FIELD_ID_ZIP_CODE,
   FIELD_ID_INVOICE_NUMBER,
+  FIELD_ID_SCHOOL_NAME,
+  FIELD_ID_COURSE_DEGREE,
+  FIELD_ID_YEAR_GRAD,
 } from "../../../../shared/constants/fieldIds";
+import {
+  synthesizeAllApplicantFieldValues,
+  resolveFriendlyFieldLabel,
+} from "../helpers/applicantFieldSynthesizer";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type BulkSubView = "FILING_DETAILS" | "DOCUMENT_UPLOAD" | "REVIEW";
@@ -53,7 +60,8 @@ interface GeneralBulkApplicationFlowProps {
   onSubmitAll: () => void;
   isWeb: boolean;
   dynamicRequiredFieldIds?: string[];
-  setDynamicRequiredFieldIds?: (ids: string[]) => void;
+  setDynamicRequiredFieldIds?: (ids: string[], labels?: Record<string, string>) => void;
+  dynamicFieldLabels?: Record<string, string>;
   variants?: ServiceVariantInfo[];
   variantElements?: ServiceVariantElementInfo[];
   onSaveDraft?: () => void;
@@ -85,6 +93,7 @@ export function GeneralBulkApplicationFlow({
   isWeb,
   dynamicRequiredFieldIds = [],
   setDynamicRequiredFieldIds,
+  dynamicFieldLabels = {},
   variants = [],
   variantElements = [],
   onSaveDraft,
@@ -308,9 +317,36 @@ export function GeneralBulkApplicationFlow({
     if (dynamicRequiredFieldIds && dynamicRequiredFieldIds.length > 0) {
       const fieldValues = activeApplicant?.formFieldValues || [];
       const filledMap = new Map<string, string>();
+      const labelMap = new Map<string, string>();
+      const synthesizedValues = synthesizeAllApplicantFieldValues(activeApplicant);
+      synthesizedValues.forEach((fv) => {
+        if (fv.fieldId) {
+          filledMap.set(fv.fieldId.toLowerCase().trim(), fv.value);
+          if (fv.fieldLabel) labelMap.set(fv.fieldId.toLowerCase().trim(), fv.fieldLabel);
+        }
+        if (fv.fieldLabel) {
+          filledMap.set(fv.fieldLabel.toLowerCase().trim(), fv.value);
+          labelMap.set(fv.fieldLabel.toLowerCase().trim(), fv.fieldLabel);
+        }
+      });
       fieldValues.forEach((fv) => {
-        if (fv.fieldId) filledMap.set(fv.fieldId.toLowerCase().trim(), fv.value);
-        if (fv.fieldLabel) filledMap.set(fv.fieldLabel.toLowerCase().trim(), fv.value);
+        if (fv.fieldId) {
+          if (fv.value !== undefined && fv.value !== null && String(fv.value).trim() !== "") {
+            filledMap.set(fv.fieldId.toLowerCase().trim(), fv.value);
+          }
+          if (fv.fieldLabel) labelMap.set(fv.fieldId.toLowerCase().trim(), fv.fieldLabel);
+        }
+        if (fv.fieldLabel) {
+          if (fv.value !== undefined && fv.value !== null && String(fv.value).trim() !== "") {
+            filledMap.set(fv.fieldLabel.toLowerCase().trim(), fv.value);
+          }
+          labelMap.set(fv.fieldLabel.toLowerCase().trim(), fv.fieldLabel);
+        }
+      });
+      Object.entries(dynamicFieldLabels).forEach(([k, lbl]) => {
+        if (k && lbl) {
+          labelMap.set(k.toLowerCase().trim(), lbl);
+        }
       });
 
       // 1. Missing required fields check
@@ -435,40 +471,43 @@ export function GeneralBulkApplicationFlow({
           return;
         }
 
-        let val = filledMap.get(idLower);
+        const resolvedLabelForId = resolveFriendlyFieldLabel(id, labelMap, dynamicFieldLabels);
+        const labelLower = resolvedLabelForId.toLowerCase().trim();
+
+        let val = filledMap.get(idLower) || (labelLower ? filledMap.get(labelLower) : undefined);
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
           if (
-            (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name")) &&
+            (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name") || labelLower.includes("full name")) &&
             (activeApplicant?.firstName || activeApplicant?.lastName)
           ) {
             val = [activeApplicant?.firstName, activeApplicant?.middleName, activeApplicant?.lastName, activeApplicant?.suffix].filter(Boolean).join(" ");
           } else if (
-            (idLower === FIELD_ID_CONTACT_NO.toLowerCase() || idLower === "contactno" || idLower.includes("contact") || idLower.includes("phone") || idLower.includes("mobile")) &&
+            (idLower === FIELD_ID_CONTACT_NO.toLowerCase() || idLower === "contactno" || idLower.includes("contact") || idLower.includes("phone") || idLower.includes("mobile") || labelLower.includes("contact") || labelLower.includes("mobile")) &&
             activeApplicant?.contactNo
           ) {
             val = activeApplicant.contactNo;
           } else if (
-            (idLower === FIELD_ID_EMAIL.toLowerCase() || idLower === "email" || idLower.includes("email")) &&
+            (idLower === FIELD_ID_EMAIL.toLowerCase() || idLower === "email" || idLower.includes("email") || labelLower.includes("email")) &&
             activeApplicant?.email
           ) {
             val = activeApplicant.email;
           } else if (
-            (idLower === FIELD_ID_REGION.toLowerCase() || idLower === "region") &&
+            (idLower === FIELD_ID_REGION.toLowerCase() || idLower === "region" || labelLower === "region") &&
             activeApplicant?.region
           ) {
             val = activeApplicant.region;
           } else if (
-            (idLower === FIELD_ID_PROVINCE.toLowerCase() || idLower === "province") &&
+            (idLower === FIELD_ID_PROVINCE.toLowerCase() || idLower === "province" || labelLower === "province") &&
             activeApplicant?.province
           ) {
             val = activeApplicant.province;
           } else if (
-            (idLower === FIELD_ID_CITY.toLowerCase() || idLower === "city" || idLower.includes("municipality")) &&
+            (idLower === FIELD_ID_CITY.toLowerCase() || idLower === "city" || idLower.includes("municipality") || labelLower.includes("city") || labelLower.includes("municipality")) &&
             activeApplicant?.city
           ) {
             val = activeApplicant.city;
           } else if (
-            (idLower === FIELD_ID_BARANGAY.toLowerCase() || idLower === "barangay") &&
+            (idLower === FIELD_ID_BARANGAY.toLowerCase() || idLower === "barangay" || labelLower === "barangay") &&
             activeApplicant?.barangay
           ) {
             val = activeApplicant.barangay;
@@ -484,14 +523,29 @@ export function GeneralBulkApplicationFlow({
                 !idLower.includes("station") &&
                 !idLower.includes("seller") &&
                 !idLower.includes("dealer"))) &&
-            activeApplicant?.address
+            (activeApplicant?.address || activeApplicant?.street)
           ) {
-            val = activeApplicant.address;
+            val = activeApplicant?.address || activeApplicant?.street;
           } else if (
-            (idLower === FIELD_ID_ZIP_CODE.toLowerCase() || idLower === "zipcode" || idLower.includes("zip") || idLower.includes("postal")) &&
+            (idLower === FIELD_ID_ZIP_CODE.toLowerCase() || idLower === "zipcode" || idLower.includes("zip") || idLower.includes("postal") || labelLower.includes("zip") || labelLower.includes("postal")) &&
             activeApplicant?.zipCode
           ) {
             val = activeApplicant.zipCode;
+          } else if (
+            (idLower === FIELD_ID_SCHOOL_NAME.toLowerCase() || idLower === "fd000000-0000-0000-0000-000000000006" || idLower === "schoolname" || idLower === "schoolattended" || idLower.includes("school") || labelLower.includes("school") || labelLower.includes("university")) &&
+            (activeApplicant?.schoolName || activeApplicant?.schoolAttended)
+          ) {
+            val = activeApplicant?.schoolName || activeApplicant?.schoolAttended;
+          } else if (
+            (idLower === FIELD_ID_COURSE_DEGREE.toLowerCase() || idLower === "coursedegree" || idLower === "coursetaken" || idLower.includes("course") || idLower.includes("degree") || labelLower.includes("course") || labelLower.includes("degree")) &&
+            (activeApplicant?.courseDegree || activeApplicant?.courseTaken)
+          ) {
+            val = activeApplicant?.courseDegree || activeApplicant?.courseTaken;
+          } else if (
+            (idLower === FIELD_ID_YEAR_GRAD.toLowerCase() || idLower === "yeargraduated" || idLower.includes("yeargrad") || labelLower.includes("year graduated") || labelLower.includes("graduat")) &&
+            activeApplicant?.yearGraduated
+          ) {
+            val = activeApplicant.yearGraduated;
           } else if (
             (idLower === "fd000000-0000-0000-0000-000000000081" || idLower === "companyname" || idLower.includes("company")) &&
             activeApplicant?.companyName
@@ -516,7 +570,10 @@ export function GeneralBulkApplicationFlow({
         }
         const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";
         if (trimmed === "" || trimmed === "false") {
-          errors[id] = "This required field cannot be left blank.";
+          const fieldLabel = resolveFriendlyFieldLabel(id, labelMap, dynamicFieldLabels);
+          errors[id] = fieldLabel
+            ? `${fieldLabel} is required and cannot be left blank.`
+            : "This required field cannot be left blank.";
         }
       });
 

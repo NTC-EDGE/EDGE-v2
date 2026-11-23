@@ -22,6 +22,7 @@ import { isServiceVariantIndividual } from "../shared/helpers/applicantDisplayHe
 import { uploadRequirementsAfterSubmit } from "../shared/helpers/requirementUploadHelper";
 import { resolveEffectiveTenantId } from "../../../shared/helpers/tenantHelper";
 import { CurrentUserProfile } from "@edge/api";
+import { synthesizeAllApplicantFieldValues } from "../shared/helpers/applicantFieldSynthesizer";
 
 const isGuid = (val?: string | null): boolean => {
   if (!val || typeof val !== "string") return false;
@@ -596,8 +597,12 @@ export function useServices() {
             contactNumber: contactNoField.trim() || app.contactNo?.trim() || "",
             address: addressField.trim() || app.address?.trim() || "",
             birthDate: hasBirth ? `${app.birthYear}-${monthNum}-${day}` : undefined,
+            schoolAttended: app.schoolName || app.schoolAttended || undefined,
+            courseTaken: app.courseDegree || app.courseTaken || undefined,
+            yearGraduated: app.yearGraduated || undefined,
+            eSignature: app.signatureUrl || undefined,
             formFieldValues: Array.from(
-              (app.formFieldValues || []).reduce((map, fv) => {
+              synthesizeAllApplicantFieldValues(app).reduce((map, fv) => {
                 if (isGuid(fv.fieldId)) {
                   map.set(fv.fieldId, fv.value || "");
                 }
@@ -858,6 +863,34 @@ export function useServices() {
             const mappedGeneralApps = fullDraft.applicants.map((a: any, idx: number) => {
               const d = a.details || a || {};
               const birthParts = (d.birthDate || "").split("-");
+              const rawFormFieldValues = (a.formFieldValues || []).map((fv: any) => ({
+                fieldId: fv.fieldId,
+                fieldLabel: fv.fieldLabel,
+                value: fv.value || "",
+              }));
+              const findDraftField = (predicate: (lbl: string, id: string) => boolean): string => {
+                const found = rawFormFieldValues.find((fv: { fieldId?: string; fieldLabel?: string; value?: string }) =>
+                  predicate((fv.fieldLabel || "").toLowerCase(), (fv.fieldId || "").toLowerCase())
+                );
+                return found?.value || "";
+              };
+              const schoolVal =
+                d.schoolAttended ||
+                d.schoolName ||
+                a.schoolAttended ||
+                a.schoolName ||
+                findDraftField((lbl, id) => id.includes("0061") || lbl.includes("school") || lbl.includes("university"));
+              const courseVal =
+                d.courseTaken ||
+                d.courseDegree ||
+                a.courseTaken ||
+                a.courseDegree ||
+                findDraftField((lbl, id) => id.includes("0062") || lbl.includes("course") || lbl.includes("degree") || lbl.includes("program"));
+              const yearGradVal =
+                d.yearGraduated ||
+                a.yearGraduated ||
+                findDraftField((lbl, id) => id.includes("0063") || lbl.includes("graduat"));
+
               return {
                 id: idx + 1,
                 firstName: d.firstName || "",
@@ -867,16 +900,27 @@ export function useServices() {
                 email: d.emailAddress || d.email || a.email || "",
                 contactNo: d.contactNumber || d.contactNo || a.contactNumber || "",
                 address: d.address || d.streetAddress || "",
+                street: d.street || d.address || d.streetAddress || "",
+                barangay: d.barangay || findDraftField((lbl, id) => id.includes("0054") || lbl === "barangay"),
+                city: d.city || d.municipality || findDraftField((lbl, id) => id.includes("0053") || lbl.includes("city") || lbl.includes("municipality")),
+                province: d.province || findDraftField((lbl, id) => id.includes("0052") || lbl === "province"),
+                region: d.region || findDraftField((lbl, id) => id.includes("0051") || lbl === "region"),
+                zipCode: d.zipCode || findDraftField((lbl, id) => id.includes("0056") || lbl.includes("zip") || lbl.includes("postal")),
+                sex: d.sex || d.gender || findDraftField((lbl, id) => id.includes("0041") || lbl === "sex" || lbl === "gender"),
+                civilStatus: d.civilStatus || findDraftField((lbl, id) => id.includes("0042") || lbl.includes("civil status")),
+                nationality: d.nationality || d.citizenship || findDraftField((lbl, id) => id.includes("0043") || lbl.includes("nationality") || lbl.includes("citizenship")),
+                schoolName: schoolVal,
+                schoolAttended: schoolVal,
+                courseDegree: courseVal,
+                courseTaken: courseVal,
+                yearGraduated: yearGradVal,
+                signatureUrl: d.eSignature || d.signatureUrl || a.eSignature || findDraftField((lbl, id) => id.includes("0012") || lbl.includes("signature")),
                 birthYear: birthParts[0] || "",
                 birthMonth: birthParts[1] ? ["January","February","March","April","May","June","July","August","September","October","November","December"][parseInt(birthParts[1], 10) - 1] || "" : "",
                 birthDay: birthParts[2] ? String(parseInt(birthParts[2], 10)) : "",
                 notes: "",
                 selectedVariantId: a.serviceVariantId || fullDraft.serviceVariantId || "",
-                formFieldValues: (a.formFieldValues || []).map((fv: any) => ({
-                  fieldId: fv.fieldId,
-                  fieldLabel: fv.fieldLabel,
-                  value: fv.value || "",
-                })),
+                formFieldValues: rawFormFieldValues,
                 uploads: buildDraftUploadsMap(a, totalDraftApplicants, false),
                 files: {},
               };

@@ -416,16 +416,24 @@ export function buildDynamicSections(
           return;
         }
 
-        const matchedFv = formFieldValues.find(
-          (fv) =>
-            fv.fieldId === fieldId ||
-            fv.fieldLabel.toLowerCase().trim() === fieldLabel.toLowerCase().trim()
-        );
+        const resolvedLabel = resolvePreviewFieldLabel(field, previewVarName) || fieldLabel;
+        const resolvedLabelLower = resolvedLabel.toLowerCase().trim();
+
+        const matchedFv = formFieldValues.find((fv) => {
+          const fvId = (fv.fieldId || '').toLowerCase().trim();
+          const fvLbl = (fv.fieldLabel || '').toLowerCase().trim();
+          return (
+            (idLower.length > 0 && fvId === idLower) ||
+            (field.id && fvId === field.id.toLowerCase().trim()) ||
+            (field.fieldId && fvId === field.fieldId.toLowerCase().trim()) ||
+            (labelLower.length > 0 && fvLbl === labelLower) ||
+            (resolvedLabelLower.length > 0 && fvLbl === resolvedLabelLower)
+          );
+        });
 
         if (matchedFv?.value && !isSuppressedValue(matchedFv.value)) {
           const val = matchedFv.value.trim();
-          const resolvedLabel = resolvePreviewFieldLabel(field, previewVarName) || matchedFv.fieldLabel;
-          sectionFields.push({ fieldId, label: resolvedLabel, value: val });
+          sectionFields.push({ fieldId, label: resolvedLabel || matchedFv.fieldLabel, value: val });
           renderedIds.add(fieldId);
           renderedIds.add(idLower);
           renderedIds.add(matchedFv.fieldId);
