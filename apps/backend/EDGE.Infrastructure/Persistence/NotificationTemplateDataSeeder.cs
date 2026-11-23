@@ -920,24 +920,36 @@ public static class NotificationTemplateDataSeeder
             }
         };
 
+        bool anyChange = false;
         foreach (var template in templates)
         {
-            var existing = await context.NotificationTemplates.FirstOrDefaultAsync(t => t.EventKey == template.EventKey);
+            var existing = await context.NotificationTemplates.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.EventKey == template.EventKey || t.Id == template.Id);
             if (existing == null)
             {
                 await context.NotificationTemplates.AddAsync(template);
+                anyChange = true;
             }
-            else
+            else if (existing.IsDeleted ||
+                     existing.Name != template.Name ||
+                     existing.Subject != template.Subject ||
+                     existing.BodyHtml != template.BodyHtml ||
+                     existing.AvailablePlaceholders != template.AvailablePlaceholders ||
+                     existing.IsActive != template.IsActive)
             {
+                existing.IsDeleted = false;
+                existing.IsDeletedBy = string.Empty;
                 existing.Name = template.Name;
                 existing.Subject = template.Subject;
                 existing.BodyHtml = template.BodyHtml;
                 existing.AvailablePlaceholders = template.AvailablePlaceholders;
                 existing.IsActive = template.IsActive;
-                context.NotificationTemplates.Update(existing);
+                anyChange = true;
             }
         }
 
-        await context.SaveChangesAsync();
+        if (anyChange)
+        {
+            await context.SaveChangesAsync();
+        }
     }
 }

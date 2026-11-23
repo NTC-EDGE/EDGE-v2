@@ -327,4 +327,171 @@ public class FormContractAndSeederTests
             "particulars"
         }, "NTC 1-09 Station/Equipment section must contain no. of years, preferred call sign, and particulars.");
     }
+
+    [Fact]
+    public void AllFormDefFieldKeys_MustExistInFieldsPool()
+    {
+        var fieldsPool = FastTrackSeederData.GetFieldsPool();
+        var formDefs = FastTrackSeederData.GetAllFormDefs();
+
+        foreach (var formDef in formDefs)
+        {
+            foreach (var sec in formDef.Sections)
+            {
+                foreach (var fk in sec.FieldKeys)
+                {
+                    fieldsPool.Should().ContainKey(
+                        fk,
+                        because: $"Form '{formDef.ServiceKey}' section '{sec.Key}' references field key '{fk}', which must exist in CommonSeederData.GetFieldsPool()."
+                    );
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task FastTrackSeeder_IsStrictlyIdempotent_AcrossMultipleConsecutiveRuns()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        using var context = new ApplicationDbContext(options);
+
+        // Seed required tenant
+        context.Tenants.Add(new Tenant
+        {
+            Id = Guid.NewGuid(),
+            Name = "NTC Central Office",
+            Code = "NTC-CENTRAL"
+        });
+        await context.SaveChangesAsync();
+
+        // Run #1: Initial full seed
+        await FastTrackSeeder.SeedAsync(context);
+
+        var formsAfterRun1 = await context.Forms.IgnoreQueryFilters().CountAsync();
+        var sectionsAfterRun1 = await context.FormSections.IgnoreQueryFilters().CountAsync();
+        var sectionFieldsAfterRun1 = await context.SectionFields.CountAsync();
+        var fieldsAfterRun1 = await context.Fields.IgnoreQueryFilters().CountAsync();
+        var servicesAfterRun1 = await context.Services.IgnoreQueryFilters().CountAsync();
+        var variantsAfterRun1 = await context.ServiceVariants.IgnoreQueryFilters().CountAsync();
+
+        formsAfterRun1.Should().Be(13);
+        sectionsAfterRun1.Should().BeGreaterThan(0);
+        sectionFieldsAfterRun1.Should().BeGreaterThan(0);
+
+        // Run #2 & Run #3: Consecutive re-runs must be 100% no-op and preserve exact counts and LastModifiedAt == null on unmodified forms
+        await FastTrackSeeder.SeedAsync(context);
+        await FastTrackSeeder.SeedAsync(context);
+
+        (await context.Forms.IgnoreQueryFilters().CountAsync()).Should().Be(formsAfterRun1);
+        (await context.FormSections.IgnoreQueryFilters().CountAsync()).Should().Be(sectionsAfterRun1);
+        (await context.SectionFields.CountAsync()).Should().Be(sectionFieldsAfterRun1);
+        (await context.Fields.IgnoreQueryFilters().CountAsync()).Should().Be(fieldsAfterRun1);
+        (await context.Services.IgnoreQueryFilters().CountAsync()).Should().Be(servicesAfterRun1);
+        (await context.ServiceVariants.IgnoreQueryFilters().CountAsync()).Should().Be(variantsAfterRun1);
+
+        // Ensure no duplicate (FormId, Key) exists across FormSections
+        var allSections = await context.FormSections.IgnoreQueryFilters().ToListAsync();
+        var duplicateSections = allSections
+            .GroupBy(s => (s.FormId, Key: s.Key.Trim().ToLowerInvariant()))
+            .Where(g => g.Count() > 1)
+            .ToList();
+        duplicateSections.Should().BeEmpty("Each form must have at most one section per key.");
+
+        // Ensure every service has at most 1 active Base Form
+        var activeBaseForms = await context.Forms
+            .IgnoreQueryFilters()
+            .Where(f => !f.IsDeleted && f.IsActive && f.ServiceVariantId == null)
+            .ToListAsync();
+        activeBaseForms.GroupBy(f => f.ServiceId).Where(g => g.Count() > 1).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task FastTrackFormSeeder_SelfHealsDuplicateSections_AndPreservesSectionFieldsAndReferencedForms()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        using var context = new ApplicationDbContext(options);
+
+        context.Tenants.Add(new Tenant
+        {
+            Id = Guid.NewGuid(),
+            Name = "NTC Central Office",
+            Code = "NTC-CENTRAL"
+        });
+        await context.SaveChangesAsync();
+
+        await FastTrackSeeder.SeedAsync(context);
+
+        var ntc101Form = await context.Forms.FirstAsync(f => f.Key == "NTC_1_01");
+        var existingSection = await context.FormSections.FirstAsync(s => s.FormId == ntc101Form.Id && s.Key == "educationalBackground");
+
+        // 1. Simulate a duplicate FormSection where the original has 0 fields and the duplicate has fields
+        var existingSfs = await context.SectionFields.Where(sf => sf.FormSectionId == existingSection.Id).ToListAsync();
+        context.SectionFields.RemoveRange(existingSfs);
+
+        var duplicateSection = new FormSection
+        {
+            Id = Guid.NewGuid(),
+            FormId = ntc101Form.Id,
+            Key = " educationalBackground ",
+            Title = "Duplicate Educational Section",
+            OrderIndex = 99
+        };
+        context.FormSections.Add(duplicateSection);
+        foreach (var sf in existingSfs)
+        {
+            context.SectionFields.Add(new SectionField
+            {
+                FormSectionId = duplicateSection.Id,
+                FieldId = sf.FieldId,
+                IsRequired = sf.IsRequired,
+                OrderIndex = sf.OrderIndex
+            });
+        }
+
+        // 2. Simulate an obsolete unnamed deleted form that is referenced by an historical FormSubmission
+        var referencedObsoleteForm = new Form
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = ntc101Form.ServiceId,
+            Key = string.Empty,
+            Name = string.Empty,
+            IsDeleted = true,
+            IsActive = false
+        };
+        context.Forms.Add(referencedObsoleteForm);
+        context.FormSubmissions.Add(new FormSubmission
+        {
+            Id = Guid.NewGuid(),
+            FormId = referencedObsoleteForm.Id,
+            ApplicationId = Guid.NewGuid()
+        });
+        await context.SaveChangesAsync();
+
+        // Act: Re-run form seeder
+        await FastTrackFormSeeder.SeedFormsInternalAsync(context);
+
+        // Assert: Duplicate section was cleaned up and fields were preserved on the kept section
+        var sectionsFor101 = await context.FormSections
+            .IgnoreQueryFilters()
+            .Where(s => s.FormId == ntc101Form.Id && s.Key.Trim().ToLower() == "educationalbackground")
+            .ToListAsync();
+        sectionsFor101.Should().HaveCount(1);
+
+        var keptSectionFields = await context.SectionFields
+            .Where(sf => sf.FormSectionId == sectionsFor101[0].Id)
+            .ToListAsync();
+        keptSectionFields.Should().HaveCount(3);
+
+        // Assert: Referenced obsolete form was NOT physically purged (preventing FK violation on FormSubmissions)
+        var stillExists = await context.Forms
+            .IgnoreQueryFilters()
+            .AnyAsync(f => f.Id == referencedObsoleteForm.Id);
+        stillExists.Should().BeTrue("Forms referenced by FormSubmissions must remain soft-deleted rather than physically deleted.");
+    }
 }

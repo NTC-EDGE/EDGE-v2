@@ -11,7 +11,7 @@ public static class SystemConfigDataSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context)
     {
-        var existingConfigs = await context.SystemConfigs.ToListAsync();
+        var existingConfigs = await context.SystemConfigs.IgnoreQueryFilters().ToListAsync();
 
         var defaultConfigs = new List<SystemConfig>
         {

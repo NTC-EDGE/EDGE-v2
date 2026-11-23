@@ -12,13 +12,17 @@ public static class ServiceInformationDataSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context)
     {
-        var existingIds = await context.ServiceInformations
+        var existingIds = (await context.ServiceInformations
+            .IgnoreQueryFilters()
             .Select(x => x.Id)
-            .ToListAsync();
+            .ToListAsync())
+            .ToHashSet();
 
-        var existingServiceIds = await context.ServiceInformations
+        var existingServiceIds = (await context.ServiceInformations
+            .IgnoreQueryFilters()
             .Select(x => x.ServiceId)
-            .ToListAsync();
+            .ToListAsync())
+            .ToHashSet();
 
         var services = await context.Services.ToListAsync();
         if (!services.Any())

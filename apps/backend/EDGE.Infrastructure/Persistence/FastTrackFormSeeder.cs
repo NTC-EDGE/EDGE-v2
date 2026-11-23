@@ -36,12 +36,15 @@ public static class FastTrackFormSeeder
         var fieldsPool = FastTrackSeederData.GetFieldsPool();
 
         var existingFields = await context.Fields.IgnoreQueryFilters().ToListAsync();
+        bool anyFieldChange = false;
         foreach (var f in fieldsPool.Values)
         {
             var existing = existingFields.FirstOrDefault(x => x.Id == f.Id);
             if (existing == null)
             {
                 context.Fields.Add(f);
+                existingFields.Add(f);
+                anyFieldChange = true;
             }
             else
             {
@@ -49,27 +52,36 @@ public static class FastTrackFormSeeder
                 {
                     existing.IsDeleted = false;
                     existing.IsDeletedBy = string.Empty;
+                    anyFieldChange = true;
                 }
 
                 // Preserve custom dropdown options and validation rules set by admin in Form Builder.
                 // Only seed default validation rules if the field currently has none.
-                if (string.IsNullOrWhiteSpace(existing.ValidationRules) || existing.ValidationRules == "{}" || existing.ValidationRules == "[]")
+                if ((string.IsNullOrWhiteSpace(existing.ValidationRules) || existing.ValidationRules == "{}" || existing.ValidationRules == "[]") &&
+                    !string.IsNullOrWhiteSpace(f.ValidationRules) &&
+                    existing.ValidationRules != f.ValidationRules)
                 {
                     existing.ValidationRules = f.ValidationRules;
+                    anyFieldChange = true;
                 }
 
-                if (string.IsNullOrWhiteSpace(existing.Label))
+                if (string.IsNullOrWhiteSpace(existing.Label) && !string.IsNullOrWhiteSpace(f.Label))
                 {
                     existing.Label = f.Label;
+                    anyFieldChange = true;
                 }
 
-                if (string.IsNullOrWhiteSpace(existing.FieldType))
+                if (string.IsNullOrWhiteSpace(existing.FieldType) && !string.IsNullOrWhiteSpace(f.FieldType))
                 {
                     existing.FieldType = f.FieldType;
+                    anyFieldChange = true;
                 }
             }
         }
-        await context.SaveChangesAsync();
+        if (anyFieldChange)
+        {
+            await context.SaveChangesAsync();
+        }
 
         // 2. Self-heal any existing duplicate FormSections globally before seeding
         var allDbSections = await context.FormSections.IgnoreQueryFilters().ToListAsync();
@@ -80,15 +92,58 @@ public static class FastTrackFormSeeder
 
         if (globalDuplicates.Count > 0)
         {
+            var dupSectionIds = globalDuplicates.SelectMany(g => g.Select(s => s.Id)).ToList();
+            var allDupSectionFields = await context.SectionFields
+                .Where(sf => dupSectionIds.Contains(sf.FormSectionId))
+                .ToListAsync();
+
             int totalRemoved = 0;
             foreach (var group in globalDuplicates)
             {
-                var keep = group.FirstOrDefault(s => !s.IsDeleted) ?? group.First();
+                // Prefer keeping a non-deleted section that actually has SectionFields
+                var keep = group
+                    .OrderBy(s => s.IsDeleted)
+                    .ThenByDescending(s => allDupSectionFields.Count(sf => sf.FormSectionId == s.Id))
+                    .First();
+
+                var trimmedKey = (keep.Key ?? string.Empty).Trim();
+                if (keep.IsDeleted)
+                {
+                    keep.IsDeleted = false;
+                    keep.IsDeletedBy = string.Empty;
+                }
+                if (keep.Key != trimmedKey)
+                {
+                    keep.Key = trimmedKey;
+                }
+
                 var toRemove = group.Where(s => s.Id != keep.Id).ToList();
-                var toRemoveIds = toRemove.Select(s => s.Id).ToList();
-                var toRemoveFields = await context.SectionFields
+                var toRemoveIds = toRemove.Select(s => s.Id).ToHashSet();
+                var keepFieldIds = allDupSectionFields
+                    .Where(sf => sf.FormSectionId == keep.Id)
+                    .Select(sf => sf.FieldId)
+                    .ToHashSet();
+
+                var toRemoveFields = allDupSectionFields
                     .Where(sf => toRemoveIds.Contains(sf.FormSectionId))
-                    .ToListAsync();
+                    .ToList();
+
+                // Migrate any non-conflicting SectionFields from duplicate sections if keep has none for that FieldId
+                foreach (var dupSf in toRemoveFields)
+                {
+                    if (keepFieldIds.Add(dupSf.FieldId))
+                    {
+                        context.SectionFields.Add(new SectionField
+                        {
+                            FormSectionId = keep.Id,
+                            FieldId = dupSf.FieldId,
+                            IsRequired = dupSf.IsRequired,
+                            OrderIndex = dupSf.OrderIndex,
+                            VisibilityCondition = dupSf.VisibilityCondition
+                        });
+                    }
+                }
+
                 if (toRemoveFields.Count > 0) context.SectionFields.RemoveRange(toRemoveFields);
                 context.FormSections.RemoveRange(toRemove);
                 totalRemoved += toRemove.Count;
@@ -113,7 +168,7 @@ public static class FastTrackFormSeeder
             );
         }
 
-        // 4. Purge only un-named deleted non-canonical forms (never delete admin-created versions or variant forms)
+        // 4. Purge only un-named deleted non-canonical forms that are not referenced by submissions or child forms
         var canonicalFormIds = formDefs.Select(f => f.FormId).ToHashSet();
         var obsoleteForms = await context.Forms
             .IgnoreQueryFilters()
@@ -122,30 +177,55 @@ public static class FastTrackFormSeeder
 
         if (obsoleteForms.Count > 0)
         {
-            var obsoleteFormIds = obsoleteForms.Select(f => f.Id).ToList();
-            var obsoleteSections = await context.FormSections
+            var candidateIds = obsoleteForms.Select(f => f.Id).ToList();
+            var referencedBySubmission = (await context.FormSubmissions
                 .IgnoreQueryFilters()
-                .Where(s => obsoleteFormIds.Contains(s.FormId))
-                .ToListAsync();
-            if (obsoleteSections.Count > 0)
+                .Where(fs => candidateIds.Contains(fs.FormId))
+                .Select(fs => fs.FormId)
+                .Distinct()
+                .ToListAsync())
+                .ToHashSet();
+
+            var referencedByBaseForm = (await context.Forms
+                .IgnoreQueryFilters()
+                .Where(f => f.BaseFormId.HasValue && candidateIds.Contains(f.BaseFormId.Value))
+                .Select(f => f.BaseFormId!.Value)
+                .Distinct()
+                .ToListAsync())
+                .ToHashSet();
+
+            var safeToPurgeForms = obsoleteForms
+                .Where(f => !referencedBySubmission.Contains(f.Id) && !referencedByBaseForm.Contains(f.Id))
+                .ToList();
+
+            if (safeToPurgeForms.Count > 0)
             {
-                var obsoleteSecIds = obsoleteSections.Select(s => s.Id).ToList();
-                var obsoleteSecFields = await context.SectionFields
-                    .Where(sf => obsoleteSecIds.Contains(sf.FormSectionId))
+                var obsoleteFormIds = safeToPurgeForms.Select(f => f.Id).ToList();
+                var obsoleteSections = await context.FormSections
+                    .IgnoreQueryFilters()
+                    .Where(s => obsoleteFormIds.Contains(s.FormId))
                     .ToListAsync();
-                if (obsoleteSecFields.Count > 0) context.SectionFields.RemoveRange(obsoleteSecFields);
-                context.FormSections.RemoveRange(obsoleteSections);
+                if (obsoleteSections.Count > 0)
+                {
+                    var obsoleteSecIds = obsoleteSections.Select(s => s.Id).ToList();
+                    var obsoleteSecFields = await context.SectionFields
+                        .Where(sf => obsoleteSecIds.Contains(sf.FormSectionId))
+                        .ToListAsync();
+                    if (obsoleteSecFields.Count > 0) context.SectionFields.RemoveRange(obsoleteSecFields);
+                    context.FormSections.RemoveRange(obsoleteSections);
+                }
+                context.Forms.RemoveRange(safeToPurgeForms);
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Form Seeder: Cleaned up {Count} non-canonical redundant forms.", safeToPurgeForms.Count);
             }
-            context.Forms.RemoveRange(obsoleteForms);
-            await context.SaveChangesAsync();
-            logger?.LogInformation("Form Seeder: Cleaned up {Count} non-canonical redundant forms.", obsoleteForms.Count);
         }
 
         // 5. Self-heal Single-Active Invariant: ensure at most ONE active Base Form per ServiceId and ONE active Variant Form per ServiceVariantId
         var allActiveNonDeleted = await context.Forms
             .IgnoreQueryFilters()
             .Where(f => !f.IsDeleted && f.IsActive)
-            .OrderByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
+            .OrderByDescending(f => canonicalFormIds.Contains(f.Id))
+            .ThenByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
             .ToListAsync();
 
         bool deactivatedDuplicates = false;
@@ -224,49 +304,88 @@ public static class FastTrackFormSeeder
                 !f.IsDeleted &&
                 f.IsActive);
 
-            targetForm.IsDeleted = false;
-            targetForm.IsDeletedBy = string.Empty;
-            targetForm.ServiceId = service.Id;
-            if (!wasModifiedByAdmin || string.IsNullOrWhiteSpace(targetForm.Name))
+            bool formChanged = false;
+            if (targetForm.IsDeleted)
+            {
+                targetForm.IsDeleted = false;
+                targetForm.IsDeletedBy = string.Empty;
+                formChanged = true;
+            }
+            if (targetForm.ServiceId != service.Id)
+            {
+                targetForm.ServiceId = service.Id;
+                formChanged = true;
+            }
+            if ((!wasModifiedByAdmin || string.IsNullOrWhiteSpace(targetForm.Name)) && targetForm.Name != resolvedFormName)
             {
                 targetForm.Name = resolvedFormName;
+                formChanged = true;
             }
-            if (string.IsNullOrWhiteSpace(targetForm.Key)) targetForm.Key = serviceKey;
-            if (!anotherActiveBaseVersionExists && !wasModifiedByAdmin)
+            if (string.IsNullOrWhiteSpace(targetForm.Key))
+            {
+                targetForm.Key = serviceKey;
+                formChanged = true;
+            }
+            if (!anotherActiveBaseVersionExists && !targetForm.IsActive)
             {
                 targetForm.IsActive = true;
-            }
-            else if (!anotherActiveBaseVersionExists && !targetForm.IsActive)
-            {
-                targetForm.IsActive = true;
+                formChanged = true;
             }
 
-            // Only purge true corrupt same-version deleted duplicates; preserve admin-created Base Form versions (e.g. v2.0)
-            var redundantForms = existingForms
+            if (formChanged)
+            {
+                await context.SaveChangesAsync();
+            }
+
+            // Only purge true corrupt same-version deleted duplicates that are not referenced by FormSubmissions or child Forms
+            var redundantCandidates = existingForms
                 .Where(f => f.Id != targetForm.Id &&
                             f.ServiceVariantId == null &&
                             f.BaseFormId == null &&
                             f.IsDeleted &&
                             string.Equals(f.Version, targetForm.Version, StringComparison.OrdinalIgnoreCase))
                 .ToList();
-            if (redundantForms.Count > 0)
+            if (redundantCandidates.Count > 0)
             {
-                var redundantFormIds = redundantForms.Select(f => f.Id).ToList();
-                var redundantSections = await context.FormSections
+                var candidateIds = redundantCandidates.Select(f => f.Id).ToList();
+                var refSubmissions = (await context.FormSubmissions
                     .IgnoreQueryFilters()
-                    .Where(s => redundantFormIds.Contains(s.FormId))
-                    .ToListAsync();
-                if (redundantSections.Count > 0)
+                    .Where(fs => candidateIds.Contains(fs.FormId))
+                    .Select(fs => fs.FormId)
+                    .Distinct()
+                    .ToListAsync())
+                    .ToHashSet();
+                var refChildren = (await context.Forms
+                    .IgnoreQueryFilters()
+                    .Where(f => f.BaseFormId.HasValue && candidateIds.Contains(f.BaseFormId.Value))
+                    .Select(f => f.BaseFormId!.Value)
+                    .Distinct()
+                    .ToListAsync())
+                    .ToHashSet();
+
+                var redundantForms = redundantCandidates
+                    .Where(f => !refSubmissions.Contains(f.Id) && !refChildren.Contains(f.Id))
+                    .ToList();
+
+                if (redundantForms.Count > 0)
                 {
-                    var redundantSecIds = redundantSections.Select(s => s.Id).ToList();
-                    var redundantSecFields = await context.SectionFields
-                        .Where(sf => redundantSecIds.Contains(sf.FormSectionId))
+                    var redundantFormIds = redundantForms.Select(f => f.Id).ToList();
+                    var redundantSections = await context.FormSections
+                        .IgnoreQueryFilters()
+                        .Where(s => redundantFormIds.Contains(s.FormId))
                         .ToListAsync();
-                    if (redundantSecFields.Count > 0) context.SectionFields.RemoveRange(redundantSecFields);
-                    context.FormSections.RemoveRange(redundantSections);
+                    if (redundantSections.Count > 0)
+                    {
+                        var redundantSecIds = redundantSections.Select(s => s.Id).ToList();
+                        var redundantSecFields = await context.SectionFields
+                            .Where(sf => redundantSecIds.Contains(sf.FormSectionId))
+                            .ToListAsync();
+                        if (redundantSecFields.Count > 0) context.SectionFields.RemoveRange(redundantSecFields);
+                        context.FormSections.RemoveRange(redundantSections);
+                    }
+                    context.Forms.RemoveRange(redundantForms);
+                    await context.SaveChangesAsync();
                 }
-                context.Forms.RemoveRange(redundantForms);
-                await context.SaveChangesAsync();
             }
         }
 
@@ -314,17 +433,37 @@ public static class FastTrackFormSeeder
             }
             else
             {
-                sec.IsDeleted = false;
-                sec.IsDeletedBy = string.Empty;
-                sec.Key = key;
+                bool secChanged = false;
+                if (sec.IsDeleted)
+                {
+                    sec.IsDeleted = false;
+                    sec.IsDeletedBy = string.Empty;
+                    secChanged = true;
+                }
+                if (sec.Key != key)
+                {
+                    sec.Key = key;
+                    secChanged = true;
+                }
                 // Preserve admin-customized section title and ordering if already modified
                 if (!sec.LastModifiedAt.HasValue)
                 {
-                    sec.Title = title;
-                    sec.OrderIndex = sectionOrder;
+                    if (sec.Title != title)
+                    {
+                        sec.Title = title;
+                        secChanged = true;
+                    }
+                    if (sec.OrderIndex != sectionOrder)
+                    {
+                        sec.OrderIndex = sectionOrder;
+                        secChanged = true;
+                    }
                 }
                 sectionOrder++;
-                await context.SaveChangesAsync();
+                if (secChanged)
+                {
+                    await context.SaveChangesAsync();
+                }
             }
 
             var currentFields = await context.SectionFields
@@ -336,10 +475,11 @@ public static class FastTrackFormSeeder
             if (currentFields.Count == 0 && fieldKeys != null && fieldKeys.Count > 0)
             {
                 int fieldOrder = 1;
-                var deduplicatedFields = fieldKeys.Distinct().ToList();
+                var deduplicatedFields = fieldKeys.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var addedFieldIds = new HashSet<Guid>();
                 foreach (var fk in deduplicatedFields)
                 {
-                    if (fieldsPool.TryGetValue(fk, out var f))
+                    if (fieldsPool.TryGetValue(fk, out var f) && addedFieldIds.Add(f.Id))
                     {
                         context.SectionFields.Add(new SectionField
                         {
@@ -350,9 +490,11 @@ public static class FastTrackFormSeeder
                         });
                     }
                 }
-                await context.SaveChangesAsync();
+                if (addedFieldIds.Count > 0)
+                {
+                    await context.SaveChangesAsync();
+                }
             }
-
         }
     }
 }

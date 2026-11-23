@@ -68,7 +68,7 @@ public static class FastTrackFeeSeeder
                     context.Fees.Add(fee);
                     existingFees.Add(fee);
                 }
-                else
+                else if (fee.Name != name || fee.Description != desc || !fee.IsActive || fee.IsDeleted)
                 {
                     fee.Name = name;
                     fee.Description = desc;
@@ -609,12 +609,15 @@ public static class FastTrackFeeSeeder
                 }
                 else
                 {
-                    existingRecord.Amount = amount;
-                    existingRecord.IsActive = true;
-                    if (existingRecord.IsDeleted)
+                    if (existingRecord.Amount != amount || !existingRecord.IsActive || existingRecord.IsDeleted)
                     {
-                        existingRecord.IsDeleted = false;
-                        existingRecord.IsDeletedBy = string.Empty;
+                        existingRecord.Amount = amount;
+                        existingRecord.IsActive = true;
+                        if (existingRecord.IsDeleted)
+                        {
+                            existingRecord.IsDeleted = false;
+                            existingRecord.IsDeletedBy = string.Empty;
+                        }
                     }
 
                     if (matchingRecords.Count > 1)
@@ -801,7 +804,7 @@ public static class FastTrackFeeSeeder
                         IsActive = true
                     });
                 }
-                else
+                else if (existingVef.Amount != amount || !existingVef.IsActive || existingVef.IsDeleted)
                 {
                     existingVef.Amount = amount;
                     existingVef.IsActive = true;
@@ -1051,12 +1054,14 @@ public static class FastTrackFeeSeeder
                         IsActive = true
                     });
                 }
-                else
+                else if (existingF.FormulaExpression != formula || existingF.Description != formula || existingF.ApplyLateRenewalSurcharge != applySur || !existingF.IsActive || existingF.IsDeleted)
                 {
                     existingF.FormulaExpression = formula;
                     existingF.Description = formula;
                     existingF.ApplyLateRenewalSurcharge = applySur;
                     existingF.IsActive = true;
+                    existingF.IsDeleted = false;
+                    existingF.IsDeletedBy = string.Empty;
                 }
             }
 
@@ -1143,12 +1148,14 @@ public static class FastTrackFeeSeeder
                         IsActive = true
                     });
                 }
-                else
+                else if (existingEf.FormulaExpression != formula || existingEf.Description != formula || existingEf.ApplyLateRenewalSurcharge != applySur || !existingEf.IsActive || existingEf.IsDeleted)
                 {
                     existingEf.FormulaExpression = formula;
                     existingEf.Description = formula;
                     existingEf.ApplyLateRenewalSurcharge = applySur;
                     existingEf.IsActive = true;
+                    existingEf.IsDeleted = false;
+                    existingEf.IsDeletedBy = string.Empty;
                 }
             }
 
@@ -1169,11 +1176,16 @@ public static class FastTrackFeeSeeder
                         IsActive = true
                     });
                 }
-                else
+                else if (existingExamSvcFormula.FormulaExpression != FeeConstants.Formulas.ExamStandard ||
+                         existingExamSvcFormula.Description != FeeConstants.Formulas.ExamStandard ||
+                         !existingExamSvcFormula.IsActive ||
+                         existingExamSvcFormula.IsDeleted)
                 {
                     existingExamSvcFormula.FormulaExpression = FeeConstants.Formulas.ExamStandard;
                     existingExamSvcFormula.Description = FeeConstants.Formulas.ExamStandard;
                     existingExamSvcFormula.IsActive = true;
+                    existingExamSvcFormula.IsDeleted = false;
+                    existingExamSvcFormula.IsDeletedBy = string.Empty;
                 }
             }
 
