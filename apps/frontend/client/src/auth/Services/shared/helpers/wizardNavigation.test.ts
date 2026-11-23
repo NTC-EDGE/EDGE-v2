@@ -48,6 +48,9 @@ const dummyExamService: NTCService = {
   title: "Application for Admission to Radio Operator Examination",
   category: "Examination Services",
   description: "Radio Operator Examination",
+  requirements: [],
+  fee: "PHP 50.00",
+  time: "5 Days",
 };
 
 function createCompletedExamApplicant() {
