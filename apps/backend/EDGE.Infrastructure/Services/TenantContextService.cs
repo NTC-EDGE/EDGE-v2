@@ -41,16 +41,28 @@ public class TenantContextService : ITenantContextService
         }
 
         var authUserId = _currentUserService.UserId;
-        if (string.IsNullOrWhiteSpace(authUserId))
+        var email = _currentUserService.Email;
+        if (string.IsNullOrWhiteSpace(authUserId) && string.IsNullOrWhiteSpace(email))
         {
             _userLoaded = true;
             _cachedUser = null;
             return null;
         }
 
-        _cachedUser = await _dbContext.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.AuthUserId == authUserId && !u.IsDeleted, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(authUserId))
+        {
+            _cachedUser = await _dbContext.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.AuthUserId == authUserId && !u.IsDeleted, cancellationToken);
+        }
+
+        if (_cachedUser == null && !string.IsNullOrWhiteSpace(email))
+        {
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            _cachedUser = await _dbContext.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail && !u.IsDeleted, cancellationToken);
+        }
 
         _userLoaded = true;
         return _cachedUser;

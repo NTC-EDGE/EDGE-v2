@@ -18,6 +18,9 @@ import { COLORS, SHADOWS, SPACING } from "../../shared/theme/tokens";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 import { ClientAnnouncementBanner } from "../../shared/components/ClientAnnouncementBanner";
+import { useClientSupportModals } from "../../shared/support/hooks/useClientSupportModals";
+import { SendFeedbackModal } from "../../shared/support/components/SendFeedbackModal";
+import { HelpCenterModal } from "../../shared/support/components/HelpCenterModal";
 
 interface PressableState {
   pressed: boolean;
@@ -160,6 +163,7 @@ export function LandingScreen() {
   const [isTrackModalVisible, setIsTrackModalVisible] = useState(false);
   const [activeFooterModal, setActiveFooterModal] =
     useState<FooterPolicyContent | null>(null);
+  const support = useClientSupportModals();
 
   const openGetStartedModal = () => {
     navigation?.navigate("Login");
@@ -1575,9 +1579,7 @@ export function LandingScreen() {
                   </Pressable>
 
                   <Pressable
-                    onPress={() =>
-                      setActiveFooterModal(FOOTER_POLICIES["send-feedback"])
-                    }
+                    onPress={() => support.openFeedbackModal()}
                     style={({ hovered }: PressableState) => [
                       styles.footerLinkItem,
                       hovered ? styles.footerLinkItemHovered : null,
@@ -1604,9 +1606,7 @@ export function LandingScreen() {
                   </Pressable>
 
                   <Pressable
-                    onPress={() =>
-                      setActiveFooterModal(FOOTER_POLICIES["help-center"])
-                    }
+                    onPress={() => support.openHelpCenterModal()}
                     style={({ hovered }: PressableState) => [
                       styles.footerLinkItem,
                       hovered ? styles.footerLinkItemHovered : null,
@@ -1952,6 +1952,10 @@ export function LandingScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Interactive Regional Send Feedback & Help Center Modals */}
+      <SendFeedbackModal support={support} />
+      <HelpCenterModal support={support} />
     </View>
   );
 }

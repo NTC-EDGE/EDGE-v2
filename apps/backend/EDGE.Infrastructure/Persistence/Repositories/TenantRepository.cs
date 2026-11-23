@@ -21,6 +21,7 @@ public class TenantRepository : ITenantRepository
     public async Task<Tenant?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Tenants
+            .Include(t => t.Region)
             .Include(t => t.Members)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
     }
@@ -28,6 +29,7 @@ public class TenantRepository : ITenantRepository
     public async Task<Tenant?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         return await _context.Tenants
+            .Include(t => t.Region)
             .Include(t => t.Members)
             .FirstOrDefaultAsync(t => t.Code == code, cancellationToken);
     }
@@ -35,6 +37,7 @@ public class TenantRepository : ITenantRepository
     public async Task<List<Tenant>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Tenants
+            .Include(t => t.Region)
             .Include(t => t.Members)
             .ToListAsync(cancellationToken);
     }

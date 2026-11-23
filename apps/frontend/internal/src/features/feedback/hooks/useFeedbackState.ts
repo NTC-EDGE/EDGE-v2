@@ -42,7 +42,9 @@ export function useFeedbackState() {
         item.senderName.toLowerCase().includes(lower) ||
         item.senderEmail.toLowerCase().includes(lower) ||
         item.subject.toLowerCase().includes(lower) ||
-        item.message.toLowerCase().includes(lower)
+        item.message.toLowerCase().includes(lower) ||
+        (item.tenantName ?? '').toLowerCase().includes(lower) ||
+        (item.tenantCode ?? '').toLowerCase().includes(lower)
       );
     });
   }, [feedback, searchQuery, ratingFilter]);

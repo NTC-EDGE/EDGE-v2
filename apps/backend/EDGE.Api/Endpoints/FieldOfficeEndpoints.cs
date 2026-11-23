@@ -18,21 +18,21 @@ public static class FieldOfficeEndpoints
     public static RouteGroupBuilder MapFieldOfficeEndpoints(this RouteGroupBuilder group)
     {
         group.MapGet("/tenants/{tenantId:guid}/field-offices", GetFieldOfficesByTenant)
+            .AllowAnonymous()
             .WithName("GetFieldOfficesByTenant")
             .WithTags("FieldOffices")
             .WithSummary("Get field offices by tenant organization")
-            .WithDescription("Returns all field offices associated with the tenant organization's region.")
-            .RequireAuthorization();
+            .WithDescription("Returns all field offices associated with the tenant organization's region.");
 
         var offices = group.MapGroup("field-offices")
             .WithTags("FieldOffices");
 
         offices.MapGet("/", GetFieldOffices)
+            .AllowAnonymous()
             .WithName("GetFieldOffices")
             .WithTags("FieldOffices")
             .WithSummary("Retrieve all field offices")
-            .WithDescription("Retrieves a list of all field offices for a specific tenant.")
-            .RequireAuthorization();
+            .WithDescription("Retrieves a list of all field offices for a specific tenant.");
 
         offices.MapGet("/{id:guid}", GetFieldOfficeById)
             .WithName("GetFieldOfficeById")
@@ -72,7 +72,6 @@ public static class FieldOfficeEndpoints
         return group;
     }
 
-    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOfficesByTenant(
         Guid tenantId,
         [FromQuery] bool? isActive,
@@ -82,7 +81,6 @@ public static class FieldOfficeEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOffices(
         [FromQuery] Guid? tenantId,
         [FromQuery] Guid? regionId,

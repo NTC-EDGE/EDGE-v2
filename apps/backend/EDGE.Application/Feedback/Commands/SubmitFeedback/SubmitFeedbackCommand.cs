@@ -1,3 +1,4 @@
+using System;
 using MediatR;
 using EDGE.Application.Feedback.DTOs;
 
@@ -9,5 +10,7 @@ public record SubmitFeedbackCommand(
     string Subject,
     string Message,
     int Rating,
-    bool IsAnonymous = false
+    bool IsAnonymous = false,
+    Guid? TenantId = null
 ) : IRequest<FeedbackDto>;
+

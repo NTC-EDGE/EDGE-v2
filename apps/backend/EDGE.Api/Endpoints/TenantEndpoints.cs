@@ -20,6 +20,7 @@ using EDGE.Application.TenantMembers.DTOs;
 using EDGE.Application.Tenants.Queries.GetTenantClients;
 using EDGE.Application.Tenants.Queries.GetTenantClientDetails;
 using EDGE.Application.Tenants.Queries.GetTenantTransactions;
+using EDGE.Application.Tenants.Queries.GetPublicTenantDirectory;
 using EDGE.Application.Tenants.Commands.UpdateTenantNumberingMode;
 
 namespace EDGE.Api.Endpoints;
@@ -41,11 +42,20 @@ public static class TenantEndpoints
             .Produces(StatusCodes.Status409Conflict);
 
         tenants.MapGet("/", GetAllTenants)
+            .AllowAnonymous()
             .WithName("GetAllTenants")
             .WithTags("Tenants")
             .WithSummary("Retrieve all tenants")
             .WithDescription("Retrieves paginated Tenant organizations registered across regions.")
             .Produces<PaginatedApiResponse<TenantDto>>(StatusCodes.Status200OK);
+
+        tenants.MapGet("/public-directory", GetPublicTenantDirectory)
+            .AllowAnonymous()
+            .WithName("GetPublicTenantDirectory")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve public NTC Regional Office directory")
+            .WithDescription("Retrieves active NTC Regional Office tenants and their active Field Office contact details for public Help Center and Send Feedback routing.")
+            .Produces<ApiResponse<List<PublicRegionalOfficeDto>>>(StatusCodes.Status200OK);
 
         tenants.MapGet("/my-memberships", GetMyTenantMemberships)
             .WithName("GetMyTenantMemberships")
@@ -166,6 +176,12 @@ public static class TenantEndpoints
         return group;
     }
 
+    public static async Task<IResult> GetPublicTenantDirectory(IMediator mediator)
+    {
+        var result = await mediator.Send(new GetPublicTenantDirectoryQuery());
+        return Results.Ok(ApiResponse<List<PublicRegionalOfficeDto>>.Success(result));
+    }
+
     public static async Task<IResult> GetMyTenantMemberships(IMediator mediator)
     {
         var result = await mediator.Send(new GetMyTenantMembershipsQuery());
@@ -215,7 +231,6 @@ public static class TenantEndpoints
         }
     }
 
-    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetAllTenants(
         IMediator mediator,
         [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,

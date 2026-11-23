@@ -27,6 +27,7 @@ import {
   Boxes,
   KeyRound,
   FileText,
+  MessageSquare,
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
@@ -165,6 +166,20 @@ export function SidebarNav() {
                 <span>Error Logs</span>
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-300 border border-rose-500/20 font-mono">Errors</span>
+            </Link>
+
+            <Link
+              href="/feedback"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                isActive("/feedback") ? activeLinkClass : inactiveLinkClass
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <MessageSquare className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                <span>Client Feedbacks</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20 font-mono">Reports</span>
             </Link>
           </div>
 

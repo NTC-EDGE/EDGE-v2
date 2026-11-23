@@ -848,6 +848,9 @@ export interface StoredFileDto {
 
 export interface FeedbackDto {
   id: string;
+  tenantId?: string | null;
+  tenantName?: string | null;
+  tenantCode?: string | null;
   senderName: string;
   senderEmail: string;
   subject: string;
@@ -856,6 +859,44 @@ export interface FeedbackDto {
   status: string;
   isAnonymous?: boolean;
   createdAt: string;
+}
+
+export interface SubmitFeedbackPayload {
+  tenantId?: string | null;
+  senderName: string;
+  senderEmail: string;
+  subject: string;
+  message: string;
+  rating: number;
+  isAnonymous: boolean;
+}
+
+export interface PublicFieldOfficeDto {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  address: string;
+  contactPhone: string;
+  contactEmail: string;
+  officeHead: string;
+  allowPermitIssuance: boolean;
+  allowComplaintReception: boolean;
+  allowSpectrumInspection: boolean;
+}
+
+export interface PublicRegionalOfficeDto {
+  id: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  regionId: string;
+  regionName: string;
+  regionCode: string;
+  primaryAddress: string;
+  primaryPhone: string;
+  primaryEmail: string;
+  fieldOffices: PublicFieldOfficeDto[];
 }
 
 export interface SystemAnnouncementDto {
