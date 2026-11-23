@@ -24,6 +24,7 @@ public class ServiceRepository : IServiceRepository
         CancellationToken cancellationToken = default)
     {
         var query = _context.Services
+            .AsNoTracking()
             .Include(s => s.ServiceCategory)
             .AsQueryable();
 

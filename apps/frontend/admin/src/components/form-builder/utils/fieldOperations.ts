@@ -1,7 +1,8 @@
 import { FieldCondition, FormField } from "../types";
 import { generateId } from "./fieldDefaults";
 import { parseFieldCondition } from "./fieldParsers";
-import { isFieldApplicableForVariant } from "./variantConditionUtils";
+import { isFieldApplicableForVariant, deleteFieldWithSection } from "./variantConditionUtils";
+export { deleteFieldWithSection };
 
 export function remapFieldDependenciesWithIdMap(
   field: FormField,
@@ -155,29 +156,4 @@ export function duplicateFieldWithSection(
   });
   newFields.splice(fromIndex + 1, 0, duplicate);
   return newFields;
-}
-
-export function deleteFieldWithSection(fields: FormField[], id: string): FormField[] {
-  if (id === "default-section") {
-    let firstSectionIndex = 0;
-    while (firstSectionIndex < fields.length && fields[firstSectionIndex].type !== "section-header") {
-      firstSectionIndex++;
-    }
-    return fields.slice(firstSectionIndex);
-  }
-
-  const fromIndex = fields.findIndex((f) => f.id === id);
-  if (fromIndex < 0) return fields;
-
-  const targetField = fields[fromIndex];
-  if (targetField.type === "section-header") {
-    const blockStart = fromIndex;
-    let blockEnd = fromIndex + 1;
-    while (blockEnd < fields.length && fields[blockEnd].type !== "section-header") {
-      blockEnd++;
-    }
-    return [...fields.slice(0, blockStart), ...fields.slice(blockEnd)];
-  }
-
-  return fields.filter((f) => f.id !== id);
 }

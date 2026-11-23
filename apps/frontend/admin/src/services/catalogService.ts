@@ -23,6 +23,7 @@ export interface ServiceVariantItem {
   id: string;
   serviceId: string;
   serviceName?: string;
+  serviceCode?: string;
   type: string;
   description?: string;
   isIndividual?: boolean;
@@ -80,10 +81,13 @@ export interface UpdateServiceRequest {
 }
 
 export function useCatalogService() {
-  const { useQuery, post, put, del } = useApi();
+  const { useQuery, get, post, put, del } = useApi();
 
-  const useServiceCategories = () => {
-    return useQuery<ApiResponse<ServiceCategory[]>>('/api/v2/service-categories');
+  const useServiceCategories = (enabled: boolean = true) => {
+    return useQuery<ApiResponse<ServiceCategory[]>>(
+      enabled ? '/api/v2/service-categories' : null,
+      { revalidateOnFocus: false, dedupingInterval: 60000 }
+    );
   };
 
   const createServiceCategory = async (request: CreateServiceCategoryRequest): Promise<ApiResponse<string>> => {
@@ -158,6 +162,20 @@ export function useCatalogService() {
     );
   };
 
+  const useAllServiceVariants = (enabled: boolean = true) => {
+    return useQuery<PaginatedApiResponse<ServiceVariantItem>>(
+      enabled ? `/api/v2/service-variants?pageSize=500` : null
+    );
+  };
+
+  const getServiceVariantsByServiceId = async (
+    serviceId: string
+  ): Promise<PaginatedApiResponse<ServiceVariantItem>> => {
+    return get<PaginatedApiResponse<ServiceVariantItem>>(
+      `/api/v2/services/${serviceId}/variants?pageSize=100`
+    );
+  };
+
   return {
     useServiceCategories,
     createServiceCategory,
@@ -166,6 +184,8 @@ export function useCatalogService() {
     useServices,
     useTenantServices,
     useServiceVariants,
+    useAllServiceVariants,
+    getServiceVariantsByServiceId,
     createService,
     updateService,
     deleteService,

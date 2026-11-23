@@ -25,6 +25,12 @@ public class DeleteFormCommandHandler : IRequestHandler<DeleteFormCommand, ApiRe
             return ApiResponse<bool>.Fail($"Form template with ID '{request.Id}' was not found.", ApiErrorCode.NotFound);
         }
 
+        var deleteGuardError = await _formRepository.ValidateCanDeleteFormAsync(form, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(deleteGuardError))
+        {
+            return ApiResponse<bool>.Fail(deleteGuardError);
+        }
+
         _formRepository.Delete(form);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

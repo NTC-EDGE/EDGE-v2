@@ -32,21 +32,22 @@ public class GetServiceCsvTemplateQueryHandler : IRequestHandler<GetServiceCsvTe
         if (form != null)
         {
             // Extract dynamic service-specific fields (e.g., Application Type, Examinee Type, Class/Element)
-            // Exclude biographical fields, non-tabular fields (signature, checkbox, file, system, admission slip, special assistance)
+            // Exclude biographical fields, unused/globally-excluded fields, and non-tabular fields
             var serviceSpecificFields = form.Sections
+                .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)
                 .SelectMany(s => s.SectionFields.OrderBy(sf => sf.OrderIndex))
-                .Select(sf => sf.Field)
-                .Where(f => f != null 
-                         && !string.IsNullOrWhiteSpace(f.Label)
-                         && !f.SyncBackOnSubmit
-                         && !IsBiographicalField(f.Label)
-                         && !IsNonImportableField(f.Label)
-                         && !string.Equals(f.FieldType, "signature", StringComparison.OrdinalIgnoreCase)
-                         && !string.Equals(f.FieldType, "checkbox", StringComparison.OrdinalIgnoreCase)
-                         && !string.Equals(f.FieldType, "file", StringComparison.OrdinalIgnoreCase)
-                         && !string.Equals(f.FieldType, "system", StringComparison.OrdinalIgnoreCase))
-                .Select(f => MapLabelToStandardHeader(f!.Label))
+                .Where(sf => sf.Field != null
+                         && !IsFieldGloballyExcluded(sf.VisibilityCondition)
+                         && !string.IsNullOrWhiteSpace(sf.Field.Label)
+                         && !sf.Field.SyncBackOnSubmit
+                         && !IsBiographicalField(sf.Field.Label)
+                         && !IsNonImportableField(sf.Field.Label)
+                         && !string.Equals(sf.Field.FieldType, "signature", StringComparison.OrdinalIgnoreCase)
+                         && !string.Equals(sf.Field.FieldType, "checkbox", StringComparison.OrdinalIgnoreCase)
+                         && !string.Equals(sf.Field.FieldType, "file", StringComparison.OrdinalIgnoreCase)
+                         && !string.Equals(sf.Field.FieldType, "system", StringComparison.OrdinalIgnoreCase))
+                .Select(sf => MapLabelToStandardHeader(sf.Field!.Label))
                 .Distinct(StringComparer.OrdinalIgnoreCase);
 
             headers.AddRange(serviceSpecificFields);
@@ -103,6 +104,13 @@ public class GetServiceCsvTemplateQueryHandler : IRequestHandler<GetServiceCsvTe
         };
 
         return ApiResponse<ServiceCsvTemplateResultDto>.Success(resultDto, "CSV template generated successfully.");
+    }
+
+    private static bool IsFieldGloballyExcluded(string? visibilityCondition)
+    {
+        if (string.IsNullOrWhiteSpace(visibilityCondition)) return false;
+        return visibilityCondition.Contains("\"__NONE__\"", StringComparison.OrdinalIgnoreCase)
+            || visibilityCondition.Contains("\"excludedVariants\":[\"ALL\"]", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsBiographicalField(string label)

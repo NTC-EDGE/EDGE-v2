@@ -1,9 +1,19 @@
-import { FormField } from "../types";
+import { FormField, LinkedServiceItem } from "../types";
 import { generateId } from "./fieldDefaults";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function convertSchemaToBackendSections(fields: FormField[], scopedVariantId?: string) {
+export interface FormBackendMetadata {
+  description?: string;
+  linkedServices?: LinkedServiceItem[];
+  linkedVariants?: string[];
+}
+
+export function convertSchemaToBackendSections(
+  fields: FormField[],
+  scopedVariantId?: string,
+  formMetadata?: FormBackendMetadata
+) {
   type SectionItemOutput = {
     key: string;
     title: string;
@@ -49,6 +59,7 @@ export function convertSchemaToBackendSections(fields: FormField[], scopedVarian
   const seenFieldIds = new Set<string>();
   let hasEncounteredExplicitSection = false;
   let currentSectionVariantTitles: Record<string, string> | undefined = undefined;
+  let didAttachFormMetadata = false;
 
   for (const field of fields) {
     if (field.type === "section-header") {
@@ -125,6 +136,16 @@ export function convertSchemaToBackendSections(fields: FormField[], scopedVarian
       ? JSON.stringify(resolvedCondition)
       : field.visibilityCondition || currentSection.visibilityCondition;
 
+    const attachMeta =
+      !didAttachFormMetadata &&
+      formMetadata &&
+      (Boolean(formMetadata.description) ||
+        Boolean(formMetadata.linkedServices && formMetadata.linkedServices.length > 0) ||
+        Boolean(formMetadata.linkedVariants && formMetadata.linkedVariants.length > 0));
+    if (attachMeta) {
+      didAttachFormMetadata = true;
+    }
+
     const fieldDto = {
       fieldId,
       label: field.label || (field.type === "divider" ? "Divider" : "Untitled Field"),
@@ -150,6 +171,8 @@ export function convertSchemaToBackendSections(fields: FormField[], scopedVarian
         condition: resolvedCondition,
         sectionVisibilityCondition: currentSection.visibilityCondition,
         sectionVariantTitles: currentSectionVariantTitles,
+        variantOverrides: field.variantOverrides,
+        formMetadata: attachMeta ? formMetadata : undefined,
       }),
     };
 

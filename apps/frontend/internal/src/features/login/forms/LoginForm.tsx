@@ -26,6 +26,7 @@ export function LoginForm({
     handleApplyPreset,
     isSubmitting,
     isGoogleSubmitting,
+    showGoogleSso,
   } = loginState;
 
   return (
@@ -113,24 +114,28 @@ export function LoginForm({
         Sign In to Account
       </Button>
 
-      {/* Divider */}
-      <View style={styles.orDividerRow}>
-        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-        <Text style={[styles.orDividerText, { color: colors.textMuted }]}>OR</Text>
-        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-      </View>
+      {showGoogleSso ? (
+        <>
+          {/* Divider */}
+          <View style={styles.orDividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.orDividerText, { color: colors.textMuted }]}>OR</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          </View>
 
-      {/* Atomic Google SSO Button */}
-      <Button
-        onPress={handleGoogleSignIn}
-        isLoading={isGoogleSubmitting}
-        isDisabled={isSubmitting || isGoogleSubmitting}
-        variant="outline"
-        size="md"
-        leftIcon={<LucideIcon name="chrome" size={18} color={COLORS.semantic.error} />}
-      >
-        Continue with Google
-      </Button>
+          {/* Atomic Google SSO Button */}
+          <Button
+            onPress={handleGoogleSignIn}
+            isLoading={isGoogleSubmitting}
+            isDisabled={isSubmitting || isGoogleSubmitting}
+            variant="outline"
+            size="md"
+            leftIcon={<LucideIcon name="chrome" size={18} color={COLORS.semantic.error} />}
+          >
+            Continue with Google
+          </Button>
+        </>
+      ) : null}
     </View>
   );
 }

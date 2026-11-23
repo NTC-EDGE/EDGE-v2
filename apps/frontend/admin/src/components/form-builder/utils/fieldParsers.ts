@@ -1,5 +1,73 @@
-import { FieldCondition, FieldOption, RepeaterColumn } from "../types";
+import { FieldCondition, FieldOption, FieldVariantOverride, LinkedServiceItem, RepeaterColumn } from "../types";
 import { generateId, isRecord } from "./fieldDefaults";
+
+export function parseFieldVariantOverrides(
+  raw: unknown
+): Record<string, FieldVariantOverride> | undefined {
+  if (!isRecord(raw)) return undefined;
+  const map: Record<string, FieldVariantOverride> = {};
+  for (const [variantKey, entry] of Object.entries(raw)) {
+    if (!isRecord(entry) || !variantKey.trim()) continue;
+    const ov: FieldVariantOverride = {};
+    if (typeof entry["label"] === "string" && entry["label"].trim().length > 0) {
+      ov.label = entry["label"];
+    }
+    if (typeof entry["required"] === "boolean") {
+      ov.required = entry["required"];
+    }
+    if (typeof entry["placeholder"] === "string") {
+      ov.placeholder = entry["placeholder"];
+    }
+    if (typeof entry["helpText"] === "string") {
+      ov.helpText = entry["helpText"];
+    }
+    const parsedOpts = parseFieldOptions(entry["options"]);
+    if (parsedOpts && parsedOpts.length > 0) {
+      ov.options = parsedOpts;
+    }
+    if (
+      ov.label !== undefined ||
+      ov.required !== undefined ||
+      ov.placeholder !== undefined ||
+      ov.helpText !== undefined ||
+      ov.options !== undefined
+    ) {
+      map[variantKey] = ov;
+    }
+  }
+  return Object.keys(map).length > 0 ? map : undefined;
+}
+
+export function parseFormMetadata(raw: unknown): {
+  description?: string;
+  linkedServices?: LinkedServiceItem[];
+  linkedVariants?: string[];
+} | undefined {
+  if (!isRecord(raw)) return undefined;
+  const description = typeof raw["description"] === "string" ? raw["description"] : undefined;
+  let linkedServices: LinkedServiceItem[] | undefined = undefined;
+  if (Array.isArray(raw["linkedServices"])) {
+    const list: LinkedServiceItem[] = [];
+    for (const item of raw["linkedServices"]) {
+      if (isRecord(item) && typeof item["id"] === "string" && typeof item["name"] === "string") {
+        list.push({
+          id: item["id"],
+          name: item["name"],
+          code: typeof item["code"] === "string" ? item["code"] : undefined,
+          categoryName: typeof item["categoryName"] === "string" ? item["categoryName"] : undefined,
+        });
+      }
+    }
+    if (list.length > 0) linkedServices = list;
+  }
+  let linkedVariants: string[] | undefined = undefined;
+  if (Array.isArray(raw["linkedVariants"])) {
+    const vars = raw["linkedVariants"].filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+    if (vars.length > 0) linkedVariants = vars;
+  }
+  if (!description && !linkedServices && !linkedVariants) return undefined;
+  return { description, linkedServices, linkedVariants };
+}
 
 export function parseFieldOptions(rawList: unknown): FieldOption[] | undefined {
   if (!Array.isArray(rawList) || rawList.length === 0) return undefined;

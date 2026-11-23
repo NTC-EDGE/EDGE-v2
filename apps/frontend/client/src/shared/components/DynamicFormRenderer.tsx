@@ -7,6 +7,8 @@ import {
   parseValidationRulesMetadata,
   evaluateVisibilityCondition,
   isFieldRowVisible,
+  resolveFieldForContext,
+  resolveSectionTitleForContext,
   FormEvaluationContext,
   buildFormVariantFlags,
 } from "./dynamic-form/dynamicFormUtils";
@@ -647,9 +649,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         const rawFields = (section.fields || []).filter(
           (f) => !isPersonalSec || !isStandardPersonalProfileField(f)
         );
-        const candidateFields = rawFields.filter((f) => {
-          return isFieldRowVisible(f, section, evaluationContext);
-        });
+        const candidateFields = rawFields
+          .filter((f) => isFieldRowVisible(f, section, evaluationContext))
+          .map((f) => resolveFieldForContext(f, evaluationContext));
 
         // Deduplicate fields in the same section sharing the same normalized label & type (keep the latest/variant-forked entry)
         const dedupedByLabel = new Map<string, FieldDto>();
@@ -668,7 +670,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           }
 
           const sectionDisplayNum = sIdx + 1;
-          const displaySectionTitle = section.title || "";
+          const displaySectionTitle = resolveSectionTitleForContext(section, evaluationContext);
           const displaySectionDesc = section.description;
 
           return (
@@ -700,7 +702,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         }
 
         const sectionDisplayNum = sIdx + 1;
-        const displaySectionTitle = section.title || "";
+        const displaySectionTitle = resolveSectionTitleForContext(section, evaluationContext);
         const displaySectionDesc = section.description;
 
         return (

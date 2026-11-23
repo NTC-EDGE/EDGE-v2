@@ -113,11 +113,11 @@ public static class FastTrackFormSeeder
             );
         }
 
-        // 4. Purge any non-canonical redundant forms (strictly excluding variant and customized forms)
+        // 4. Purge only un-named deleted non-canonical forms (never delete admin-created versions or variant forms)
         var canonicalFormIds = formDefs.Select(f => f.FormId).ToHashSet();
         var obsoleteForms = await context.Forms
             .IgnoreQueryFilters()
-            .Where(f => !canonicalFormIds.Contains(f.Id) && f.ServiceVariantId == null && f.BaseFormId == null && (f.IsDeleted || string.IsNullOrWhiteSpace(f.Name)))
+            .Where(f => !canonicalFormIds.Contains(f.Id) && f.ServiceVariantId == null && f.BaseFormId == null && f.IsDeleted && string.IsNullOrWhiteSpace(f.Name))
             .ToListAsync();
 
         if (obsoleteForms.Count > 0)
@@ -139,6 +139,36 @@ public static class FastTrackFormSeeder
             context.Forms.RemoveRange(obsoleteForms);
             await context.SaveChangesAsync();
             logger?.LogInformation("Form Seeder: Cleaned up {Count} non-canonical redundant forms.", obsoleteForms.Count);
+        }
+
+        // 5. Self-heal Single-Active Invariant: ensure at most ONE active Base Form per ServiceId and ONE active Variant Form per ServiceVariantId
+        var allActiveNonDeleted = await context.Forms
+            .IgnoreQueryFilters()
+            .Where(f => !f.IsDeleted && f.IsActive)
+            .OrderByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
+            .ToListAsync();
+
+        bool deactivatedDuplicates = false;
+        foreach (var baseGroup in allActiveNonDeleted.Where(f => !f.ServiceVariantId.HasValue && f.ServiceId != Guid.Empty).GroupBy(f => f.ServiceId))
+        {
+            foreach (var extra in baseGroup.Skip(1))
+            {
+                extra.IsActive = false;
+                deactivatedDuplicates = true;
+            }
+        }
+        foreach (var varGroup in allActiveNonDeleted.Where(f => f.ServiceVariantId.HasValue).GroupBy(f => f.ServiceVariantId!.Value))
+        {
+            foreach (var extra in varGroup.Skip(1))
+            {
+                extra.IsActive = false;
+                deactivatedDuplicates = true;
+            }
+        }
+        if (deactivatedDuplicates)
+        {
+            await context.SaveChangesAsync();
+            logger?.LogInformation("Self-healing: Enforced single-active version invariant across Base and Variant forms.");
         }
     }
 
@@ -187,15 +217,37 @@ public static class FastTrackFormSeeder
         }
         else
         {
+            bool wasModifiedByAdmin = targetForm.LastModifiedAt.HasValue;
+            bool anotherActiveBaseVersionExists = existingForms.Any(f =>
+                f.Id != targetForm.Id &&
+                f.ServiceVariantId == null &&
+                !f.IsDeleted &&
+                f.IsActive);
+
             targetForm.IsDeleted = false;
             targetForm.IsDeletedBy = string.Empty;
             targetForm.ServiceId = service.Id;
-            targetForm.Name = resolvedFormName;
+            if (!wasModifiedByAdmin || string.IsNullOrWhiteSpace(targetForm.Name))
+            {
+                targetForm.Name = resolvedFormName;
+            }
             if (string.IsNullOrWhiteSpace(targetForm.Key)) targetForm.Key = serviceKey;
-            targetForm.IsActive = true;
+            if (!anotherActiveBaseVersionExists && !wasModifiedByAdmin)
+            {
+                targetForm.IsActive = true;
+            }
+            else if (!anotherActiveBaseVersionExists && !targetForm.IsActive)
+            {
+                targetForm.IsActive = true;
+            }
 
+            // Only purge true corrupt same-version deleted duplicates; preserve admin-created Base Form versions (e.g. v2.0)
             var redundantForms = existingForms
-                .Where(f => f.Id != targetForm.Id && f.ServiceVariantId == null && f.BaseFormId == null)
+                .Where(f => f.Id != targetForm.Id &&
+                            f.ServiceVariantId == null &&
+                            f.BaseFormId == null &&
+                            f.IsDeleted &&
+                            string.Equals(f.Version, targetForm.Version, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             if (redundantForms.Count > 0)
             {
@@ -265,8 +317,13 @@ public static class FastTrackFormSeeder
                 sec.IsDeleted = false;
                 sec.IsDeletedBy = string.Empty;
                 sec.Key = key;
-                sec.Title = title;
-                sec.OrderIndex = sectionOrder++;
+                // Preserve admin-customized section title and ordering if already modified
+                if (!sec.LastModifiedAt.HasValue)
+                {
+                    sec.Title = title;
+                    sec.OrderIndex = sectionOrder;
+                }
+                sectionOrder++;
                 await context.SaveChangesAsync();
             }
 

@@ -21,7 +21,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useCatalogService, ServiceItem } from "@/services/catalogService";
+import { useCatalogService, ServiceCategory, ServiceItem } from "@/services/catalogService";
 import { FormSchema } from "./types";
 
 const EMPTY_FORMS: FormSchema[] = [];
@@ -39,6 +39,8 @@ interface CreateFormDialogProps {
   ) => void;
   isCreating?: boolean;
   existingForms?: FormSchema[];
+  categories?: ServiceCategory[];
+  services?: ServiceItem[];
 }
 
 export function CreateFormDialog({
@@ -47,6 +49,8 @@ export function CreateFormDialog({
   onCreate,
   isCreating = false,
   existingForms = EMPTY_FORMS,
+  categories: providedCategories,
+  services: providedServices,
 }: CreateFormDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -59,31 +63,38 @@ export function CreateFormDialog({
   const [serviceSearch, setServiceSearch] = useState("");
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
+  const hasProvidedServices = Boolean(providedServices && providedServices.length > 0);
+  const hasProvidedCategories = Boolean(providedCategories && providedCategories.length > 0);
+
   const { useServices, useServiceCategories } = useCatalogService();
-  const { data: servicesResponse } = useServices(undefined, 1, 200);
-  const { data: categoriesResponse } = useServiceCategories();
+  const { data: servicesResponse } = useServices(undefined, 1, 200, "", open && !hasProvidedServices);
+  const { data: categoriesResponse } = useServiceCategories(open && !hasProvidedCategories);
 
   const servicesList: ServiceItem[] = React.useMemo(() => {
+    if (providedServices && providedServices.length > 0) return providedServices;
     if (!servicesResponse) return [];
     return Array.isArray(servicesResponse)
       ? servicesResponse
       : Array.isArray(servicesResponse.data)
       ? servicesResponse.data
       : [];
-  }, [servicesResponse]);
+  }, [providedServices, servicesResponse]);
 
   const categoriesMap = React.useMemo(() => {
     const map = new Map<string, string>();
-    const list = Array.isArray(categoriesResponse)
-      ? categoriesResponse
-      : categoriesResponse && Array.isArray(categoriesResponse.data)
-      ? categoriesResponse.data
-      : [];
+    const list =
+      providedCategories && providedCategories.length > 0
+        ? providedCategories
+        : Array.isArray(categoriesResponse)
+        ? categoriesResponse
+        : categoriesResponse && Array.isArray(categoriesResponse.data)
+        ? categoriesResponse.data
+        : [];
     for (const c of list) {
       map.set(c.id, c.name);
     }
     return map;
-  }, [categoriesResponse]);
+  }, [providedCategories, categoriesResponse]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

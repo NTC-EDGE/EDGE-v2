@@ -1,16 +1,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { FormSchema, ServiceVariantToolbarItem } from "../types";
+import { isRecord } from "../utils/fieldDefaults";
+import { convertBackendFormToSchema, BackendFormDtoLike } from "../utils/schemaFromBackend";
 import {
-  convertBackendFormToSchema,
   isFieldApplicableForVariant,
   isExclusiveToVariant,
-  BackendFormDtoLike,
-  isRecord,
-} from "../utils";
-import {
-  collectAllFormVariants,
-  getEffectiveLinkedServices,
-} from "../canonicalFormServices";
+  findVariantOverrideEntry,
+  variantNamesMatch,
+} from "../utils/variantConditionUtils";
+import { collectAllFormVariants } from "../canonicalFormServices";
 import { useFormBuilderService } from "@/services/formBuilderService";
 import { useCatalogService, ServiceCategory, ServiceItem } from "@/services/catalogService";
 
@@ -18,30 +16,66 @@ function isBackendFormDtoLike(val: unknown): val is BackendFormDtoLike {
   return isRecord(val);
 }
 
-export function useFormBuilderCatalogAndList(activeForm: FormSchema | null) {
+export function useFormBuilderCatalogAndList(params: {
+  view: "list" | "builder";
+  activeForm: FormSchema | null;
+  workspaceVariants: ServiceVariantToolbarItem[];
+  workspaceServices: ServiceItem[];
+  shouldLoadFilterOptions: boolean;
+}) {
+  const {
+    view,
+    activeForm,
+    workspaceVariants,
+    workspaceServices,
+    shouldLoadFilterOptions,
+  } = params;
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft">("all");
 
+  // Debounce search input by 300ms so typing doesn't hammer the backend on every keystroke
+  useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (trimmed.length === 0) {
+      setDebouncedSearchTerm("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchTerm(trimmed);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
   const formService = useFormBuilderService();
+  const catalogService = useCatalogService();
+
+  // Dedicated lightweight summaries endpoint — called ONLY when on the List view!
   const {
     data: apiResponse,
     error: formsError,
     isLoading: loadingForms,
     mutate,
-  } = formService.useForms(
+  } = formService.useFormSummaries(
     currentPage,
     pageSize,
-    searchTerm,
+    debouncedSearchTerm,
     selectedServiceId || undefined,
     undefined,
-    undefined,
     selectedCategoryId || undefined,
-    statusFilter === "all" ? undefined : statusFilter === "active"
+    statusFilter === "all" ? undefined : statusFilter === "active",
+    view === "list"
   );
+
+  // Dedicated lightweight filter-options endpoint — called ONLY on demand when user opens filters/modals!
+  const enableFilterFetch =
+    shouldLoadFilterOptions || Boolean(selectedCategoryId) || Boolean(selectedServiceId);
+  const { data: filterOptionsResponse } = formService.useFormFilterOptions(enableFilterFetch);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -53,28 +87,22 @@ export function useFormBuilderCatalogAndList(activeForm: FormSchema | null) {
     }
   }, []);
 
-  const { useServiceCategories, useServices, useServiceVariants } = useCatalogService();
-  const { data: categoriesResponse } = useServiceCategories();
-  const { data: servicesResponse } = useServices(undefined, 1, 200);
-  const { data: serviceVariantsResponse } = useServiceVariants(activeForm?.serviceId);
-
   const categories: ServiceCategory[] = useMemo(() => {
-    if (!categoriesResponse) return [];
-    return Array.isArray(categoriesResponse)
-      ? categoriesResponse
-      : Array.isArray(categoriesResponse.data)
-      ? categoriesResponse.data
-      : [];
-  }, [categoriesResponse]);
+    return filterOptionsResponse?.data?.categories ?? [];
+  }, [filterOptionsResponse]);
 
   const services: ServiceItem[] = useMemo(() => {
-    if (!servicesResponse) return [];
-    return Array.isArray(servicesResponse)
-      ? servicesResponse
-      : Array.isArray(servicesResponse.data)
-      ? servicesResponse.data
-      : [];
-  }, [servicesResponse]);
+    const fromFilter = filterOptionsResponse?.data?.services ?? [];
+    if (workspaceServices.length === 0) return fromFilter;
+    if (fromFilter.length === 0) return workspaceServices;
+
+    const merged = new Map<string, ServiceItem>();
+    for (const s of fromFilter) merged.set(s.id, s);
+    for (const ws of workspaceServices) {
+      if (!merged.has(ws.id)) merged.set(ws.id, ws);
+    }
+    return Array.from(merged.values());
+  }, [filterOptionsResponse, workspaceServices]);
 
   const backendForms: FormSchema[] = useMemo(() => {
     if (!apiResponse || formsError) return [];
@@ -105,41 +133,8 @@ export function useFormBuilderCatalogAndList(activeForm: FormSchema | null) {
     return apiResponse.totalCount ?? forms.length;
   }, [apiResponse, formsError, pageSize, currentPage, forms.length]);
 
-  const backendServiceVariants: ServiceVariantToolbarItem[] = useMemo(() => {
-    if (!serviceVariantsResponse?.data || !activeForm) return [];
-    const effectiveServices = getEffectiveLinkedServices(activeForm, services);
-    const linkedServiceIds = new Set(
-      effectiveServices
-        .map((s) => s.id)
-        .filter((id): id is string => Boolean(id && !id.startsWith("canonical-")))
-    );
-    const linkedServiceNames = new Set(
-      effectiveServices.map((s) => (s.name ?? "").toLowerCase().trim()).filter(Boolean)
-    );
-    if (activeForm.serviceId) linkedServiceIds.add(activeForm.serviceId);
-    if (activeForm.serviceName) linkedServiceNames.add(activeForm.serviceName.toLowerCase().trim());
-
-    return serviceVariantsResponse.data
-      .filter(
-        (v) =>
-          (v.serviceId && linkedServiceIds.has(v.serviceId)) ||
-          (v.serviceName && linkedServiceNames.has(v.serviceName.toLowerCase().trim()))
-      )
-      .map((v) => {
-        const matchedSvc = services.find((s) => s.id === v.serviceId);
-        return {
-          id: v.id,
-          name:
-            v.description && v.description.trim().length > 0
-              ? `${v.description} (${v.type})`
-              : `${v.type}`,
-          serviceId: v.serviceId,
-          serviceName: v.serviceName || matchedSvc?.name,
-          serviceCode: matchedSvc?.code,
-          source: "service" as const,
-        };
-      });
-  }, [serviceVariantsResponse, activeForm, services]);
+  // Scoped variants delivered directly by the dedicated `/api/v2/forms/{id}/workspace` endpoint!
+  const backendServiceVariants: ServiceVariantToolbarItem[] = workspaceVariants;
 
   const currentFormVariants = useMemo(() => {
     if (!activeForm) return [];
@@ -153,14 +148,30 @@ export function useFormBuilderCatalogAndList(activeForm: FormSchema | null) {
 
   const customizedVariantNames = useMemo(() => {
     if (!activeForm) return [];
+    const customIds = new Set(
+      (activeForm.customizedVariantIds ?? []).map((id) => id.toLowerCase().trim())
+    );
     return currentFormVariants
-      .filter((v) =>
-        activeForm.fields.some(
-          (f) =>
-            f.type !== "divider" &&
-            (!isFieldApplicableForVariant(f, v.name) || isExclusiveToVariant(f, v.name))
-        )
-      )
+      .filter((v) => {
+        if (v.id && customIds.has(v.id.toLowerCase().trim())) {
+          return true;
+        }
+        return activeForm.fields.some((f) => {
+          if (f.type === "divider") return false;
+          if (!isFieldApplicableForVariant(f, v.name) || isExclusiveToVariant(f, v.name)) {
+            return true;
+          }
+          if (findVariantOverrideEntry(f.variantOverrides, v.name) !== undefined) {
+            return true;
+          }
+          if (f.variantTitles) {
+            for (const k of Object.keys(f.variantTitles)) {
+              if (variantNamesMatch(k, v.name)) return true;
+            }
+          }
+          return false;
+        });
+      })
       .map((v) => v.name);
   }, [activeForm, currentFormVariants]);
 
@@ -178,6 +189,7 @@ export function useFormBuilderCatalogAndList(activeForm: FormSchema | null) {
     statusFilter,
     setStatusFilter,
     formService,
+    catalogService,
     formsError,
     loadingForms,
     mutate,
@@ -187,6 +199,7 @@ export function useFormBuilderCatalogAndList(activeForm: FormSchema | null) {
     forms,
     resolvedTotalCount,
     backendServiceVariants,
+    currentFormVariants,
     allVariantNames,
     customizedVariantNames,
   };

@@ -1,7 +1,12 @@
 "use client";
 
 import React from "react";
-import { FormField } from "../types";
+import { FormField, ServiceVariantToolbarItem } from "../types";
+import {
+  resolveFieldForVariant,
+  getVariantsUsingField,
+  getVariantsUsingSection,
+} from "../utils/variantConditionUtils";
 import { CanvasField } from "../CanvasField";
 import { SectionGroup } from "./useCanvasSections";
 import { CanvasSectionHeader } from "./CanvasSectionHeader";
@@ -9,6 +14,7 @@ import { CanvasSectionHeader } from "./CanvasSectionHeader";
 export function CanvasSectionCard({
   group,
   allFields,
+  formVariants = [],
   isCollapsed,
   selectedFieldId,
   dragOverIndex,
@@ -26,6 +32,7 @@ export function CanvasSectionCard({
 }: {
   group: SectionGroup;
   allFields: FormField[];
+  formVariants?: ServiceVariantToolbarItem[];
   isCollapsed: boolean;
   selectedFieldId: string | null;
   dragOverIndex: number | null;
@@ -35,7 +42,12 @@ export function CanvasSectionCard({
   onSelectField: (id: string | null) => void;
   onDuplicateField: (id: string) => void;
   onDeleteField: (id: string) => void;
-  onRequestDeleteSection: (target: { id: string; title: string; childCount: number }) => void;
+  onRequestDeleteSection: (target: {
+    id: string;
+    title: string;
+    childCount: number;
+    contractRequired?: boolean;
+  }) => void;
   onFieldDragStart: (e: React.DragEvent<HTMLDivElement>, fieldId: string) => void;
   onFieldDragOver: (e: React.DragEvent<HTMLDivElement>, index: number) => void;
   onFieldDrop: (e: React.DragEvent<HTMLDivElement>, toIndex: number) => void;
@@ -44,6 +56,15 @@ export function CanvasSectionCard({
   const isSectionSelected = group.headerField ? selectedFieldId === group.headerField.id : false;
   const isHeaderDragOver = group.headerIndex >= 0 && dragOverIndex === group.headerIndex;
   const emptyDropIndex = group.headerIndex >= 0 ? group.headerIndex + 1 : allFields.length;
+  const isAllView = !selectedVariant || selectedVariant === "ALL";
+
+  const sectionUsingVariants = isAllView
+    ? getVariantsUsingSection(
+        group.headerField,
+        group.childFields.map((cf) => cf.field),
+        formVariants
+      )
+    : [];
 
   return (
     <div
@@ -70,10 +91,13 @@ export function CanvasSectionCard({
           isCollapsed={isCollapsed}
           isSectionSelected={isSectionSelected}
           isReadOnly={isReadOnly}
+          isDeleteLocked={isAllView && sectionUsingVariants.length > 0}
+          usedByVariantsCount={sectionUsingVariants.length}
           onToggleCollapse={onToggleCollapse}
           onSelectField={onSelectField}
           onDuplicateField={onDuplicateField}
           onRequestDeleteSection={onRequestDeleteSection}
+          onLockedDeleteSection={onDeleteField}
           onFieldDragStart={onFieldDragStart}
         />
 
@@ -108,21 +132,34 @@ export function CanvasSectionCard({
               <>
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
                   {group.childFields.map(({ field, originalIndex }) => {
+                    const displayField = isAllView ? field : resolveFieldForVariant(field, selectedVariant);
+                    const fieldUsingVariants =
+                      isAllView && field.type !== "divider"
+                        ? getVariantsUsingField(field, formVariants)
+                        : [];
                     const isHalfWidth =
-                      field.type !== "repeater" &&
-                      field.type !== "divider" &&
-                      field.type !== "section-header" &&
-                      (field.cols ?? 2) === 1;
+                      displayField.type !== "repeater" &&
+                      displayField.type !== "divider" &&
+                      displayField.type !== "section-header" &&
+                      (displayField.cols ?? 2) === 1;
                     return (
                       <div
                         key={`${field.id}-${originalIndex}`}
                         className={isHalfWidth ? "col-span-1" : "col-span-1 xl:col-span-2"}
                       >
                         <CanvasField
-                          field={field}
+                          field={displayField}
                           isSelected={selectedFieldId === field.id}
                           isDragOver={dragOverIndex === originalIndex}
                           allFields={allFields}
+                          selectedVariant={selectedVariant}
+                          formVariants={formVariants}
+                          isDeleteLocked={isAllView && fieldUsingVariants.length > 0}
+                          deleteLockTooltip={
+                            isAllView && fieldUsingVariants.length > 0
+                              ? `Used by ${fieldUsingVariants.length} Service Variant(s) — click to see which variants block deletion`
+                              : undefined
+                          }
                           isReadOnly={isReadOnly}
                           onSelect={() => onSelectField(field.id)}
                           onEdit={() => onSelectField(field.id)}
@@ -141,17 +178,18 @@ export function CanvasSectionCard({
                     onDragOver={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const lastIdx = group.childFields[group.childFields.length - 1].originalIndex;
-                      onSetDragOverIndex(lastIdx + 1);
+                      const lastItem = group.childFields[group.childFields.length - 1];
+                      if (lastItem) onSetDragOverIndex(lastItem.originalIndex + 1);
                     }}
                     onDrop={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const lastIdx = group.childFields[group.childFields.length - 1].originalIndex;
-                      onFieldDrop(e, lastIdx + 1);
+                      const lastItem = group.childFields[group.childFields.length - 1];
+                      if (lastItem) onFieldDrop(e, lastItem.originalIndex + 1);
                     }}
                     className={`h-8 rounded-xl border border-dashed transition-all flex items-center justify-center text-[10px] ${
-                      dragOverIndex === group.childFields[group.childFields.length - 1].originalIndex + 1
+                      dragOverIndex ===
+                      (group.childFields[group.childFields.length - 1]?.originalIndex ?? -2) + 1
                         ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 font-semibold"
                         : "border-slate-200 dark:border-slate-800 text-slate-400 hover:border-indigo-300 hover:text-indigo-600"
                     }`}

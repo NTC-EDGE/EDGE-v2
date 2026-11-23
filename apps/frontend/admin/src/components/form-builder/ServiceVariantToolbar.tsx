@@ -14,6 +14,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { ServiceVariantToolbarItem } from "./types";
+import { variantNamesMatch } from "./utils/variantConditionUtils";
 
 interface ServiceVariantToolbarProps {
   variants: ServiceVariantToolbarItem[];
@@ -40,6 +41,7 @@ export function ServiceVariantToolbar({
 }: ServiceVariantToolbarProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedServiceFilter, setSelectedServiceFilter] = useState("ALL");
+  const [selectedAppTypeFilter, setSelectedAppTypeFilter] = useState("ALL");
 
   // Extract unique distinct services from the variants list
   const distinctServices = useMemo(() => {
@@ -59,24 +61,38 @@ export function ServiceVariantToolbar({
     return Array.from(map.values());
   }, [variants]);
 
-  // Filter variants by search term and selected service filter
+  const distinctApplicationTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of variants) {
+      if (v.applicationType && v.applicationType.trim().length > 0) {
+        set.add(v.applicationType.trim());
+      }
+    }
+    return Array.from(set);
+  }, [variants]);
+
+  // Filter variants by search term, service filter, and application type filter
   const filteredVariants = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     return variants.filter((v) => {
-      // Service filter
       if (selectedServiceFilter !== "ALL") {
         if (!v.serviceName || v.serviceName.toLowerCase() !== selectedServiceFilter.toLowerCase()) {
           return false;
         }
       }
-      // Search term
+      if (selectedAppTypeFilter !== "ALL") {
+        if (!v.applicationType || v.applicationType.toLowerCase() !== selectedAppTypeFilter.toLowerCase()) {
+          return false;
+        }
+      }
       if (!term) return true;
       const nameMatch = v.name.toLowerCase().includes(term);
       const svcMatch = Boolean(v.serviceName && v.serviceName.toLowerCase().includes(term));
       const codeMatch = Boolean(v.serviceCode && v.serviceCode.toLowerCase().includes(term));
-      return nameMatch || svcMatch || codeMatch;
+      const appTypeMatch = Boolean(v.applicationType && v.applicationType.toLowerCase().includes(term));
+      return nameMatch || svcMatch || codeMatch || appTypeMatch;
     });
-  }, [variants, searchTerm, selectedServiceFilter]);
+  }, [variants, searchTerm, selectedServiceFilter, selectedAppTypeFilter]);
 
   const isFiltered = selectedVariant !== "ALL";
 
@@ -175,6 +191,25 @@ export function ServiceVariantToolbar({
               </select>
             </div>
           )}
+
+          {/* Application Type Dropdown Filter */}
+          {distinctApplicationTypes.length > 1 && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={selectedAppTypeFilter}
+                onChange={(e) => setSelectedAppTypeFilter(e.target.value)}
+                className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 max-w-[180px] truncate"
+              >
+                <option value="ALL">All Application Types</option>
+                {distinctApplicationTypes.map((appType) => (
+                  <option key={appType} value={appType}>
+                    {appType}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Counter of matching variants */}
@@ -190,6 +225,7 @@ export function ServiceVariantToolbar({
           <button
             type="button"
             onClick={() => onSelectVariant("ALL")}
+            title="Seeded Base Form superset: displays every section and field across all Service Variants"
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
               selectedVariant === "ALL"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-2 ring-indigo-500/30"
@@ -199,7 +235,7 @@ export function ServiceVariantToolbar({
             {selectedVariant === "ALL" && (
               <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
             )}
-            <span>All Sections & Fields</span>
+            <span>All Sections &amp; Fields</span>
             <span
               className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
                 selectedVariant === "ALL"
@@ -213,7 +249,8 @@ export function ServiceVariantToolbar({
 
           {/* Dynamic Variant Buttons */}
           {filteredVariants.map((v) => {
-            const isSelected = selectedVariant.toLowerCase().trim() === v.name.toLowerCase().trim();
+            const isSelected = variantNamesMatch(v.name, selectedVariant) || selectedVariant.toLowerCase().trim() === v.name.toLowerCase().trim();
+            const isCustomized = customizedVariantNames.some((cv) => variantNamesMatch(cv, v.name));
 
             return (
               <button
@@ -230,8 +267,8 @@ export function ServiceVariantToolbar({
                 {isSelected && (
                   <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
                 )}
-                {customizedVariantNames.includes(v.name) && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Independent custom form configured" />
+                {isCustomized && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Customized Service Variant configuration" />
                 )}
                 <span className="truncate">{v.name}</span>
                 {v.serviceCode && (
@@ -257,6 +294,7 @@ export function ServiceVariantToolbar({
                 onClick={() => {
                   setSearchTerm("");
                   setSelectedServiceFilter("ALL");
+                  setSelectedAppTypeFilter("ALL");
                 }}
                 className="ml-2 text-indigo-600 dark:text-indigo-400 underline font-semibold not-italic"
               >
@@ -281,7 +319,7 @@ export function ServiceVariantToolbar({
           </div>
 
           <div className="flex items-center gap-2 shrink-0 ml-3">
-            {onRevertVariantToBase && customizedVariantNames.includes(selectedVariant) && (
+            {onRevertVariantToBase && customizedVariantNames.some((cv) => variantNamesMatch(cv, selectedVariant)) && (
               <button
                 type="button"
                 onClick={() => onRevertVariantToBase(selectedVariant)}

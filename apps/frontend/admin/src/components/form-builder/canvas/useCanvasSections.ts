@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { FormField, FormSchema } from "../types";
-import { parseFieldCondition, isFieldApplicableForVariant } from "../utils";
+import { isFieldApplicableForVariant } from "../utils/variantConditionUtils";
 
 export interface SectionGroup {
   id: string;
@@ -78,11 +78,18 @@ export function useCanvasSections(
     return groups;
   }, [form.fields, selectedVariant]);
 
+  const isDedicatedVariantPayload = Boolean(
+    selectedVariant && selectedVariant !== "ALL" && form.serviceVariantId
+  );
+
   const isSectionApplicable = useCallback(
     (
       headerField: FormField | null,
       childFields: Array<{ field: FormField; originalIndex: number }>
     ): boolean => {
+      if (isDedicatedVariantPayload) {
+        return true;
+      }
       if (headerField && !isFieldApplicableForVariant(headerField, selectedVariant)) {
         return false;
       }
@@ -98,10 +105,13 @@ export function useCanvasSections(
 
       return false;
     },
-    [selectedVariant]
+    [selectedVariant, isDedicatedVariantPayload]
   );
 
   const displayedSectionGroups = useMemo(() => {
+    if (isDedicatedVariantPayload) {
+      return sectionGroups;
+    }
     return sectionGroups
       .filter((group) => isSectionApplicable(group.headerField, group.childFields))
       .map((group) => ({
@@ -110,7 +120,7 @@ export function useCanvasSections(
           isFieldApplicableForVariant(cf.field, selectedVariant)
         ),
       }));
-  }, [sectionGroups, selectedVariant, isSectionApplicable]);
+  }, [sectionGroups, selectedVariant, isSectionApplicable, isDedicatedVariantPayload]);
 
   const applicableFieldsCount = useMemo(() => {
     return displayedSectionGroups.reduce(

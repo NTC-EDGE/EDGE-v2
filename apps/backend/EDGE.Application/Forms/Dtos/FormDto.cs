@@ -39,6 +39,8 @@ public class FormDto
     public bool IsActive { get; set; } = true;
     public bool CategorySelectionRequired { get; set; }
     public bool IsCustomized { get; set; }
+    public int LinkedVariantsCount { get; set; }
+    public List<Guid> CustomizedVariantIds { get; set; } = new();
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public List<FormSectionDto> Sections { get; set; } = new();

@@ -31,10 +31,19 @@ export function CanvasDialogs({
   isResetConfirmOpen: boolean;
   onCloseResetConfirm: () => void;
   onResetFromBaseForm?: () => void;
-  sectionDeleteTarget: { id: string; title: string; childCount: number } | null;
+  sectionDeleteTarget: {
+    id: string;
+    title: string;
+    childCount: number;
+    contractRequired?: boolean;
+  } | null;
   onCloseSectionDelete: () => void;
   onDeleteField: (id: string) => void;
 }) {
+  const contractNotice = sectionDeleteTarget?.contractRequired
+    ? " Warning: This section is linked to the Service Contract schema — removing or renaming its key may affect backend contract validation."
+    : "";
+
   return (
     <>
       <LinkServiceModal
@@ -61,12 +70,12 @@ export function CanvasDialogs({
       <ConfirmActionDialog
         isOpen={Boolean(sectionDeleteTarget)}
         onClose={onCloseSectionDelete}
-        title={selectedVariant === "ALL" ? "Delete Section" : `Remove Section from "${selectedVariant}"`}
+        title={selectedVariant === "ALL" ? "Delete Unused Section" : `Remove Section from "${selectedVariant}"`}
         description={
           sectionDeleteTarget
             ? selectedVariant === "ALL"
-              ? `Are you sure you want to delete section "${sectionDeleteTarget.title}" and all ${sectionDeleteTarget.childCount} field(s) inside it from the base form?`
-              : `Are you sure you want to remove section "${sectionDeleteTarget.title}" and its ${sectionDeleteTarget.childCount} active field(s) from "${selectedVariant}"? This will hide the section for "${selectedVariant}" while keeping it intact on the shared base form for other service variants.`
+              ? `Are you sure you want to permanently delete unused section "${sectionDeleteTarget.title}" and all ${sectionDeleteTarget.childCount} field(s) inside it from the Base Form?${contractNotice}`
+              : `Are you sure you want to remove section "${sectionDeleteTarget.title}" and its ${sectionDeleteTarget.childCount} active field(s) from "${selectedVariant}"? This will hide the section for "${selectedVariant}" while keeping it intact on the shared Base Form for other Service Variants.${contractNotice}`
             : "Are you sure you want to delete this section?"
         }
         confirmLabel={selectedVariant === "ALL" ? "Delete Section & Fields" : "Remove from This Variant"}

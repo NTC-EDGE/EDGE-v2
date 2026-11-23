@@ -5,4 +5,6 @@ using EDGE.Application.Forms.Dtos;
 
 namespace EDGE.Application.Forms.Queries.GetFormByVariantId;
 
-public record GetFormByVariantIdQuery(Guid VariantId) : IRequest<ApiResponse<FormDto>>;
+public record GetFormByVariantIdQuery(
+    Guid VariantId,
+    Guid? FormId = null) : IRequest<ApiResponse<FormDto>>;

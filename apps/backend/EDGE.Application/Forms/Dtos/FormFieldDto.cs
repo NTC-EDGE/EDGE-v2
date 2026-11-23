@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Forms.Dtos;
 
@@ -24,6 +28,135 @@ public class FormFieldDto
     public string? ValidationRules { get; set; }
     public string? VisibilityCondition { get; set; }
     public List<FormFieldOptionDto>? Options { get; set; }
+
+    public static FormFieldDto FromSectionField(SectionField sf, ServiceVariant? activeVariant = null, Guid? formId = null)
+    {
+        var label = sf.Field?.Label ?? string.Empty;
+        var type = sf.Field?.FieldType ?? string.Empty;
+        var isRequired = sf.IsRequired;
+        var validationRules = sf.Field?.ValidationRules;
+
+        if (activeVariant != null && !string.IsNullOrWhiteSpace(validationRules) &&
+            validationRules.Trim().StartsWith("{", StringComparison.Ordinal))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(validationRules.Trim());
+                if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                    doc.RootElement.TryGetProperty("variantOverrides", out var overridesEl) &&
+                    overridesEl.ValueKind == JsonValueKind.Object)
+                {
+                    JsonElement? matchedOv = null;
+                    string formScopedSuffix = formId.HasValue && formId.Value != Guid.Empty
+                        ? $"::form::{formId.Value}"
+                        : string.Empty;
+
+                    // 1. Prefer version-specific override if loading a specific Draft variant version
+                    if (!string.IsNullOrEmpty(formScopedSuffix))
+                    {
+                        foreach (var prop in overridesEl.EnumerateObject())
+                        {
+                            if (prop.Name.EndsWith(formScopedSuffix, StringComparison.OrdinalIgnoreCase) &&
+                                prop.Value.ValueKind == JsonValueKind.Object)
+                            {
+                                matchedOv = prop.Value;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 2. Otherwise fall back to the active variant override
+                    if (!matchedOv.HasValue)
+                    {
+                        foreach (var prop in overridesEl.EnumerateObject())
+                        {
+                            if (prop.Name.Contains("::form::", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (MatchesServiceVariant(prop.Name, activeVariant) && prop.Value.ValueKind == JsonValueKind.Object)
+                            {
+                                matchedOv = prop.Value;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (matchedOv.HasValue)
+                    {
+                        var ov = matchedOv.Value;
+                        if (ov.TryGetProperty("label", out var lblEl) && lblEl.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(lblEl.GetString()))
+                        {
+                            label = lblEl.GetString()!;
+                        }
+                        if (ov.TryGetProperty("required", out var reqEl) && (reqEl.ValueKind == JsonValueKind.True || reqEl.ValueKind == JsonValueKind.False))
+                        {
+                            isRequired = reqEl.GetBoolean();
+                        }
+
+                        var updatedNode = JsonNode.Parse(validationRules.Trim()) as JsonObject;
+                        if (updatedNode != null)
+                        {
+                            if (ov.TryGetProperty("placeholder", out var phEl) && phEl.ValueKind == JsonValueKind.String)
+                                updatedNode["placeholder"] = phEl.GetString();
+                            if (ov.TryGetProperty("helpText", out var htEl) && htEl.ValueKind == JsonValueKind.String)
+                                updatedNode["helpText"] = htEl.GetString();
+                            if (ov.TryGetProperty("options", out var optEl) && optEl.ValueKind == JsonValueKind.Array)
+                                updatedNode["options"] = JsonNode.Parse(optEl.GetRawText());
+                            updatedNode.Remove("variantOverrides");
+                            updatedNode.Remove("sectionVariantTitles");
+                            validationRules = updatedNode.ToJsonString();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore JSON parse errors
+            }
+        }
+
+        return new FormFieldDto
+        {
+            FieldId = sf.FieldId,
+            Label = label,
+            Type = type,
+            IsRequired = isRequired,
+            OrderIndex = sf.OrderIndex,
+            ValidationRules = validationRules,
+            VisibilityCondition = sf.VisibilityCondition,
+            Options = ExtractOptions(validationRules)
+        };
+    }
+
+    internal static bool MatchesServiceVariant(string ruleToken, ServiceVariant variant)
+    {
+        if (string.IsNullOrWhiteSpace(ruleToken)) return false;
+        var trimmed = ruleToken.Trim();
+        if (Guid.TryParse(trimmed, out var g) && g == variant.Id) return true;
+
+        static string Norm(string? s) => string.IsNullOrWhiteSpace(s)
+            ? string.Empty
+            : Regex.Replace(s.Trim().ToLowerInvariant(), "[^a-z0-9]", string.Empty);
+
+        var typeLabel = variant.Type switch
+        {
+            ServiceVariantType.NA => string.Empty,
+            ServiceVariantType.FirstTaker => "First Taker",
+            ServiceVariantType.CivicActionGroup => "Civic Action Group",
+            _ => variant.Type.ToString()
+        };
+        var desc = (variant.Description ?? string.Empty).Trim();
+        var displayName = string.IsNullOrEmpty(desc)
+            ? (string.IsNullOrEmpty(typeLabel) ? "Variant" : typeLabel)
+            : (string.IsNullOrEmpty(typeLabel) || desc.EndsWith($"({typeLabel})", StringComparison.OrdinalIgnoreCase)
+                ? desc
+                : $"{desc} ({typeLabel})");
+
+        var normRule = Norm(trimmed);
+        var normDisplay = Norm(displayName);
+        var normRaw = Norm(!string.IsNullOrEmpty(desc) && variant.Type != ServiceVariantType.NA ? $"{desc} ({variant.Type})" : desc);
+        var normType = variant.Type == ServiceVariantType.NA ? string.Empty : Norm(variant.Type.ToString());
+
+        return normRule.Length > 0 && (normRule == normDisplay || normRule == normRaw || (!string.IsNullOrEmpty(normType) && normRule == normType));
+    }
 
     public static List<FormFieldOptionDto>? ExtractOptions(string? validationRules)
     {

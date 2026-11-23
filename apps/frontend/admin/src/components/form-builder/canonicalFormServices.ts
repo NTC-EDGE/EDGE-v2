@@ -1,5 +1,5 @@
-import { FormSchema, FormField, LinkedServiceItem, ServiceVariantToolbarItem } from "./types";
-import { parseFieldCondition } from "./utils";
+import { FormSchema, LinkedServiceItem, ServiceVariantToolbarItem } from "./types";
+import { inferApplicationTypeFromVariantName } from "./utils/variantConditionUtils";
 import { NTC_CATALOG } from "./ntcCatalogConstants";
 import { ServiceItem } from "@/services/catalogService";
 
@@ -450,7 +450,8 @@ export function collectAllFormVariants(
     serviceName?: string,
     serviceCode?: string,
     source: ServiceVariantToolbarItem["source"] = "service",
-    id?: string
+    id?: string,
+    applicationType?: string
   ) => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -464,6 +465,7 @@ export function collectAllFormVariants(
       serviceId,
       serviceName,
       serviceCode,
+      applicationType: applicationType ?? inferApplicationTypeFromVariantName(trimmed),
       source,
     });
   };
@@ -477,7 +479,7 @@ export function collectAllFormVariants(
   }
 
   for (const v of apiVariants) {
-    addVariant(v.name, v.serviceId, v.serviceName, v.serviceCode, "service", v.id);
+    addVariant(v.name, v.serviceId, v.serviceName, v.serviceCode, "service", v.id, v.applicationType);
   }
 
   // 2. Canonical default variants for linked services not already covered by apiVariants

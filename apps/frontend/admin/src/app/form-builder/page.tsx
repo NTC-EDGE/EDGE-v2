@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { FormSchema } from "@/components/form-builder/types";
+import { FormSchema, ServiceVariantToolbarItem } from "@/components/form-builder/types";
+import { ServiceItem } from "@/services/catalogService";
+import { resolveFieldForVariant } from "@/components/form-builder/utils/variantConditionUtils";
 import { ToastMessage } from "@/components/ui/toast-notification";
 import { useFormBuilderCatalogAndList } from "@/components/form-builder/page/useFormBuilderCatalogAndList";
 import { useFormPersistenceAndLifecycle } from "@/components/form-builder/page/useFormPersistenceAndLifecycle";
 import { useFormSaveAndNavigation, PendingNavState } from "@/components/form-builder/page/useFormSaveAndNavigation";
-import { useBuilderFieldActions } from "@/components/form-builder/page/useBuilderFieldActions";
+import { useBuilderFieldActions, BlockedDeletionNotice } from "@/components/form-builder/page/useBuilderFieldActions";
 import { FormBuilderWorkspaceView } from "@/components/form-builder/page/FormBuilderWorkspaceView";
 import { FormBuilderListView } from "@/components/form-builder/page/FormBuilderListView";
 
@@ -19,6 +21,10 @@ function FormBuilderContent() {
   const [previewForm, setPreviewForm] = useState<FormSchema | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FormSchema | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false);
+  const [shouldLoadFilterOptions, setShouldLoadFilterOptions] = useState(false);
+  const [workspaceVariants, setWorkspaceVariants] = useState<ServiceVariantToolbarItem[]>([]);
+  const [workspaceServices, setWorkspaceServices] = useState<ServiceItem[]>([]);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
@@ -29,35 +35,93 @@ function FormBuilderContent() {
   const [selectedVariant, setSelectedVariant] = useState<string>("ALL");
   const [isVariantEditMode, setIsVariantEditMode] = useState<boolean>(false);
   const [pendingNav, setPendingNav] = useState<PendingNavState>(null);
+  const [blockedDeletion, setBlockedDeletion] = useState<BlockedDeletionNotice | null>(null);
   const originalFormRef = useRef<string | null>(null);
 
-  const catalog = useFormBuilderCatalogAndList(activeForm);
+  const catalog = useFormBuilderCatalogAndList({
+    view,
+    activeForm,
+    workspaceVariants,
+    workspaceServices,
+    shouldLoadFilterOptions,
+  });
 
   const lifecycle = useFormPersistenceAndLifecycle({
-    activeForm, setActiveForm, setMasterBaseForm, setSelectedFieldId, setSelectedVariant,
-    setIsVariantEditMode, setIsDirty, setView, setPreviewForm, setIsCreateDialogOpen,
-    deleteTarget, setDeleteTarget, setToast, originalFormRef,
-    backendForms: catalog.backendForms, formService: catalog.formService, mutate: catalog.mutate,
+    activeForm,
+    masterBaseForm,
+    setActiveForm,
+    setMasterBaseForm,
+    setWorkspaceVariants,
+    setWorkspaceServices,
+    setIsLoadingWorkspace,
+    setSelectedFieldId,
+    selectedVariant,
+    setSelectedVariant,
+    setIsVariantEditMode,
+    setIsDirty,
+    setView,
+    setPreviewForm,
+    setIsCreateDialogOpen,
+    deleteTarget,
+    setDeleteTarget,
+    setToast,
+    originalFormRef,
+    backendForms: catalog.backendForms,
+    backendServiceVariants: catalog.backendServiceVariants,
+    currentFormVariants: catalog.currentFormVariants,
+    formService: catalog.formService,
+    catalogService: catalog.catalogService,
+    mutate: catalog.mutate,
   });
 
   const fieldActions = useBuilderFieldActions({
-    activeForm, setActiveForm, selectedFieldId, setSelectedFieldId, selectedVariant,
-    setSelectedVariant, setIsVariantEditMode, setIsDirty, setToast,
-    allVariantNames: catalog.allVariantNames, originalFormRef,
-    masterBaseForm, backendServiceVariants: catalog.backendServiceVariants,
-    formService: catalog.formService, mutate: catalog.mutate,
-    setPendingNav, setIsUnsavedDialogOpen, isDirty,
+    activeForm,
+    setActiveForm,
+    setMasterBaseForm,
+    setIsLoadingWorkspace,
+    selectedFieldId,
+    setSelectedFieldId,
+    selectedVariant,
+    setSelectedVariant,
+    setIsVariantEditMode,
+    setIsDirty,
+    setToast,
+    allVariantNames: catalog.allVariantNames,
+    currentFormVariants: catalog.currentFormVariants,
+    originalFormRef,
+    masterBaseForm,
+    backendServiceVariants: catalog.backendServiceVariants,
+    formService: catalog.formService,
+    mutate: catalog.mutate,
+    setPendingNav,
+    setIsUnsavedDialogOpen,
+    setBlockedDeletion,
+    isDirty,
   });
 
   const saveNav = useFormSaveAndNavigation({
-    activeForm, setActiveForm, setMasterBaseForm, setSelectedFieldId, setIsDirty, setIsSaving,
-    setIsSaveConfirmOpen, setIsUnsavedDialogOpen, pendingNav, setPendingNav, setView, setToast,
-    originalFormRef, formService: catalog.formService, mutate: catalog.mutate,
+    activeForm,
+    setActiveForm,
+    setMasterBaseForm,
+    setSelectedFieldId,
+    setIsDirty,
+    setIsSaving,
+    setIsSaveConfirmOpen,
+    setIsUnsavedDialogOpen,
+    pendingNav,
+    setPendingNav,
+    setView,
+    setToast,
+    originalFormRef,
+    formService: catalog.formService,
+    mutate: catalog.mutate,
     executeSelectVariant: fieldActions.executeSelectVariant,
     executeSwitchVersion: lifecycle.executeSwitchVersion,
     handleSetActive: lifecycle.handleSetActive,
     selectedVariant,
     backendServiceVariants: catalog.backendServiceVariants,
+    currentFormVariants: catalog.currentFormVariants,
+    customizedVariantNames: catalog.customizedVariantNames,
     masterBaseForm,
   });
 
@@ -72,13 +136,19 @@ function FormBuilderContent() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [view, isDirty]);
 
-  const selectedField = activeForm?.fields.find((f) => f.id === selectedFieldId) ?? null;
+  const rawSelectedField = activeForm?.fields.find((f) => f.id === selectedFieldId) ?? null;
+  const selectedField = rawSelectedField
+    ? activeForm?.serviceVariantId
+      ? rawSelectedField
+      : resolveFieldForVariant(rawSelectedField, selectedVariant)
+    : null;
 
   if (view === "builder" && activeForm) {
     return (
       <FormBuilderWorkspaceView
         activeForm={activeForm}
         masterBaseForm={masterBaseForm}
+        isLoadingWorkspace={isLoadingWorkspace}
         selectedField={selectedField}
         selectedFieldId={selectedFieldId}
         selectedVariant={selectedVariant}
@@ -89,13 +159,19 @@ function FormBuilderContent() {
         isDirty={isDirty}
         isSaveConfirmOpen={isSaveConfirmOpen}
         isUnsavedDialogOpen={isUnsavedDialogOpen}
+        isPropagationDialogOpen={saveNav.isPropagationDialogOpen}
+        propagationImpact={saveNav.propagationImpact}
+        blockedDeletion={blockedDeletion}
         deleteTarget={deleteTarget}
         previewForm={previewForm}
         toast={toast}
         services={catalog.services}
         categories={catalog.categories}
         backendServiceVariants={catalog.backendServiceVariants}
+        currentFormVariants={catalog.currentFormVariants}
         customizedVariantNames={catalog.customizedVariantNames}
+        onRequestFilterOptions={() => setShouldLoadFilterOptions(true)}
+        onLinkedServicesChanged={(svcs) => void lifecycle.handleLinkedServicesChanged(svcs)}
         onCloseToast={() => setToast(null)}
         onBackToList={() => saveNav.handleBackToList(isDirty)}
         onSelectField={setSelectedFieldId}
@@ -103,6 +179,10 @@ function FormBuilderContent() {
         onSetRightPanelOpen={setIsRightPanelOpen}
         onSetVariantEditMode={setIsVariantEditMode}
         onSetSaveConfirmOpen={setIsSaveConfirmOpen}
+        onOpenSaveFlow={saveNav.handleOpenSaveFlow}
+        onClosePropagationDialog={() => saveNav.setIsPropagationDialogOpen(false)}
+        onConfirmPropagationSave={saveNav.handleConfirmPropagationSave}
+        onCloseBlockedDeletion={() => setBlockedDeletion(null)}
         onSetUnsavedDialogOpen={setIsUnsavedDialogOpen}
         onSetDeleteTarget={setDeleteTarget}
         onSetPreviewForm={setPreviewForm}
@@ -113,7 +193,7 @@ function FormBuilderContent() {
         onDeleteField={fieldActions.handleDeleteField}
         onUpdateField={fieldActions.handleUpdateField}
         onSwitchVersion={(id) => void saveNav.handleSwitchVersion(id, isDirty)}
-        onSetActiveCurrent={saveNav.handleSetActiveCurrent}
+        onSetActiveCurrent={() => saveNav.handleSetActiveCurrent(isDirty)}
         onDuplicateForm={lifecycle.handleDuplicateForm}
         onSelectVariant={fieldActions.handleSelectVariant}
         onCustomizeVariant={fieldActions.handleCustomizeVariant}
@@ -147,20 +227,36 @@ function FormBuilderContent() {
       previewForm={previewForm}
       toast={toast}
       onCloseToast={() => setToast(null)}
-      onEdit={lifecycle.handleOpenEditor}
+      onEdit={(form) => void lifecycle.handleOpenEditor(form)}
       onPreview={lifecycle.handleOpenPreview}
       onDuplicate={lifecycle.handleDuplicateForm}
       onDelete={(form) => setDeleteTarget(form)}
       onSetActive={lifecycle.handleSetActive}
       onSetCreateDialogOpen={setIsCreateDialogOpen}
       onCreateNew={lifecycle.handleCreateNew}
-      onSearchChange={(term) => { catalog.setSearchTerm(term); catalog.setCurrentPage(1); }}
-      onCategoryChange={(catId) => { catalog.setSelectedCategoryId(catId); catalog.setCurrentPage(1); }}
-      onServiceChange={(svcId) => { catalog.setSelectedServiceId(svcId); catalog.setCurrentPage(1); }}
-      onStatusFilterChange={(nextStatus) => { catalog.setStatusFilter(nextStatus); catalog.setCurrentPage(1); }}
+      onSearchChange={(term) => {
+        catalog.setSearchTerm(term);
+        catalog.setCurrentPage(1);
+      }}
+      onCategoryChange={(catId) => {
+        catalog.setSelectedCategoryId(catId);
+        catalog.setCurrentPage(1);
+      }}
+      onServiceChange={(svcId) => {
+        catalog.setSelectedServiceId(svcId);
+        catalog.setCurrentPage(1);
+      }}
+      onStatusFilterChange={(nextStatus) => {
+        catalog.setStatusFilter(nextStatus);
+        catalog.setCurrentPage(1);
+      }}
       onPageChange={catalog.setCurrentPage}
-      onPageSizeChange={(newSize) => { catalog.setPageSize(newSize); catalog.setCurrentPage(1); }}
+      onPageSizeChange={(newSize) => {
+        catalog.setPageSize(newSize);
+        catalog.setCurrentPage(1);
+      }}
       onRetry={() => void catalog.mutate()}
+      onRequestFilterOptions={() => setShouldLoadFilterOptions(true)}
       onSetDeleteTarget={setDeleteTarget}
       onDeleteFormConfirm={lifecycle.handleDeleteFormConfirm}
       onSetPreviewForm={setPreviewForm}

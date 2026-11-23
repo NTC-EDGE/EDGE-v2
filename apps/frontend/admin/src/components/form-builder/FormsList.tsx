@@ -28,6 +28,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { FormSchema, FormVersionSummary } from "./types";
+import { getEffectiveLinkedServices } from "./canonicalFormServices";
 import { Pagination } from "@/components/ui/pagination";
 import { ServiceCategory, ServiceItem } from "@/services/catalogService";
 
@@ -57,6 +58,7 @@ interface FormsListProps {
   loading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
+  onRequestFilterOptions?: () => void;
 }
 
 function formatFormBadge(code?: string): string {
@@ -90,6 +92,7 @@ export function FormsList({
   loading = false,
   isError = false,
   onRetry,
+  onRequestFilterOptions,
 }: FormsListProps) {
   const [internalStatusFilter, setInternalStatusFilter] = useState<"all" | "active" | "draft">("all");
   const statusFilter = controlledStatusFilter ?? internalStatusFilter;
@@ -136,7 +139,11 @@ export function FormsList({
 
     if (selectedCategoryId && !selectedServiceId) {
       const validServiceIds = new Set(filteredServices.map((s) => s.id));
-      result = result.filter((f) => f.serviceId && validServiceIds.has(f.serviceId));
+      result = result.filter(
+        (f) =>
+          (f.serviceId && validServiceIds.has(f.serviceId)) ||
+          getEffectiveLinkedServices(f, services).some((ls) => validServiceIds.has(ls.id))
+      );
     }
 
     if (searchTerm && !onPageChange) {
@@ -251,8 +258,12 @@ export function FormsList({
           </div>
         </div>
 
-        {/* Dropdown Filters */}
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+        {/* Dropdown Filters (loaded on demand when hovered/focused) */}
+        <div
+          onMouseEnter={() => onRequestFilterOptions?.()}
+          onFocus={() => onRequestFilterOptions?.()}
+          className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80"
+        >
           <select
             value={selectedCategoryId}
             onChange={(e) => {
@@ -411,6 +422,19 @@ export function FormsList({
                               {form.serviceCode && (
                                 <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
                                   {formatFormBadge(form.serviceCode)}
+                                </span>
+                              )}
+                              {(() => {
+                                const linkedSvcs = getEffectiveLinkedServices(form, services);
+                                return linkedSvcs.length > 1 ? (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/60">
+                                    {linkedSvcs.length} Services
+                                  </span>
+                                ) : null;
+                              })()}
+                              {(form.linkedVariantsCount ?? 0) > 0 && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                                  {form.linkedVariantsCount} {form.linkedVariantsCount === 1 ? "Variant" : "Variants"}
                                 </span>
                               )}
                               {form.serviceVariantName && (

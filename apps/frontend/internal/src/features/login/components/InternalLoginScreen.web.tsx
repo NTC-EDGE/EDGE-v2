@@ -197,7 +197,9 @@ export function InternalLoginScreen(): React.ReactElement {
                 <View style={[styles.cardMainBody, isMobile && { padding: 20 }]}>
                   <Text style={[styles.formMainHeading, { color: colors.text }]}>Sign In to Workstation</Text>
                   <Text style={[styles.formSubHeading, { color: colors.textMuted }]}>
-                    Enter your staff credentials or continue with Google SSO.
+                    {loginState.showGoogleSso
+                      ? "Enter your staff credentials or continue with Google SSO."
+                      : "Enter your staff credentials to continue."}
                   </Text>
 
                   {/* Isolated Form Component */}

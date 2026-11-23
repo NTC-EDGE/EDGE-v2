@@ -9,6 +9,8 @@ import {
   Pencil,
   Copy,
   Trash2,
+  Lock,
+  ShieldCheck,
 } from "lucide-react";
 import { SectionGroup } from "./useCanvasSections";
 
@@ -17,22 +19,36 @@ export function CanvasSectionHeader({
   isCollapsed,
   isSectionSelected,
   isReadOnly,
+  isDeleteLocked = false,
+  usedByVariantsCount = 0,
   onToggleCollapse,
   onSelectField,
   onDuplicateField,
   onRequestDeleteSection,
+  onLockedDeleteSection,
   onFieldDragStart,
 }: {
   group: SectionGroup;
   isCollapsed: boolean;
   isSectionSelected: boolean;
   isReadOnly: boolean;
+  isDeleteLocked?: boolean;
+  usedByVariantsCount?: number;
   onToggleCollapse: (sectionId: string) => void;
   onSelectField: (id: string | null) => void;
   onDuplicateField: (id: string) => void;
-  onRequestDeleteSection: (target: { id: string; title: string; childCount: number }) => void;
+  onRequestDeleteSection: (target: {
+    id: string;
+    title: string;
+    childCount: number;
+    contractRequired?: boolean;
+  }) => void;
+  onLockedDeleteSection?: (sectionId: string) => void;
   onFieldDragStart: (e: React.DragEvent<HTMLDivElement>, fieldId: string) => void;
 }) {
+  const sectionId = group.headerField ? group.headerField.id : "default-section";
+  const isContractRequired = Boolean(group.headerField?.contractRequired);
+
   return (
     <div
       draggable={!isReadOnly && group.headerField !== null}
@@ -48,7 +64,7 @@ export function CanvasSectionHeader({
           : "bg-slate-50/90 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/60 hover:bg-indigo-50/40 dark:hover:bg-slate-800/90"
       }`}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
         {group.headerField && !isReadOnly && (
           <div
             className="text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-grab active:cursor-grabbing p-0.5"
@@ -75,6 +91,15 @@ export function CanvasSectionHeader({
         <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-200/70 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-mono shrink-0">
           {group.childFields.length} {group.childFields.length === 1 ? "field" : "fields"}
         </span>
+        {isContractRequired && (
+          <span
+            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shrink-0"
+            title="Section key is referenced by the Service Contract schema"
+          >
+            <ShieldCheck className="w-3 h-3" />
+            Contract Linked
+          </span>
+        )}
         {isCollapsed && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 font-medium border border-amber-300 dark:border-amber-700 shrink-0">
             Minimized
@@ -83,7 +108,7 @@ export function CanvasSectionHeader({
       </div>
 
       {!isReadOnly && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {group.headerField && (
             <>
               <button
@@ -114,16 +139,29 @@ export function CanvasSectionHeader({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              if (isDeleteLocked && onLockedDeleteSection) {
+                onLockedDeleteSection(sectionId);
+                return;
+              }
               onRequestDeleteSection({
-                id: group.headerField ? group.headerField.id : "default-section",
+                id: sectionId,
                 title: group.title,
                 childCount: group.childFields.length,
+                contractRequired: isContractRequired,
               });
             }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
-            title="Delete section and its fields"
+            className={`p-1.5 rounded-lg transition-colors ${
+              isDeleteLocked
+                ? "text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                : "text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30"
+            }`}
+            title={
+              isDeleteLocked
+                ? `Used by ${usedByVariantsCount} Service Variant(s) — click to see which variants block deletion`
+                : "Delete section and its fields"
+            }
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            {isDeleteLocked ? <Lock className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       )}

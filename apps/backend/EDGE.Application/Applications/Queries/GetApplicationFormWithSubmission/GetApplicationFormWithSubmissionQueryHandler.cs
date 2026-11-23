@@ -73,11 +73,20 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
 
         var serviceId = applicant.ServiceId.Value;
         var service = await _serviceRepository.GetByIdAsync(serviceId, cancellationToken);
-        var form = await _formRepository.GetFormByServiceIdAsync(serviceId, cancellationToken);
+        Form? form = null;
 
-        if (form == null && submission != null && submission.FormId != Guid.Empty)
+        // 1. Preserve historical Form version fidelity when submission.FormId exists
+        if (submission != null && submission.FormId != Guid.Empty)
         {
             form = await _formRepository.GetByIdAsync(submission.FormId, cancellationToken);
+        }
+
+        // 2. Fallback to active form for the applicant's service & serviceVariantId
+        if (form == null)
+        {
+            form = applicant.ServiceVariantId.HasValue && applicant.ServiceVariantId.Value != Guid.Empty
+                ? await _formRepository.GetFormByServiceIdAsync(serviceId, applicant.ServiceVariantId, null, cancellationToken)
+                : await _formRepository.GetFormByServiceIdAsync(serviceId, cancellationToken);
         }
 
         if (form == null)

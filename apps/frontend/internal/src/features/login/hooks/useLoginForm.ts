@@ -2,13 +2,17 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useOAuth } from "@clerk/expo";
-import { safeAsync } from "@edge/api";
+import { isGoogleSsoEnabled, safeAsync } from "@edge/api";
 import { useAuthContext } from "../../auth/context/AuthContext";
 import { loginSchema, LoginFormData } from "../schemas/authSchemas";
 
 export function useLoginForm() {
   const { loginWithClerk } = useAuthContext();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
+  const showGoogleSso = isGoogleSsoEnabled({
+    clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    enableGoogleSso: process.env.EXPO_PUBLIC_ENABLE_GOOGLE_SSO,
+  });
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
@@ -34,6 +38,7 @@ export function useLoginForm() {
   });
 
   const handleGoogleSignIn = async () => {
+    if (!showGoogleSso) return;
     setToastMessage(null);
     setIsGoogleSubmitting(true);
 
@@ -68,6 +73,7 @@ export function useLoginForm() {
     handleApplyPreset,
     isSubmitting: form.formState.isSubmitting,
     isGoogleSubmitting,
+    showGoogleSso,
     toastMessage,
     dismissToast,
   };

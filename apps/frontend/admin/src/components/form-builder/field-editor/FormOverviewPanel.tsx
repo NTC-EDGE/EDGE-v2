@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { FileText, Building2, Globe, EyeOff, Layers, ListFilter, Calendar } from "lucide-react";
+import { FileText, Building2, Globe, EyeOff, Layers, ListFilter, Calendar, Radio } from "lucide-react";
 import { FormSchema } from "../types";
 import { getFieldIcon } from "../utils";
 import { LabeledSection, inputClass, formatDate } from "./FieldEditorPrimitives";
@@ -10,15 +10,19 @@ export function FormOverviewPanel({
   form,
   onUpdateForm,
   onSelectField,
+  onRequestSetActive,
 }: {
   form?: FormSchema | null;
   onUpdateForm?: (updates: Partial<FormSchema>) => void;
   onSelectField?: (fieldId: string | null) => void;
+  onRequestSetActive?: () => void;
 }) {
   const totalFields = form?.fields.length ?? 0;
   const requiredFields = form?.fields.filter((f) => f.required).length ?? 0;
   const sectionHeaders = form?.fields.filter((f) => f.type === "section-header").length ?? 0;
   const fileFields = form?.fields.filter((f) => f.type === "file").length ?? 0;
+  const isLive = Boolean(form?.isActive ?? form?.isPublished);
+  const versionStr = form?.version || "1.0";
 
   return (
     <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col">
@@ -82,25 +86,47 @@ export function FormOverviewPanel({
         </LabeledSection>
 
         <LabeledSection
-          title="Publication State"
-          icon={form?.isPublished ? Globe : EyeOff}
-          description="Control whether this form is live for applicants."
+          title="Active Client Version Status"
+          icon={isLive ? Globe : EyeOff}
+          description="Only one version of a form can be active on the Client Portal at any time."
         >
-          <button
-            type="button"
-            onClick={() => onUpdateForm && onUpdateForm({ isPublished: !form?.isPublished })}
-            className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-              form?.isPublished
-                ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
-                : "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300"
+          <div
+            className={`w-full p-3 rounded-xl border text-xs space-y-2 ${
+              isLive
+                ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200"
+                : "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200"
             }`}
           >
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${form?.isPublished ? "bg-emerald-500" : "bg-amber-500"}`} />
-              <span>{form?.isPublished ? "Published (Live)" : "Draft Mode"}</span>
+            <div className="flex items-center justify-between font-semibold">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${isLive ? "bg-emerald-500" : "bg-amber-500"}`} />
+                <span>
+                  v{versionStr} — {isLive ? "Active on Client (Live)" : "Draft Mode (Inactive)"}
+                </span>
+              </div>
             </div>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">Click to switch</span>
-          </button>
+            {isLive ? (
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
+                This version is currently rendered in the Client Application UI. Create or switch to a Draft version to prepare changes without affecting live applicants.
+              </p>
+            ) : (
+              <>
+                <p className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                  This Draft version is hidden from clients until activated.
+                </p>
+                {form?.serviceId && onRequestSetActive && (
+                  <button
+                    type="button"
+                    onClick={onRequestSetActive}
+                    className="w-full mt-1 py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Radio className="w-3.5 h-3.5" />
+                    <span>Set v{versionStr} as Active…</span>
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </LabeledSection>
 
         <LabeledSection title="Form Statistics" icon={Layers} description="Summary of fields and sections in this form.">

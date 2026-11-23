@@ -8,16 +8,21 @@ using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Forms.Dtos;
+using EDGE.Application.Forms.Services;
 
 namespace EDGE.Application.Forms.Queries.GetForms;
 
 public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiResponse<FormDto>>
 {
     private readonly IFormRepository _formRepository;
+    private readonly ContractFormValidator _contractValidator;
 
-    public GetFormsQueryHandler(IFormRepository formRepository)
+    public GetFormsQueryHandler(
+        IFormRepository formRepository,
+        ContractFormValidator? contractValidator = null)
     {
         _formRepository = formRepository;
+        _contractValidator = contractValidator ?? new ContractFormValidator();
     }
 
     public async Task<PaginatedApiResponse<FormDto>> Handle(GetFormsQuery request, CancellationToken cancellationToken)
@@ -26,7 +31,19 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
 
         if (request.ServiceId.HasValue && request.ServiceId.Value != Guid.Empty)
         {
-            forms = forms.Where(f => f.ServiceId == request.ServiceId.Value).ToList();
+            var resolvedCanonical = _formRepository.ResolveCanonicalServiceId(request.ServiceId.Value);
+            var groupIds = _formRepository.GetCanonicalServiceGroupIds(request.ServiceId.Value);
+            var targetServiceIds = new HashSet<Guid> { request.ServiceId.Value };
+            if (resolvedCanonical != Guid.Empty) targetServiceIds.Add(resolvedCanonical);
+            if (groupIds != null)
+            {
+                foreach (var gid in groupIds)
+                {
+                    if (gid != Guid.Empty) targetServiceIds.Add(gid);
+                }
+            }
+
+            forms = forms.Where(f => targetServiceIds.Contains(f.ServiceId)).ToList();
         }
 
         if (request.ServiceCategoryId.HasValue && request.ServiceCategoryId.Value != Guid.Empty)
@@ -40,9 +57,8 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
         }
         else
         {
-            // Canonical forms are shared base forms; exclude any stray isolated variant rows
-            forms = forms.Where(f => (!f.ServiceVariantId.HasValue || f.ServiceVariantId.Value == Guid.Empty)
-                                  && (!f.BaseFormId.HasValue || f.BaseFormId.Value == Guid.Empty)).ToList();
+            // Canonical forms are shared base forms; exclude isolated variant rows
+            forms = forms.Where(f => !f.ServiceVariantId.HasValue || f.ServiceVariantId.Value == Guid.Empty).ToList();
         }
 
         if (!string.IsNullOrWhiteSpace(request.FormKey))
@@ -78,18 +94,28 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
                 var allInGroup = g.OrderByDescending(f => f.IsActive).ThenByDescending(f => f.CreatedAt).ToList();
                 var primary = allInGroup.FirstOrDefault(f => f.IsActive) ?? allInGroup.First();
 
-                var versionSummaries = allInGroup.Select(v => new FormVersionSummaryDto
+                var requiredSectionKeys = !string.IsNullOrWhiteSpace(primary.Service?.Contract)
+                    ? _contractValidator.GetRequiredSectionKeys(primary.Service!.Contract)
+                    : new HashSet<string>();
+
+                bool seenActive = false;
+                var versionSummaries = allInGroup.Select(v =>
                 {
-                    FormId = v.Id,
-                    Key = v.Key,
-                    ServiceVariantId = v.ServiceVariantId,
-                    Version = v.Version,
-                    Name = v.Name,
-                    IsActive = v.IsActive,
-                    CreatedAt = v.CreatedAt,
-                    UpdatedAt = v.LastModifiedAt,
-                    SectionsCount = v.Sections?.Count(s => !s.IsDeleted) ?? 0,
-                    FieldsCount = v.Sections?.Where(s => !s.IsDeleted).SelectMany(s => s.SectionFields ?? Enumerable.Empty<SectionField>()).Count() ?? 0
+                    bool effectiveActive = v.IsActive && !seenActive;
+                    if (effectiveActive) seenActive = true;
+                    return new FormVersionSummaryDto
+                    {
+                        FormId = v.Id,
+                        Key = v.Key,
+                        ServiceVariantId = v.ServiceVariantId,
+                        Version = v.Version,
+                        Name = v.Name,
+                        IsActive = effectiveActive,
+                        CreatedAt = v.CreatedAt,
+                        UpdatedAt = v.LastModifiedAt,
+                        SectionsCount = v.Sections?.Count(s => !s.IsDeleted) ?? 0,
+                        FieldsCount = v.Sections?.Where(s => !s.IsDeleted).SelectMany(s => s.SectionFields ?? Enumerable.Empty<SectionField>()).Count() ?? 0
+                    };
                 }).ToList();
 
                 return new FormDto
@@ -107,6 +133,7 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
                     Version = primary.Version,
                     IsActive = primary.IsActive,
                     CategorySelectionRequired = primary.CategorySelectionRequired,
+                    IsCustomized = primary.ServiceVariantId.HasValue,
                     CreatedAt = primary.CreatedAt,
                     UpdatedAt = primary.LastModifiedAt,
                     AvailableVersions = versionSummaries,
@@ -117,8 +144,9 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
                         {
                             Key = s.Key,
                             Title = s.Title,
-                            Required = true,
+                            Required = requiredSectionKeys.Contains(s.Key),
                             OrderIndex = s.OrderIndex,
+                            VisibilityCondition = FormSectionDto.ExtractSectionVisibilityCondition(s.SectionFields),
                             Fields = s.SectionFields
                                 .OrderBy(sf => sf.OrderIndex)
                                 .Select(sf => new FormFieldDto
@@ -153,6 +181,28 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToList();
+
+        var pageServiceIds = paginated
+            .Where(i => i.ServiceId != Guid.Empty)
+            .Select(i => i.ServiceId)
+            .Distinct()
+            .ToList();
+
+        if (pageServiceIds.Count > 0)
+        {
+            var batchMeta = await _formRepository.GetBatchVariantMetadataForServicesAsync(pageServiceIds, cancellationToken);
+            if (batchMeta != null)
+            {
+                foreach (var item in paginated)
+                {
+                    if (item.ServiceId != Guid.Empty && batchMeta.TryGetValue(item.ServiceId, out var meta))
+                    {
+                        item.LinkedVariantsCount = meta.LinkedVariantsCount;
+                        item.CustomizedVariantIds = meta.CustomizedVariantIds;
+                    }
+                }
+            }
+        }
 
         return new PaginatedApiResponse<FormDto>(
             paginated,
