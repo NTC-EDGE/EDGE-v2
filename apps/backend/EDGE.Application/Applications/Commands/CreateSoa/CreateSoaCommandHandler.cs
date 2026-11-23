@@ -248,13 +248,14 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 }
             }
 
-            if (note != null && string.IsNullOrWhiteSpace(soa.Remarks))
+            if (note != null && (!isExistingSoa || request.Remarks == null) && string.IsNullOrWhiteSpace(soa.Remarks))
             {
                 soa.Remarks = note.Notes;
             }
         }
 
-        soa.LineItems.Clear();
+        var existingLineItems = soa.LineItems.ToList();
+        var desiredLineItems = new System.Collections.Generic.List<SoaLineItem>();
 
         var primaryService = targetApplicant?.Service
             ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
@@ -303,7 +304,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 var rate = item.FeeRate >= 0 ? item.FeeRate : 0m;
                 var calculatedAmount = isDst ? rate : (yearMultiplier * units * rate);
 
-                soa.LineItems.Add(new SoaLineItem
+                desiredLineItems.Add(new SoaLineItem
                 {
                     Id = Guid.NewGuid(),
                     StatementOfAccountId = soa.Id,
@@ -403,7 +404,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             foreach (var calculatedItem in calculationResult.LineItems)
             {
                 var valYears = calculatedItem.ValidityYears > 0 ? calculatedItem.ValidityYears : 0;
-                soa.LineItems.Add(new SoaLineItem
+                desiredLineItems.Add(new SoaLineItem
                 {
                     Id = Guid.NewGuid(),
                     StatementOfAccountId = soa.Id,
@@ -420,6 +421,44 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             }
         }
 
+        if (isExistingSoa)
+        {
+            for (int i = 0; i < desiredLineItems.Count; i++)
+            {
+                var desired = desiredLineItems[i];
+                if (i < existingLineItems.Count)
+                {
+                    var existingItem = existingLineItems[i];
+                    existingItem.Particular = desired.Particular;
+                    existingItem.ItemCode = desired.ItemCode;
+                    existingItem.Description = desired.Description;
+                    existingItem.PeriodOfCoverageStart = desired.PeriodOfCoverageStart;
+                    existingItem.PeriodOfCoverageEnd = desired.PeriodOfCoverageEnd;
+                    existingItem.ValidityYears = desired.ValidityYears;
+                    existingItem.NoOfUnits = desired.NoOfUnits;
+                    existingItem.FeeRate = desired.FeeRate;
+                    existingItem.Amount = desired.Amount;
+                }
+                else
+                {
+                    desired.Id = Guid.Empty;
+                    soa.LineItems.Add(desired);
+                }
+            }
+
+            for (int i = existingLineItems.Count - 1; i >= desiredLineItems.Count; i--)
+            {
+                soa.LineItems.Remove(existingLineItems[i]);
+            }
+        }
+        else
+        {
+            foreach (var desired in desiredLineItems)
+            {
+                soa.LineItems.Add(desired);
+            }
+        }
+
         // Calculate total SOA amount on the server from validated line items
         soa.TotalAmount = soa.LineItems.Sum(li => li.Amount);
 
@@ -428,7 +467,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 
         var historyAction = isExistingSoa ? "SOA updated by Evaluator" : "SOA created by Evaluator";
 
-        soa.Histories.Add(new SoaHistory
+        var soaHistory = new SoaHistory
         {
             Id = Guid.NewGuid(),
             StatementOfAccountId = soa.Id,
@@ -438,7 +477,12 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             StaffName = staffName,
             StaffRole = staffRole,
             Timestamp = DateTime.UtcNow
-        });
+        };
+        soa.Histories.Add(soaHistory);
+        if (isExistingSoa)
+        {
+            await _repository.AddSoaHistoryAsync(soaHistory, cancellationToken);
+        }
 
         if (app.Intent == ApplicationIntent.AssessmentOnly)
         {

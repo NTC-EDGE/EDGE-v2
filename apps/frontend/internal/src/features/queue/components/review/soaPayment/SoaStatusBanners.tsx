@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { useTheme, RADIUS, TYPOGRAPHY, Icon as Lucide } from "@edge/ui";
 
 interface SoaStatusBannersProps {
+  isEvaluating?: boolean;
   isForAccountant: boolean;
   isPendingPayment: boolean;
   isPaymentSubmitted: boolean;
@@ -12,6 +13,7 @@ interface SoaStatusBannersProps {
 }
 
 export function SoaStatusBanners({
+  isEvaluating = false,
   isForAccountant,
   isPendingPayment,
   isPaymentSubmitted,
@@ -23,6 +25,27 @@ export function SoaStatusBanners({
 
   return (
     <>
+      {/* Evaluator SOA Generated — Pending Approve & Forward Banner */}
+      {isEvaluating && !isSoaReturned && !isAssessmentOnly && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark ? '#064e3b' : '#ecfdf5',
+            borderColor: isDark ? '#059669' : '#6ee7b7',
+            borderWidth: 1,
+            marginBottom: 12,
+            flexDirection: 'row',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Lucide name="check-circle" size={18} color={isDark ? '#34d399' : '#059669'} />
+          <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#d1fae5' : '#065f46', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
+            <Text style={{ fontWeight: '700' }}>Statement of Account Generated (Awaiting Evaluator Approval):</Text> Review the billing particulars below. You can still edit or recalculate the SOA if needed. When ready, click <Text style={{ fontWeight: '700' }}>Approve &amp; Forward</Text> in the bottom action bar to formally approve the evaluation and forward the application to the Accountant.
+          </Text>
+        </View>
+      )}
       {/* Assessment Only Banner */}
       {isAssessmentOnly && (
         <View

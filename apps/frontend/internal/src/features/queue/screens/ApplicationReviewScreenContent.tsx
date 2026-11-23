@@ -1540,7 +1540,16 @@ export function ApplicationReviewScreenContent({
           onClose();
         }}
       />
-      <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
+      <GenerateSoaModal
+        visible={showGenerateSoa}
+        app={app}
+        onClose={() => setShowGenerateSoa(false)}
+        onSuccess={async () => {
+          setInnerTab("soa");
+          await mutateApplications(app.id);
+          await refetch();
+        }}
+      />
       <SoaReportPreviewModal
         visible={showReportPreview}
         app={app}
