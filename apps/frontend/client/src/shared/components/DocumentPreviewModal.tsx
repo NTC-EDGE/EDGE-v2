@@ -37,6 +37,22 @@ function isDocumentPreviewFile(file: unknown): file is DocumentPreviewFile {
   return typeof file === "object" && file !== null && "name" in file;
 }
 
+export function canClientEditAttachmentImage(params?: {
+  allowEditImage?: boolean;
+  isSubmitted?: boolean;
+  applicationStatus?: string | null;
+}): boolean {
+  if (!params) return false;
+  if (params.isSubmitted === true) return false;
+  if (typeof params.applicationStatus === "string" && params.applicationStatus.trim() !== "") {
+    const normalizedStatus = params.applicationStatus.trim().toLowerCase();
+    if (normalizedStatus !== "draft") {
+      return false;
+    }
+  }
+  return params.allowEditImage === true;
+}
+
 export function DocumentPreviewModal({
   visible,
   onClose,
@@ -44,7 +60,7 @@ export function DocumentPreviewModal({
   label,
   onDownload,
   onSaveEditedImage,
-  allowEditImage = true,
+  allowEditImage = false,
 }: DocumentPreviewModalProps) {
   const [imageError, setImageError] = useState(false);
   const [scale, setScale] = useState(1);
@@ -183,26 +199,28 @@ export function DocumentPreviewModal({
                 >
                   <Icon name="zoom-in" size={16} color="#1D4ED8" />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleRotate}
-                  style={styles.controlIconBtn}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Rotate 90 degrees"
-                >
-                  <Icon name="rotate-cw" size={16} color="#1D4ED8" />
-                </TouchableOpacity>
                 {allowEditImage && (
-                  <TouchableOpacity
-                    onPress={() => setIsCropModalOpen(true)}
-                    style={styles.cropActionBtn}
-                    activeOpacity={0.7}
-                    accessibilityLabel="Crop & Rotate Image"
-                  >
-                    <Icon name="crop" size={14} color="#1D4ED8" />
-                    <Text style={styles.cropActionBtnText}>Crop & Rotate</Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity
+                      onPress={handleRotate}
+                      style={styles.controlIconBtn}
+                      activeOpacity={0.7}
+                      accessibilityLabel="Rotate 90 degrees"
+                    >
+                      <Icon name="rotate-cw" size={16} color="#1D4ED8" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setIsCropModalOpen(true)}
+                      style={styles.cropActionBtn}
+                      activeOpacity={0.7}
+                      accessibilityLabel="Crop & Rotate Image"
+                    >
+                      <Icon name="crop" size={14} color="#1D4ED8" />
+                      <Text style={styles.cropActionBtnText}>Crop & Rotate</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
-                {scale !== 1 || rotation !== 0 ? (
+                {scale !== 1 || (allowEditImage && rotation !== 0) ? (
                   <TouchableOpacity
                     onPress={handleResetZoom}
                     style={styles.resetBtn}
@@ -292,7 +310,7 @@ export function DocumentPreviewModal({
       </View>
     </Modal>
 
-    {isImage && Boolean(effectiveUri) && (
+    {allowEditImage && isImage && Boolean(effectiveUri) && (
       <ImageCropRotateModal
         visible={isCropModalOpen}
         imageUri={effectiveUri}

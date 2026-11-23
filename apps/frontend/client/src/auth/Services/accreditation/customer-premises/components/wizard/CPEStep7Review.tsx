@@ -332,6 +332,7 @@ export function CPEStep7Review({
         onClose={() => setIsPreviewOpen(false)}
         file={previewFile}
         label={previewLabel}
+        allowEditImage={true}
       />
     </View>
   );

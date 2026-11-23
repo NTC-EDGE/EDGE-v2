@@ -231,6 +231,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
         onClose={() => setIsPreviewOpen(false)}
         file={previewFile}
         label={previewLabel}
+        allowEditImage={true}
       />
     </>
   );

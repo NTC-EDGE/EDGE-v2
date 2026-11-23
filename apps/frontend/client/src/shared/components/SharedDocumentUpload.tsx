@@ -835,6 +835,7 @@ export function SharedDocumentUpload({
         file={previewFile}
         label={previewLabel}
         onSaveEditedImage={handleSaveEditedDocument}
+        allowEditImage={true}
       />
 
       {/* Live Camera Viewfinder Modal */}

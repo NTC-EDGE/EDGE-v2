@@ -200,6 +200,45 @@ export function computeOfficerEvaluationState(params: {
   };
 }
 
+/**
+ * Determines whether the current internal user is allowed to rotate and crop attachment images.
+ * Only the active evaluating officer (who has claimed or been endorsed the application during evaluation)
+ * may modify attachment images. Spectators (other evaluators, unclaimed applications, accountants,
+ * cashiers, releasing viewers, or history viewers) are not permitted.
+ */
+export function canEvaluatorEditAttachment(params: {
+  application: ApplicationData;
+  evaluationState: OfficerEvaluationState;
+  currentRole?: string | null;
+  canEvaluateApplication: boolean;
+}): boolean {
+  const { application, evaluationState, currentRole, canEvaluateApplication } = params;
+  if (!canEvaluateApplication) return false;
+  if (application.queueTab === "history") return false;
+
+  const roleLower = (currentRole ?? "").trim().toLowerCase();
+  if (roleLower === "accountant" || roleLower === "cashier") return false;
+
+  const statusLower = (application.status ?? "").trim().toLowerCase();
+  const isEvaluationStage = statusLower === "evaluating" || statusLower === "returned";
+  if (!isEvaluationStage) return false;
+
+  if (
+    evaluationState.isEndorsedAwayFromMe ||
+    evaluationState.isStageClaimedByOther ||
+    evaluationState.isEvaluatedByOther ||
+    evaluationState.isStageUnclaimed
+  ) {
+    return false;
+  }
+
+  return Boolean(
+    evaluationState.isStageClaimedByMe ||
+    evaluationState.isEvaluatedByMe ||
+    evaluationState.isEndorsedToMe
+  );
+}
+
 export function resolveApplicantAuditHistory(
   app: ApplicationData,
   activeApplicant?: ApplicantItem | null

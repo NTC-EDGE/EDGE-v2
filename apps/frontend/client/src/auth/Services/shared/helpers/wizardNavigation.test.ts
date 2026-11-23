@@ -4,6 +4,7 @@ import { describe, it, expect, mock } from "bun:test";
 mock.module("react-native", () => ({
   Alert: { alert: mock(() => {}) },
   Platform: { OS: "web", select: (obj: Record<string, unknown>) => obj.web || obj.default },
+  Modal: "Modal",
   View: "View",
   Text: "Text",
   Image: "Image",
@@ -18,6 +19,7 @@ mock.module("@edge/ui", () => ({
   COLORS: { brand: { 700: "#0038A8" }, neutral: { 500: "#64748B", 900: "#0F172A" } },
   TYPOGRAPHY: { fonts: { primary: "System" } },
   Icon: "Icon",
+  ImageCropRotateModal: "ImageCropRotateModal",
 }));
 
 mock.module("@clerk/expo", () => ({
@@ -39,6 +41,9 @@ const { isRedundantApplicationType } = await import(
 );
 const { buildDynamicSections } = await import(
   "../../../../shared/formPreview/core/buildDynamicSections"
+);
+const { canClientEditAttachmentImage } = await import(
+  "../../../../shared/components/DocumentPreviewModal"
 );
 import type { NTCService } from "../../data/servicesData";
 
@@ -299,6 +304,47 @@ describe("Educational Background prefill & dynamic field validation", () => {
     ).toBe(true);
     expect(
       isRedundantApplicationType("Amateur Radio Operator Certificate", "Renewal")
+    ).toBe(false);
+  });
+
+  it("allows client attachment crop/rotate only while in draft (not yet submitted) and denies when submitted", () => {
+    // Draft / wizard filing before submission
+    expect(
+      canClientEditAttachmentImage({
+        allowEditImage: true,
+        isSubmitted: false,
+        applicationStatus: "DRAFT",
+      })
+    ).toBe(true);
+
+    // Default (e.g., My Applications preview where allowEditImage is false/omitted)
+    expect(canClientEditAttachmentImage()).toBe(false);
+    expect(canClientEditAttachmentImage({ allowEditImage: false })).toBe(false);
+
+    // Already submitted applications in My Applications
+    expect(
+      canClientEditAttachmentImage({
+        allowEditImage: true,
+        isSubmitted: true,
+      })
+    ).toBe(false);
+    expect(
+      canClientEditAttachmentImage({
+        allowEditImage: true,
+        applicationStatus: "FOR_EVALUATION",
+      })
+    ).toBe(false);
+    expect(
+      canClientEditAttachmentImage({
+        allowEditImage: true,
+        applicationStatus: "PENDING",
+      })
+    ).toBe(false);
+    expect(
+      canClientEditAttachmentImage({
+        allowEditImage: true,
+        applicationStatus: "APPROVED",
+      })
     ).toBe(false);
   });
 });

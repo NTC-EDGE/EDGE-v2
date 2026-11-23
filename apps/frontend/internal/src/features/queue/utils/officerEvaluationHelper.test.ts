@@ -5,6 +5,7 @@ import {
   computeOfficerEvaluationState,
   resolveApplicantAuditHistory,
   getApprovingEvaluator,
+  canEvaluatorEditAttachment,
 } from "./officerEvaluationHelper";
 import { ApplicationData, ApplicantItem } from "../../../types/application";
 
@@ -850,6 +851,158 @@ describe("officerEvaluationHelper", () => {
       expect(adminState.isEvaluatedByOther).toBe(true);
       expect(adminState.isStageClaimedByMe).toBe(false);
       expect(adminState.isStageClaimedByOther).toBe(true);
+    });
+  });
+
+  describe("canEvaluatorEditAttachment", () => {
+    it("allows the active evaluating officer who claimed the application during Evaluating or Returned stage", () => {
+      const app = createMockApp({
+        status: "Evaluating",
+        evaluatingOfficer: "Engr. Maria Santos",
+        assignedTo: "Engr. Maria Santos",
+        queueTab: "pending",
+      });
+      const evaluationState = computeOfficerEvaluationState({
+        application: app,
+        identifiers: ["engr. maria santos", "maria@ntc.gov.ph"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: app,
+          evaluationState,
+          currentRole: "Evaluator",
+          canEvaluateApplication: true,
+        })
+      ).toBe(true);
+    });
+
+    it("denies spectator evaluators viewing an application claimed by another evaluator", () => {
+      const app = createMockApp({
+        status: "Evaluating",
+        evaluatingOfficer: "Engr. Maria Santos",
+        assignedTo: "Engr. Maria Santos",
+        queueTab: "pending",
+      });
+      const spectatorState = computeOfficerEvaluationState({
+        application: app,
+        identifiers: ["engr. juan dela cruz", "juan@ntc.gov.ph"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: app,
+          evaluationState: spectatorState,
+          currentRole: "Evaluator",
+          canEvaluateApplication: true,
+        })
+      ).toBe(false);
+    });
+
+    it("denies evaluators viewing an unclaimed Submitted or Evaluating application before claiming", () => {
+      const submittedApp = createMockApp({
+        status: "Submitted",
+        evaluatingOfficer: "",
+        assignedTo: "Unassigned",
+        queueTab: "pending",
+      });
+      const submittedState = computeOfficerEvaluationState({
+        application: submittedApp,
+        identifiers: ["engr. maria santos"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: submittedApp,
+          evaluationState: submittedState,
+          currentRole: "Evaluator",
+          canEvaluateApplication: true,
+        })
+      ).toBe(false);
+
+      const unclaimedEvaluatingApp = createMockApp({
+        status: "Evaluating",
+        evaluatingOfficer: "Authorized Officer",
+        assignedTo: "Authorized Officer",
+        queueTab: "pending",
+      });
+      const unclaimedEvalState = computeOfficerEvaluationState({
+        application: unclaimedEvaluatingApp,
+        identifiers: ["engr. maria santos"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: unclaimedEvaluatingApp,
+          evaluationState: unclaimedEvalState,
+          currentRole: "Evaluator",
+          canEvaluateApplication: true,
+        })
+      ).toBe(false);
+    });
+
+    it("denies Accountant and Cashier roles from rotating or cropping attachments in any stage", () => {
+      const appForAccountant = createMockApp({
+        status: "ForAccountant",
+        accountingOfficer: "Accountant Jane",
+        assignedTo: "Accountant Jane",
+        queueTab: "pending",
+      });
+      const accountantState = computeOfficerEvaluationState({
+        application: appForAccountant,
+        identifiers: ["accountant jane"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: appForAccountant,
+          evaluationState: accountantState,
+          currentRole: "Accountant",
+          canEvaluateApplication: false,
+        })
+      ).toBe(false);
+
+      const appForCashier = createMockApp({
+        status: "PendingPayment",
+        cashierOfficer: "Cashier Bob",
+        assignedTo: "Cashier Bob",
+        queueTab: "pending",
+      });
+      const cashierState = computeOfficerEvaluationState({
+        application: appForCashier,
+        identifiers: ["cashier bob"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: appForCashier,
+          evaluationState: cashierState,
+          currentRole: "Cashier",
+          canEvaluateApplication: false,
+        })
+      ).toBe(false);
+    });
+
+    it("denies editing when application is in history tab or already forwarded past evaluation", () => {
+      const historyApp = createMockApp({
+        status: "Evaluating",
+        evaluatingOfficer: "Engr. Maria Santos",
+        assignedTo: "Engr. Maria Santos",
+        queueTab: "history",
+      });
+      const historyState = computeOfficerEvaluationState({
+        application: historyApp,
+        identifiers: ["engr. maria santos"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: historyApp,
+          evaluationState: historyState,
+          currentRole: "Evaluator",
+          canEvaluateApplication: true,
+        })
+      ).toBe(false);
     });
   });
 });

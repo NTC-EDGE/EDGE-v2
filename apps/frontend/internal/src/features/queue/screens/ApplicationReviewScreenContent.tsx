@@ -64,6 +64,7 @@ import {
   matchesUserIdentifier,
   computeOfficerEvaluationState,
   getApprovingEvaluator,
+  canEvaluatorEditAttachment,
 } from "../utils/officerEvaluationHelper";
 
 export interface ApplicationReviewScreenProps {
@@ -487,6 +488,12 @@ export function ApplicationReviewScreenContent({
   const isPendingPayment = app.status === "PendingPayment";
   const isForIssuance = app.status === "ForIssuance";
 
+  const evaluationState = computeOfficerEvaluationState({
+    application: app,
+    identifiers: currentUserIdentifiers,
+    isAdmin,
+  });
+
   const {
     isEvaluating,
     evaluatingOfficer,
@@ -499,11 +506,7 @@ export function ApplicationReviewScreenContent({
     isStageClaimedByMe,
     isStageClaimedByOther,
     isStageUnclaimed,
-  } = computeOfficerEvaluationState({
-    application: app,
-    identifiers: currentUserIdentifiers,
-    isAdmin,
-  });
+  } = evaluationState;
 
   const isActivelyEvaluating = (isEvaluating || isReturned) && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe);
   const isEditable = isActivelyEvaluating && !isEndorsedAwayFromMe && app.queueTab !== "history";
@@ -517,6 +520,12 @@ export function ApplicationReviewScreenContent({
        app.permitTitle.toLowerCase().includes('blocking')));
   const canActAsLegal = currentRole === 'Legal' || isAdmin;
   const canEvaluateApplication = isEvaluatorOrSupervisorRole(currentRole) || (isComplaintOrRequest && canActAsLegal) || isAdmin;
+  const canEditAttachmentImage = canEvaluatorEditAttachment({
+    application: app,
+    evaluationState,
+    currentRole,
+    canEvaluateApplication,
+  });
 
   // ── Workflow-aware action handlers ──────────────────────────────────────────
 
@@ -1405,7 +1414,8 @@ export function ApplicationReviewScreenContent({
       <CustomDocPreviewModal
         previewCustomDoc={previewCustomDoc}
         onClose={handleClosePreviewDoc}
-        onSaveEditedImage={handleSaveEditedPreviewDoc}
+        onSaveEditedImage={canEditAttachmentImage ? handleSaveEditedPreviewDoc : undefined}
+        allowEditImage={canEditAttachmentImage}
       />
 
       {/* ApproveModal is reused for evaluation and accountant approval */}

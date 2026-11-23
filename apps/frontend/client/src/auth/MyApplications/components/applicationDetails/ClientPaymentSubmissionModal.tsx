@@ -250,6 +250,7 @@ export function ClientPaymentSubmissionModal({
             : null
         }
         label="Payment Proof Preview"
+        allowEditImage={false}
       />
     </Modal>
   );
