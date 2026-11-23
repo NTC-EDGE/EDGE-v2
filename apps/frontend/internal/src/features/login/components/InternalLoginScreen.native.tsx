@@ -74,7 +74,9 @@ export function InternalLoginScreen(): React.ReactElement {
             >
               <Text style={[styles.cardHeading, { color: colors.text }]}>Staff Sign In</Text>
               <Text style={[styles.cardSubHeading, { color: colors.textMuted }]}>
-                Sign in with official credentials or Google SSO.
+                {loginState.showGoogleSso
+                  ? "Sign in with official credentials or Google SSO."
+                  : "Sign in with your official staff credentials."}
               </Text>
 
               <LoginForm

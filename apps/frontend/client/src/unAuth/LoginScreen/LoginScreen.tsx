@@ -14,6 +14,7 @@ import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 import { useAppNavigation } from "../../navigation";
+import { isGoogleSsoEnabled } from "@edge/api";
 import { isClerkAPIResponseError, useSSO } from "@clerk/expo";
 import { useSignIn } from "@clerk/expo/legacy";
 
@@ -55,6 +56,10 @@ export function LoginScreen() {
   const navigation = useAppNavigation();
   const { signIn, setActive, isLoaded } = useSignIn();
   const { startSSOFlow } = useSSO();
+  const showGoogleSso = isGoogleSsoEnabled({
+    clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    enableGoogleSso: process.env.EXPO_PUBLIC_ENABLE_GOOGLE_SSO,
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -157,7 +162,7 @@ export function LoginScreen() {
         setPendingEmailCode(true);
       } else {
         const hasGoogle = firstFactors.some((f) => f.strategy === "oauth_google");
-        if (hasGoogle) {
+        if (hasGoogle && showGoogleSso) {
           setGeneralError(
             "This account is linked with Google Sign-In and does not have password login enabled. Please click 'Continue with Google' below."
           );
@@ -330,7 +335,7 @@ export function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (loading || googleLoading) return;
+    if (!showGoogleSso || loading || googleLoading) return;
     setGoogleLoading(true);
     setGeneralError("");
     try {
@@ -598,27 +603,31 @@ export function LoginScreen() {
                   }
                 />
 
-                {/* Divider */}
-                <View style={styles.dividerContainer}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>or</Text>
-                  <View style={styles.dividerLine} />
-                </View>
+                {showGoogleSso ? (
+                  <>
+                    {/* Divider */}
+                    <View style={styles.dividerContainer}>
+                      <View style={styles.dividerLine} />
+                      <Text style={styles.dividerText}>or</Text>
+                      <View style={styles.dividerLine} />
+                    </View>
 
-                {/* Google Sign-In */}
-                <Button
-                  title={googleLoading ? "Connecting to Google..." : "Continue with Google"}
-                  variant="outline"
-                  onPress={handleGoogleSignIn}
-                  loading={googleLoading}
-                  disabled={loading || googleLoading || success}
-                  style={styles.guestButton}
-                  icon={
-                    !googleLoading ? (
-                      <Lucide name="chrome" size={16} color={COLORS.neutral[700]} />
-                    ) : undefined
-                  }
-                />
+                    {/* Google Sign-In */}
+                    <Button
+                      title={googleLoading ? "Connecting to Google..." : "Continue with Google"}
+                      variant="outline"
+                      onPress={handleGoogleSignIn}
+                      loading={googleLoading}
+                      disabled={loading || googleLoading || success}
+                      style={styles.guestButton}
+                      icon={
+                        !googleLoading ? (
+                          <Lucide name="chrome" size={16} color={COLORS.neutral[700]} />
+                        ) : undefined
+                      }
+                    />
+                  </>
+                ) : null}
 
                 <View style={styles.footerContainer}>
                   <Text style={styles.footerText}>New to EDGE? </Text>
