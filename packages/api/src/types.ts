@@ -1131,6 +1131,11 @@ export interface ApplicationDto {
   id: string;
   tenantId: string;
   scheduleId?: string;
+  scheduleVenue?: string;
+  scheduleStartDate?: string;
+  scheduleEndDate?: string;
+  scheduleStartTime?: string;
+  scheduleEndTime?: string;
   regionId?: string;
   userId?: string;
   office?: string;

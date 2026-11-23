@@ -2,6 +2,7 @@ import { ApplicationData, ApplicantItem, AuditTrailEntry } from "../../../types/
 import {
   hasExplicitAccountantClaim,
   hasExplicitCashierClaim,
+  hasEvaluatorReleased,
 } from "../data/officerResolutionHelpers";
 
 export interface AuthUserLike {
@@ -47,10 +48,16 @@ export function resolveUserIdentifiers(
 export function matchesUserIdentifier(target?: string | null, identifiers: string[] = []): boolean {
   if (!target) return false;
   const t = target.trim().toLowerCase();
-  if (!t) return false;
+  if (!t || t === "user") return false;
 
   for (const ident of identifiers) {
-    if (t === ident || t.includes(ident) || ident.includes(t)) {
+    if (!ident || ident === "user") continue;
+    if (t === ident) {
+      return true;
+    }
+    const identIsMultiWordOrEmail = ident.includes(" ") || ident.includes("@");
+    const targetIsMultiWordOrEmail = t.includes(" ") || t.includes("@");
+    if (identIsMultiWordOrEmail && targetIsMultiWordOrEmail && (t.includes(ident) || ident.includes(t))) {
       return true;
     }
   }
@@ -62,6 +69,7 @@ export function isGenericOfficer(name?: string | null, office?: string | null): 
   const n = name.trim().toLowerCase();
   return (
     n.length === 0 ||
+    n === "user" ||
     n === "unassigned" ||
     n === "authorized officer" ||
     n === "officer" ||
@@ -73,6 +81,17 @@ export function isGenericOfficer(name?: string | null, office?: string | null): 
     n === "chief of eod" ||
     n === "eod chief" ||
     n === "regional director" ||
+    n === "special collecting officer" ||
+    n === "evaluator" ||
+    n === "legal" ||
+    n === "legal officer" ||
+    n === "accountant" ||
+    n === "cashier" ||
+    n === "issuing officer" ||
+    n === "releasing officer" ||
+    n === "approving officer" ||
+    n === "return officer" ||
+    n === "processing officer" ||
     n === (office ?? "").toLowerCase()
   );
 }
@@ -219,9 +238,9 @@ export function canEvaluatorEditAttachment(params: {
   const roleLower = (currentRole ?? "").trim().toLowerCase();
   if (roleLower === "accountant" || roleLower === "cashier") return false;
 
+  // Evaluator must have actively taken/started the evaluation (status must be "Evaluating", not "Submitted" or "Returned")
   const statusLower = (application.status ?? "").trim().toLowerCase();
-  const isEvaluationStage = statusLower === "evaluating" || statusLower === "returned";
-  if (!isEvaluationStage) return false;
+  if (statusLower !== "evaluating") return false;
 
   if (
     evaluationState.isEndorsedAwayFromMe ||
@@ -232,10 +251,28 @@ export function canEvaluatorEditAttachment(params: {
     return false;
   }
 
+  if (application.history && application.history.length > 0) {
+    const reversedHistory = [...application.history].reverse();
+    if (hasEvaluatorReleased(reversedHistory)) {
+      return false;
+    }
+  }
+
+  const activeOfficer = (
+    evaluationState.currentStageOfficer ??
+    evaluationState.evaluatingOfficer ??
+    application.evaluatingOfficer ??
+    (evaluationState.isEndorsedToMe ? application.endorsedTo : undefined) ??
+    ""
+  ).trim();
+
+  if (!activeOfficer || isGenericOfficer(activeOfficer, application.office)) {
+    return false;
+  }
+
   return Boolean(
-    evaluationState.isStageClaimedByMe ||
-    evaluationState.isEvaluatedByMe ||
-    evaluationState.isEndorsedToMe
+    evaluationState.isStageClaimedByMe &&
+    (evaluationState.isEvaluatedByMe || evaluationState.isEndorsedToMe)
   );
 }
 

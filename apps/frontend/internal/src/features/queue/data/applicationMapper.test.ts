@@ -939,6 +939,35 @@ describe('applicationMapper', () => {
       expect(ui.applicantsList?.[0]?.element).toBe('Class C — Elements 2, 3 & 4');
     });
 
+    it('maps scheduleId and scheduleVenue for Exam applications so the full schedule venue address is displayed', () => {
+      const dto: ApplicationDto = {
+        id: 'app-exam-venue-1',
+        tenantId: 'tenant-1',
+        scheduleId: 'sched-exam-2026-01',
+        scheduleVenue: 'NTC Central Office Multi-Purpose Hall, 3rd Floor, NTC Building, BIR Road, East Triangle, Diliman, Quezon City',
+        applicationNumber: 'APP-EXAM-002',
+        referenceNumber: 'REF-EXAM-002',
+        status: 'Evaluating',
+        submissionMode: 'Single',
+        isGuest: false,
+        createdAt: '2026-11-10T10:00:00Z',
+        serviceId: 'svc-exam-1',
+        serviceName: 'Radio Operator Examination Admission',
+        serviceCategory: 'Exams',
+        applicants: [],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        histories: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(dto);
+      expect(ui.scheduleId).toBe('sched-exam-2026-01');
+      expect(ui.scheduleVenue).toBe(
+        'NTC Central Office Multi-Purpose Hall, 3rd Floor, NTC Building, BIR Road, East Triangle, Diliman, Quezon City'
+      );
+    });
+
     it('populates basicInfo (firstName, middleName, lastName, extensionName, dob, sex, civilStatus, nationality) and companyDetails on applicantsList items for EditApplicantProfileModal', () => {
       const dto: ApplicationDto = {
         id: 'app-profile-edit-1',

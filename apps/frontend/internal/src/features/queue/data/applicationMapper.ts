@@ -24,6 +24,7 @@ import {
   resolveAssignedTo,
   hasExplicitAccountantClaim,
   hasExplicitCashierClaim,
+  hasEvaluatorReleased,
 } from './officerResolutionHelpers';
 import { buildAuditTrailList } from './auditTrailHelpers';
 
@@ -834,11 +835,17 @@ export function mapApplicationDtoToUI(
 
   const hasAccountantClaim = hasExplicitAccountantClaim(histories);
   const hasCashierClaim = hasExplicitCashierClaim(histories);
+  const isEvalReleased = hasEvaluatorReleased(reversedHistories);
 
-  const evaluatingOfficer =
-    ('evaluatingOfficer' in dto && typeof dto.evaluatingOfficer === 'string' && dto.evaluatingOfficer.trim().length > 0)
+  const rawEvaluatingOfficer =
+    ('evaluatingOfficer' in dto &&
+     typeof dto.evaluatingOfficer === 'string' &&
+     dto.evaluatingOfficer.trim().length > 0 &&
+     !isGenericOfficer(dto.evaluatingOfficer, dto.office))
       ? dto.evaluatingOfficer.trim()
       : resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
+
+  const evaluatingOfficer = isEvalReleased ? undefined : rawEvaluatingOfficer;
 
   const rawAccountingOfficer =
     ('accountingOfficer' in dto && typeof dto.accountingOfficer === 'string' && dto.accountingOfficer.trim().length > 0)
@@ -956,6 +963,28 @@ export function mapApplicationDtoToUI(
   return {
     id: dto.id,
     tenantId: dto.tenantId,
+    scheduleId: 'scheduleId' in dto && typeof dto.scheduleId === 'string' && dto.scheduleId.trim().length > 0 ? dto.scheduleId.trim() : undefined,
+    scheduleVenue:
+      ('scheduleVenue' in dto && typeof dto.scheduleVenue === 'string' && dto.scheduleVenue.trim().length > 0
+        ? dto.scheduleVenue.trim()
+        : undefined) ??
+      findPrimaryFv((lbl) => lbl.includes('exam venue') || lbl.includes('examination venue') || lbl.includes('testing venue') || lbl === 'venue'),
+    scheduleStartDate:
+      'scheduleStartDate' in dto && typeof dto.scheduleStartDate === 'string' && dto.scheduleStartDate.trim().length > 0
+        ? dto.scheduleStartDate.trim()
+        : undefined,
+    scheduleEndDate:
+      'scheduleEndDate' in dto && typeof dto.scheduleEndDate === 'string' && dto.scheduleEndDate.trim().length > 0
+        ? dto.scheduleEndDate.trim()
+        : undefined,
+    scheduleStartTime:
+      'scheduleStartTime' in dto && typeof dto.scheduleStartTime === 'string' && dto.scheduleStartTime.trim().length > 0
+        ? dto.scheduleStartTime.trim()
+        : undefined,
+    scheduleEndTime:
+      'scheduleEndTime' in dto && typeof dto.scheduleEndTime === 'string' && dto.scheduleEndTime.trim().length > 0
+        ? dto.scheduleEndTime.trim()
+        : undefined,
     referenceNumber: dto.referenceNumber ?? dto.id.slice(0, 8),
     applicationNumber: dto.applicationNumber ?? '',
     filingUser,

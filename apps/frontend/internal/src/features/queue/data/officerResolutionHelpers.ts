@@ -54,6 +54,7 @@ export function isGenericOfficer(name?: string | null, office?: string | null): 
   const n = name.trim().toLowerCase();
   return (
     n.length === 0 ||
+    n === 'user' ||
     n === 'unassigned' ||
     n === 'authorized officer' ||
     n === 'officer' ||
@@ -67,6 +68,15 @@ export function isGenericOfficer(name?: string | null, office?: string | null): 
     n === 'regional director' ||
     n === 'special collecting officer' ||
     n === 'evaluator' ||
+    n === 'legal' ||
+    n === 'legal officer' ||
+    n === 'accountant' ||
+    n === 'cashier' ||
+    n === 'issuing officer' ||
+    n === 'releasing officer' ||
+    n === 'approving officer' ||
+    n === 'return officer' ||
+    n === 'processing officer' ||
     n === (office ?? '').toLowerCase()
   );
 }
@@ -408,17 +418,47 @@ export function isCashierClaimAction(h?: ApplicationHistoryLike | null): boolean
  */
 export function isEvaluatorReleaseAction(h?: ApplicationHistoryLike | null): boolean {
   if (!h || !isReleaseOrUntakeAction(h)) return false;
+  if (isAccountantReleaseAction(h) || isCashierReleaseAction(h)) return false;
   const rol = (h.staffRole || h.role || '').toLowerCase();
   const act = (h.action || '').toLowerCase();
   const rem = (h.remarks || '').toLowerCase();
   const st = (h.toStatus || h.status || '').toLowerCase();
   return (
     rol.includes('evaluat') ||
+    rol.includes('engineer') ||
+    rol.includes('legal') ||
     act.includes('evaluat') ||
+    act.includes('authority released') ||
     rem.includes('evaluation released') ||
     st === 'submitted' ||
     st === 'evaluating'
   );
+}
+
+/**
+ * Checks whether the most recent evaluator-related history entry is a release action.
+ */
+export function hasEvaluatorReleased(reversedHistories?: readonly ApplicationHistoryLike[] | null): boolean {
+  if (!reversedHistories || reversedHistories.length === 0) return false;
+  for (const h of reversedHistories) {
+    if (isEvaluatorReleaseAction(h)) {
+      return true;
+    }
+    const roleLower = (h.staffRole || h.role || '').toLowerCase();
+    const actionLower = (h.action || '').toLowerCase();
+    const isEvaluatorTouch =
+      roleLower.includes('evaluat') ||
+      roleLower.includes('engineer') ||
+      roleLower.includes('legal') ||
+      actionLower.includes('evaluat') ||
+      actionLower.includes('review started') ||
+      actionLower.includes('review resumed') ||
+      (actionLower.includes('take application') && !roleLower.includes('accountant') && !roleLower.includes('cashier'));
+    if (isEvaluatorTouch) {
+      return false;
+    }
+  }
+  return false;
 }
 
 /**

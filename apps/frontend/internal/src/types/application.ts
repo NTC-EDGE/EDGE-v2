@@ -225,6 +225,12 @@ export interface OpRecordSummary {
 export interface ApplicationData {
   id: string;
   tenantId?: string;
+  scheduleId?: string;
+  scheduleVenue?: string;
+  scheduleStartDate?: string;
+  scheduleEndDate?: string;
+  scheduleStartTime?: string;
+  scheduleEndTime?: string;
   region?: string;
   referenceNumber: string;
   applicationNumber: string;

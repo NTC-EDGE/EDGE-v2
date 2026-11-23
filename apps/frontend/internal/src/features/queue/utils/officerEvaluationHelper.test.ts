@@ -941,6 +941,102 @@ describe("officerEvaluationHelper", () => {
       ).toBe(false);
     });
 
+    it("denies evaluators when application is in Returned status or released back to queue without being re-taken", () => {
+      const returnedApp = createMockApp({
+        status: "Returned",
+        evaluatingOfficer: "Engr. Maria Santos",
+        assignedTo: "Engr. Maria Santos",
+        queueTab: "pending",
+      });
+      const returnedState = computeOfficerEvaluationState({
+        application: returnedApp,
+        identifiers: ["engr. maria santos"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: returnedApp,
+          evaluationState: returnedState,
+          currentRole: "Evaluator",
+          canEvaluateApplication: true,
+        })
+      ).toBe(false);
+
+      const releasedApp = createMockApp({
+        status: "Evaluating",
+        evaluatingOfficer: "Engr. Maria Santos",
+        assignedTo: "Engr. Maria Santos",
+        queueTab: "pending",
+        history: [
+          {
+            id: "h-1",
+            action: "Evaluation Started",
+            staff: "Engr. Maria Santos",
+            role: "Evaluating Officer",
+            status: "Evaluating",
+            timestamp: "Sep 20, 2026, 10:00 AM",
+          },
+          {
+            id: "h-2",
+            action: "Evaluation Released",
+            staff: "Engr. Maria Santos",
+            role: "Evaluating Officer",
+            status: "Submitted",
+            remarks: "Evaluation released by Engr. Maria Santos. Returned to queue.",
+            timestamp: "Sep 20, 2026, 10:15 AM",
+          },
+        ],
+      });
+      const releasedState = computeOfficerEvaluationState({
+        application: releasedApp,
+        identifiers: ["engr. maria santos"],
+      });
+
+      expect(
+        canEvaluatorEditAttachment({
+          application: releasedApp,
+          evaluationState: releasedState,
+          currentRole: "Evaluator",
+          canEvaluateApplication: true,
+        })
+      ).toBe(false);
+    });
+
+    it("does not allow a different evaluator sharing a surname or generic 'User' / 'Evaluator' token to edit or crop without taking the application", () => {
+      const appClaimedByCarlos = createMockApp({
+        status: "Evaluating",
+        evaluatingOfficer: "Engr. Carlos Santos",
+        assignedTo: "Engr. Carlos Santos",
+        queueTab: "pending",
+      });
+      const mariaIdentifiers = resolveUserIdentifiers(
+        {
+          id: "usr-maria",
+          name: "Maria Santos",
+          firstName: "Maria",
+          lastName: "Santos",
+          email: "maria.santos@ntc.gov.ph",
+        },
+        null
+      );
+      const mariaState = computeOfficerEvaluationState({
+        application: appClaimedByCarlos,
+        identifiers: mariaIdentifiers,
+      });
+
+      expect(mariaState.isEvaluatedByMe).toBe(false);
+      expect(mariaState.isStageClaimedByMe).toBe(false);
+      expect(mariaState.isStageClaimedByOther).toBe(true);
+      expect(
+        canEvaluatorEditAttachment({
+          application: appClaimedByCarlos,
+          evaluationState: mariaState,
+          currentRole: "Evaluator",
+          canEvaluateApplication: true,
+        })
+      ).toBe(false);
+    });
+
     it("denies Accountant and Cashier roles from rotating or cropping attachments in any stage", () => {
       const appForAccountant = createMockApp({
         status: "ForAccountant",
