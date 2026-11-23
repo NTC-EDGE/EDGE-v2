@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, useTheme, AnimatedCard, Icon as Lucide } from "@edge/ui";
 import { useAppNavigation } from "../../../navigation/types";
@@ -14,6 +15,9 @@ import { NtcLogo } from "./NtcLogo";
 export function LandingScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
   const navigation = useAppNavigation();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
 
   const handleGetStarted = () => {
     navigation.navigate("Onboarding");
@@ -27,11 +31,23 @@ export function LandingScreen(): React.ReactElement {
     <View style={[styles.webShell, { backgroundColor: colors.bg }]}>
       <View style={styles.glowSpotTop} pointerEvents="none" />
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={[
+          styles.scrollContainer,
+          isMobile && { padding: SPACING[16] },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.container}>
-          <AnimatedCard delay={0} padding={32} style={styles.cardWrapper}>
+        <View
+          style={[
+            styles.container,
+            isTablet && { maxWidth: 480 },
+          ]}
+        >
+          <AnimatedCard
+            delay={0}
+            padding={isMobile ? 22 : 32}
+            style={styles.cardWrapper}
+          >
             <View style={styles.header}>
               <View style={{ marginBottom: SPACING[16] }}>
                 <NtcLogo size="medium" variant={isDark ? "dark" : "light"} showSubtext={false} />
@@ -196,6 +212,7 @@ const styles = StyleSheet.create({
   },
   featuresRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
     gap: 20,
     marginBottom: 28,

@@ -151,7 +151,10 @@ const FOOTER_POLICIES: { [key: string]: FooterPolicyContent } = {
 export function LandingScreen() {
   const navigation = useAppNavigation();
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 768;
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
+  const isDesktop = width >= 1024;
+  const isTabletOrDesktop = width >= 768;
 
   // Modal visibility states
   const [isTrackModalVisible, setIsTrackModalVisible] = useState(false);
@@ -508,11 +511,21 @@ export function LandingScreen() {
   return (
     <View style={styles.container}>
       {/* Sticky Glassmorphic Header/Navbar - Responsive height and Logo */}
-      <View style={[styles.headerOuter, { height: isDesktop ? 100 : 64 }]}>
-        <View style={[styles.headerInner, !isDesktop && { paddingHorizontal: 16 }]}>
-          <Logo height={isDesktop ? 72 : 36} />
+      <View
+        style={[
+          styles.headerOuter,
+          { height: isDesktop ? 100 : isTablet ? 80 : 64 },
+        ]}
+      >
+        <View
+          style={[
+            styles.headerInner,
+            !isDesktop && { paddingHorizontal: isTablet ? 24 : 16 },
+          ]}
+        >
+          <Logo height={isDesktop ? 72 : isTablet ? 50 : 36} />
 
-          {isDesktop ? (
+          {isTabletOrDesktop ? (
             <View style={styles.navLinks}>
               <Pressable
                 onPress={() => scrollToSection("about")}
@@ -592,7 +605,7 @@ export function LandingScreen() {
       </View>
 
       {/* Dynamic System Announcements Broadcast Banner */}
-      <ClientAnnouncementBanner isMobile={!isDesktop} />
+      <ClientAnnouncementBanner isMobile={isMobile} />
 
       <ScrollView
         ref={scrollViewRef}
@@ -645,8 +658,8 @@ export function LandingScreen() {
             styles.heroSection,
             isDesktop ? styles.heroSectionDesktop : null,
             {
-              paddingVertical: isDesktop ? 104 : 36,
-              paddingHorizontal: isDesktop ? 24 : 16,
+              paddingVertical: isDesktop ? 104 : isTablet ? 64 : 36,
+              paddingHorizontal: isDesktop ? 24 : isTablet ? 24 : 16,
               opacity: fadeAnimHero,
               transform: [
                 {
@@ -677,7 +690,11 @@ export function LandingScreen() {
             <Text
               style={[
                 styles.heroTitle,
-                isDesktop ? styles.heroTitleDesktop : null,
+                isTablet
+                  ? { fontSize: 46, lineHeight: 56 }
+                  : isDesktop
+                  ? styles.heroTitleDesktop
+                  : null,
               ]}
             >
               <Text style={styles.titleBlue}>Empowering </Text>
@@ -698,20 +715,27 @@ export function LandingScreen() {
               transparent processing powered by EDGE.
             </Text>
 
-            <View style={[
-              styles.heroButtonsRow,
-              !isDesktop && {
-                flexDirection: "column",
-                width: "100%",
-                gap: 12,
-                alignItems: "stretch",
-              },
-            ]}>
+            <View
+              style={[
+                styles.heroButtonsRow,
+                isMobile && {
+                  flexDirection: "column",
+                  width: "100%",
+                  gap: 12,
+                  alignItems: "stretch",
+                },
+                isTablet && {
+                  justifyContent: "center",
+                },
+              ]}
+            >
               <Button
                 title="Get Started"
                 onPress={() => openGetStartedModal()}
                 size="lg"
-                style={isDesktop ? styles.heroPrimaryBtn : styles.heroPrimaryBtnMobile}
+                style={
+                  isMobile ? styles.heroPrimaryBtnMobile : styles.heroPrimaryBtn
+                }
                 hoverStyle={styles.heroPrimaryBtnHovered}
                 icon={
                   <Lucide
@@ -726,7 +750,11 @@ export function LandingScreen() {
                 onPress={() => setIsTrackModalVisible(true)}
                 variant="outline"
                 size="lg"
-                style={isDesktop ? styles.heroSecondaryBtn : styles.heroSecondaryBtnMobile}
+                style={
+                  isMobile
+                    ? styles.heroSecondaryBtnMobile
+                    : styles.heroSecondaryBtn
+                }
                 hoverStyle={styles.heroSecondaryBtnHovered}
                 textStyle={{ color: "#2563EB" }}
                 hoverTextStyle={{ color: "#1D4ED8" }}
@@ -735,10 +763,12 @@ export function LandingScreen() {
             </View>
           </View>
 
-          {isDesktop ? (
+          {isTabletOrDesktop ? (
             <Animated.View
               style={[
-                styles.heroRightCol,
+                isDesktop
+                  ? styles.heroRightCol
+                  : { width: "100%", alignItems: "center", marginTop: 40 },
                 { transform: [{ translateY: floatAnimMockup }] },
               ]}
             >
@@ -894,9 +924,25 @@ export function LandingScreen() {
           ]}
           onLayout={(e) => handleSectionLayout("about", e.nativeEvent.layout.y)}
         >
-          {isDesktop ? (
-            <View style={styles.aboutLeftCol}>
-              <View style={[styles.aboutGraphicCard, SHADOWS.card]}>
+          {isTabletOrDesktop ? (
+            <View
+              style={
+                isDesktop
+                  ? styles.aboutLeftCol
+                  : {
+                      width: "100%",
+                      alignItems: "center",
+                      marginBottom: SPACING[32],
+                    }
+              }
+            >
+              <View
+                style={[
+                  styles.aboutGraphicCard,
+                  SHADOWS.card,
+                  isTablet && { maxWidth: 560 },
+                ]}
+              >
                 <View style={styles.aboutGraphicHeader}>
                   <View style={styles.aboutGraphicBadge}>
                     <Lucide name="shield" size={20} color="#2563EB" />
@@ -1221,7 +1267,7 @@ export function LandingScreen() {
                         style={[
                           styles.stepCardExact,
                           SHADOWS.card,
-                          { width: "100%", maxWidth: 320 },
+                          { width: "100%", maxWidth: isTablet ? 480 : 340 },
                         ]}
                       >
                         <View style={styles.stepCircleBadge}>
@@ -1608,7 +1654,10 @@ export function LandingScreen() {
         onRequestClose={() => setActiveFooterModal(null)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[
+            styles.modalOverlay,
+            isMobile && { padding: SPACING[12] },
+          ]}
           activeOpacity={1}
           onPress={() => setActiveFooterModal(null)}
         >
@@ -1616,7 +1665,11 @@ export function LandingScreen() {
             style={[
               styles.modalCard,
               SHADOWS.modal,
-              { maxWidth: 840, padding: 36, borderRadius: 24 },
+              {
+                maxWidth: isDesktop ? 840 : isTablet ? 640 : 440,
+                padding: isMobile ? 20 : isTablet ? 28 : 36,
+                borderRadius: isMobile ? 20 : 24,
+              },
             ]}
             activeOpacity={1}
             onPress={() => {}}
@@ -1634,7 +1687,7 @@ export function LandingScreen() {
 
             {activeFooterModal && (
               <ScrollView
-                style={{ maxHeight: 560 }}
+                style={{ maxHeight: isMobile ? 460 : 560 }}
                 showsVerticalScrollIndicator={true}
               >
                 {/* Header */}
@@ -1642,7 +1695,12 @@ export function LandingScreen() {
                   <View style={styles.policyHeaderIconCircle}>
                     <Lucide name="file-text" size={20} color="#2563EB" />
                   </View>
-                  <Text style={styles.policyModalTitle}>
+                  <Text
+                    style={[
+                      styles.policyModalTitle,
+                      isMobile && { fontSize: 19 },
+                    ]}
+                  >
                     {activeFooterModal.title}
                   </Text>
                 </View>
@@ -1698,96 +1756,198 @@ export function LandingScreen() {
         onRequestClose={() => setIsTrackModalVisible(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[
+            styles.modalOverlay,
+            isMobile && { padding: SPACING[12] },
+          ]}
           activeOpacity={1}
           onPress={() => setIsTrackModalVisible(false)}
         >
           <TouchableOpacity
-            style={[styles.modalCard, SHADOWS.modal, { maxWidth: 460 }]}
+            style={[
+              styles.modalCard,
+              SHADOWS.modal,
+              {
+                maxWidth: isTablet ? 480 : 460,
+                padding: 0,
+                borderRadius: 24,
+                overflow: "hidden",
+              },
+            ]}
             activeOpacity={1}
             onPress={() => {}}
           >
-            {/* Close Button */}
-            <Pressable
-              style={({ hovered }: PressableState) => [
-                styles.modalCloseBtn,
-                hovered ? styles.closeBtnHovered : null,
-              ]}
-              onPress={() => setIsTrackModalVisible(false)}
+            {/* Window Header Bar */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                backgroundColor: "#F8FAFC",
+                paddingHorizontal: 18,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.neutral[200],
+              }}
             >
-              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
-            </Pressable>
-
-            {/* Modal Logo */}
-            <View style={styles.modalHeader}>
-              <Logo height={42} />
-            </View>
-
-            <Text style={styles.modalTitle}>Track Your Application</Text>
-
-            <Text style={styles.modalInstructionText}>
-              For your data privacy and security, live application status,
-              evaluator compliance remarks, Statement of Account (SOA), Order of
-              Payment (OP), and Official Receipts are protected inside your
-              authenticated account.
-            </Text>
-
-            <View style={[styles.resultCard, { marginBottom: SPACING[20] }]}>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                <Lucide name="check-circle" size={16} color="#2563EB" style={{ marginRight: 8 }} />
-                <Text style={[styles.resultValue, { textAlign: "left", flex: 1 }]}>
-                  Real-time Evaluation & Approval Timeline
-                </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <View
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: "#EF4444",
+                  }}
+                />
+                <View
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: "#F59E0B",
+                  }}
+                />
+                <View
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: "#10B981",
+                  }}
+                />
               </View>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                <Lucide name="file-text" size={16} color="#2563EB" style={{ marginRight: 8 }} />
-                <Text style={[styles.resultValue, { textAlign: "left", flex: 1 }]}>
-                  View & Print Statement of Account (SOA) & Order of Payment
-                </Text>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Lucide name="download" size={16} color="#2563EB" style={{ marginRight: 8 }} />
-                <Text style={[styles.resultValue, { textAlign: "left", flex: 1 }]}>
-                  Submit Compliance, Payment Proof & Download Issuances
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.modalButtonsContainer}>
-              <Button
-                title="Sign In to My Applications"
-                onPress={() => {
-                  setIsTrackModalVisible(false);
-                  navigation?.navigate("Login");
-                }}
-                style={styles.modalActionBtn}
-                hoverStyle={styles.heroPrimaryBtnHovered}
-                icon={
-                  <Lucide
-                    name="log-in"
-                    size={16}
-                    color={COLORS.neutral.white}
-                  />
-                }
-              />
-
-              <Button
-                title="Create New Account"
-                variant="outline"
-                onPress={() => {
-                  setIsTrackModalVisible(false);
-                  navigation?.navigate("SignUp");
-                }}
+              <Text
                 style={{
-                  ...styles.modalActionBtn,
-                  ...styles.modalGuestBtn,
-                  marginBottom: 0,
+                  fontSize: 11,
+                  fontWeight: "600",
+                  color: COLORS.neutral[500],
                 }}
-                hoverStyle={styles.heroSecondaryBtnHovered}
-                textStyle={{ color: "#2563EB" }}
-                hoverTextStyle={{ color: "#1D4ED8" }}
-                icon={<Lucide name="user-plus" size={16} color="#2563EB" />}
-              />
+              >
+                Application Status Gateway
+              </Text>
+              <Pressable
+                style={({ hovered }: PressableState) => [
+                  { padding: 4, borderRadius: 12 },
+                  hovered ? styles.closeBtnHovered : null,
+                ]}
+                onPress={() => setIsTrackModalVisible(false)}
+              >
+                <Lucide name="x" size={18} color={COLORS.neutral[500]} />
+              </Pressable>
+            </View>
+
+            <View style={{ padding: isMobile ? 20 : 28 }}>
+              {/* Modal Logo */}
+              <View style={styles.modalHeader}>
+                <Logo height={isMobile ? 38 : 44} />
+              </View>
+
+              <Text style={[styles.modalTitle, isMobile && { fontSize: 20 }]}>
+                Track Your Application
+              </Text>
+
+              <Text style={styles.modalInstructionText}>
+                For your data privacy and security, live application status,
+                evaluator compliance remarks, Statement of Account (SOA), Order of
+                Payment (OP), and Official Receipts are protected inside your
+                authenticated account.
+              </Text>
+
+              <View style={[styles.resultCard, { marginBottom: SPACING[20] }]}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Lucide
+                    name="check-circle"
+                    size={16}
+                    color="#2563EB"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[styles.resultValue, { textAlign: "left", flex: 1 }]}
+                  >
+                    Real-time Evaluation & Approval Timeline
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Lucide
+                    name="file-text"
+                    size={16}
+                    color="#2563EB"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[styles.resultValue, { textAlign: "left", flex: 1 }]}
+                  >
+                    View & Print Statement of Account (SOA) & Order of Payment
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Lucide
+                    name="download"
+                    size={16}
+                    color="#2563EB"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[styles.resultValue, { textAlign: "left", flex: 1 }]}
+                  >
+                    Submit Compliance, Payment Proof & Download Issuances
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.modalButtonsContainer,
+                  { marginBottom: 0 },
+                ]}
+              >
+                <Button
+                  title="Sign In to My Applications"
+                  onPress={() => {
+                    setIsTrackModalVisible(false);
+                    navigation?.navigate("Login");
+                  }}
+                  style={styles.modalActionBtn}
+                  hoverStyle={styles.heroPrimaryBtnHovered}
+                  icon={
+                    <Lucide
+                      name="log-in"
+                      size={16}
+                      color={COLORS.neutral.white}
+                    />
+                  }
+                />
+
+                <Button
+                  title="Create New Account"
+                  variant="outline"
+                  onPress={() => {
+                    setIsTrackModalVisible(false);
+                    navigation?.navigate("SignUp");
+                  }}
+                  style={{
+                    ...styles.modalActionBtn,
+                    ...styles.modalGuestBtn,
+                    marginBottom: 0,
+                  }}
+                  hoverStyle={styles.heroSecondaryBtnHovered}
+                  textStyle={{ color: "#2563EB" }}
+                  hoverTextStyle={{ color: "#1D4ED8" }}
+                  icon={<Lucide name="user-plus" size={16} color="#2563EB" />}
+                />
+              </View>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>

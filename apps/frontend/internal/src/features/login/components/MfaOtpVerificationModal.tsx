@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { COLORS, SPACING, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from "@edge/ui";
 import { parseApiError } from "@edge/api";
@@ -37,6 +38,8 @@ export function MfaOtpVerificationModal({
   onCancel,
 }: MfaOtpVerificationModalProps): React.ReactElement {
   const { colors, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
   const activeFactor = supportedFactors[0] ?? DEFAULT_FACTOR;
   const [selectedStrategy, setSelectedStrategy] = useState<MfaStrategy>(activeFactor.strategy);
   const [otpCode, setOtpCode] = useState("");
@@ -122,6 +125,7 @@ export function MfaOtpVerificationModal({
               backgroundColor: colors.cardBg,
               borderColor: colors.border,
             },
+            isMobile && { padding: 20 },
           ]}
         >
           <TouchableOpacity style={styles.closeBtn} onPress={onCancel} disabled={isSubmitting}>

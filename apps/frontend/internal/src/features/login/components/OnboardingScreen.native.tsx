@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, Icon as Lucide, useTheme, AnimatedCard } from "@edge/ui";
 import { useAppNavigation } from "../../../navigation/types";
@@ -38,6 +40,8 @@ const ONBOARDING_STEPS: ReadonlyArray<OnboardingStep> = [
 export function OnboardingScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
   const navigation = useAppNavigation();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 640;
   const [currentStep, setCurrentStep] = useState(0);
 
   const handleNext = () => {
@@ -56,64 +60,75 @@ export function OnboardingScreen(): React.ReactElement {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <NtcLogo size="small" variant="auto" showSubtext={false} />
-          <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.7}>
-            <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip</Text>
-          </TouchableOpacity>
-        </View>
-
-        <AnimatedCard delay={0} padding={24} style={styles.contentCard}>
-          <View style={styles.contentInner}>
-            <View
-              style={[
-                styles.iconCircle,
-                { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
-              ]}
-            >
-              <Lucide
-                name={step.icon}
-                size={48}
-                color={isDark ? colors.brand.primary : colors.brand.secondary}
-              />
-            </View>
-            <Text style={[styles.title, { color: colors.text }]}>{step.title}</Text>
-            <Text style={[styles.description, { color: colors.textMuted }]}>{step.description}</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={[
+            styles.container,
+            isTablet && { maxWidth: 480, paddingHorizontal: 32 },
+          ]}
+        >
+          <View style={styles.header}>
+            <NtcLogo size="small" variant="auto" showSubtext={false} />
+            <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.7}>
+              <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip</Text>
+            </TouchableOpacity>
           </View>
-        </AnimatedCard>
 
-        <View style={styles.footer}>
-          <View style={styles.paginationIndicator}>
-            {ONBOARDING_STEPS.map((s, index) => (
+          <AnimatedCard delay={0} padding={isTablet ? 32 : 24} style={styles.contentCard}>
+            <View style={styles.contentInner}>
               <View
-                key={s.title}
                 style={[
-                  styles.dot,
-                  { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300] },
-                  currentStep === index && [
-                    styles.dotActive,
-                    { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
-                  ],
+                  styles.iconCircle,
+                  { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
                 ]}
-              />
-            ))}
-          </View>
+              >
+                <Lucide
+                  name={step.icon}
+                  size={48}
+                  color={isDark ? colors.brand.primary : colors.brand.secondary}
+                />
+              </View>
+              <Text style={[styles.title, { color: colors.text }]}>{step.title}</Text>
+              <Text style={[styles.description, { color: colors.textMuted }]}>{step.description}</Text>
+            </View>
+          </AnimatedCard>
 
-          <TouchableOpacity
-            style={[
-              styles.nextButton,
-              { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
-            ]}
-            onPress={handleNext}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.nextButtonText}>
-              {currentStep === ONBOARDING_STEPS.length - 1 ? "Sign In" : "Next"}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.footer}>
+            <View style={styles.paginationIndicator}>
+              {ONBOARDING_STEPS.map((s, index) => (
+                <TouchableOpacity
+                  key={s.title}
+                  onPress={() => setCurrentStep(index)}
+                  style={[
+                    styles.dot,
+                    { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300] },
+                    currentStep === index && [
+                      styles.dotActive,
+                      { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
+                    ],
+                  ]}
+                />
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.nextButton,
+                { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
+              ]}
+              onPress={handleNext}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.nextButtonText}>
+                {currentStep === ONBOARDING_STEPS.length - 1 ? "Sign In" : "Next"}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -122,6 +137,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
   container: {
     flex: 1,
     justifyContent: "space-between",
@@ -129,6 +148,7 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     width: "100%",
     alignSelf: "center",
+    gap: 24,
   },
   header: {
     flexDirection: "row",

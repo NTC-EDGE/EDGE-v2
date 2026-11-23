@@ -4,6 +4,7 @@ import {
   Text,
   View,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import {
   TYPOGRAPHY,
@@ -19,6 +20,10 @@ import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 
 export function InternalLoginScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
+  const isStacked = width < 1024;
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const loginState = useLoginForm();
@@ -37,13 +42,20 @@ export function InternalLoginScreen(): React.ReactElement {
       ) : null}
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.mainLayout}>
-          <View style={styles.contentRow}>
-            <View style={styles.heroLeftCol}>
+        <View
+          style={[
+            styles.mainLayout,
+            isMobile && { paddingHorizontal: 16, paddingTop: 24 },
+            isTablet && { paddingHorizontal: 28, paddingTop: 32 },
+          ]}
+        >
+          <View style={[styles.contentRow, isStacked && styles.contentRowStacked]}>
+            <View style={[styles.heroLeftCol, isStacked && styles.heroLeftColStacked]}>
               <View
                 style={[
                   styles.portalBadge,
                   { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
+                  isStacked && { alignSelf: "center" },
                 ]}
               >
                 <View style={[styles.badgeDot, { backgroundColor: colors.semantic.success }]} />
@@ -57,11 +69,24 @@ export function InternalLoginScreen(): React.ReactElement {
                 </Text>
               </View>
 
-              <Text style={[styles.heroTitle, { color: colors.text }]}>
+              <Text
+                style={[
+                  styles.heroTitle,
+                  { color: colors.text },
+                  isStacked && { textAlign: "center" },
+                  isMobile && { fontSize: 26, lineHeight: 34 },
+                ]}
+              >
                 National Telecommunications Commission
               </Text>
 
-              <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>
+              <Text
+                style={[
+                  styles.heroSubtitle,
+                  { color: colors.textMuted },
+                  isStacked && { textAlign: "center" },
+                ]}
+              >
                 Desktop Workstation Client for Multi-Role Application Evaluation, Statement of Account (SOA) & Order of Payment Processing, Cashier Receipting, and Regional Operations.
               </Text>
 
@@ -174,9 +199,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 48,
   },
+  contentRowStacked: {
+    flexDirection: "column",
+    gap: 32,
+  },
   heroLeftCol: {
     flex: 1,
     maxWidth: 560,
+  },
+  heroLeftColStacked: {
+    maxWidth: 640,
+    width: "100%",
+    alignItems: "center",
   },
   portalBadge: {
     flexDirection: "row",

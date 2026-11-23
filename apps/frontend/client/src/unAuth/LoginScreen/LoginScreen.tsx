@@ -7,9 +7,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  TouchableOpacity,
+  useWindowDimensions,
 } from "react-native";
 import { Icon as Lucide } from "@edge/ui";
-import { COLORS, SHADOWS, SPACING } from "../../shared/theme/tokens";
+import { COLORS, SHADOWS } from "../../shared/theme/tokens";
 import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
@@ -26,6 +28,31 @@ interface FirstFactorItem {
   safe_identifier?: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function extractFirstFactors(raw: unknown): FirstFactorItem[] {
+  if (!Array.isArray(raw)) return [];
+  const list: FirstFactorItem[] = [];
+  for (const item of raw) {
+    if (isRecord(item)) {
+      list.push({
+        strategy: typeof item.strategy === "string" ? item.strategy : undefined,
+        emailAddressId:
+          typeof item.emailAddressId === "string" ? item.emailAddressId : undefined,
+        email_address_id:
+          typeof item.email_address_id === "string" ? item.email_address_id : undefined,
+        safeIdentifier:
+          typeof item.safeIdentifier === "string" ? item.safeIdentifier : undefined,
+        safe_identifier:
+          typeof item.safe_identifier === "string" ? item.safe_identifier : undefined,
+      });
+    }
+  }
+  return list;
+}
+
 function isClerkStrategyInvalidError(err: unknown): boolean {
   if (isClerkAPIResponseError(err)) {
     const firstErr = err.errors[0];
@@ -37,15 +64,11 @@ function isClerkStrategyInvalidError(err: unknown): boolean {
       return true;
     }
   }
-  if (typeof err === "object" && err !== null) {
-    const record = err as Record<string, unknown>;
-    if (record.code === "strategy_for_user_invalid") return true;
-    if (Array.isArray(record.errors)) {
-      return record.errors.some(
-        (e: unknown) =>
-          typeof e === "object" &&
-          e !== null &&
-          (e as Record<string, unknown>).code === "strategy_for_user_invalid"
+  if (isRecord(err)) {
+    if (err.code === "strategy_for_user_invalid") return true;
+    if (Array.isArray(err.errors)) {
+      return err.errors.some(
+        (e: unknown) => isRecord(e) && e.code === "strategy_for_user_invalid",
       );
     }
   }
@@ -54,6 +77,10 @@ function isClerkStrategyInvalidError(err: unknown): boolean {
 
 export function LoginScreen() {
   const navigation = useAppNavigation();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
+
   const { signIn, setActive, isLoaded } = useSignIn();
   const { startSSOFlow } = useSSO();
   const showGoogleSso = isGoogleSsoEnabled({
@@ -81,19 +108,19 @@ export function LoginScreen() {
 
   // Animations
   const cardFade = useRef(new Animated.Value(0)).current;
-  const cardSlide = useRef(new Animated.Value(30)).current;
+  const cardSlide = useRef(new Animated.Value(24)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(cardFade, {
         toValue: 1,
-        duration: 650,
+        duration: 550,
         useNativeDriver: true,
       }),
       Animated.timing(cardSlide, {
         toValue: 0,
-        duration: 650,
+        duration: 550,
         useNativeDriver: true,
       }),
       Animated.loop(
@@ -146,25 +173,28 @@ export function LoginScreen() {
         identifier: targetEmail.trim(),
       });
 
-      const firstFactors = (si.supportedFirstFactors || signIn.supportedFirstFactors || []) as FirstFactorItem[];
+      const firstFactors = extractFirstFactors(
+        si.supportedFirstFactors ?? signIn.supportedFirstFactors,
+      );
       const emailCodeFactor = firstFactors.find((f) => f.strategy === "email_code");
 
       if (emailCodeFactor && typeof signIn.prepareFirstFactor === "function") {
-        const emailAddressId = emailCodeFactor.emailAddressId || emailCodeFactor.email_address_id || "";
+        const emailAddressId =
+          emailCodeFactor.emailAddressId || emailCodeFactor.email_address_id || "";
         await signIn.prepareFirstFactor({
           strategy: "email_code",
           emailAddressId,
         });
 
         setEmailCodeInfo(
-          `A 6-digit verification code has been sent to ${emailCodeFactor.safeIdentifier || emailCodeFactor.safe_identifier || targetEmail}.`
+          `A 6-digit verification code has been sent to ${emailCodeFactor.safeIdentifier || emailCodeFactor.safe_identifier || targetEmail}.`,
         );
         setPendingEmailCode(true);
       } else {
         const hasGoogle = firstFactors.some((f) => f.strategy === "oauth_google");
         if (hasGoogle && showGoogleSso) {
           setGeneralError(
-            "This account is linked with Google Sign-In and does not have password login enabled. Please click 'Continue with Google' below."
+            "This account is linked with Google Sign-In and does not have password login enabled. Please click 'Continue with Google' below.",
           );
         } else {
           setGeneralError("This account does not support email code verification.");
@@ -199,7 +229,7 @@ export function LoginScreen() {
     }
 
     try {
-      const result = await signIn.create({
+      await signIn.create({
         identifier: email.trim(),
         password,
       });
@@ -207,18 +237,22 @@ export function LoginScreen() {
       if (signIn.status === "complete") {
         await setActive({ session: signIn.createdSessionId });
         setSuccess(true);
-      } else if (signIn.status === "needs_first_factor" || signIn.status === "needs_second_factor") {
-        const firstFactors = (signIn.supportedFirstFactors || []) as FirstFactorItem[];
+      } else if (
+        signIn.status === "needs_first_factor" ||
+        signIn.status === "needs_second_factor"
+      ) {
+        const firstFactors = extractFirstFactors(signIn.supportedFirstFactors);
         const emailCodeFactor = firstFactors.find((f) => f.strategy === "email_code");
 
         if (emailCodeFactor && typeof signIn.prepareFirstFactor === "function") {
-          const emailAddressId = emailCodeFactor.emailAddressId || emailCodeFactor.email_address_id || "";
+          const emailAddressId =
+            emailCodeFactor.emailAddressId || emailCodeFactor.email_address_id || "";
           await signIn.prepareFirstFactor({
             strategy: "email_code",
             emailAddressId,
           });
           setEmailCodeInfo(
-            `A 6-digit verification code has been sent to ${emailCodeFactor.safeIdentifier || emailCodeFactor.safe_identifier || email}.`
+            `A 6-digit verification code has been sent to ${emailCodeFactor.safeIdentifier || emailCodeFactor.safe_identifier || email}.`,
           );
           setPendingEmailCode(true);
         } else {
@@ -228,8 +262,6 @@ export function LoginScreen() {
         setGeneralError(`Sign-in incomplete: status is ${signIn.status}`);
       }
     } catch (err: unknown) {
-      // Check if the error is "Invalid verification strategy" / strategy_for_user_invalid
-      // This happens when the user account doesn't have password authentication configured (e.g. email_code or google only)
       if (isClerkStrategyInvalidError(err)) {
         await handleStartEmailCodeFlow(email);
         return;
@@ -296,24 +328,30 @@ export function LoginScreen() {
     setGeneralError("");
 
     try {
-      const firstFactors = (signIn?.supportedFirstFactors || []) as FirstFactorItem[];
+      const firstFactors = extractFirstFactors(signIn?.supportedFirstFactors);
       const emailCodeFactor = firstFactors.find((f) => f.strategy === "email_code");
 
       if (emailCodeFactor && typeof signIn?.prepareFirstFactor === "function") {
-        const emailAddressId = emailCodeFactor.emailAddressId || emailCodeFactor.email_address_id || "";
+        const emailAddressId =
+          emailCodeFactor.emailAddressId || emailCodeFactor.email_address_id || "";
         await signIn.prepareFirstFactor({
           strategy: "email_code",
           emailAddressId,
         });
         setEmailCodeInfo(
-          `New verification code sent to ${emailCodeFactor.safeIdentifier || emailCodeFactor.safe_identifier || email}.`
+          `New verification code sent to ${emailCodeFactor.safeIdentifier || emailCodeFactor.safe_identifier || email}.`,
         );
       } else if (signIn && typeof signIn.create === "function") {
         await signIn.create({ identifier: email.trim() });
-        const refreshedFactors = (signIn.supportedFirstFactors || []) as FirstFactorItem[];
-        const refreshedEmailFactor = refreshedFactors.find((f) => f.strategy === "email_code");
+        const refreshedFactors = extractFirstFactors(signIn.supportedFirstFactors);
+        const refreshedEmailFactor = refreshedFactors.find(
+          (f) => f.strategy === "email_code",
+        );
         if (refreshedEmailFactor && typeof signIn.prepareFirstFactor === "function") {
-          const emailAddressId = refreshedEmailFactor.emailAddressId || refreshedEmailFactor.email_address_id || "";
+          const emailAddressId =
+            refreshedEmailFactor.emailAddressId ||
+            refreshedEmailFactor.email_address_id ||
+            "";
           await signIn.prepareFirstFactor({
             strategy: "email_code",
             emailAddressId,
@@ -340,11 +378,18 @@ export function LoginScreen() {
     setGeneralError("");
     try {
       const res = await startSSOFlow({ strategy: "oauth_google" });
-      if (res !== null && res !== undefined && res.createdSessionId && typeof res.setActive === "function") {
+      if (
+        res !== null &&
+        res !== undefined &&
+        res.createdSessionId &&
+        typeof res.setActive === "function"
+      ) {
         await res.setActive({ session: res.createdSessionId });
         setSuccess(true);
       } else {
-        setGeneralError("The selected Google account is not yet registered. Please make sure to sign in with a registered account.");
+        setGeneralError(
+          "The selected Google account is not yet registered. Please make sure to sign in with a registered account.",
+        );
       }
     } catch (err: unknown) {
       console.error("Google sign-in error:", err);
@@ -360,7 +405,8 @@ export function LoginScreen() {
           code === "not_allowed_to_sign_up" ||
           code === "identifier_not_found"
         ) {
-          errMsg = "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
+          errMsg =
+            "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
         } else {
           errMsg = firstErr?.message ?? errMsg;
         }
@@ -372,7 +418,8 @@ export function LoginScreen() {
           msg.includes("no user") ||
           msg.includes("external account")
         ) {
-          errMsg = "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
+          errMsg =
+            "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
         } else {
           errMsg = err.message;
         }
@@ -402,8 +449,13 @@ export function LoginScreen() {
       style={styles.keyboardContainer}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isMobile ? styles.scrollContentMobile : null,
+          isTablet ? styles.scrollContentTablet : null,
+        ]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <Animated.View
           style={[
@@ -411,21 +463,42 @@ export function LoginScreen() {
             { transform: [{ scale: glowScale }] },
             Platform.OS === "web" ? webGlowStyle : mobileGlowStyle,
           ]}
+          pointerEvents="none"
+        />
+        <Animated.View
+          style={[
+            styles.bgGlowSecondary,
+            { transform: [{ scale: glowScale }] },
+            Platform.OS === "web" ? webGlowStyle : mobileGlowStyle,
+          ]}
+          pointerEvents="none"
         />
 
-        <View style={styles.outerContainer}>
-          <Button
-            title="Back to Landing Page"
-            variant="text"
-            size="sm"
-            onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Landing")}
-            style={styles.backButton}
-            textStyle={styles.backButtonText}
-            icon={
-              <Lucide name="arrow-left" size={14} color={COLORS.neutral[600]} />
-            }
-            disabled={loading || googleLoading || success}
-          />
+        <View
+          style={[
+            styles.outerContainer,
+            isTablet ? styles.outerContainerTablet : null,
+          ]}
+        >
+          <View style={styles.topBarRow}>
+            <Button
+              title="Back to Landing"
+              variant="text"
+              size="sm"
+              onPress={() => navigation?.navigate("Landing")}
+              style={styles.backButton}
+              textStyle={styles.backButtonText}
+              icon={
+                <Lucide name="arrow-left" size={14} color={COLORS.neutral[600]} />
+              }
+              disabled={loading || googleLoading || success}
+            />
+
+            <View style={styles.securityBadge}>
+              <View style={styles.securityDot} />
+              <Text style={styles.securityText}>NTC Node: Online</Text>
+            </View>
+          </View>
 
           <Animated.View
             style={[
@@ -434,216 +507,273 @@ export function LoginScreen() {
               { opacity: cardFade, transform: [{ translateY: cardSlide }] },
             ]}
           >
-            <View style={styles.logoWrapper}>
-              <Logo />
-            </View>
-
-            <View style={styles.securityBadge}>
-              <View style={styles.securityDot} />
-              <Text style={styles.securityText}>Secure NTC Node: Active</Text>
-            </View>
-
-            <Text style={styles.title}>
-              {pendingEmailCode ? "Verify Email Code" : "Welcome Back"}
-            </Text>
-            <Text style={styles.subtitle}>
-              {pendingEmailCode
-                ? emailCodeInfo || "Enter the 6-digit verification code sent to your email"
-                : "Sign in to access your dashboard"}
-            </Text>
-
-            {generalError.length > 0 ? (
-              <Text style={styles.generalError}>{generalError}</Text>
-            ) : null}
-
-            {success ? (
-              <View style={styles.successBox}>
-                <Lucide
-                  name="check-circle"
-                  size={24}
-                  color={COLORS.semantic.success}
-                  style={styles.successIcon}
-                />
-                <Text style={styles.successText}>
-                  Successfully authenticated! Redirecting...
+            {/* Top Window Accent Bar */}
+            <View style={styles.cardHeaderBar}>
+              <View style={styles.windowDotsRow}>
+                <View style={[styles.windowDot, { backgroundColor: "#EF4444" }]} />
+                <View style={[styles.windowDot, { backgroundColor: "#F59E0B" }]} />
+                <View style={[styles.windowDot, { backgroundColor: "#10B981" }]} />
+              </View>
+              <View style={styles.cardHeaderBadge}>
+                <Lucide name="lock" size={11} color={COLORS.neutral[500]} />
+                <Text style={styles.cardHeaderBadgeText}>
+                  NTC-EDGE Client Portal
                 </Text>
               </View>
-            ) : pendingEmailCode ? (
-              /* Email OTP Verification View */
-              <View style={styles.form}>
-                <Input
-                  label="6-Digit Verification Code"
-                  placeholder="123456"
-                  value={emailCode}
-                  onChangeText={setEmailCode}
-                  error={codeError}
-                  keyboardType="numeric"
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
+            </View>
 
-                <Button
-                  title={loading ? "Verifying Code..." : "Verify & Sign In"}
-                  onPress={handleVerifyEmailCode}
-                  loading={loading}
-                  disabled={loading}
-                  style={styles.submitButton}
-                  icon={
-                    !loading ? (
-                      <Lucide
-                        name="check-circle"
-                        size={16}
-                        color={COLORS.neutral.white}
-                      />
-                    ) : undefined
-                  }
-                />
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginTop: SPACING[16],
-                  }}
-                >
-                  <Button
-                    title={resendingCode ? "Resending..." : "Resend Code"}
-                    variant="text"
-                    size="sm"
-                    onPress={handleResendEmailCode}
-                    disabled={resendingCode || loading}
-                    textStyle={{ color: COLORS.brand[800], fontSize: 13 }}
-                  />
-
-                  <Button
-                    title="Back to Password"
-                    variant="text"
-                    size="sm"
-                    onPress={() => {
-                      setPendingEmailCode(false);
-                      setCodeError("");
-                      setGeneralError("");
-                    }}
-                    textStyle={{ color: COLORS.neutral[600], fontSize: 13 }}
-                  />
-                </View>
+            <View
+              style={[
+                styles.cardBody,
+                isMobile ? styles.cardBodyMobile : null,
+                isTablet ? styles.cardBodyTablet : null,
+              ]}
+            >
+              <View style={styles.logoWrapper}>
+                <Logo height={isMobile ? 42 : 48} />
               </View>
-            ) : (
-              /* Standard Email + Password View */
-              <View style={styles.form}>
-                <Input
-                  label="Email Address"
-                  placeholder="e.g. email@domain.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  error={emailError}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  iconName="mail"
-                />
 
-                <Input
-                  label="Password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChangeText={setPassword}
-                  error={passwordError}
-                  isPassword={true}
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: SPACING[20],
-                  }}
-                >
-                  <Button
-                    title="Sign in with Email Code"
-                    variant="text"
-                    size="sm"
-                    onPress={() => {
-                      if (!email.trim()) {
-                        setEmailError("Please enter your email address first.");
-                        return;
-                      }
-                      handleStartEmailCodeFlow(email);
-                    }}
-                    textStyle={{ fontSize: 12, color: COLORS.brand[700] }}
-                  />
-
-                  <Button
-                    title="Forgot Password?"
-                    variant="text"
-                    size="sm"
-                    onPress={() => (navigation as { navigate: (route: string) => void }).navigate("ForgotPassword")}
-                    style={styles.forgotButton}
-                    textStyle={styles.forgotText}
-                  />
+              {/* Mode Switcher Tabs (Sign In / Create Account) */}
+              {!pendingEmailCode ? (
+                <View style={styles.modeTabsContainer}>
+                  <TouchableOpacity
+                    style={[styles.modeTab, styles.modeTabActive]}
+                    activeOpacity={0.9}
+                  >
+                    <Lucide name="log-in" size={14} color={COLORS.brand[800]} />
+                    <Text style={[styles.modeTabText, styles.modeTabTextActive]}>
+                      Sign In
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modeTab}
+                    activeOpacity={0.75}
+                    onPress={() => navigation?.navigate("SignUp")}
+                    disabled={loading || googleLoading || success}
+                  >
+                    <Lucide name="user-plus" size={14} color={COLORS.neutral[500]} />
+                    <Text style={styles.modeTabText}>Create Account</Text>
+                  </TouchableOpacity>
                 </View>
+              ) : null}
 
-                <Button
-                  title={loading ? "Verifying Credentials..." : "Sign In"}
-                  onPress={handleSignIn}
-                  loading={loading}
-                  disabled={loading || googleLoading}
-                  style={styles.submitButton}
-                  icon={
-                    !loading ? (
-                      <Lucide
-                        name="log-in"
-                        size={16}
-                        color={COLORS.neutral.white}
-                      />
-                    ) : undefined
-                  }
-                />
+              <Text style={[styles.title, isMobile ? styles.titleMobile : null]}>
+                {pendingEmailCode ? "Verify Email Code" : "Welcome Back"}
+              </Text>
+              <Text style={styles.subtitle}>
+                {pendingEmailCode
+                  ? "Enter the 6-digit verification code to complete sign-in"
+                  : "Sign in to manage your NTC applications, SOA, and permits"}
+              </Text>
 
-                {showGoogleSso ? (
-                  <>
-                    {/* Divider */}
-                    <View style={styles.dividerContainer}>
-                      <View style={styles.dividerLine} />
-                      <Text style={styles.dividerText}>or</Text>
-                      <View style={styles.dividerLine} />
-                    </View>
+              {generalError.length > 0 ? (
+                <View style={styles.errorBanner}>
+                  <Lucide
+                    name="alert-circle"
+                    size={18}
+                    color={COLORS.semantic.error}
+                  />
+                  <Text style={styles.generalError}>{generalError}</Text>
+                </View>
+              ) : null}
 
-                    {/* Google Sign-In */}
+              {success ? (
+                <View style={styles.successBox}>
+                  <Lucide
+                    name="check-circle"
+                    size={28}
+                    color={COLORS.semantic.success}
+                    style={styles.successIcon}
+                  />
+                  <Text style={styles.successText}>
+                    Successfully authenticated! Redirecting to your portal...
+                  </Text>
+                </View>
+              ) : pendingEmailCode ? (
+                /* Email OTP Verification View */
+                <View style={styles.form}>
+                  <View style={styles.otpTargetCard}>
+                    <Lucide name="mail" size={18} color={COLORS.brand[800]} />
+                    <Text style={styles.otpTargetText}>
+                      {emailCodeInfo ||
+                        `A 6-digit verification code was sent to ${email.trim()}.`}
+                    </Text>
+                  </View>
+
+                  <Input
+                    label="6-Digit Verification Code"
+                    placeholder="123456"
+                    value={emailCode}
+                    onChangeText={setEmailCode}
+                    error={codeError}
+                    keyboardType="numeric"
+                    autoCapitalize="none"
+                    iconName="lock"
+                  />
+
+                  <Button
+                    title={loading ? "Verifying Code..." : "Verify & Sign In"}
+                    onPress={handleVerifyEmailCode}
+                    loading={loading}
+                    disabled={loading}
+                    style={styles.submitButton}
+                    icon={
+                      !loading ? (
+                        <Lucide
+                          name="check-circle"
+                          size={16}
+                          color={COLORS.neutral.white}
+                        />
+                      ) : undefined
+                    }
+                  />
+
+                  <View style={styles.otpActionsRow}>
                     <Button
-                      title={googleLoading ? "Connecting to Google..." : "Continue with Google"}
-                      variant="outline"
-                      onPress={handleGoogleSignIn}
-                      loading={googleLoading}
-                      disabled={loading || googleLoading || success}
-                      style={styles.guestButton}
-                      icon={
-                        !googleLoading ? (
-                          <Lucide name="chrome" size={16} color={COLORS.neutral[700]} />
-                        ) : undefined
-                      }
+                      title={resendingCode ? "Resending..." : "Resend Code"}
+                      variant="text"
+                      size="sm"
+                      onPress={handleResendEmailCode}
+                      disabled={resendingCode || loading}
+                      textStyle={{ color: COLORS.brand[800], fontSize: 13 }}
                     />
-                  </>
-                ) : null}
 
-                <View style={styles.footerContainer}>
-                  <Text style={styles.footerText}>New to EDGE? </Text>
-                  <Button
-                    title="Create an account"
-                    variant="text"
-                    size="sm"
-                    onPress={() => (navigation as { navigate: (route: string) => void }).navigate("SignUp")}
-                    textStyle={styles.footerLink}
-                  />
+                    <Button
+                      title="Back to Password"
+                      variant="text"
+                      size="sm"
+                      onPress={() => {
+                        setPendingEmailCode(false);
+                        setCodeError("");
+                        setGeneralError("");
+                      }}
+                      textStyle={{ color: COLORS.neutral[600], fontSize: 13 }}
+                    />
+                  </View>
                 </View>
-              </View>
-            )}
+              ) : (
+                /* Standard Email + Password View */
+                <View style={styles.form}>
+                  <Input
+                    label="Email Address"
+                    placeholder="e.g. applicant@domain.com"
+                    value={email}
+                    onChangeText={setEmail}
+                    error={emailError}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    iconName="mail"
+                  />
+
+                  <Input
+                    label="Password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChangeText={setPassword}
+                    error={passwordError}
+                    isPassword={true}
+                    autoCapitalize="none"
+                    iconName="lock"
+                  />
+
+                  <View style={styles.helperActionsRow}>
+                    <Button
+                      title="Sign in with Email Code"
+                      variant="text"
+                      size="sm"
+                      onPress={() => {
+                        if (!email.trim()) {
+                          setEmailError("Please enter your email address first.");
+                          return;
+                        }
+                        handleStartEmailCodeFlow(email);
+                      }}
+                      textStyle={{ fontSize: 12, color: COLORS.brand[700] }}
+                    />
+
+                    <Button
+                      title="Forgot Password?"
+                      variant="text"
+                      size="sm"
+                      onPress={() => navigation?.navigate("ForgotPassword")}
+                      style={styles.forgotButton}
+                      textStyle={styles.forgotText}
+                    />
+                  </View>
+
+                  <Button
+                    title={loading ? "Verifying Credentials..." : "Sign In to Portal"}
+                    onPress={handleSignIn}
+                    loading={loading}
+                    disabled={loading || googleLoading}
+                    style={styles.submitButton}
+                    icon={
+                      !loading ? (
+                        <Lucide
+                          name="log-in"
+                          size={16}
+                          color={COLORS.neutral.white}
+                        />
+                      ) : undefined
+                    }
+                  />
+
+                  {showGoogleSso ? (
+                    <>
+                      <View style={styles.dividerContainer}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>or continue with</Text>
+                        <View style={styles.dividerLine} />
+                      </View>
+
+                      <Button
+                        title={
+                          googleLoading
+                            ? "Connecting to Google..."
+                            : "Continue with Google"
+                        }
+                        variant="outline"
+                        onPress={handleGoogleSignIn}
+                        loading={googleLoading}
+                        disabled={loading || googleLoading || success}
+                        style={styles.guestButton}
+                        icon={
+                          !googleLoading ? (
+                            <Lucide
+                              name="chrome"
+                              size={16}
+                              color={COLORS.neutral[700]}
+                            />
+                          ) : undefined
+                        }
+                      />
+                    </>
+                  ) : null}
+
+                  <View style={styles.footerContainer}>
+                    <Text style={styles.footerText}>New to NTC-EDGE? </Text>
+                    <Button
+                      title="Create an account"
+                      variant="text"
+                      size="sm"
+                      onPress={() => navigation?.navigate("SignUp")}
+                      textStyle={styles.footerLink}
+                    />
+                  </View>
+
+                  <View style={styles.trustBanner}>
+                    <Lucide name="shield" size={14} color={COLORS.brand[800]} />
+                    <Text style={styles.trustBannerText}>
+                      Protected by NTC Data Governance & RA 10173 Data Privacy compliance.
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
           </Animated.View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+

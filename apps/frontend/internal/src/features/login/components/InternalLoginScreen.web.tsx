@@ -24,8 +24,9 @@ import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 export function InternalLoginScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
-  const isTablet = width >= 768 && width < 1024;
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
+  const isStacked = width < 1024;
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [activePolicy, setActivePolicy] = useState<string | null>(null);
 
@@ -52,11 +53,23 @@ export function InternalLoginScreen(): React.ReactElement {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.mainLayout}>
-          <View style={[styles.contentRow, isMobile && styles.contentRowMobile]}>
+        <View
+          style={[
+            styles.mainLayout,
+            isMobile && { paddingHorizontal: 16, paddingTop: 24 },
+            isTablet && { paddingHorizontal: 28, paddingTop: 36 },
+          ]}
+        >
+          <View style={[styles.contentRow, isStacked && styles.contentRowMobile]}>
             {/* Left Hero Column */}
-            <View style={[styles.heroLeftCol, isMobile && styles.heroLeftColMobile]}>
-              <View style={[styles.portalBadge, isMobile && { alignSelf: "center" }]}>
+            <View
+              style={[
+                styles.heroLeftCol,
+                isStacked && styles.heroLeftColMobile,
+                isTablet && { maxWidth: 640 },
+              ]}
+            >
+              <View style={[styles.portalBadge, isStacked && { alignSelf: "center" }]}>
                 <View style={[styles.badgePulseDot, { backgroundColor: colors.semantic.success }]} />
                 <Text style={[styles.badgeLabel, { color: isDark ? colors.brand.primary : colors.brand.secondary }]}>
                   OFFICIAL GOV PORTAL • EDGE V2
@@ -70,14 +83,14 @@ export function InternalLoginScreen(): React.ReactElement {
                   isMobile
                     ? styles.heroTitleMobile
                     : isTablet
-                    ? styles.heroTitleTablet
+                    ? [styles.heroTitleTablet, { textAlign: "center" }]
                     : null,
                 ]}
               >
                 National Telecommunications Commission
               </Text>
 
-              <Text style={[styles.heroSubtitle, { color: colors.textMuted }, isMobile && styles.heroSubtitleMobile]}>
+              <Text style={[styles.heroSubtitle, { color: colors.textMuted }, isStacked && styles.heroSubtitleMobile]}>
                 Next-Generation Internal Governance Platform for Multi-Role Application Evaluation, Statement of Account (SOA) & Order of Payment Processing, Cashier Receipting, and Regional Operations.
               </Text>
 

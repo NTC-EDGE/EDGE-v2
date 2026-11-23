@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { TYPOGRAPHY, AlertToast, useTheme, AnimatedCard } from "@edge/ui";
 import { NtcLogo } from "./NtcLogo";
@@ -16,6 +17,8 @@ import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 
 export function InternalLoginScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 640;
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const loginState = useLoginForm();
@@ -38,13 +41,21 @@ export function InternalLoginScreen(): React.ReactElement {
         ) : null}
 
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[
+            styles.scrollContainer,
+            isTablet && { justifyContent: "center" },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.container}>
+          <View
+            style={[
+              styles.container,
+              isTablet && { maxWidth: 480, paddingHorizontal: 32, paddingTop: 32 },
+            ]}
+          >
             <View style={styles.logoHeader}>
-              <NtcLogo size="medium" variant={isDark ? "dark" : "light"} showSubtext={false} />
+              <NtcLogo size={isTablet ? "large" : "medium"} variant={isDark ? "dark" : "light"} showSubtext={false} />
               <View
                 style={[
                   styles.badgePill,
@@ -58,14 +69,14 @@ export function InternalLoginScreen(): React.ReactElement {
                     { color: isDark ? colors.brand.primary : colors.brand.secondary },
                   ]}
                 >
-                  Internal Mobile Access
+                  {isTablet ? "Internal Tablet Access" : "Internal Mobile Access"}
                 </Text>
               </View>
             </View>
 
             <AnimatedCard
               delay={0}
-              padding={24}
+              padding={isTablet ? 32 : 24}
               style={{
                 ...styles.loginCard,
                 backgroundColor: colors.cardBg,
