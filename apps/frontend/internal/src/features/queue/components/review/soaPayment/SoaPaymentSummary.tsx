@@ -350,6 +350,52 @@ export function SoaPaymentSummary({
               : 'Evaluator approved the assessment. Review the Order of Payment details and verify charges before approving and issuing the OP for payment.'}
           </Text>
         </View>
+      ) : (app.status === 'Evaluating' || app.status === 'Returned') ? (
+        <View
+          style={{
+            padding: SPACING[16],
+            borderRadius: RADIUS.card,
+            backgroundColor: isDark ? '#1e293b' : '#eff6ff',
+            borderWidth: 1,
+            borderColor: isDark ? '#334155' : '#bfdbfe',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <Lucide
+            name="clock"
+            size={22}
+            color={isDark ? '#60a5fa' : '#2563eb'}
+          />
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 13,
+                fontWeight: TYPOGRAPHY.weights.bold,
+                color: isDark ? '#dbeafe' : '#1e3a8a',
+              }}
+            >
+              {app.isAssessmentOnly || app.intent === 'AssessmentOnly'
+                ? 'Ready for Assessment Approval & SOA Release'
+                : 'Ready for Evaluator Approval & Forwarding to Accountant'}
+            </Text>
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 12,
+                color: isDark ? '#93c5fd' : '#1d4ed8',
+                marginTop: 2,
+                lineHeight: 16,
+              }}
+            >
+              {app.isAssessmentOnly || app.intent === 'AssessmentOnly'
+                ? 'Generating the SOA does not automatically complete the assessment. Click "Approve & Release SOA" in the bottom bar to release it to the client.'
+                : 'Generating the SOA does not forward the application yet. Click "Approve & Forward" in the bottom bar to send the application and SOA to the Accountant for Order of Payment (OP) issuance.'}
+            </Text>
+          </View>
+        </View>
       ) : (
         <View
           style={{

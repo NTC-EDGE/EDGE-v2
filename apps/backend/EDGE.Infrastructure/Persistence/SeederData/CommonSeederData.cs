@@ -142,6 +142,7 @@ public static class CommonSeederData
             ["beamwidth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000119"), FieldType = "text", Label = "Antenna Beamwidth", SyncBackOnSubmit = false },
             ["antennaRemarks"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000128"), FieldType = "text", Label = "Antenna Remarks", SyncBackOnSubmit = false },
             ["dealerName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000120"), FieldType = "text", Label = "Name of Dealer", SyncBackOnSubmit = false },
+            ["dealerAddress"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000133"), FieldType = "text", Label = "Dealer / Supplier Address", SyncBackOnSubmit = false },
             ["authorizedSellerBuyer"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000121"), FieldType = "text", Label = "Authorized Seller/Buyer", SyncBackOnSubmit = false },
             ["orInvoiceNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000122"), FieldType = "text", Label = "OR/Invoice No,", SyncBackOnSubmit = false },
             ["permitRslNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000123"), FieldType = "text", Label = "Permit/RSL No.", SyncBackOnSubmit = false },

@@ -12,6 +12,7 @@ mock.module('react-native', () => ({
   ScrollView: (props: { children?: React.ReactNode }) => React.createElement('div', null, props.children),
   StyleSheet: { create: (s: unknown) => s },
   Platform: { OS: 'web', select: (obj: Record<string, unknown>) => obj.web || obj.default },
+  Alert: { alert: () => {} },
   useWindowDimensions: () => ({ width: 1200, height: 800 }),
 }));
 

@@ -221,36 +221,50 @@ public static class FastTrackCatalogSeeder
                 desiredElements.Add((actualVariantId, el.Code, el.Description));
         }
 
+        bool anySveChange = false;
         foreach (var (variantId, code, desc) in desiredElements)
         {
             var existingEl = allDbSve.FirstOrDefault(e => e.ServiceVariantId == variantId && e.Code == code && e.Description == desc);
             if (existingEl == null)
             {
-                context.ServiceVariantElements.Add(new ServiceVariantElement { Id = Guid.NewGuid(), ServiceVariantId = variantId, Code = code, Description = desc });
+                var createdSve = new ServiceVariantElement { Id = Guid.NewGuid(), ServiceVariantId = variantId, Code = code, Description = desc };
+                context.ServiceVariantElements.Add(createdSve);
+                allDbSve.Add(createdSve);
+                anySveChange = true;
             }
             else if (existingEl.IsDeleted)
             {
                 existingEl.IsDeleted = false;
                 existingEl.IsDeletedBy = string.Empty;
+                anySveChange = true;
             }
         }
-        await context.SaveChangesAsync();
+        if (anySveChange)
+        {
+            await context.SaveChangesAsync();
+        }
 
         // 2. Master Elements
-        var uniqueElementCodes = elementsToSeed.GroupBy(e => e.Code).Select(g => g.First()).ToList();
+        var uniqueElementCodes = elementsToSeed.GroupBy(e => e.Code, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
         var existingElements = (await context.Elements.IgnoreQueryFilters().AsNoTracking().Select(e => e.Code.ToLower()).ToListAsync()).ToHashSet();
+        bool anyMasterElementChange = false;
         foreach (var el in uniqueElementCodes)
         {
-            if (!existingElements.Contains(el.Code.ToLower()))
+            if (existingElements.Add(el.Code.ToLower()))
             {
                 context.Elements.Add(new Element { Id = Guid.NewGuid(), Code = el.Code.ToUpper(), Name = el.Code, Description = el.Description });
+                anyMasterElementChange = true;
             }
         }
-        await context.SaveChangesAsync();
+        if (anyMasterElementChange)
+        {
+            await context.SaveChangesAsync();
+        }
 
         // 3. Notes
         var notesToSeed = FastTrackSeederData.GetBackfillNotes(svc101);
         var existingNotesList = await context.ServiceNotes.IgnoreQueryFilters().ToListAsync();
+        bool anyNoteChange = false;
         foreach (var note in notesToSeed)
         {
             Guid? actualVariantId = note.ServiceVariantId.HasValue ? ResolveVariantId(note.ServiceVariantId.Value) : null;
@@ -259,20 +273,28 @@ public static class FastTrackCatalogSeeder
             var matchingNote = existingNotesList.FirstOrDefault(n => n.ServiceId == note.ServiceId && n.ServiceVariantId == actualVariantId && n.Notes == note.Content);
             if (matchingNote == null)
             {
-                context.ServiceNotes.Add(new ServiceNote { Id = Guid.NewGuid(), ServiceId = note.ServiceId, ServiceVariantId = actualVariantId, Notes = note.Content });
+                var createdNote = new ServiceNote { Id = Guid.NewGuid(), ServiceId = note.ServiceId, ServiceVariantId = actualVariantId, Notes = note.Content };
+                context.ServiceNotes.Add(createdNote);
+                existingNotesList.Add(createdNote);
+                anyNoteChange = true;
             }
             else if (matchingNote.IsDeleted)
             {
                 matchingNote.IsDeleted = false;
                 matchingNote.IsDeletedBy = string.Empty;
+                anyNoteChange = true;
             }
         }
-        await context.SaveChangesAsync();
+        if (anyNoteChange)
+        {
+            await context.SaveChangesAsync();
+        }
 
         // 4. Requirements & Bindings
         var reqs = FastTrackSeederData.GetBackfillRequirements();
         var existingRequirements = await context.Requirements.IgnoreQueryFilters().ToListAsync();
         var existingReqMap = existingRequirements.ToDictionary(r => r.Id);
+        bool anyReqChange = false;
         foreach (var req in reqs.Values)
         {
             if (!existingReqMap.TryGetValue(req.Id, out var existing))
@@ -280,22 +302,31 @@ public static class FastTrackCatalogSeeder
                 var newReq = new Requirement { Id = req.Id, Name = req.Name, Description = req.Desc };
                 context.Requirements.Add(newReq);
                 existingReqMap[req.Id] = newReq;
+                anyReqChange = true;
             }
             else
             {
-                existing.IsDeleted = false;
-                existing.IsDeletedBy = string.Empty;
-                existing.Name = req.Name;
-                existing.Description = req.Desc;
+                if (existing.IsDeleted || existing.Name != req.Name || existing.Description != req.Desc)
+                {
+                    existing.IsDeleted = false;
+                    existing.IsDeletedBy = string.Empty;
+                    existing.Name = req.Name;
+                    existing.Description = req.Desc;
+                    anyReqChange = true;
+                }
             }
         }
-        await context.SaveChangesAsync();
+        if (anyReqChange)
+        {
+            await context.SaveChangesAsync();
+        }
 
         var tenantId = await context.Tenants.IgnoreQueryFilters().Select(t => (Guid?)t.Id).FirstOrDefaultAsync();
         var variantReqsToSeed = FastTrackSeederData.GetBackfillVariantRequirements();
         var allExistingSvr = await context.ServiceVariantRequirements.IgnoreQueryFilters().ToListAsync();
         var baseTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         int seedIndex = 0;
+        bool anySvrChange = false;
 
         foreach (var vr in variantReqsToSeed)
         {
@@ -304,21 +335,29 @@ public static class FastTrackCatalogSeeder
             if (!validVariantIds.Contains(actualVariantId) || !existingReqMap.ContainsKey(vr.ReqId)) continue;
 
             var existingRecord = allExistingSvr.FirstOrDefault(r => r.ServiceVariantId == actualVariantId && r.RequirementId == vr.ReqId);
+            var targetCreatedAt = baseTime.AddSeconds(seedIndex);
             if (existingRecord == null)
             {
-                var newSvr = new ServiceVariantRequirement { Id = Guid.NewGuid(), TenantId = tenantId, ServiceVariantId = actualVariantId, RequirementId = vr.ReqId, IsRequired = vr.IsRequired, CreatedAt = baseTime.AddSeconds(seedIndex) };
+                var newSvr = new ServiceVariantRequirement { Id = Guid.NewGuid(), TenantId = tenantId, ServiceVariantId = actualVariantId, RequirementId = vr.ReqId, IsRequired = vr.IsRequired, CreatedAt = targetCreatedAt };
                 context.ServiceVariantRequirements.Add(newSvr);
                 allExistingSvr.Add(newSvr);
+                anySvrChange = true;
             }
             else
             {
-                existingRecord.IsDeleted = false;
-                existingRecord.IsDeletedBy = string.Empty;
-                existingRecord.IsRequired = vr.IsRequired;
-                existingRecord.CreatedAt = baseTime.AddSeconds(seedIndex);
+                if (existingRecord.IsDeleted || existingRecord.IsRequired != vr.IsRequired)
+                {
+                    existingRecord.IsDeleted = false;
+                    existingRecord.IsDeletedBy = string.Empty;
+                    existingRecord.IsRequired = vr.IsRequired;
+                    anySvrChange = true;
+                }
             }
         }
-        await context.SaveChangesAsync();
+        if (anySvrChange)
+        {
+            await context.SaveChangesAsync();
+        }
 
         // 5. Seed ServiceVariantFees and ServiceVariantElementFees
         await FastTrackFeeSeeder.SeedFeesAndVariantFeesAsync(context, logger);

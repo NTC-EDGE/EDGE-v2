@@ -868,6 +868,7 @@ export function PendingPaymentDetailsModal({
         file={previewProofDoc}
         onClose={() => setPreviewProofDoc(null)}
         label={previewProofDoc?.name}
+        allowEditImage={false}
       />
     )}
     </>

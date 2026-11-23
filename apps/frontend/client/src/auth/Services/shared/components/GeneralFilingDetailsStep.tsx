@@ -12,9 +12,11 @@ import {
   evaluateVisibilityCondition,
   isFieldContextVisible,
   isFieldRowVisible,
+  resolveFieldForContext,
   FormEvaluationContext,
   parseOptions,
 } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { synthesizeAllApplicantFieldValues } from "../helpers/applicantFieldSynthesizer";
 import { initialCopyOfPermitData } from "../../permits";
 import { PERMIT_DETAILS_SERVICE_OPTIONS } from "../../../../shared/components/dynamic-form/dynamicFormConstants";
 
@@ -28,7 +30,7 @@ interface GeneralFilingDetailsStepProps {
   applicants?: GeneralApplicantData[];
   currentApplicantIndex?: number;
   setCurrentApplicantIndex?: (idx: number) => void;
-  onRequiredFieldsChange?: (fieldIds: string[]) => void;
+  onRequiredFieldsChange?: (fieldIds: string[], fieldLabels?: Record<string, string>) => void;
   errors?: Record<string, string>;
   variants?: Array<{ id: string; type?: string; name?: string; description?: string; isIndividual?: boolean; [key: string]: unknown }>;
   variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
@@ -152,32 +154,58 @@ export function GeneralFilingDetailsStep({
   const isBulk = appMode === "BULK";
   const showBulkCohortBanner = isBulk && applicants.length > 1;
 
-  // Build key-value map for dynamic service fields from activeApplicant.formFieldValues
-  const dynamicValuesRecord: Record<string, string> = {};
-  if (activeApplicant.formFieldValues && Array.isArray(activeApplicant.formFieldValues)) {
-    activeApplicant.formFieldValues.forEach((fv) => {
-      if (fv.fieldId) dynamicValuesRecord[fv.fieldId] = fv.value;
-      if (fv.fieldLabel) dynamicValuesRecord[fv.fieldLabel] = fv.value;
-    });
-  }
+  // Build key-value map for dynamic service fields from activeApplicant.formFieldValues and synthesized applicant properties
+  const dynamicValuesRecord = useMemo(() => {
+    const record: Record<string, string> = {};
+    if (activeApplicant.formFieldValues && Array.isArray(activeApplicant.formFieldValues)) {
+      activeApplicant.formFieldValues.forEach((fv) => {
+        if (fv.fieldId && fv.value !== undefined && fv.value !== null) {
+          record[fv.fieldId] = fv.value;
+          record[fv.fieldId.toLowerCase().trim()] = fv.value;
+        }
+        if (fv.fieldLabel && fv.value !== undefined && fv.value !== null) {
+          record[fv.fieldLabel] = fv.value;
+          record[fv.fieldLabel.toLowerCase().trim()] = fv.value;
+        }
+      });
+    }
 
-  // Pre-fill educational fields if present on applicant and not yet in dynamicValuesRecord
-  if (activeApplicant.schoolName && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000061"] && !dynamicValuesRecord["schoolName"]) {
-    dynamicValuesRecord["fd000000-0000-0000-0000-000000000061"] = activeApplicant.schoolName;
-    dynamicValuesRecord["schoolName"] = activeApplicant.schoolName;
-  }
-  if (activeApplicant.courseDegree && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000062"] && !dynamicValuesRecord["courseDegree"]) {
-    dynamicValuesRecord["fd000000-0000-0000-0000-000000000062"] = activeApplicant.courseDegree;
-    dynamicValuesRecord["courseDegree"] = activeApplicant.courseDegree;
-  }
-  if (activeApplicant.yearGraduated && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000063"] && !dynamicValuesRecord["yearGraduated"]) {
-    dynamicValuesRecord["fd000000-0000-0000-0000-000000000063"] = activeApplicant.yearGraduated;
-    dynamicValuesRecord["yearGraduated"] = activeApplicant.yearGraduated;
-  }
+    const synthesized = synthesizeAllApplicantFieldValues(activeApplicant, effectiveForm);
+    synthesized.forEach((fv) => {
+      if (fv.fieldId && fv.value && !record[fv.fieldId]) {
+        record[fv.fieldId] = fv.value;
+        record[fv.fieldId.toLowerCase().trim()] = fv.value;
+      }
+      if (fv.fieldLabel && fv.value && !record[fv.fieldLabel]) {
+        record[fv.fieldLabel] = fv.value;
+        record[fv.fieldLabel.toLowerCase().trim()] = fv.value;
+      }
+    });
+
+    const schoolVal = activeApplicant.schoolName || activeApplicant.schoolAttended;
+    if (schoolVal && !record["fd000000-0000-0000-0000-000000000061"] && !record["schoolName"]) {
+      record["fd000000-0000-0000-0000-000000000061"] = schoolVal;
+      record["schoolName"] = schoolVal;
+      record["School / University Attended"] = schoolVal;
+    }
+    const courseVal = activeApplicant.courseDegree || activeApplicant.courseTaken;
+    if (courseVal && !record["fd000000-0000-0000-0000-000000000062"] && !record["courseDegree"]) {
+      record["fd000000-0000-0000-0000-000000000062"] = courseVal;
+      record["courseDegree"] = courseVal;
+      record["Course / Degree Program"] = courseVal;
+    }
+    if (activeApplicant.yearGraduated && !record["fd000000-0000-0000-0000-000000000063"] && !record["yearGraduated"]) {
+      record["fd000000-0000-0000-0000-000000000063"] = activeApplicant.yearGraduated;
+      record["yearGraduated"] = activeApplicant.yearGraduated;
+      record["Year Graduated"] = activeApplicant.yearGraduated;
+    }
+
+    return record;
+  }, [activeApplicant, effectiveForm]);
 
   useEffect(() => {
     if (!effectiveForm || !effectiveForm.sections || effectiveForm.sections.length === 0) {
-      onRequiredFieldsChange?.([]);
+      onRequiredFieldsChange?.([], {});
       return;
     }
 
@@ -215,6 +243,8 @@ export function GeneralFilingDetailsStep({
     };
 
     const requiredFieldIds: string[] = [];
+    const fieldLabels: Record<string, string> = {};
+    const autoSyncedEntries: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
 
     effectiveForm.sections.forEach((sec) => {
       if (!sec) return;
@@ -230,6 +260,7 @@ export function GeneralFilingDetailsStep({
         k === "applicantcontact" ||
         k === "applicant_information" ||
         t === "applicant particulars" ||
+        t === "applicant details" ||
         t === "applicant information";
 
       if (isPersonalInfoSec) {
@@ -240,13 +271,45 @@ export function GeneralFilingDetailsStep({
         return;
       }
 
-      (sec.fields || []).forEach((field) => {
-        if (!field || !field.isRequired) return;
-
+      (sec.fields || []).forEach((rawField) => {
+        if (!rawField) return;
+        const field = resolveFieldForContext(rawField, evaluationContext);
         const rawTargetId = field.fieldId || field.id;
+        if (rawTargetId && field.label) {
+          fieldLabels[rawTargetId] = field.label;
+          fieldLabels[rawTargetId.toLowerCase().trim()] = field.label;
+        }
+        if (field.id && field.label) {
+          fieldLabels[field.id] = field.label;
+          fieldLabels[field.id.toLowerCase().trim()] = field.label;
+        }
+        if (field.fieldId && field.label) {
+          fieldLabels[field.fieldId] = field.label;
+          fieldLabels[field.fieldId.toLowerCase().trim()] = field.label;
+        }
+
         if (!isFieldRowVisible(field, sec, evaluationContext)) {
           return;
         }
+
+        if (rawTargetId && field.label) {
+          const idLower = rawTargetId.toLowerCase().trim();
+          const lblLower = field.label.toLowerCase().trim();
+          const prefilledVal =
+            dynamicValuesRecord[rawTargetId] ||
+            dynamicValuesRecord[idLower] ||
+            dynamicValuesRecord[field.label] ||
+            dynamicValuesRecord[lblLower];
+          if (prefilledVal && prefilledVal.trim().length > 0) {
+            autoSyncedEntries.push({
+              fieldId: rawTargetId,
+              fieldLabel: field.label,
+              value: prefilledVal.trim(),
+            });
+          }
+        }
+
+        if (!field.isRequired) return;
 
         if (rawTargetId) {
           requiredFieldIds.push(rawTargetId);
@@ -254,7 +317,42 @@ export function GeneralFilingDetailsStep({
       });
     });
 
-    onRequiredFieldsChange?.(requiredFieldIds);
+    onRequiredFieldsChange?.(requiredFieldIds, fieldLabels);
+
+    if (autoSyncedEntries.length > 0) {
+      const currentArr = activeApplicant.formFieldValues || [];
+      const missingEntries = autoSyncedEntries.filter(
+        (entry) =>
+          !currentArr.some(
+            (existing) =>
+              (existing.fieldId || "").toLowerCase().trim() === entry.fieldId.toLowerCase().trim() &&
+              (existing.value || "").trim() === entry.value
+          )
+      );
+      if (missingEntries.length > 0) {
+        updateActiveApplicant((prevApp) => {
+          const prevArr = prevApp.formFieldValues || [];
+          const nextArr = [...prevArr];
+          for (const entry of autoSyncedEntries) {
+            const idx = nextArr.findIndex(
+              (item) =>
+                (item.fieldId || "").toLowerCase().trim() === entry.fieldId.toLowerCase().trim() ||
+                ((item.fieldLabel || "").toLowerCase().trim() === entry.fieldLabel.toLowerCase().trim() &&
+                  entry.fieldLabel.trim().length > 0)
+            );
+            if (idx === -1) {
+              nextArr.push(entry);
+            } else if (!nextArr[idx].value || nextArr[idx].value.trim() === "") {
+              nextArr[idx] = entry;
+            }
+          }
+          if (nextArr.length === prevArr.length && nextArr.every((v, i) => v === prevArr[i])) {
+            return {};
+          }
+          return { formFieldValues: nextArr };
+        });
+      }
+    }
   }, [
     effectiveForm,
     activeApplicant.selectedVariantId,

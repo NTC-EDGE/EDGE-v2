@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, useTheme, AnimatedCard, Icon as Lucide } from "@edge/ui";
 import { useAppNavigation } from "../../../navigation/types";
+import { NtcLogo } from "./NtcLogo";
 
 export function LandingScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
@@ -30,13 +31,8 @@ export function LandingScreen(): React.ReactElement {
         <View style={styles.container}>
           <AnimatedCard delay={0} padding={32} style={styles.cardWrapper}>
             <View style={styles.header}>
-              <View
-                style={[
-                  styles.logoPlaceholder,
-                  { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
-                ]}
-              >
-                <Text style={styles.logoText}>EDGE</Text>
+              <View style={{ marginBottom: SPACING[16] }}>
+                <NtcLogo size="medium" variant={isDark ? "dark" : "light"} showSubtext={false} />
               </View>
 
               <View
@@ -62,7 +58,7 @@ export function LandingScreen(): React.ReactElement {
                 NTC-EDGE Internal Portal
               </Text>
               <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                Secure desktop workstation client for regional queue processing, spectrum auditing, and operational governance.
+                Secure desktop workstation client for regional evaluation queues, Statement of Account (SOA) & Order of Payment processing, cashier receipting, and operational governance.
               </Text>
             </View>
 

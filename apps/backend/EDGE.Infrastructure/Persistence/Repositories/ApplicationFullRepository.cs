@@ -121,6 +121,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(a => a.Tenant)
                 .ThenInclude(t => t!.Region)
             .Include(a => a.Region)
+            .Include(a => a.Schedule)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 

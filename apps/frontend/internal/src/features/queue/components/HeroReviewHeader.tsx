@@ -199,14 +199,15 @@ export function HeroReviewHeader({
         {scheduleSummaryText && (
           <View style={[styles.officePill, { backgroundColor: itemBg, borderColor: itemBorder }]}>
             <Icon
-              name={isExamService ? 'calendar' : 'map-pin'}
+              name={isExamService ? 'map-pin' : 'map-pin'}
               size={12}
               color={isDark ? colors.brand[400] : '#2563EB'}
+              style={{ marginTop: 2 }}
             />
             <Text style={[styles.officeLabel, { color: textSecondary }]}>
               {isExamService ? 'Exam Venue:' : 'Office:'}
             </Text>
-            <Text style={[styles.officeValue, { color: textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.officeValue, { color: textPrimary }]}>
               {scheduleSummaryText}
             </Text>
           </View>
@@ -491,10 +492,13 @@ const styles = StyleSheet.create({
   },
   officePill: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    flexShrink: 1,
+    maxWidth: '100%',
     gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
   },
@@ -502,12 +506,14 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: '600',
+    lineHeight: 16,
   },
   officeValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: '700',
-    maxWidth: 220,
+    lineHeight: 16,
+    flexShrink: 1,
   },
   singleServiceBlock: {
     flexDirection: 'row',

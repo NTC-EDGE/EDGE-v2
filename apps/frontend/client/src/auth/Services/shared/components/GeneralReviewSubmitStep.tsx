@@ -168,7 +168,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
               isCertificateService={reviewData.isCertificateService}
               serviceTitle={serviceTitle}
               vasData={activeApplicant.vasData}
-              formFieldValues={activeApplicant.formFieldValues}
+              formFieldValues={reviewData.formFieldValues}
             />
 
             {!reviewData.isCopyOfPermitService && (
@@ -182,7 +182,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
               isPermitService={reviewData.isPermitService}
               serviceTitle={serviceTitle}
               copyOfPermit={activeApplicant.copyOfPermitData}
-              formFieldValues={activeApplicant.formFieldValues}
+              formFieldValues={reviewData.formFieldValues}
               selectedVariantName={reviewData.variantLabel}
             />
 
@@ -231,6 +231,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
         onClose={() => setIsPreviewOpen(false)}
         file={previewFile}
         label={previewLabel}
+        allowEditImage={true}
       />
     </>
   );

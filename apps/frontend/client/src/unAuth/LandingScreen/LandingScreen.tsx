@@ -17,20 +17,10 @@ import { Icon as Lucide } from "@edge/ui";
 import { COLORS, SHADOWS, SPACING } from "../../shared/theme/tokens";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
-import { Input } from "../../shared/components/Input";
 import { ClientAnnouncementBanner } from "../../shared/components/ClientAnnouncementBanner";
-import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
-
-
-interface TrackingResult {
-  referenceNo: string;
-  region: string;
-  type: string;
-  applicantName: string;
-  status: string;
-  updatedAt: string;
-  stage: string;
-}
+import { useClientSupportModals } from "../../shared/support/hooks/useClientSupportModals";
+import { SendFeedbackModal } from "../../shared/support/components/SendFeedbackModal";
+import { HelpCenterModal } from "../../shared/support/components/HelpCenterModal";
 
 interface PressableState {
   pressed: boolean;
@@ -151,7 +141,7 @@ const FOOTER_POLICIES: { [key: string]: FooterPolicyContent } = {
       {
         title: "2. Contact Information",
         body: "For application-specific inquiries or technical issues that cannot be resolved via self-service:",
-        highlight: "Email Support: support@ntcedge.gov.ph",
+        highlight: "Email Support: edge@ntc.gov.ph",
       },
       {
         title: "3. Operating Hours",
@@ -164,166 +154,20 @@ const FOOTER_POLICIES: { [key: string]: FooterPolicyContent } = {
 export function LandingScreen() {
   const navigation = useAppNavigation();
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 768;
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
+  const isDesktop = width >= 1024;
+  const isTabletOrDesktop = width >= 768;
 
-  // Modal visibility & mode states
-  const [isGetStartedModalVisible, setIsGetStartedModalVisible] =
-    useState(false);
-  const [modalMode, setModalMode] = useState<
-    "choice" | "login" | "forgotPassword"
-  >("choice");
+  // Modal visibility states
   const [isTrackModalVisible, setIsTrackModalVisible] = useState(false);
   const [activeFooterModal, setActiveFooterModal] =
     useState<FooterPolicyContent | null>(null);
+  const support = useClientSupportModals();
 
-  // In-modal Login form states
-  const [loginRegion, setLoginRegion] = useState("");
-  const [isLoginRegionDropdownOpen, setIsLoginRegionDropdownOpen] =
-    useState(false);
-  const [loginPhoneOrEmail, setLoginPhoneOrEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginRegionError, setLoginRegionError] = useState("");
-  const [loginPhoneOrEmailError, setLoginPhoneOrEmailError] = useState("");
-  const [loginPasswordError, setLoginPasswordError] = useState("");
-  const [loginGeneralError, setLoginGeneralError] = useState("");
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
-
-  // In-modal Forgot Password states
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotEmailError, setForgotEmailError] = useState("");
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotSuccess, setForgotSuccess] = useState(false);
-
-  const openGetStartedModal = (
-    initialMode: "choice" | "login" | "forgotPassword" = "choice",
-  ) => {
+  const openGetStartedModal = () => {
     navigation?.navigate("Login");
   };
-
-  const closeGetStartedModal = () => {
-    setIsGetStartedModalVisible(false);
-    setModalMode("choice");
-    setIsLoginRegionDropdownOpen(false);
-    resetLoginForm();
-    resetForgotPasswordForm();
-  };
-
-  const resetLoginForm = () => {
-    setLoginRegion("");
-    setIsLoginRegionDropdownOpen(false);
-    setLoginPhoneOrEmail("");
-    setLoginPassword("");
-    setShowPassword(false);
-    setLoginRegionError("");
-    setLoginPhoneOrEmailError("");
-    setLoginPasswordError("");
-    setLoginGeneralError("");
-    setLoginLoading(false);
-    setLoginSuccess(false);
-  };
-
-  const resetForgotPasswordForm = () => {
-    setForgotEmail("");
-    setForgotEmailError("");
-    setForgotLoading(false);
-    setForgotSuccess(false);
-  };
-
-  const validateModalLogin = (): boolean => {
-    let isValid = true;
-    setLoginRegionError("");
-    setLoginPhoneOrEmailError("");
-    setLoginPasswordError("");
-    setLoginGeneralError("");
-
-    if (loginRegion.length === 0) {
-      setLoginRegionError("Philippine region is required");
-      isValid = false;
-    }
-
-    const trimmedIdentifier = loginPhoneOrEmail.trim();
-    if (trimmedIdentifier.length === 0) {
-      setLoginPhoneOrEmailError("Phone number or email address is required");
-      isValid = false;
-    } else if (trimmedIdentifier.includes("@")) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(trimmedIdentifier)) {
-        setLoginPhoneOrEmailError("Please enter a valid email address");
-        isValid = false;
-      }
-    } else {
-      const sanitizedPhone = trimmedIdentifier.replace(/\s+/g, "");
-      const phoneRegex = /^\+?[0-9]{10,15}$/;
-      if (!phoneRegex.test(sanitizedPhone)) {
-        setLoginPhoneOrEmailError(
-          "Please enter a valid phone number or email address",
-        );
-        isValid = false;
-      }
-    }
-
-    if (loginPassword.length === 0) {
-      setLoginPasswordError("Password is required");
-      isValid = false;
-    }
-
-    return isValid;
-  };
-
-  const handleModalLoginSubmit = () => {
-    if (!validateModalLogin()) return;
-
-    setLoginLoading(true);
-    setTimeout(() => {
-      setLoginLoading(false);
-      setLoginSuccess(true);
-      setTimeout(() => {
-        closeGetStartedModal();
-        navigation?.navigate("Login");
-      }, 800);
-    }, 1200);
-  };
-
-  const validateForgotPassword = (): boolean => {
-    setForgotEmailError("");
-    const trimmed = forgotEmail.trim();
-    if (trimmed.length === 0) {
-      setForgotEmailError("Email address is required");
-      return false;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmed)) {
-      setForgotEmailError("Please enter a valid email address");
-      return false;
-    }
-    return true;
-  };
-
-  const handleForgotPasswordSubmit = () => {
-    if (!validateForgotPassword()) return;
-
-    setForgotLoading(true);
-    setTimeout(() => {
-      setForgotLoading(false);
-      setForgotSuccess(true);
-      setTimeout(() => {
-        setModalMode("login");
-        resetForgotPasswordForm();
-      }, 2000);
-    }, 1200);
-  };
-
-  // Tracking form states
-  const [referenceNo, setReferenceNo] = useState("");
-  const [selectedRegion, setSelectedRegion] = useState("");
-  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
-  const [trackingLoading, setTrackingLoading] = useState(false);
-  const [trackingError, setTrackingError] = useState("");
-  const [trackingResult, setTrackingResult] = useState<TrackingResult | null>(
-    null,
-  );
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -541,73 +385,6 @@ export function LandingScreen() {
     }
   };
 
-  const handleTrackSubmit = () => {
-    setTrackingError("");
-    setTrackingResult(null);
-
-    if (referenceNo.trim().length === 0) {
-      setTrackingError("Reference number is required.");
-      return;
-    }
-
-    if (selectedRegion.length === 0) {
-      setTrackingError("Please select a region.");
-      return;
-    }
-
-    setTrackingLoading(true);
-
-    setTimeout(() => {
-      setTrackingLoading(false);
-      const cleanRef = referenceNo.toUpperCase().trim();
-      if (cleanRef === "NTC-2026-9812") {
-        setTrackingResult({
-          referenceNo: "NTC-2026-9812",
-          region: selectedRegion,
-          type: "Radio Station License",
-          applicantName: "Cignal TV Inc.",
-          status: "IN REVIEW",
-          updatedAt: "2 hours ago",
-          stage: "Evaluation (Step 2 of 3)",
-        });
-      } else if (cleanRef === "NTC-2026-0001") {
-        setTrackingResult({
-          referenceNo: "NTC-2026-0001",
-          region: selectedRegion,
-          type: "Permit to Purchase",
-          applicantName: "Globe Telecom",
-          status: "APPROVED",
-          updatedAt: "1 day ago",
-          stage: "Issuance (Step 3 of 3)",
-        });
-      } else if (cleanRef === "NTC-2026-0002") {
-        setTrackingResult({
-          referenceNo: "NTC-2026-0002",
-          region: selectedRegion,
-          type: "Certificate of Public Convenience",
-          applicantName: "Smart Communications",
-          status: "PENDING DOCUMENTS",
-          updatedAt: "3 days ago",
-          stage: "Submission (Step 1 of 3)",
-        });
-      } else if (cleanRef.startsWith("NTC-")) {
-        setTrackingResult({
-          referenceNo: cleanRef,
-          region: selectedRegion,
-          type: "General Application",
-          applicantName: "Guest User",
-          status: "DRAFT/IN PROGRESS",
-          updatedAt: "Just now",
-          stage: "Submission (Step 1 of 3)",
-        });
-      } else {
-        setTrackingError(
-          "Reference number not found for the selected region. Try 'NTC-2026-9812'.",
-        );
-      }
-    }, 1500);
-  };
-
   const handleFaqPress = (idx: number) => {
     const isExpanded = expandedFaq === idx;
 
@@ -658,19 +435,19 @@ export function LandingScreen() {
   const faqs = [
     {
       q: "What is the EDGE application?",
-      a: "The Electronic Data Governance and Evaluation (EDGE) application is an online information system by the NTC for issuing certificates, permits, licenses, and handling complaints/requests.",
+      a: "The Electronic Data Governance and Evaluation (EDGE) portal is the official online platform of the National Telecommunications Commission (NTC) for Radio Operator Examinations, Certificates, Radio Station Licenses, Permits, CPE Supplier Accreditations, and Consumer Requests & Complaints.",
     },
     {
       q: "Who can use this portal?",
-      a: "Individuals and businesses who need to interact with the NTC for services like permits, licenses, and tracking complaints.",
+      a: "Individual applicants, licensed radio operators, maritime and aviation entities, telecommunications providers, accredited equipment dealers, and authorized company/liaison representatives filing single or bulk applications.",
     },
     {
-      q: "How do I track my application?",
-      a: "Tap “Track Application” and enter your reference number or open “My Applications” in your dashboard.",
+      q: "How do I track my application and pay fees?",
+      a: "Sign in and open “My Applications” to monitor real-time evaluation progress, respond to compliance remarks, view your Statement of Account (SOA) and Order of Payment (OP), submit payment details, and download official receipts and issued documents.",
     },
     {
       q: "Is my data secure?",
-      a: "Yes. We use industry-standard security to protect your information and application data.",
+      a: "Yes. EDGE enforces strict role-based access control, regional office tenant isolation, and encrypted document storage in compliance with the Data Privacy Act of 2012 (RA 10173).",
     },
   ];
 
@@ -684,52 +461,52 @@ export function LandingScreen() {
     {
       tag: "SECURITY",
       title: "Secure & Trusted",
-      desc: "Industry-standard security protects your information with encryption and compliance.",
+      desc: "Encrypted document storage, regional jurisdiction routing, and Data Privacy Act compliance protect every filing.",
       icon: "shield",
     },
     {
       tag: "REAL-TIME",
-      title: "Real-time Tracking",
-      desc: "Monitor your application status anytime, anywhere. Get instant updates.",
+      title: "Live SOA, OP & Tracking",
+      desc: "Track evaluation stages, receive instant compliance alerts, and view your Statement of Account and Order of Payment online.",
       icon: "search",
     },
     {
       tag: "WORKFLOW",
-      title: "Simple Process",
-      desc: "Streamlined workflows make applying quick and easy.",
+      title: "Individual & Bulk Filing",
+      desc: "Guided step-by-step wizards and spreadsheet/CSV bulk filing streamline applications across all 6 NTC service categories.",
       icon: "file-text",
     },
   ];
 
-  // Steps matching exact layout from reference screenshot
+  // Steps matching the actual 5-stage application lifecycle
   const stepsRow1 = [
     {
       number: "1",
-      title: "Create Account/Apply",
-      desc: "Register an account or tap Start Application to begin.",
+      title: "Sign In & Choose Service",
+      desc: "Select your regional office and service across Exams, Certificates, Licenses, Permits, Accreditations, or Requests.",
     },
     {
       number: "2",
-      title: "Submit Application",
-      desc: "Complete forms and upload requirements.",
+      title: "Complete Form & Uploads",
+      desc: "Fill out guided dynamic forms (or bulk import) and attach required documentary proofs.",
     },
     {
       number: "3",
-      title: "Track Application",
-      desc: "Use your reference number or My Applications.",
+      title: "Evaluation & SOA/OP",
+      desc: "NTC evaluators review your submission, issue the Statement of Account (SOA), and approve the Order of Payment (OP).",
     },
   ];
 
   const stepsRow2 = [
     {
       number: "4",
-      title: "Process Payment",
-      desc: "Pay fees at the nearest NTC office once approved.",
+      title: "Submit Payment & Verify",
+      desc: "Pay via authorized channels, submit your payment proof online or at the cashier, and receive your Official Receipt (OR).",
     },
     {
       number: "5",
-      title: "Get Issuance",
-      desc: "Receive your License, Certificate, Permit, or resolution.",
+      title: "Official Issuance",
+      desc: "Download your official NTC Admission Slip, Certificate, Permit, License, Accreditation, or resolution.",
     },
   ];
 
@@ -738,11 +515,21 @@ export function LandingScreen() {
   return (
     <View style={styles.container}>
       {/* Sticky Glassmorphic Header/Navbar - Responsive height and Logo */}
-      <View style={[styles.headerOuter, { height: isDesktop ? 100 : 64 }]}>
-        <View style={[styles.headerInner, !isDesktop && { paddingHorizontal: 16 }]}>
-          <Logo height={isDesktop ? 72 : 36} />
+      <View
+        style={[
+          styles.headerOuter,
+          { height: isDesktop ? 100 : isTablet ? 80 : 64 },
+        ]}
+      >
+        <View
+          style={[
+            styles.headerInner,
+            !isDesktop && { paddingHorizontal: isTablet ? 24 : 16 },
+          ]}
+        >
+          <Logo height={isDesktop ? 72 : isTablet ? 50 : 36} />
 
-          {isDesktop ? (
+          {isTabletOrDesktop ? (
             <View style={styles.navLinks}>
               <Pressable
                 onPress={() => scrollToSection("about")}
@@ -798,6 +585,15 @@ export function LandingScreen() {
                   </Text>
                 )}
               </Pressable>
+              <Button
+                title="Log In"
+                variant="outline"
+                onPress={() => navigation?.navigate("Login")}
+                style={styles.headerLoginBtn}
+                hoverStyle={styles.headerLoginBtnHovered}
+                textStyle={{ color: COLORS.brand[800], fontWeight: "700", fontSize: 14 }}
+                icon={<Lucide name="log-in" size={14} color={COLORS.brand[800]} />}
+              />
             </View>
           ) : (
             <TouchableOpacity
@@ -813,7 +609,7 @@ export function LandingScreen() {
       </View>
 
       {/* Dynamic System Announcements Broadcast Banner */}
-      <ClientAnnouncementBanner isMobile={!isDesktop} />
+      <ClientAnnouncementBanner isMobile={isMobile} />
 
       <ScrollView
         ref={scrollViewRef}
@@ -866,8 +662,8 @@ export function LandingScreen() {
             styles.heroSection,
             isDesktop ? styles.heroSectionDesktop : null,
             {
-              paddingVertical: isDesktop ? 104 : 36,
-              paddingHorizontal: isDesktop ? 24 : 16,
+              paddingVertical: isDesktop ? 104 : isTablet ? 64 : 36,
+              paddingHorizontal: isDesktop ? 24 : isTablet ? 24 : 16,
               opacity: fadeAnimHero,
               transform: [
                 {
@@ -898,7 +694,11 @@ export function LandingScreen() {
             <Text
               style={[
                 styles.heroTitle,
-                isDesktop ? styles.heroTitleDesktop : null,
+                isTablet
+                  ? { fontSize: 46, lineHeight: 56 }
+                  : isDesktop
+                  ? styles.heroTitleDesktop
+                  : null,
               ]}
             >
               <Text style={styles.titleBlue}>Empowering </Text>
@@ -913,25 +713,33 @@ export function LandingScreen() {
                 isDesktop ? styles.heroSubtitleDesktop : null,
               ]}
             >
-              Streamline your government services experience. Apply for permits,
-              licenses, and certificates with secure, efficient, and transparent
-              processes powered by EDGE.
+              Streamline your government services experience. Apply for radio
+              operator examinations, certificates, permits, station licenses,
+              CPE supplier accreditations, and consumer requests with secure,
+              transparent processing powered by EDGE.
             </Text>
 
-            <View style={[
-              styles.heroButtonsRow,
-              !isDesktop && {
-                flexDirection: "column",
-                width: "100%",
-                gap: 12,
-                alignItems: "stretch",
-              },
-            ]}>
+            <View
+              style={[
+                styles.heroButtonsRow,
+                isMobile && {
+                  flexDirection: "column",
+                  width: "100%",
+                  gap: 12,
+                  alignItems: "stretch",
+                },
+                isTablet && {
+                  justifyContent: "center",
+                },
+              ]}
+            >
               <Button
                 title="Get Started"
-                onPress={() => openGetStartedModal("choice")}
+                onPress={() => openGetStartedModal()}
                 size="lg"
-                style={isDesktop ? styles.heroPrimaryBtn : styles.heroPrimaryBtnMobile}
+                style={
+                  isMobile ? styles.heroPrimaryBtnMobile : styles.heroPrimaryBtn
+                }
                 hoverStyle={styles.heroPrimaryBtnHovered}
                 icon={
                   <Lucide
@@ -946,7 +754,11 @@ export function LandingScreen() {
                 onPress={() => setIsTrackModalVisible(true)}
                 variant="outline"
                 size="lg"
-                style={isDesktop ? styles.heroSecondaryBtn : styles.heroSecondaryBtnMobile}
+                style={
+                  isMobile
+                    ? styles.heroSecondaryBtnMobile
+                    : styles.heroSecondaryBtn
+                }
                 hoverStyle={styles.heroSecondaryBtnHovered}
                 textStyle={{ color: "#2563EB" }}
                 hoverTextStyle={{ color: "#1D4ED8" }}
@@ -955,10 +767,12 @@ export function LandingScreen() {
             </View>
           </View>
 
-          {isDesktop ? (
+          {isTabletOrDesktop ? (
             <Animated.View
               style={[
-                styles.heroRightCol,
+                isDesktop
+                  ? styles.heroRightCol
+                  : { width: "100%", alignItems: "center", marginTop: 40 },
                 { transform: [{ translateY: floatAnimMockup }] },
               ]}
             >
@@ -1114,9 +928,25 @@ export function LandingScreen() {
           ]}
           onLayout={(e) => handleSectionLayout("about", e.nativeEvent.layout.y)}
         >
-          {isDesktop ? (
-            <View style={styles.aboutLeftCol}>
-              <View style={[styles.aboutGraphicCard, SHADOWS.card]}>
+          {isTabletOrDesktop ? (
+            <View
+              style={
+                isDesktop
+                  ? styles.aboutLeftCol
+                  : {
+                      width: "100%",
+                      alignItems: "center",
+                      marginBottom: SPACING[32],
+                    }
+              }
+            >
+              <View
+                style={[
+                  styles.aboutGraphicCard,
+                  SHADOWS.card,
+                  isTablet && { maxWidth: 560 },
+                ]}
+              >
                 <View style={styles.aboutGraphicHeader}>
                   <View style={styles.aboutGraphicBadge}>
                     <Lucide name="shield" size={20} color="#2563EB" />
@@ -1126,7 +956,7 @@ export function LandingScreen() {
                   </Text>
                 </View>
 
-                {/* Animated Scroll-Down Slide transition for the 4 gateway items */}
+                {/* Animated Scroll-Down Slide transition for the 6 canonical service categories */}
                 <Animated.View
                   style={[
                     styles.aboutGraphicGrid,
@@ -1135,8 +965,17 @@ export function LandingScreen() {
                 >
                   <View style={styles.aboutGridItem}>
                     <Lucide
+                      name="award"
+                      size={20}
+                      color="#2563EB"
+                      style={{ marginBottom: 6 }}
+                    />
+                    <Text style={styles.aboutGridItemText}>Examinations</Text>
+                  </View>
+                  <View style={styles.aboutGridItem}>
+                    <Lucide
                       name="file-text"
-                      size={22}
+                      size={20}
                       color="#2563EB"
                       style={{ marginBottom: 6 }}
                     />
@@ -1144,17 +983,8 @@ export function LandingScreen() {
                   </View>
                   <View style={styles.aboutGridItem}>
                     <Lucide
-                      name="file"
-                      size={22}
-                      color="#2563EB"
-                      style={{ marginBottom: 6 }}
-                    />
-                    <Text style={styles.aboutGridItemText}>Permits</Text>
-                  </View>
-                  <View style={styles.aboutGridItem}>
-                    <Lucide
-                      name="award"
-                      size={22}
+                      name="shield"
+                      size={20}
                       color="#2563EB"
                       style={{ marginBottom: 6 }}
                     />
@@ -1162,12 +992,30 @@ export function LandingScreen() {
                   </View>
                   <View style={styles.aboutGridItem}>
                     <Lucide
-                      name="help-circle"
-                      size={22}
+                      name="key"
+                      size={20}
                       color="#2563EB"
                       style={{ marginBottom: 6 }}
                     />
-                    <Text style={styles.aboutGridItemText}>Requests</Text>
+                    <Text style={styles.aboutGridItemText}>Permits</Text>
+                  </View>
+                  <View style={styles.aboutGridItem}>
+                    <Lucide
+                      name="activity"
+                      size={20}
+                      color="#2563EB"
+                      style={{ marginBottom: 6 }}
+                    />
+                    <Text style={styles.aboutGridItemText}>Accreditations</Text>
+                  </View>
+                  <View style={styles.aboutGridItem}>
+                    <Lucide
+                      name="help-circle"
+                      size={20}
+                      color="#2563EB"
+                      style={{ marginBottom: 6 }}
+                    />
+                    <Text style={styles.aboutGridItemText}>Requests & Complaints</Text>
                   </View>
                 </Animated.View>
 
@@ -1209,8 +1057,9 @@ export function LandingScreen() {
                 style={{ marginRight: 12, marginTop: 2 }}
               />
               <Text style={styles.aboutInfoBoxText}>
-                This portal issues Certificates, Permits, Licenses, and manages
-                Complaints/Requests efficiently.
+                This portal processes Radio Operator Examinations, Certificates,
+                Radio Station Licenses, Permits, CPE Supplier Accreditations,
+                and Consumer Requests & Complaints across all NTC Regional Offices.
               </Text>
             </View>
           </View>
@@ -1422,7 +1271,7 @@ export function LandingScreen() {
                         style={[
                           styles.stepCardExact,
                           SHADOWS.card,
-                          { width: "100%", maxWidth: 320 },
+                          { width: "100%", maxWidth: isTablet ? 480 : 340 },
                         ]}
                       >
                         <View style={styles.stepCircleBadge}>
@@ -1544,7 +1393,7 @@ export function LandingScreen() {
             </Text>
             <Button
               title="Begin Your Application"
-              onPress={() => openGetStartedModal("choice")}
+              onPress={() => openGetStartedModal()}
               style={styles.ctaPrimaryBtn}
               hoverStyle={styles.ctaPrimaryBtnHovered}
               textStyle={{ color: "#2563EB", fontWeight: "700" }}
@@ -1565,8 +1414,8 @@ export function LandingScreen() {
             >
               {/* Branding Column */}
               <View style={styles.footerBrandCol}>
-                <View style={styles.footerLogoBadgeCard}>
-                  <Logo height={36} />
+                <View style={{ alignSelf: "flex-start", marginBottom: 12 }}>
+                  <Logo height={44} variant="footer" />
                 </View>
                 <Text style={styles.footerTaglineTitle}>
                   National Telecommunications Commission
@@ -1730,9 +1579,7 @@ export function LandingScreen() {
                   </Pressable>
 
                   <Pressable
-                    onPress={() =>
-                      setActiveFooterModal(FOOTER_POLICIES["send-feedback"])
-                    }
+                    onPress={() => support.openFeedbackModal()}
                     style={({ hovered }: PressableState) => [
                       styles.footerLinkItem,
                       hovered ? styles.footerLinkItemHovered : null,
@@ -1759,9 +1606,7 @@ export function LandingScreen() {
                   </Pressable>
 
                   <Pressable
-                    onPress={() =>
-                      setActiveFooterModal(FOOTER_POLICIES["help-center"])
-                    }
+                    onPress={() => support.openHelpCenterModal()}
                     style={({ hovered }: PressableState) => [
                       styles.footerLinkItem,
                       hovered ? styles.footerLinkItemHovered : null,
@@ -1793,7 +1638,7 @@ export function LandingScreen() {
             {/* Bottom Copyright */}
             <View style={styles.footerBottomRow}>
               <Text style={styles.copyrightText}>
-                © 2025 EDGE Portal • National Telecommunications Commission •
+                © {new Date().getFullYear()} EDGE Portal • National Telecommunications Commission •
                 Republic of the Philippines. All rights reserved.
               </Text>
             </View>
@@ -1809,7 +1654,10 @@ export function LandingScreen() {
         onRequestClose={() => setActiveFooterModal(null)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[
+            styles.modalOverlay,
+            isMobile && { padding: SPACING[12] },
+          ]}
           activeOpacity={1}
           onPress={() => setActiveFooterModal(null)}
         >
@@ -1817,7 +1665,11 @@ export function LandingScreen() {
             style={[
               styles.modalCard,
               SHADOWS.modal,
-              { maxWidth: 840, padding: 36, borderRadius: 24 },
+              {
+                maxWidth: isDesktop ? 840 : isTablet ? 640 : 440,
+                padding: isMobile ? 20 : isTablet ? 28 : 36,
+                borderRadius: isMobile ? 20 : 24,
+              },
             ]}
             activeOpacity={1}
             onPress={() => {}}
@@ -1835,7 +1687,7 @@ export function LandingScreen() {
 
             {activeFooterModal && (
               <ScrollView
-                style={{ maxHeight: 560 }}
+                style={{ maxHeight: isMobile ? 460 : 560 }}
                 showsVerticalScrollIndicator={true}
               >
                 {/* Header */}
@@ -1843,7 +1695,12 @@ export function LandingScreen() {
                   <View style={styles.policyHeaderIconCircle}>
                     <Lucide name="file-text" size={20} color="#2563EB" />
                   </View>
-                  <Text style={styles.policyModalTitle}>
+                  <Text
+                    style={[
+                      styles.policyModalTitle,
+                      isMobile && { fontSize: 19 },
+                    ]}
+                  >
                     {activeFooterModal.title}
                   </Text>
                 </View>
@@ -1891,708 +1748,214 @@ export function LandingScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Get Started / Log In / Forgot Password Modal */}
-      <Modal
-        visible={isGetStartedModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeGetStartedModal}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={closeGetStartedModal}
-        >
-          <TouchableOpacity
-            style={[styles.modalCard, SHADOWS.modal]}
-            activeOpacity={1}
-            onPress={() => setIsLoginRegionDropdownOpen(false)}
-          >
-            {/* Header Nav inside Modal */}
-            <View style={styles.modalTopNavRow}>
-              {modalMode !== "choice" ? (
-                <Pressable
-                  style={({ hovered }: PressableState) => [
-                    styles.modalBackBtn,
-                    hovered ? styles.closeBtnHovered : null,
-                  ]}
-                  onPress={() => setModalMode("choice")}
-                >
-                  <Lucide
-                    name="arrow-left"
-                    size={20}
-                    color={COLORS.neutral[600]}
-                  />
-                </Pressable>
-              ) : (
-                <View style={{ width: 32 }} />
-              )}
-
-              <View style={styles.modalHeaderLogoContainer}>
-                <Logo height={38} />
-              </View>
-
-              <Pressable
-                style={({ hovered }: PressableState) => [
-                  styles.modalCloseBtnInline,
-                  hovered ? styles.closeBtnHovered : null,
-                ]}
-                onPress={closeGetStartedModal}
-              >
-                <Lucide name="x" size={20} color={COLORS.neutral[500]} />
-              </Pressable>
-            </View>
-
-            <View style={{ width: "100%" }}>
-              {modalMode === "choice" && (
-                <>
-                  <Text style={styles.modalTitle}>
-                    How would you like to proceed?
-                  </Text>
-
-                  <Text style={styles.modalSubtitleText}>
-                    To save your progress and access application history, we
-                    recommend having an account.
-                  </Text>
-
-                  <View style={styles.modalButtonsContainer}>
-                    <Button
-                      title="Login"
-                      onPress={() => setModalMode("login")}
-                      style={styles.modalActionBtn}
-                      hoverStyle={styles.heroPrimaryBtnHovered}
-                      icon={
-                        <Lucide
-                          name="log-in"
-                          size={16}
-                          color={COLORS.neutral.white}
-                        />
-                      }
-                    />
-
-                    <Button
-                      title="Register"
-                      variant="outline"
-                      onPress={() => {
-                        closeGetStartedModal();
-                        navigation?.navigate("SignUp");
-                      }}
-                      style={{
-                        ...styles.modalActionBtn,
-                        ...styles.modalGuestBtn,
-                      }}
-                      hoverStyle={styles.heroSecondaryBtnHovered}
-                      textStyle={{ color: "#2563EB" }}
-                      hoverTextStyle={{ color: "#1D4ED8" }}
-                      icon={<Lucide name="user" size={16} color="#2563EB" />}
-                    />
-                  </View>
-
-                  {/* Footer Sign Up Link */}
-                  <View style={styles.modalFooter}>
-                    <Text style={styles.modalFooterText}>
-                      Don't have an account yet?{" "}
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        closeGetStartedModal();
-                        navigation?.navigate("SignUp");
-                      }}
-                    >
-                      {({ hovered }: PressableState) => (
-                        <Text
-                          style={[
-                            styles.modalFooterLink,
-                            hovered ? styles.modalFooterLinkHovered : null,
-                          ]}
-                        >
-                          Sign Up
-                        </Text>
-                      )}
-                    </Pressable>
-                  </View>
-                </>
-              )}
-
-              {modalMode === "login" && (
-                <>
-                  <Text style={styles.modalTitle}>Welcome Back</Text>
-
-                  <Text style={styles.modalSubtitleText}>
-                    Log in to your NTC EDGE account to continue.
-                  </Text>
-
-                  {loginSuccess ? (
-                    <View style={styles.loginSuccessBanner}>
-                      <Lucide
-                        name="check-circle"
-                        size={18}
-                        color="#10B981"
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text style={styles.loginSuccessText}>
-                        Authentication successful! Redirecting...
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {loginGeneralError !== "" ? (
-                    <View style={styles.loginErrorBanner}>
-                      <Lucide
-                        name="alert-circle"
-                        size={18}
-                        color="#EF4444"
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text style={styles.loginErrorText}>
-                        {loginGeneralError}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  <View style={styles.modalLoginFormContainer}>
-                    {/* Region Picker Dropdown */}
-                    <View
-                      style={{
-                        zIndex: 100,
-                        marginBottom: SPACING[16],
-                        position: "relative",
-                      }}
-                    >
-                      <Text style={styles.dropdownLabel}>
-                        Philippine Region
-                      </Text>
-                      <TouchableOpacity
-                        style={[
-                          styles.dropdownTrigger,
-                          loginRegionError !== ""
-                            ? { borderColor: COLORS.semantic.error }
-                            : null,
-                        ]}
-                        activeOpacity={0.9}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setIsLoginRegionDropdownOpen(
-                            !isLoginRegionDropdownOpen,
-                          );
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            flex: 1,
-                            marginRight: 8,
-                          }}
-                        >
-                          <Lucide
-                            name="map-pin"
-                            size={18}
-                            color={COLORS.neutral[400]}
-                            style={{ marginRight: 12 }}
-                          />
-                          <Text
-                            style={
-                              loginRegion
-                                ? styles.dropdownSelectedText
-                                : styles.dropdownPlaceholderText
-                            }
-                            numberOfLines={1}
-                          >
-                            {loginRegion || "Select your region..."}
-                          </Text>
-                        </View>
-                        <Lucide
-                          name={
-                            isLoginRegionDropdownOpen
-                              ? "chevron-up"
-                              : "chevron-down"
-                          }
-                          size={18}
-                          color={COLORS.neutral[500]}
-                        />
-                      </TouchableOpacity>
-
-                      {isLoginRegionDropdownOpen && (
-                        <View style={[styles.dropdownMenu, SHADOWS.modal]}>
-                          <ScrollView
-                            style={{ maxHeight: 180 }}
-                            nestedScrollEnabled={true}
-                          >
-                            {PHILIPPINE_REGIONS.map((region) => (
-                              <Pressable
-                                key={region}
-                                style={({ hovered }: PressableState) => [
-                                  styles.dropdownItem,
-                                  hovered ? styles.dropdownItemHovered : null,
-                                ]}
-                                onPress={() => {
-                                  setLoginRegion(region);
-                                  setIsLoginRegionDropdownOpen(false);
-                                  setLoginRegionError("");
-                                }}
-                              >
-                                <Text style={styles.dropdownItemText}>
-                                  {region}
-                                </Text>
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
-                      {loginRegionError !== "" ? (
-                        <Text style={styles.dropdownErrorText}>
-                          {loginRegionError}
-                        </Text>
-                      ) : null}
-                    </View>
-
-                    {/* Phone No. / Email Address */}
-                    <Input
-                      label="Phone No. / Email Address"
-                      placeholder="09171234567 or email@domain.gov.ph"
-                      value={loginPhoneOrEmail}
-                      onChangeText={(text) => {
-                        setLoginPhoneOrEmail(text);
-                        setLoginPhoneOrEmailError("");
-                      }}
-                      error={loginPhoneOrEmailError}
-                      iconName="mail"
-                      autoCapitalize="none"
-                      keyboardType="email-address"
-                    />
-
-                    {/* Password */}
-                    <Input
-                      label="Password"
-                      placeholder="Enter your password"
-                      value={loginPassword}
-                      onChangeText={(text) => {
-                        setLoginPassword(text);
-                        setLoginPasswordError("");
-                      }}
-                      error={loginPasswordError}
-                      iconName="lock"
-                      secureTextEntry={!showPassword}
-                      rightIcon={
-                        <Pressable
-                          onPress={() => setShowPassword(!showPassword)}
-                          style={{ padding: 4 }}
-                        >
-                          <Lucide
-                            name={showPassword ? "eye-off" : "eye"}
-                            size={18}
-                            color={COLORS.neutral[500]}
-                          />
-                        </Pressable>
-                      }
-                    />
-
-                    {/* Forgot Password Link */}
-                    <View style={styles.forgotPasswordRow}>
-                      <Pressable onPress={() => setModalMode("forgotPassword")}>
-                        {({ hovered }: PressableState) => (
-                          <Text
-                            style={[
-                              styles.forgotPasswordText,
-                              hovered ? styles.forgotPasswordHovered : null,
-                            ]}
-                          >
-                            Forgot Password?
-                          </Text>
-                        )}
-                      </Pressable>
-                    </View>
-
-                    {/* Submit Log In Button */}
-                    <Button
-                      title={loginLoading ? "Logging In..." : "Log In"}
-                      onPress={handleModalLoginSubmit}
-                      loading={loginLoading}
-                      size="lg"
-                      style={styles.modalLoginSubmitBtn}
-                      hoverStyle={styles.heroPrimaryBtnHovered}
-                      icon={
-                        <Lucide
-                          name="log-in"
-                          size={18}
-                          color={COLORS.neutral.white}
-                        />
-                      }
-                    />
-                  </View>
-
-                  {/* Footer Sign Up Link */}
-                  <View style={styles.modalFooter}>
-                    <Text style={styles.modalFooterText}>
-                      Don't have an account yet?{" "}
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        closeGetStartedModal();
-                        navigation?.navigate("SignUp");
-                      }}
-                    >
-                      {({ hovered }: PressableState) => (
-                        <Text
-                          style={[
-                            styles.modalFooterLink,
-                            hovered ? styles.modalFooterLinkHovered : null,
-                          ]}
-                        >
-                          Sign Up
-                        </Text>
-                      )}
-                    </Pressable>
-                  </View>
-                </>
-              )}
-
-              {modalMode === "forgotPassword" && (
-                <>
-                  <Text style={styles.modalTitle}>Reset Password</Text>
-
-                  <Text style={styles.modalSubtitleText}>
-                    Enter your registered email address and we'll send you
-                    instructions to reset your password.
-                  </Text>
-
-                  {forgotSuccess ? (
-                    <View style={styles.loginSuccessBanner}>
-                      <Lucide
-                        name="check-circle"
-                        size={18}
-                        color="#10B981"
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text style={styles.loginSuccessText}>
-                        Reset link sent! Please check your email inbox.
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  <View style={styles.modalLoginFormContainer}>
-                    {/* Email Input */}
-                    <Input
-                      label="Email Address"
-                      placeholder="email@domain.gov.ph"
-                      value={forgotEmail}
-                      onChangeText={(text) => {
-                        setForgotEmail(text);
-                        setForgotEmailError("");
-                      }}
-                      error={forgotEmailError}
-                      iconName="mail"
-                      autoCapitalize="none"
-                      keyboardType="email-address"
-                    />
-
-                    {/* Submit Reset Button */}
-                    <Button
-                      title={
-                        forgotLoading
-                          ? "Sending Instructions..."
-                          : "Send Reset Link"
-                      }
-                      onPress={handleForgotPasswordSubmit}
-                      loading={forgotLoading}
-                      size="lg"
-                      style={styles.modalLoginSubmitBtn}
-                      hoverStyle={styles.heroPrimaryBtnHovered}
-                      icon={
-                        <Lucide
-                          name="send"
-                          size={18}
-                          color={COLORS.neutral.white}
-                        />
-                      }
-                    />
-                  </View>
-
-                  {/* Footer Return to Login Link */}
-                  <View style={styles.modalFooter}>
-                    <Text style={styles.modalFooterText}>
-                      Remember your password?{" "}
-                    </Text>
-                    <Pressable onPress={() => setModalMode("login")}>
-                      {({ hovered }: PressableState) => (
-                        <Text
-                          style={[
-                            styles.modalFooterLink,
-                            hovered ? styles.modalFooterLinkHovered : null,
-                          ]}
-                        >
-                          Log In
-                        </Text>
-                      )}
-                    </Pressable>
-                  </View>
-                </>
-              )}
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Track Application Modal */}
+      {/* Track Application Modal (Authenticated Portal Gateway) */}
       <Modal
         visible={isTrackModalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => {
-          setIsTrackModalVisible(false);
-          setReferenceNo("");
-          setSelectedRegion("");
-          setIsRegionDropdownOpen(false);
-          setTrackingError("");
-          setTrackingResult(null);
-        }}
+        onRequestClose={() => setIsTrackModalVisible(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[
+            styles.modalOverlay,
+            isMobile && { padding: SPACING[12] },
+          ]}
           activeOpacity={1}
-          onPress={() => {
-            setIsTrackModalVisible(false);
-            setReferenceNo("");
-            setSelectedRegion("");
-            setIsRegionDropdownOpen(false);
-            setTrackingError("");
-            setTrackingResult(null);
-          }}
+          onPress={() => setIsTrackModalVisible(false)}
         >
           <TouchableOpacity
-            style={[styles.modalCard, SHADOWS.modal, { maxWidth: 460 }]}
+            style={[
+              styles.modalCard,
+              SHADOWS.modal,
+              {
+                maxWidth: isTablet ? 480 : 460,
+                padding: 0,
+                borderRadius: 24,
+                overflow: "hidden",
+              },
+            ]}
             activeOpacity={1}
-            onPress={() => setIsRegionDropdownOpen(false)}
+            onPress={() => {}}
           >
-            {/* Close Button */}
-            <Pressable
-              style={({ hovered }: PressableState) => [
-                styles.modalCloseBtn,
-                hovered ? styles.closeBtnHovered : null,
-              ]}
-              onPress={() => {
-                setIsTrackModalVisible(false);
-                setReferenceNo("");
-                setSelectedRegion("");
-                setIsRegionDropdownOpen(false);
-                setTrackingError("");
-                setTrackingResult(null);
+            {/* Window Header Bar */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                backgroundColor: "#F8FAFC",
+                paddingHorizontal: 18,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.neutral[200],
               }}
             >
-              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
-            </Pressable>
-
-            {/* Modal Logo */}
-            <View style={styles.modalHeader}>
-              <Logo height={42} />
-            </View>
-
-            <Text style={styles.modalTitle}>Track Application</Text>
-
-            {trackingResult === null ? (
-              <View style={{ width: "100%" }}>
-                <Text style={styles.modalInstructionText}>
-                  Enter your reference number and select the region to track
-                  status.
-                </Text>
-
-                {/* Reference No Input */}
-                <Input
-                  label="Reference No."
-                  placeholder="e.g., NTC-2026-9812"
-                  value={referenceNo}
-                  onChangeText={(text) => {
-                    setReferenceNo(text);
-                    setTrackingError("");
-                  }}
-                  iconName="search"
-                />
-
-                {/* Region Picker Dropdown */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <View
                   style={{
-                    zIndex: 100,
-                    marginBottom: SPACING[16],
-                    position: "relative",
+                    width: 9,
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: "#EF4444",
+                  }}
+                />
+                <View
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: "#F59E0B",
+                  }}
+                />
+                <View
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: "#10B981",
+                  }}
+                />
+              </View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "600",
+                  color: COLORS.neutral[500],
+                }}
+              >
+                Application Status Gateway
+              </Text>
+              <Pressable
+                style={({ hovered }: PressableState) => [
+                  { padding: 4, borderRadius: 12 },
+                  hovered ? styles.closeBtnHovered : null,
+                ]}
+                onPress={() => setIsTrackModalVisible(false)}
+              >
+                <Lucide name="x" size={18} color={COLORS.neutral[500]} />
+              </Pressable>
+            </View>
+
+            <View style={{ padding: isMobile ? 20 : 28 }}>
+              {/* Modal Logo */}
+              <View style={styles.modalHeader}>
+                <Logo height={isMobile ? 38 : 44} />
+              </View>
+
+              <Text style={[styles.modalTitle, isMobile && { fontSize: 20 }]}>
+                Track Your Application
+              </Text>
+
+              <Text style={styles.modalInstructionText}>
+                For your data privacy and security, live application status,
+                evaluator compliance remarks, Statement of Account (SOA), Order of
+                Payment (OP), and Official Receipts are protected inside your
+                authenticated account.
+              </Text>
+
+              <View style={[styles.resultCard, { marginBottom: SPACING[20] }]}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 10,
                   }}
                 >
-                  <Text style={styles.dropdownLabel}>Region</Text>
-                  <TouchableOpacity
-                    style={styles.dropdownTrigger}
-                    activeOpacity={0.9}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      setIsRegionDropdownOpen(!isRegionDropdownOpen);
-                    }}
+                  <Lucide
+                    name="check-circle"
+                    size={16}
+                    color="#2563EB"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[styles.resultValue, { textAlign: "left", flex: 1 }]}
                   >
-                    <Text
-                      style={
-                        selectedRegion
-                          ? styles.dropdownSelectedText
-                          : styles.dropdownPlaceholderText
-                      }
-                    >
-                      {selectedRegion || "Select Region..."}
-                    </Text>
-                    <Lucide
-                      name={
-                        isRegionDropdownOpen ? "chevron-up" : "chevron-down"
-                      }
-                      size={18}
-                      color={COLORS.neutral[500]}
-                    />
-                  </TouchableOpacity>
-
-                  {isRegionDropdownOpen && (
-                    <View style={[styles.dropdownMenu, SHADOWS.modal]}>
-                      <ScrollView
-                        style={{ maxHeight: 180 }}
-                        nestedScrollEnabled={true}
-                      >
-                        {PHILIPPINE_REGIONS.map((region) => (
-                          <Pressable
-                            key={region}
-                            style={({ hovered }: PressableState) => [
-                              styles.dropdownItem,
-                              hovered ? styles.dropdownItemHovered : null,
-                            ]}
-                            onPress={() => {
-                              setSelectedRegion(region);
-                              setIsRegionDropdownOpen(false);
-                              setTrackingError("");
-                            }}
-                          >
-                            <Text style={styles.dropdownItemText}>
-                              {region}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
+                    Real-time Evaluation & Approval Timeline
+                  </Text>
                 </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Lucide
+                    name="file-text"
+                    size={16}
+                    color="#2563EB"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[styles.resultValue, { textAlign: "left", flex: 1 }]}
+                  >
+                    View & Print Statement of Account (SOA) & Order of Payment
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Lucide
+                    name="download"
+                    size={16}
+                    color="#2563EB"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[styles.resultValue, { textAlign: "left", flex: 1 }]}
+                  >
+                    Submit Compliance, Payment Proof & Download Issuances
+                  </Text>
+                </View>
+              </View>
 
-                {/* Error Banner */}
-                {trackingError.length > 0 && (
-                  <View style={styles.errorBanner}>
-                    <Lucide
-                      name="alert-circle"
-                      size={16}
-                      color={COLORS.semantic.error}
-                      style={{ marginRight: 8 }}
-                    />
-                    <Text style={styles.errorBannerText}>{trackingError}</Text>
-                  </View>
-                )}
-
-                {/* Action button */}
+              <View
+                style={[
+                  styles.modalButtonsContainer,
+                  { marginBottom: 0 },
+                ]}
+              >
                 <Button
-                  title={
-                    trackingLoading
-                      ? "Checking Database..."
-                      : "Track Application"
-                  }
-                  onPress={handleTrackSubmit}
-                  loading={trackingLoading}
-                  style={styles.modalSubmitBtn}
+                  title="Sign In to My Applications"
+                  onPress={() => {
+                    setIsTrackModalVisible(false);
+                    navigation?.navigate("Login");
+                  }}
+                  style={styles.modalActionBtn}
+                  hoverStyle={styles.heroPrimaryBtnHovered}
                   icon={
-                    !trackingLoading ? (
-                      <Lucide
-                        name="activity"
-                        size={16}
-                        color={COLORS.neutral.white}
-                      />
-                    ) : undefined
+                    <Lucide
+                      name="log-in"
+                      size={16}
+                      color={COLORS.neutral.white}
+                    />
                   }
                 />
-              </View>
-            ) : (
-              /* Tracking Result display */
-              <View style={{ width: "100%", alignItems: "center" }}>
-                <View style={styles.resultHeader}>
-                  <Text style={styles.resultRef}>
-                    {trackingResult.referenceNo}
-                  </Text>
-                  <View
-                    style={[
-                      styles.resultBadge,
-                      trackingResult.status === "APPROVED"
-                        ? styles.badgeSuccess
-                        : trackingResult.status === "IN REVIEW"
-                          ? styles.badgeInfo
-                          : trackingResult.status === "PENDING DOCUMENTS"
-                            ? styles.badgeWarning
-                            : styles.badgeDefault,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.resultBadgeText,
-                        trackingResult.status === "APPROVED"
-                          ? styles.textSuccess
-                          : trackingResult.status === "IN REVIEW"
-                            ? styles.textInfo
-                            : trackingResult.status === "PENDING DOCUMENTS"
-                              ? styles.textWarning
-                              : styles.textDefault,
-                      ]}
-                    >
-                      {trackingResult.status}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.resultCard}>
-                  <View style={styles.resultRow}>
-                    <Text style={styles.resultLabel}>Application Type:</Text>
-                    <Text style={styles.resultValue}>
-                      {trackingResult.type}
-                    </Text>
-                  </View>
-                  <View style={styles.resultRow}>
-                    <Text style={styles.resultLabel}>Applicant:</Text>
-                    <Text style={styles.resultValue}>
-                      {trackingResult.applicantName}
-                    </Text>
-                  </View>
-                  <View style={styles.resultRow}>
-                    <Text style={styles.resultLabel}>Region:</Text>
-                    <Text style={styles.resultValue}>
-                      {trackingResult.region}
-                    </Text>
-                  </View>
-                  <View style={styles.resultRow}>
-                    <Text style={styles.resultLabel}>Current Stage:</Text>
-                    <Text style={styles.resultValue}>
-                      {trackingResult.stage}
-                    </Text>
-                  </View>
-                  <View style={styles.resultRow}>
-                    <Text style={styles.resultLabel}>Last Updated:</Text>
-                    <Text style={styles.resultValue}>
-                      {trackingResult.updatedAt}
-                    </Text>
-                  </View>
-                </View>
 
                 <Button
-                  title="Track Another Application"
+                  title="Create New Account"
                   variant="outline"
                   onPress={() => {
-                    setReferenceNo("");
-                    setSelectedRegion("");
-                    setTrackingResult(null);
+                    setIsTrackModalVisible(false);
+                    navigation?.navigate("SignUp");
                   }}
-                  style={styles.modalResetBtn}
+                  style={{
+                    ...styles.modalActionBtn,
+                    ...styles.modalGuestBtn,
+                    marginBottom: 0,
+                  }}
+                  hoverStyle={styles.heroSecondaryBtnHovered}
                   textStyle={{ color: "#2563EB" }}
-                  icon={<Lucide name="refresh-cw" size={16} color="#2563EB" />}
+                  hoverTextStyle={{ color: "#1D4ED8" }}
+                  icon={<Lucide name="user-plus" size={16} color="#2563EB" />}
                 />
               </View>
-            )}
+            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Interactive Regional Send Feedback & Help Center Modals */}
+      <SendFeedbackModal support={support} />
+      <HelpCenterModal support={support} />
     </View>
   );
 }

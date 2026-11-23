@@ -37,6 +37,18 @@ public static class FastTrackVariantSeeder
                 app.ServiceVariantId = null;
             }
 
+            var referencingForms = await context.Forms
+                .IgnoreQueryFilters()
+                .Where(f => f.ServiceVariantId.HasValue && obsoleteVariantIds.Contains(f.ServiceVariantId.Value))
+                .ToListAsync();
+            foreach (var form in referencingForms)
+            {
+                form.ServiceVariantId = null;
+                form.IsActive = false;
+                form.IsDeleted = true;
+                form.IsDeletedBy = "System";
+            }
+
             var obsoleteSvr = await context.ServiceVariantRequirements
                 .IgnoreQueryFilters()
                 .Where(r => obsoleteVariantIds.Contains(r.ServiceVariantId))
@@ -89,6 +101,24 @@ public static class FastTrackVariantSeeder
             if (obsoleteVef.Count > 0)
             {
                 context.ServiceVariantElementFees.RemoveRange(obsoleteVef);
+            }
+
+            var obsoleteFormulas = await context.ServiceVariantFormulas
+                .IgnoreQueryFilters()
+                .Where(f => obsoleteVariantIds.Contains(f.ServiceVariantId))
+                .ToListAsync();
+            if (obsoleteFormulas.Count > 0)
+            {
+                context.ServiceVariantFormulas.RemoveRange(obsoleteFormulas);
+            }
+
+            var obsoleteElementFormulas = await context.ServiceVariantElementFormulas
+                .IgnoreQueryFilters()
+                .Where(ef => obsoleteVariantIds.Contains(ef.ServiceVariantId))
+                .ToListAsync();
+            if (obsoleteElementFormulas.Count > 0)
+            {
+                context.ServiceVariantElementFormulas.RemoveRange(obsoleteElementFormulas);
             }
 
             var variantsToRemove = existingVariants.Where(ev => obsoleteVariantIds.Contains(ev.Id) && !ev.IsDeleted).ToList();

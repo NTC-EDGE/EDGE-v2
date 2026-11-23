@@ -356,7 +356,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
     let val =
       (values && values[rawTargetId]) ||
-      (values && field.label && values[field.label]) ||
+      (values && values[fIdLower]) ||
+      (values && field.id && (values[field.id] || values[field.id.toLowerCase()])) ||
+      (values && field.fieldId && (values[field.fieldId] || values[field.fieldId.toLowerCase()])) ||
+      (values && field.label && (values[field.label] || values[labelLower])) ||
       (isOthersSpecificationField ? values?.["others_specification"] || "" : "") ||
       (isIncidentOthersField ? values?.["incident_others_specify"] || "" : "") ||
       "";

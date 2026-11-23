@@ -98,7 +98,18 @@ export function GeneralServiceWizard({
   const [localIsFileUploaded, setLocalIsFileUploaded] = useState(false);
   const [localUploadedFileName, setLocalUploadedFileName] = useState("");
   const [dynamicRequiredFieldIds, setDynamicRequiredFieldIds] = useState<string[]>([]);
+  const [dynamicFieldLabels, setDynamicFieldLabels] = useState<Record<string, string>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const handleRequiredFieldsChange = React.useCallback(
+    (fieldIds: string[], fieldLabels?: Record<string, string>) => {
+      setDynamicRequiredFieldIds(fieldIds);
+      if (fieldLabels) {
+        setDynamicFieldLabels(fieldLabels);
+      }
+    },
+    []
+  );
 
   const clearFieldError = React.useCallback((...fieldKeys: string[]) => {
     setFormErrors((prev) => {
@@ -200,6 +211,7 @@ export function GeneralServiceWizard({
       variantRequirements,
       setIsConfirmModalOpen,
       dynamicRequiredFieldIds,
+      dynamicFieldLabels,
       setFormErrors,
     });
   };
@@ -327,7 +339,8 @@ export function GeneralServiceWizard({
           variantRequirements={variantRequirements}
           isWeb={isWeb}
           dynamicRequiredFieldIds={dynamicRequiredFieldIds}
-          setDynamicRequiredFieldIds={setDynamicRequiredFieldIds}
+          setDynamicRequiredFieldIds={handleRequiredFieldsChange}
+          dynamicFieldLabels={dynamicFieldLabels}
           variants={variants}
           variantElements={variantElements}
           onBack={() => setStep(2)}
@@ -425,7 +438,7 @@ export function GeneralServiceWizard({
               return { uploads: cur };
             });
           }}
-          onRequiredFieldsChange={setDynamicRequiredFieldIds}
+          onRequiredFieldsChange={handleRequiredFieldsChange}
           errors={formErrors}
           filingIntent={filingIntent}
           onFilingIntentChange={setFilingIntent}

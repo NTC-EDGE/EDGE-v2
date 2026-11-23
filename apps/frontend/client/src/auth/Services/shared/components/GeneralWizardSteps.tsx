@@ -56,7 +56,7 @@ interface GeneralWizardStepsProps {
   isWeb: boolean;
   onUploadPress: (req: string, file: { name: string; uri: string; type?: string; file?: File | Blob }) => void;
   onRemoveUpload: (req: string) => void;
-  onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
+  onRequiredFieldsChange?: (requiredFieldIds: string[], fieldLabels?: Record<string, string>) => void;
   errors?: Record<string, string>;
   filingIntent?: "Regular" | "AssessmentOnly";
   onFilingIntentChange?: (intent: "Regular" | "AssessmentOnly") => void;

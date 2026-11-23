@@ -271,14 +271,16 @@ export function BaseApplicationPreview({
   const hasFormBuilderSchema = Boolean(form?.sections && form.sections.length > 0);
 
   const examEducationFields = useMemo(() => {
-    if (!isExam || hasFormBuilderSchema) return [];
-    const fromRemaining = remainingFields.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
-    if (fromRemaining.length > 0) return fromRemaining;
+    if (!isExam) return [];
 
+    // If the dynamic form sections already rendered educational background fields, don't duplicate
     const alreadyInDynamic = dynamicSectionsToRender.some((sec) =>
       sec.fields.some((f) => isExamEducationField(f.label, f.fieldId))
     );
     if (alreadyInDynamic) return [];
+
+    const fromRemaining = remainingFields.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
+    if (fromRemaining.length > 0) return fromRemaining;
 
     const fallbackEdu: FormFieldValue[] = [];
     if (schoolAttendedVal && !isSuppressedValue(schoolAttendedVal)) {
@@ -312,7 +314,6 @@ export function BaseApplicationPreview({
     return fallbackEdu;
   }, [
     isExam,
-    hasFormBuilderSchema,
     remainingFields,
     dynamicSectionsToRender,
     schoolAttendedVal,
@@ -322,9 +323,13 @@ export function BaseApplicationPreview({
   ]);
 
   const examAssistanceFields = useMemo(() => {
-    if (!isExam || hasFormBuilderSchema) return [];
+    if (!isExam) return [];
+    const alreadyInDynamic = dynamicSectionsToRender.some((sec) =>
+      sec.fields.some((f) => isExamAssistanceField(f.label, f.fieldId))
+    );
+    if (alreadyInDynamic) return [];
     return remainingFields.filter((f) => isExamAssistanceField(f.fieldLabel, f.fieldId));
-  }, [isExam, hasFormBuilderSchema, remainingFields]);
+  }, [isExam, dynamicSectionsToRender, remainingFields]);
 
   const nonExamRemainingFields = useMemo(() => {
     if (isExam) return [];

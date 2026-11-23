@@ -3,6 +3,7 @@ import { GeneralApplicantData } from '../../hooks/useGeneralServiceWizard';
 import { FIELD_ID_SIGNATURE, FIELD_ID_ADDRESS, FIELD_ID_STREET } from '../../../../../shared/constants/fieldIds';
 import { isApplicantParticularField } from '../../../../../shared/formPreview/core/formPreviewFieldCheckers';
 import { formatCompositeAddress } from '../../../../../shared/formPreview/core/formPreviewHelpers';
+import { synthesizeAllApplicantFieldValues, SchemaRef } from '../../helpers/applicantFieldSynthesizer';
 
 export function resolveServiceCategoryFlags(service: NTCService) {
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();
@@ -86,9 +87,10 @@ export function resolveServiceCategoryFlags(service: NTCService) {
 }
 
 export function resolveApplicantParticulars(
-  activeApplicant: GeneralApplicantData
+  activeApplicant: GeneralApplicantData,
+  form?: SchemaRef | null
 ) {
-  const formFieldValues = activeApplicant.formFieldValues || [];
+  const formFieldValues = synthesizeAllApplicantFieldValues(activeApplicant, form);
 
   const fullNameParts = [
     activeApplicant.firstName,

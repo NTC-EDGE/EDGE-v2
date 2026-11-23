@@ -34,7 +34,9 @@ export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
         item.senderName.toLowerCase().includes(lower) ||
         item.senderEmail.toLowerCase().includes(lower) ||
         item.subject.toLowerCase().includes(lower) ||
-        item.message.toLowerCase().includes(lower)
+        item.message.toLowerCase().includes(lower) ||
+        (item.tenantName ?? '').toLowerCase().includes(lower) ||
+        (item.tenantCode ?? '').toLowerCase().includes(lower)
     );
   }, [apiFeedback, searchQuery]);
 
@@ -139,6 +141,13 @@ export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
                         <Text style={styles.separatorDot}>·</Text>
                         <View style={styles.badgePurple}>
                           <Text style={styles.badgeTextPurple}>{item.subject || 'Feedback'}</Text>
+                        </View>
+
+                        <View style={styles.badgeOffice}>
+                          <Lucide name="map-pin" size={11} color={COLORS.brand[700]} />
+                          <Text style={styles.badgeOfficeText}>
+                            {item.tenantName || 'NTC Central Office'}
+                          </Text>
                         </View>
 
                         <View style={styles.badgeDate}>
@@ -323,6 +332,23 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.circle,
   },
   badgeTextPurple: {
+    fontSize: 11,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: COLORS.brand[700],
+  },
+  badgeOffice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.circle,
+  },
+  badgeOfficeText: {
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',

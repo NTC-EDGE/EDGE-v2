@@ -657,7 +657,7 @@ export function generateAccountableFormOverlayHtml(
   const totalAmount = app.totalAmountDue ? `PHP ${app.totalAmountDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'N/A';
 
   const examFor = safeStr(options.issuedDocumentType || app.serviceVariantName || app.serviceName, 'Commercial Radio Operator Examination');
-  const examVenue = safeStr(app.office, 'NTC Central Office / Regional Examination Center');
+  const examVenue = safeStr(app.scheduleVenue || app.office, 'NTC Central Office / Regional Examination Center');
   const examDate = formatDate(options.issueDate || app.createdAt);
   const examTime = safeStr(options.remarks && options.remarks.includes(':') ? options.remarks : '08:00 AM');
 

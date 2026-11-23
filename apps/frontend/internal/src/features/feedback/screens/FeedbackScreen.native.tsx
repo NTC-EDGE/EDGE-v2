@@ -115,6 +115,9 @@ export function FeedbackScreen() {
                     <Text style={[styles.senderName, { color: colors.text }]}>
                       {item.isAnonymous ? 'Anonymous' : item.senderName}
                     </Text>
+                    <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '600', marginTop: 2 }}>
+                      {item.tenantName || 'NTC Central / General Office'}
+                    </Text>
                   </View>
                   <View style={styles.headerRight}>
                     {renderRatingStars(item.rating)}

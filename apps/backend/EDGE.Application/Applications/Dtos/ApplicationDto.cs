@@ -9,6 +9,11 @@ public class ApplicationDto
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
     public Guid? ScheduleId { get; set; }
+    public string? ScheduleVenue { get; set; }
+    public DateTime? ScheduleStartDate { get; set; }
+    public DateTime? ScheduleEndDate { get; set; }
+    public string? ScheduleStartTime { get; set; }
+    public string? ScheduleEndTime { get; set; }
     public Guid? RegionId { get; set; }
     public string? Office { get; set; }
     public string? ApplicationNumber { get; set; }

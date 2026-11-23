@@ -39,6 +39,7 @@ export function SoaPaymentTab({
     );
   }
 
+  const isEvaluating = app.status === 'Evaluating';
   const isForAccountant = app.status === 'ForAccountant';
   const isPendingPayment = app.status === 'PendingPayment';
   const isPaymentSubmitted = Boolean(
@@ -62,6 +63,7 @@ export function SoaPaymentTab({
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       <SoaStatusBanners
+        isEvaluating={isEvaluating}
         isForAccountant={isForAccountant}
         isPendingPayment={isPendingPayment}
         isPaymentSubmitted={isPaymentSubmitted}

@@ -557,10 +557,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (isClerkEnabled && Boolean(clerkAuth.isSignedIn) && clerkUser.user !== null && clerkUser.user !== undefined) {
     const cu = clerkUser.user;
     const primaryEmail = cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses[0]?.emailAddress ?? "";
+    const combinedFirstLast = [cu.firstName, cu.lastName].filter(Boolean).join(" ").trim();
+    const resolvedDisplayName =
+      (typeof cu.fullName === "string" && cu.fullName.trim().length > 0 ? cu.fullName.trim() : "") ||
+      combinedFirstLast ||
+      (typeof cu.username === "string" && cu.username.trim().length > 0 ? cu.username.trim() : "") ||
+      primaryEmail ||
+      "User";
 
     user = {
       id: backendStaffClaims.userId ?? cu.id,
-      name: cu.fullName ?? cu.firstName ?? "User",
+      name: resolvedDisplayName,
       email: primaryEmail,
       username: cu.username ?? undefined,
       firstName: cu.firstName ?? undefined,

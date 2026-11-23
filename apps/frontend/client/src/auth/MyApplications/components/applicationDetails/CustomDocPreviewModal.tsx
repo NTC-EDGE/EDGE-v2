@@ -19,6 +19,7 @@ export function CustomDocPreviewModal({
       file={previewCustomDoc}
       label={previewCustomDoc?.name}
       onDownload={onDownload}
+      allowEditImage={false}
     />
   );
 }

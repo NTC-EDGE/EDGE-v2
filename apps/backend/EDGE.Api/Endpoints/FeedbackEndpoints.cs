@@ -1,10 +1,11 @@
+using System;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using EDGE.Application.Feedback.Commands.SubmitFeedback;
 using EDGE.Application.Feedback.Commands.DeleteFeedback;
 using EDGE.Application.Feedback.Queries.GetFeedbacks;
-using EDGE.Domain.Authorization;
-using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -18,18 +19,20 @@ public static class FeedbackEndpoints
         feedback.MapPost("/", SubmitFeedback)
             .AllowAnonymous()
             .WithName("SubmitFeedback")
-            .WithSummary("Submit user feedback")
-            .WithDescription("Submits user or client feedback for administrative review.");
+            .WithSummary("Submit user feedback addressed to an NTC Regional Office")
+            .WithDescription("Submits user or client feedback addressed to a selected NTC Regional Office (Tenant) for regional review.");
 
         feedback.MapGet("/", GetFeedbacks)
+            .RequireAuthorization()
             .WithName("GetFeedbacks")
-            .WithSummary("Get feedback submissions")
-            .WithDescription("Retrieves all customer and client feedback submissions.");
+            .WithSummary("Get regional feedback submissions")
+            .WithDescription("Retrieves customer and client feedback submissions scoped to the staff member's active NTC Regional Office.");
 
         feedback.MapDelete("/{id:guid}", DeleteFeedback)
+            .RequireAuthorization()
             .WithName("DeleteFeedback")
             .WithSummary("Delete feedback submission")
-            .WithDescription("Removes a feedback entry.");
+            .WithDescription("Removes a feedback entry within the staff member's authorized NTC Regional Office.");
 
         return group;
     }
@@ -49,17 +52,20 @@ public static class FeedbackEndpoints
         return Results.Created($"/api/v2/feedback/{result.Id}", result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
-    public static async Task<IResult> GetFeedbacks(IMediator mediator)
+    [Authorize]
+    public static async Task<IResult> GetFeedbacks(
+        [FromQuery] Guid? tenantId,
+        IMediator mediator)
     {
-        var result = await mediator.Send(new GetFeedbacksQuery());
+        var result = await mediator.Send(new GetFeedbacksQuery(tenantId));
         return Results.Ok(new { succeeded = true, data = result });
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [Authorize]
     public static async Task<IResult> DeleteFeedback(Guid id, IMediator mediator)
     {
         var success = await mediator.Send(new DeleteFeedbackCommand(id));
         return success ? Results.NoContent() : Results.NotFound(new { message = "Feedback not found" });
     }
 }
+

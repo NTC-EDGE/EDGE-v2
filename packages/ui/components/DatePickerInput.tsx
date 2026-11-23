@@ -116,7 +116,7 @@ export function DatePickerInput({
           onClick={(e) => {
             if (disabled) return;
             const input = e.currentTarget.querySelector('input[type="date"]');
-            if (input instanceof HTMLInputElement) {
+            if (input instanceof HTMLInputElement && e.target !== input) {
               try {
                 if (typeof input.showPicker === 'function') {
                   input.showPicker();
@@ -162,6 +162,12 @@ export function DatePickerInput({
             placeholder={placeholder}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
+            onInput={(e) => {
+              const target = e.currentTarget;
+              if (target !== null && typeof target.value === "string" && target.value.length > 0) {
+                onChangeText(target.value);
+              }
+            }}
             onChange={(e) => {
               const target = e.currentTarget;
               if (target !== null && typeof target.value === "string") {

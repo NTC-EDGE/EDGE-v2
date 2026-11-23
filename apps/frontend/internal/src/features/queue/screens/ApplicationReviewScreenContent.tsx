@@ -64,6 +64,7 @@ import {
   matchesUserIdentifier,
   computeOfficerEvaluationState,
   getApprovingEvaluator,
+  canEvaluatorEditAttachment,
 } from "../utils/officerEvaluationHelper";
 
 export interface ApplicationReviewScreenProps {
@@ -87,8 +88,10 @@ export function ApplicationReviewScreenContent({
   const { currentRole } = useRole();
   const { canApprove, canDecline, canEndorse, canForwardToAccountant, canApproveAsAccountant, canVerifyCashier } = usePermissions();
   const isAdmin = currentRole === 'Admin';
+  const rawUserName = user?.name?.trim();
+  const nonGenericUserName = rawUserName && rawUserName.toLowerCase() !== 'user' ? rawUserName : '';
   const officerName = (
-    user?.name?.trim() ||
+    nonGenericUserName ||
     [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
     clerkUser?.fullName?.trim() ||
     user?.username?.trim() ||
@@ -487,6 +490,12 @@ export function ApplicationReviewScreenContent({
   const isPendingPayment = app.status === "PendingPayment";
   const isForIssuance = app.status === "ForIssuance";
 
+  const evaluationState = computeOfficerEvaluationState({
+    application: app,
+    identifiers: currentUserIdentifiers,
+    isAdmin,
+  });
+
   const {
     isEvaluating,
     evaluatingOfficer,
@@ -499,14 +508,7 @@ export function ApplicationReviewScreenContent({
     isStageClaimedByMe,
     isStageClaimedByOther,
     isStageUnclaimed,
-  } = computeOfficerEvaluationState({
-    application: app,
-    identifiers: currentUserIdentifiers,
-    isAdmin,
-  });
-
-  const isActivelyEvaluating = (isEvaluating || isReturned) && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe);
-  const isEditable = isActivelyEvaluating && !isEndorsedAwayFromMe && app.queueTab !== "history";
+  } = evaluationState;
 
   const isComplaintOrRequest =
     app.category === 'Complaints and Request' ||
@@ -517,6 +519,27 @@ export function ApplicationReviewScreenContent({
        app.permitTitle.toLowerCase().includes('blocking')));
   const canActAsLegal = currentRole === 'Legal' || isAdmin;
   const canEvaluateApplication = isEvaluatorOrSupervisorRole(currentRole) || (isComplaintOrRequest && canActAsLegal) || isAdmin;
+
+  // An evaluator is only actively evaluating (and allowed to edit details/requirements/crop attachments)
+  // AFTER they have explicitly taken/claimed the application in the Evaluating stage.
+  const isActivelyEvaluating =
+    canEvaluateApplication &&
+    isEvaluating &&
+    !isStageUnclaimed &&
+    !isStageClaimedByOther &&
+    !isEvaluatedByOther &&
+    !isEndorsedAwayFromMe &&
+    (isStageClaimedByMe || isEvaluatedByMe || isEndorsedToMe);
+  const isEditable = isActivelyEvaluating && app.queueTab !== "history";
+
+  const canEditAttachmentImage =
+    isEditable &&
+    canEvaluatorEditAttachment({
+      application: app,
+      evaluationState,
+      currentRole,
+      canEvaluateApplication,
+    });
 
   // ── Workflow-aware action handlers ──────────────────────────────────────────
 
@@ -1405,7 +1428,8 @@ export function ApplicationReviewScreenContent({
       <CustomDocPreviewModal
         previewCustomDoc={previewCustomDoc}
         onClose={handleClosePreviewDoc}
-        onSaveEditedImage={handleSaveEditedPreviewDoc}
+        onSaveEditedImage={canEditAttachmentImage && !showClaimBtn ? handleSaveEditedPreviewDoc : undefined}
+        allowEditImage={canEditAttachmentImage && !showClaimBtn}
       />
 
       {/* ApproveModal is reused for evaluation and accountant approval */}
@@ -1516,7 +1540,16 @@ export function ApplicationReviewScreenContent({
           onClose();
         }}
       />
-      <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
+      <GenerateSoaModal
+        visible={showGenerateSoa}
+        app={app}
+        onClose={() => setShowGenerateSoa(false)}
+        onSuccess={async () => {
+          setInnerTab("soa");
+          await mutateApplications(app.id);
+          await refetch();
+        }}
+      />
       <SoaReportPreviewModal
         visible={showReportPreview}
         app={app}

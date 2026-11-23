@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { useTheme, COLORS, SPACING, Icon as Lucide, toast } from "@edge/ui";
+import { scheduleService, useAdminSchedules } from "@edge/api";
 import { ApplicationDetailsTabProps } from "./reviewTypes";
 import { InfoRow } from "./reviewComponents";
 import { FormsAttachmentSection } from "./FormsAttachmentSection";
@@ -173,10 +174,92 @@ export function ApplicationDetailsTab({
     app.formFieldValues,
   ]);
 
+  const [fetchedScheduleVenue, setFetchedScheduleVenue] = useState<string | null>(null);
+  const { schedules: tenantSchedules } = useAdminSchedules(
+    isExamService
+      ? {
+          tenantId: app.tenantId,
+          pageSize: 50,
+        }
+      : undefined
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    setFetchedScheduleVenue(null);
+
+    if (!isExamService || !app.scheduleId) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const loadSchedule = async () => {
+      const [sched] = await scheduleService.getScheduleById(app.scheduleId ?? "");
+      if (isMounted && sched && typeof sched.venue === "string" && sched.venue.trim().length > 0) {
+        setFetchedScheduleVenue(sched.venue.trim());
+      }
+    };
+
+    void loadSchedule();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isExamService, app.scheduleId]);
+
   const scheduleSummaryText = useMemo(() => {
+    if (isExamService) {
+      if (app.scheduleVenue && app.scheduleVenue.trim().length > 0) {
+        return app.scheduleVenue.trim();
+      }
+      if (fetchedScheduleVenue && fetchedScheduleVenue.trim().length > 0) {
+        return fetchedScheduleVenue.trim();
+      }
+      if (tenantSchedules.length > 0) {
+        const matchedById = app.scheduleId
+          ? tenantSchedules.find((s) => s.id === app.scheduleId)
+          : undefined;
+        if (matchedById?.venue && matchedById.venue.trim().length > 0) {
+          return matchedById.venue.trim();
+        }
+        const matchedByService = app.serviceId
+          ? tenantSchedules.find(
+              (s) =>
+                s.serviceId === app.serviceId &&
+                typeof s.venue === "string" &&
+                s.venue.trim().length > 0
+            )
+          : undefined;
+        if (matchedByService?.venue && matchedByService.venue.trim().length > 0) {
+          return matchedByService.venue.trim();
+        }
+      }
+      const venueFromFields = (app.formFieldValues ?? []).find((f) => {
+        const lbl = (f.fieldLabel || "").toLowerCase();
+        return (
+          lbl.includes("exam venue") ||
+          lbl.includes("examination venue") ||
+          lbl.includes("testing venue") ||
+          lbl === "venue"
+        );
+      })?.value;
+      if (venueFromFields && venueFromFields.trim().length > 0) {
+        return venueFromFields.trim();
+      }
+    }
     if (app.office && app.office.trim().length > 0) return `NTC Field Office • ${app.office}`;
     return null;
-  }, [app.office]);
+  }, [
+    isExamService,
+    app.scheduleVenue,
+    app.scheduleId,
+    app.serviceId,
+    app.formFieldValues,
+    app.office,
+    fetchedScheduleVenue,
+    tenantSchedules,
+  ]);
 
   const handleSaveDetails = () => {
     setIsEditingSection(false);

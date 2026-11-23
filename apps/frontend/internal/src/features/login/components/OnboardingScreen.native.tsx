@@ -5,9 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, Icon as Lucide, useTheme, AnimatedCard } from "@edge/ui";
 import { useAppNavigation } from "../../../navigation/types";
+import { NtcLogo } from "./NtcLogo";
 type LucideIconName = ComponentProps<typeof Lucide>["name"];
 
 interface OnboardingStep {
@@ -18,18 +21,18 @@ interface OnboardingStep {
 
 const ONBOARDING_STEPS: ReadonlyArray<OnboardingStep> = [
   {
-    title: "Secure Role Authentication",
-    description: "Login securely with Clerk and choose your assigned internal department role.",
+    title: "Regional RBAC & Tenant Access",
+    description: "Sign in with your NTC staff credentials; your regional office, field office, and role permissions are resolved automatically.",
     icon: "shield",
   },
   {
-    title: "Real-time Queue Management",
-    description: "Process applicants and update application statuses directly from the dashboard.",
+    title: "Accountable Evaluation & SOA/OP",
+    description: "Claim applications in queue, verify requirements, generate Statements of Account (SOA), and approve Orders of Payment (OP).",
     icon: "layers",
   },
   {
-    title: "Streamlined Analytics",
-    description: "Generate reports, manage receipts, and evaluate EOD operations efficiently.",
+    title: "Cashiering, Issuance & Collaboration",
+    description: "Manage Official Receipt (OR) booklets, issue statutory licenses/permits, schedule exams, and collaborate via staff Chat & Meet.",
     icon: "bar-chart-2",
   },
 ];
@@ -37,6 +40,8 @@ const ONBOARDING_STEPS: ReadonlyArray<OnboardingStep> = [
 export function OnboardingScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
   const navigation = useAppNavigation();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 640;
   const [currentStep, setCurrentStep] = useState(0);
 
   const handleNext = () => {
@@ -55,63 +60,75 @@ export function OnboardingScreen(): React.ReactElement {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.7}>
-            <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip</Text>
-          </TouchableOpacity>
-        </View>
-
-        <AnimatedCard delay={0} padding={24} style={styles.contentCard}>
-          <View style={styles.contentInner}>
-            <View
-              style={[
-                styles.iconCircle,
-                { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
-              ]}
-            >
-              <Lucide
-                name={step.icon}
-                size={48}
-                color={isDark ? colors.brand.primary : colors.brand.secondary}
-              />
-            </View>
-            <Text style={[styles.title, { color: colors.text }]}>{step.title}</Text>
-            <Text style={[styles.description, { color: colors.textMuted }]}>{step.description}</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={[
+            styles.container,
+            isTablet && { maxWidth: 480, paddingHorizontal: 32 },
+          ]}
+        >
+          <View style={styles.header}>
+            <NtcLogo size="small" variant="auto" showSubtext={false} />
+            <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.7}>
+              <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip</Text>
+            </TouchableOpacity>
           </View>
-        </AnimatedCard>
 
-        <View style={styles.footer}>
-          <View style={styles.paginationIndicator}>
-            {ONBOARDING_STEPS.map((s, index) => (
+          <AnimatedCard delay={0} padding={isTablet ? 32 : 24} style={styles.contentCard}>
+            <View style={styles.contentInner}>
               <View
-                key={s.title}
                 style={[
-                  styles.dot,
-                  { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300] },
-                  currentStep === index && [
-                    styles.dotActive,
-                    { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
-                  ],
+                  styles.iconCircle,
+                  { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
                 ]}
-              />
-            ))}
-          </View>
+              >
+                <Lucide
+                  name={step.icon}
+                  size={48}
+                  color={isDark ? colors.brand.primary : colors.brand.secondary}
+                />
+              </View>
+              <Text style={[styles.title, { color: colors.text }]}>{step.title}</Text>
+              <Text style={[styles.description, { color: colors.textMuted }]}>{step.description}</Text>
+            </View>
+          </AnimatedCard>
 
-          <TouchableOpacity
-            style={[
-              styles.nextButton,
-              { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
-            ]}
-            onPress={handleNext}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.nextButtonText}>
-              {currentStep === ONBOARDING_STEPS.length - 1 ? "Sign In" : "Next"}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.footer}>
+            <View style={styles.paginationIndicator}>
+              {ONBOARDING_STEPS.map((s, index) => (
+                <TouchableOpacity
+                  key={s.title}
+                  onPress={() => setCurrentStep(index)}
+                  style={[
+                    styles.dot,
+                    { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300] },
+                    currentStep === index && [
+                      styles.dotActive,
+                      { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
+                    ],
+                  ]}
+                />
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.nextButton,
+                { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
+              ]}
+              onPress={handleNext}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.nextButtonText}>
+                {currentStep === ONBOARDING_STEPS.length - 1 ? "Sign In" : "Next"}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -120,6 +137,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
   container: {
     flex: 1,
     justifyContent: "space-between",
@@ -127,10 +148,12 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     width: "100%",
     alignSelf: "center",
+    gap: 24,
   },
   header: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingTop: SPACING[12],
   },
   skipButton: {

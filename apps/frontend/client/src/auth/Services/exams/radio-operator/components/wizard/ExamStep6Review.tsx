@@ -211,6 +211,7 @@ export function ExamStep6Review({
         onClose={() => setIsPreviewOpen(false)}
         file={previewFile}
         label={previewLabel}
+        allowEditImage={true}
       />
 
       {/* Terms and Conditions */}

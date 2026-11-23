@@ -334,8 +334,38 @@ export function FeedbackScreen() {
                   </View>
                 </View>
 
-                {/* Rating Stars & Delete Action */}
+                {/* Rating Stars, Regional Office Badge & Delete Action */}
                 <View style={styles.headerRight}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                      borderColor: isDark ? colors.neutral[700] : colors.border,
+                      borderWidth: 1,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Lucide
+                      name="map-pin"
+                      size={11}
+                      color={isDark ? colors.brand[500] : colors.brand.primary}
+                    />
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 11,
+                        fontWeight: TYPOGRAPHY.weights.bold,
+                        color: isDark ? colors.brand[500] : colors.brand.primary,
+                      }}
+                    >
+                      {item.tenantName || 'NTC Central / General Office'}
+                    </Text>
+                  </View>
+
                   <View style={styles.ratingBadge}>
                     {renderRatingStars(item.rating)}
                     <Text style={[styles.ratingScoreText, { color: colors.text }]}>{item.rating}.0</Text>
@@ -375,8 +405,10 @@ export function FeedbackScreen() {
                   <View style={[styles.expandedDrawer, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}>
                     <View style={styles.expandedMetaRow}>
                       <View style={styles.expandedMetaItem}>
-                        <Text style={[styles.expandedMetaLabel, { color: colors.textMuted }]}>FEEDBACK CATEGORY</Text>
-                        <Text style={[styles.expandedMetaValue, { color: colors.text }]}>Regional Service & Portal UX</Text>
+                        <Text style={[styles.expandedMetaLabel, { color: colors.textMuted }]}>ADDRESSED REGIONAL OFFICE</Text>
+                        <Text style={[styles.expandedMetaValue, { color: colors.text }]}>
+                          {item.tenantName || 'NTC Central / General Office'}
+                        </Text>
                       </View>
                       <View style={styles.expandedMetaItem}>
                         <Text style={[styles.expandedMetaLabel, { color: colors.textMuted }]}>REVIEW STATUS</Text>
