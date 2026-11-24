@@ -324,6 +324,22 @@ export function useApplicationDetailsData(initialApp: Application) {
       findField((l) => l.includes('representative')) ||
       null;
 
+    const resolvedExamineeType =
+      app.serviceVariantType ||
+      (first?.applicationType && first.applicationType.toLowerCase() !== 'individual' && first.applicationType.toLowerCase() !== 'company' ? first.applicationType : null) ||
+      (details?.examineeType && details.examineeType !== 'New' ? details.examineeType : null) ||
+      findField((l, id) =>
+        id === 'fd000000-0000-0000-0000-000000000008' ||
+        id === 'fd000000-0000-0000-0000-000000000007' ||
+        l.includes('examinee type') ||
+        l.includes('type of application') ||
+        l.includes('application type')
+      ) ||
+      details?.examineeType ||
+      app.examineeType ||
+      app.serviceVariantName ||
+      'New';
+
     return {
       applicantName,
       applicantType: isCompany ? 'Company' : 'Individual',
@@ -337,9 +353,9 @@ export function useApplicationDetailsData(initialApp: Application) {
       zipCode: resolvedZip,
       mobileNumber: resolvedMobile,
       email: resolvedEmail,
-      examineeType: details?.examineeType || first?.applicationType || first?.applicantType || app.element || app.examineeType || 'New',
-      birthDate: resolveBirthDate(details, rawFormFields),
-      civilStatus: resolveCivilStatus(details, rawFormFields),
+      examineeType: resolvedExamineeType,
+      birthDate: resolveBirthDate(details, rawFormFields) || (first as { birthDate?: string } | null)?.birthDate || (app as { birthDate?: string }).birthDate || null,
+      civilStatus: resolveCivilStatus(details, rawFormFields) || (first as { civilStatus?: string } | null)?.civilStatus || (app as { civilStatus?: string }).civilStatus || null,
       companyName: isCompany || Boolean(resolvedCompName) ? resolvedCompName : null,
       representativeName: isCompany || Boolean(resolvedCompName) ? resolvedRepName : null,
       notes: details?.notes || app.remarks || null,
@@ -405,14 +421,18 @@ export function useApplicationDetailsData(initialApp: Application) {
   }, [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType, formFieldValues]);
 
   const applicationTypeLabel = useMemo(() => {
-    const rawAppType = singleApplicant?.applicantType === 'Company' ? undefined : singleApplicant?.examineeType;
+    const firstAp = (app.applicants || app.Applicants || [])[0];
+    const rawAppType =
+      app.serviceVariantType ||
+      (firstAp?.applicationType && firstAp.applicationType.toLowerCase() !== 'individual' && firstAp.applicationType.toLowerCase() !== 'company' ? firstAp.applicationType : undefined) ||
+      (singleApplicant?.applicantType === 'Company' ? undefined : singleApplicant?.examineeType);
     return resolvePreviewApplicationType({
       applicationType: rawAppType,
       examineeType: singleApplicant?.examineeType,
       element: app.element,
       formFieldValues,
     });
-  }, [singleApplicant?.applicantType, singleApplicant?.examineeType, app.element, formFieldValues]);
+  }, [app.serviceVariantType, app.applicants, app.Applicants, singleApplicant?.applicantType, singleApplicant?.examineeType, app.element, formFieldValues]);
 
   const elementsLabel = useMemo(() => {
     return resolvePreviewElements({

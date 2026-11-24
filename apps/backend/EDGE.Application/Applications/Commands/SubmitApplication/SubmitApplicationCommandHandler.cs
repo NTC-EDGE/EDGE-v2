@@ -205,6 +205,49 @@ public class SubmitApplicationCommandHandler
         if (service != null)
         {
             form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
+
+            // Ensure explicit biographical DTO properties (such as CivilStatus, Sex, Nationality)
+            // that are stored via FormFieldValues are always synthesized into FormFieldValues before validation.
+            var civilStatusFieldId = Guid.Parse("fd000000-0000-0000-0000-000000000042");
+            var sexFieldId = Guid.Parse("fd000000-0000-0000-0000-000000000041");
+            var nationalityFieldId = Guid.Parse("fd000000-0000-0000-0000-000000000043");
+
+            foreach (var applicantDto in request.Applicants)
+            {
+                if (!string.IsNullOrWhiteSpace(applicantDto.CivilStatus) &&
+                    !applicantDto.FormFieldValues.Any(fv => fv.FieldId == civilStatusFieldId))
+                {
+                    applicantDto.FormFieldValues.Add(new FormFieldValueSubmissionDto
+                    {
+                        FieldId = civilStatusFieldId,
+                        FieldLabel = "Civil Status",
+                        Value = applicantDto.CivilStatus.Trim()
+                    });
+                }
+
+                if (!string.IsNullOrWhiteSpace(applicantDto.Sex) &&
+                    !applicantDto.FormFieldValues.Any(fv => fv.FieldId == sexFieldId))
+                {
+                    applicantDto.FormFieldValues.Add(new FormFieldValueSubmissionDto
+                    {
+                        FieldId = sexFieldId,
+                        FieldLabel = "Sex / Gender",
+                        Value = applicantDto.Sex.Trim()
+                    });
+                }
+
+                if (!string.IsNullOrWhiteSpace(applicantDto.Nationality) &&
+                    !applicantDto.FormFieldValues.Any(fv => fv.FieldId == nationalityFieldId))
+                {
+                    applicantDto.FormFieldValues.Add(new FormFieldValueSubmissionDto
+                    {
+                        FieldId = nationalityFieldId,
+                        FieldLabel = "Nationality / Citizenship",
+                        Value = applicantDto.Nationality.Trim()
+                    });
+                }
+            }
+
             if (!request.IsDraft)
             {
                 var submittedFieldIds = request.Applicants

@@ -353,6 +353,20 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         })
                         .ToList();
 
+                    if (applicantDto.Details != null && string.IsNullOrWhiteSpace(applicantDto.Details.CivilStatus))
+                    {
+                        var civilStatusFv = applicantDto.FormFieldValues.FirstOrDefault(fv =>
+                            fv != null &&
+                            !string.IsNullOrWhiteSpace(fv.Value) &&
+                            (fv.FieldId == Guid.Parse("fd000000-0000-0000-0000-000000000042") ||
+                             fv.FieldLabel.Contains("civil", StringComparison.OrdinalIgnoreCase) ||
+                             fv.FieldLabel.Contains("marital", StringComparison.OrdinalIgnoreCase)))?.Value;
+                        if (!string.IsNullOrWhiteSpace(civilStatusFv))
+                        {
+                            applicantDto.Details.CivilStatus = civilStatusFv.Trim();
+                        }
+                    }
+
                     var applicantElement = applicantDto.FormFieldValues.FirstOrDefault(fv =>
                         fv != null &&
                         (FormFieldConstants.ElementFieldIds.Contains(fv.FieldId) ||
