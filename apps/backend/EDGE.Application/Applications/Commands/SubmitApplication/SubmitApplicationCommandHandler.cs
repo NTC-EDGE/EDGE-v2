@@ -388,10 +388,32 @@ public class SubmitApplicationCommandHandler
 
                 if (existing != null && (existing.Status == ApplicationStatus.Draft || existing.Status == ApplicationStatus.Returned))
                 {
+                    var wasReturned = existing.Status == ApplicationStatus.Returned;
                     existing.TenantId = request.TenantId;
                     existing.ScheduleId = effectiveScheduleId;
                     existing.RegionId = tenant.RegionId;
                     existing.Office = officeName;
+                    // When editing a Returned application via the wizard pre-save step (IsDraft == true),
+                    // preserve ApplicationStatus.Returned so FinalizeApplicationSubmissionCommandHandler
+                    // recognizes it as a Returned resubmission and routes it back to the owning evaluator.
+                    if (wasReturned && request.IsDraft)
+                    {
+                        status = ApplicationStatus.Returned;
+                    }
+                    else if (wasReturned && !request.IsDraft && existing.Histories != null && existing.Histories.Any())
+                    {
+                        var hasRetainedEvaluator = existing.Histories
+                            .OrderByDescending(h => h.Timestamp)
+                            .Any(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                                      (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Applicant", StringComparison.OrdinalIgnoreCase))) &&
+                                      (h.Action == null || (!h.Action.Contains("Released", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Returned to Queue", StringComparison.OrdinalIgnoreCase))) &&
+                                      (h.ToStatus == ApplicationStatus.Evaluating ||
+                                       (h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned with Notice", StringComparison.OrdinalIgnoreCase)))));
+                        if (hasRetainedEvaluator)
+                        {
+                            status = ApplicationStatus.Evaluating;
+                        }
+                    }
                     existing.Status = status;
                     existing.Intent = intent;
                     existing.SubmissionMode = submissionMode;

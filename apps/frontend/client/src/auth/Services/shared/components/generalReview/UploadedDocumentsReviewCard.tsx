@@ -33,7 +33,36 @@ export function UploadedDocumentsReviewCard({
   service,
   onPreviewFile,
 }: UploadedDocumentsReviewCardProps) {
-  const uploadedEntries = Object.entries(activeApplicant.uploads || {});
+  const rawUploadedEntries = Object.entries(activeApplicant.uploads || {});
+  const seenDocumentKeys = new Set<string>();
+  const uploadedEntries = rawUploadedEntries.filter(([key, file]) => {
+    if (!checkFileAvailable(file)) return true;
+    const reqLabel = getRequirementLabel(key, variantRequirements, service).toLowerCase().trim();
+    const storedId =
+      typeof file === 'object' &&
+      file !== null &&
+      'storedFileId' in file &&
+      typeof file.storedFileId === 'string' &&
+      file.storedFileId.trim() !== ''
+        ? file.storedFileId.trim().toLowerCase()
+        : '';
+    const uriStr =
+      typeof file === 'string'
+        ? file.trim().toLowerCase()
+        : isPreviewFileObject(file) && typeof file.uri === 'string'
+        ? file.uri.trim().toLowerCase()
+        : '';
+    const dedupeKey = storedId
+      ? `stored:${storedId}`
+      : reqLabel && uriStr
+      ? `label:${reqLabel}|uri:${uriStr}`
+      : key;
+    if (seenDocumentKeys.has(dedupeKey)) {
+      return false;
+    }
+    seenDocumentKeys.add(dedupeKey);
+    return true;
+  });
   const uploadCount = uploadedEntries.length;
   const availableCount = uploadedEntries.filter(([, file]) => checkFileAvailable(file)).length;
   const unavailableCount = uploadCount - availableCount;

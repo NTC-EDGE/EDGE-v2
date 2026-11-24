@@ -94,16 +94,48 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             .OrderByDescending(h => h.Timestamp)
             .ToList();
 
+        string? resolvedEvaluatorName = null;
+        foreach (var h in allHistories)
+        {
+            var act = h.Action ?? string.Empty;
+            var rem = h.Remarks ?? string.Empty;
+            var role = h.StaffRole ?? string.Empty;
+
+            bool isRelease = act.Contains("Released", StringComparison.OrdinalIgnoreCase) ||
+                             act.Contains("Returned to Queue", StringComparison.OrdinalIgnoreCase) ||
+                             rem.Contains("Released by", StringComparison.OrdinalIgnoreCase) ||
+                             rem.Contains("Returned to queue", StringComparison.OrdinalIgnoreCase);
+            if (isRelease && !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            bool isEvaluatorHistory =
+                !string.IsNullOrWhiteSpace(h.StaffName) &&
+                !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) &&
+                !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase) &&
+                !role.Contains("Applicant", StringComparison.OrdinalIgnoreCase) &&
+                !act.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) &&
+                !act.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) &&
+                (h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant ||
+                 h.ToStatus == Domain.Enums.ApplicationStatus.Evaluating ||
+                 role.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) ||
+                 role.Contains("Engineer", StringComparison.OrdinalIgnoreCase) ||
+                 role.Contains("Return Officer", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("Returned with Notice", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("SOA", StringComparison.OrdinalIgnoreCase));
+
+            if (isEvaluatorHistory)
+            {
+                resolvedEvaluatorName = h.StaffName;
+                break;
+            }
+        }
+
         var evaluatorHistory = allHistories.FirstOrDefault(h =>
             !string.IsNullOrWhiteSpace(h.StaffName) &&
-            (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))) &&
-            (h.Action == null || (!h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase))) &&
-            (h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant ||
-             (h.StaffRole != null && (h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) || h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) ||
-             (h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
-                                   h.Action.Contains("SOA", StringComparison.OrdinalIgnoreCase)))));
-
-        var resolvedEvaluatorName = evaluatorHistory?.StaffName;
+            string.Equals(h.StaffName, resolvedEvaluatorName, StringComparison.OrdinalIgnoreCase));
         var resolvedEvaluatorTitle = regionalSignatories.GetResolvedEvaluatorTitle(evaluatorHistory?.StaffRole);
         var resolvedApproverName = regionalSignatories.GetResolvedApproverName();
         var resolvedApproverTitle = regionalSignatories.GetResolvedApproverTitle();

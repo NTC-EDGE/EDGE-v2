@@ -567,17 +567,29 @@ export function resolveEvaluatingOfficer(
     const isEvaluatorTouch =
       roleLower.includes('evaluat') ||
       roleLower.includes('engineer') ||
-      actionLower.includes('evaluat');
+      roleLower.includes('return officer') ||
+      actionLower.includes('evaluat') ||
+      actionLower.includes('returned with notice');
     if (isEvaluatorTouch) {
       break;
     }
   }
 
-  // Find the latest evaluation entry by an Evaluator (excluding downstream return entries by accountant/cashier)
+  // Find the latest evaluation entry by an Evaluator (excluding downstream return entries by accountant/cashier and applicant resubmissions)
   const latestEval = reversedHistories.find((h) => {
     const roleLower = (h.staffRole || '').toLowerCase();
     const actionLower = (h.action || '').toLowerCase();
     const remLower = (h.remarks || '').toLowerCase();
+
+    // Skip applicant submission/resubmission entries
+    if (
+      roleLower === 'applicant' ||
+      roleLower.includes('submitter') ||
+      actionLower.includes('resubmitted by applicant') ||
+      actionLower.includes('submitted by applicant')
+    ) {
+      return false;
+    }
 
     // Exclude return actions performed by accountant/cashier/releasing
     const isReturnByDownstream =
@@ -595,19 +607,22 @@ export function resolveEvaluatingOfficer(
       roleLower.includes('evaluat') ||
       roleLower.includes('engineer') ||
       roleLower.includes('chief') ||
-      roleLower.includes('director');
+      roleLower.includes('director') ||
+      roleLower.includes('return officer');
 
     const isEvaluationAction =
       actionLower.includes('evaluation started') ||
       actionLower.includes('approved & forwarded') ||
       actionLower.includes('forwarded to accountant') ||
+      actionLower.includes('returned with notice') ||
       actionLower.includes('evaluated');
 
     const isForAccountantHandoff = h.toStatus === 'ForAccountant';
     const isEvaluatingState = h.toStatus === 'Evaluating' && !actionLower.includes('return');
+    const isReturnedToApplicantState = h.toStatus === 'Returned' && !isReturnByDownstream;
 
     return (
-      (isForAccountantHandoff || isEvaluatingState || isEvaluationAction || isEvaluatorRole) &&
+      (isForAccountantHandoff || isEvaluatingState || isReturnedToApplicantState || isEvaluationAction || isEvaluatorRole) &&
       Boolean(h.staffName && h.staffName.trim().length > 0 && !isGenericOfficer(h.staffName, dto.office))
     );
   });

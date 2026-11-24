@@ -490,6 +490,34 @@ export function ApplicationReviewScreenContent({
   const isPendingPayment = app.status === "PendingPayment";
   const isForIssuance = app.status === "ForIssuance";
 
+  const isReturnedToClient = isReturned && (() => {
+    const noteLower = (app.note || "").toLowerCase();
+    if (
+      noteLower.includes("returned by accountant") ||
+      noteLower.includes("soa returned") ||
+      noteLower.includes("returned by cashier")
+    ) {
+      return false;
+    }
+    if (app.history && app.history.length > 0) {
+      const latestReturn = [...app.history]
+        .reverse()
+        .find((h) => h.status?.toLowerCase() === "returned" || h.action.toLowerCase().includes("return"));
+      if (latestReturn) {
+        const act = latestReturn.action.toLowerCase();
+        const rem = (latestReturn.remarks || "").toLowerCase();
+        if (act.includes("accountant") || act.includes("soa") || rem.includes("returned by accountant")) {
+          return false;
+        }
+      }
+    }
+    return true;
+  })();
+
+  const isResubmittedToEvaluator = app.status === "Evaluating" && Boolean(
+    app.history && app.history.some((h) => h.action.toLowerCase().includes("resubmitted by applicant"))
+  );
+
   const evaluationState = computeOfficerEvaluationState({
     application: app,
     identifiers: currentUserIdentifiers,
@@ -1034,9 +1062,9 @@ export function ApplicationReviewScreenContent({
   /** Show Issuing Officer document issue button (Available to all regional Evaluators, Chief of EOD, Regional Director, and Admin) */
   const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && canActAsReleasing;
   /** Show Legal/Evaluator complete button for Requests and Complaints (non-revenue statutory cases) */
-  const showLegalResolveBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && isComplaintOrRequest && (canActAsLegal || isEvaluatorOrSupervisorRole(currentRole) || isAdmin);
-  /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer on commercial applications) */
-  const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && !isComplaintOrRequest;
+  const showLegalResolveBtn = (isEvaluating || (isReturned && !isReturnedToClient)) && isStageClaimedByMe && !isEndorsedAwayFromMe && isComplaintOrRequest && (canActAsLegal || isEvaluatorOrSupervisorRole(currentRole) || isAdmin);
+  /** Show Evaluator forward-to-accountant button (Only if actively evaluating or returned by Accountant, not while waiting on client resubmission) */
+  const showForwardBtn = (isEvaluating || (isReturned && !isReturnedToClient)) && isStageClaimedByMe && !isEndorsedAwayFromMe && !isComplaintOrRequest;
   const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
 
   const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
@@ -1357,7 +1385,20 @@ export function ApplicationReviewScreenContent({
         <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3F1A1A' : '#FEF2F2', borderBottomColor: isDark ? '#991B1B' : '#F87171' }]}>
           <Lucide name="rotate-ccw" size={14} color={isDark ? '#F87171' : '#DC2626'} />
           <Text style={[sc.lockedText, { color: isDark ? '#FECACA' : '#991B1B' }]}>
-            Returned Application Notice: <Text style={{ fontWeight: '700' }}>{app.note || 'Returned to applicant with notice of discrepancy.'}</Text>
+            {isReturnedToClient
+              ? 'Returned to Client (Awaiting Applicant Update & Resubmission): '
+              : 'Returned Application Notice: '}
+            <Text style={{ fontWeight: '700' }}>{app.note || 'Returned to applicant with notice of discrepancy.'}</Text>
+          </Text>
+        </View>
+      )}
+
+      {/* Applicant resubmitted updated application banner */}
+      {isResubmittedToEvaluator && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E3A8A' : '#EFF6FF', borderBottomColor: isDark ? '#3B82F6' : '#93C5FD' }]}>
+          <Lucide name="refresh-cw" size={14} color={isDark ? '#93C5FD' : '#2563EB'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#DBEAFE' : '#1E40AF' }]}>
+            <Text style={{ fontWeight: '700' }}>Applicant Resubmitted Updated Application:</Text> The applicant has updated the form/requirements. Your evaluation ownership is retained — you may continue your evaluation directly.
           </Text>
         </View>
       )}
