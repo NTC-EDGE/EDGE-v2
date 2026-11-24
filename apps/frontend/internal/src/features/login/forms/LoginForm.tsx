@@ -3,12 +3,6 @@ import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { COLORS, Button, FormFieldInput, Icon as LucideIcon, TYPOGRAPHY, useTheme } from "@edge/ui";
 import { useLoginForm } from "../hooks/useLoginForm";
 
-const DEMO_PRESETS = [
-  { label: "Admin Evaluator", email: "evaluator@ntc.gov.ph" },
-  { label: "Regional Staff", email: "staff.ncr@ntc.gov.ph" },
-  { label: "System Admin", email: "admin@ntc.gov.ph" },
-];
-
 export interface LoginFormProps {
   loginState: ReturnType<typeof useLoginForm>;
   onForgotPasswordClick: () => void;
@@ -23,7 +17,6 @@ export function LoginForm({
     form,
     onSubmit,
     handleGoogleSignIn,
-    handleApplyPreset,
     isSubmitting,
     isGoogleSubmitting,
     showGoogleSso,
@@ -31,43 +24,6 @@ export function LoginForm({
 
   return (
     <View style={styles.formContainer}>
-      {/* Demo Presets */}
-      <View
-        style={[
-          styles.demoPresetsContainer,
-          { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
-        ]}
-      >
-        <Text style={[styles.demoPresetsTitle, { color: colors.textMuted }]}>
-          QUICK FILL DEMO ACCOUNT
-        </Text>
-        <View style={styles.presetsPillRow}>
-          {DEMO_PRESETS.map((preset) => (
-            <TouchableOpacity
-              key={preset.email}
-              style={[
-                styles.presetPill,
-                {
-                  backgroundColor: colors.cardBg,
-                  borderColor: colors.border,
-                },
-              ]}
-              onPress={() => handleApplyPreset(preset.email)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.presetPillText,
-                  { color: isDark ? colors.brand.primary : colors.brand.secondary },
-                ]}
-              >
-                {preset.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
       {/* Atomic Input Fields */}
       <FormFieldInput
         control={form.control}
@@ -143,34 +99,6 @@ export function LoginForm({
 const styles = StyleSheet.create({
   formContainer: {
     width: "100%",
-  },
-  demoPresetsContainer: {
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 20,
-  },
-  demoPresetsTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  presetsPillRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  presetPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  presetPillText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   forgotPassButton: {
     alignSelf: "flex-end",
