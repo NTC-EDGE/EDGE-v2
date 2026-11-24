@@ -112,3 +112,13 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }
+
+/* Hide Clerk Sign-Up footer and links in Admin Console Sign-In */
+.admin-clerk-signin .cl-footer,
+.admin-clerk-signin .cl-footerAction,
+.admin-clerk-signin .cl-footerActionText,
+.admin-clerk-signin .cl-footerActionLink,
+.admin-clerk-signin a[href*="sign-up"] {
+  display: none !important;
+}
+

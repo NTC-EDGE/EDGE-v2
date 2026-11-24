@@ -187,6 +187,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             AmountPaid = resolvedAmountPaid,
             PaidAt = paidOp?.PaidAt,
             Services = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>())
+                .OrderBy(aa => aa.SequenceOrder)
                 .Where(aa => aa.Applicant?.Service != null)
                 .Select(aa => new ApplicationServiceDto
                 {
@@ -243,12 +244,17 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 Url = r.Url,
                 IsApproved = r.IsApproved
             }).ToList(),
-            Applicants = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>()).Select(aa =>
+            Applicants = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>())
+                .OrderBy(aa => aa.SequenceOrder)
+                .Select(aa =>
             {
                 var a = aa.Applicant;
+                var resolvedApplicantId = a?.Id ?? aa.ApplicantId;
                 var applicantDto = new ApplicantDto
                 {
-                    Id = a?.Id ?? Guid.Empty,
+                    Id = resolvedApplicantId,
+                    ApplicantId = resolvedApplicantId,
+                    SequenceOrder = aa.SequenceOrder,
                     TenantId = a?.TenantId ?? Guid.Empty,
                     UserId = a?.UserId,
                     IsGuest = a?.IsGuest ?? true,

@@ -5,6 +5,8 @@ namespace EDGE.Application.Applicants.Dtos;
 public class ApplicantDto
 {
     public Guid Id { get; set; }
+    public Guid ApplicantId { get; set; }
+    public int SequenceOrder { get; set; }
     public Guid TenantId { get; set; }
     public Guid? UserId { get; set; }
     public bool IsGuest { get; set; }

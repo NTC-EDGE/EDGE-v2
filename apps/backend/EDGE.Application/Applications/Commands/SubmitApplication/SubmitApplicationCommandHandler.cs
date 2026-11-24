@@ -261,9 +261,15 @@ public class SubmitApplicationCommandHandler
         string effectiveAppTypeKey = "New";
         Guid? resolvedVariantId = null;
 
-        if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+        var requestedVariantId = (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+            ? request.ServiceVariantId
+            : request.Applicants
+                .Select(a => a.ServiceVariantId)
+                .FirstOrDefault(id => id.HasValue && id.Value != Guid.Empty);
+
+        if (requestedVariantId.HasValue && requestedVariantId.Value != Guid.Empty)
         {
-            var selectedVariant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
+            var selectedVariant = await _serviceRepository.GetVariantByIdAsync(requestedVariantId.Value, cancellationToken);
             if (selectedVariant != null && (service == null || selectedVariant.ServiceId == service.Id))
             {
                 resolvedVariantId = selectedVariant.Id;
@@ -292,7 +298,8 @@ public class SubmitApplicationCommandHandler
             }
 
             resolvedVariantId = service.ServiceVariants?
-                .FirstOrDefault(v => v.Type.ToString().Equals(effectiveAppTypeKey, StringComparison.OrdinalIgnoreCase))?.Id;
+                .FirstOrDefault(v => v.Type.ToString().Equals(effectiveAppTypeKey, StringComparison.OrdinalIgnoreCase))?.Id
+                ?? service.ServiceVariants?.FirstOrDefault()?.Id;
         }
 
         // Validate ServiceVariantElementIds if provided
@@ -438,6 +445,7 @@ public class SubmitApplicationCommandHandler
                 {
                     // Re-use existing applicant entity to preserve ID and documentary requirement attachments
                     var appApplicant = existingAppApplicants[i];
+                    appApplicant.SequenceOrder = currentSeq;
                     applicant = appApplicant.Applicant!;
 
                     applicant.TenantId = request.TenantId;
@@ -602,8 +610,8 @@ public class SubmitApplicationCommandHandler
                         appApplicant, cancellationToken);
                 }
 
-                // Ensure all existing application requirements are linked to the target applicant ID
-                if (application.ApplicationRequirements != null && application.ApplicationRequirements.Any())
+                // Ensure legacy unlinked single-applicant requirements are linked to the target applicant ID
+                if (request.Applicants.Count == 1 && application.ApplicationRequirements != null && application.ApplicationRequirements.Any())
                 {
                     foreach (var req in application.ApplicationRequirements)
                     {

@@ -30,9 +30,12 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
+import { useTheme } from "@/components/theme-provider";
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
+  const logoSrc = resolvedTheme === "dark" ? "/white-logo.png" : "/logo.png";
   const { activeRole, isSystemAdmin, isTenantAdmin, isRegionAdmin, isSuperAdmin, currentUser } = useAdminScope();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -57,7 +60,15 @@ export function SidebarNav() {
             alt="NTC Logo"
             width={120}
             height={32}
-            className="h-7 w-auto object-contain"
+            className="block dark:hidden h-7 w-auto object-contain"
+            priority
+          />
+          <Image
+            src="/footer-logo.png"
+            alt="NTC Logo"
+            width={120}
+            height={32}
+            className="hidden dark:block h-7 w-auto object-contain"
             priority
           />
           <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
@@ -91,7 +102,15 @@ export function SidebarNav() {
               alt="NTC Logo"
               width={140}
               height={38}
-              className="h-8 w-auto object-contain"
+              className="block dark:hidden h-8 w-auto object-contain"
+              priority
+            />
+            <Image
+              src="/footer-logo.png"
+              alt="NTC Logo"
+              width={140}
+              height={38}
+              className="hidden dark:block h-8 w-auto object-contain"
               priority
             />
             <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${

@@ -146,17 +146,26 @@ public class UploadApplicantRequirementCommandHandler
         Guid? serviceId = applicant?.ServiceId;
         Guid? variantId = applicant?.ServiceVariantId;
 
-        // Fallback to any applicant service if not explicitly specified on target applicant record
-        if (!serviceId.HasValue)
+        // Fallback to any applicant service/variant if not explicitly specified on target applicant record
+        if (!serviceId.HasValue || serviceId.Value == Guid.Empty)
         {
-            var appWithService = app.ApplicationApplicants.FirstOrDefault(aa => aa.Applicant?.ServiceId != null);
+            var appWithService = app.ApplicationApplicants
+                .OrderBy(aa => aa.SequenceOrder)
+                .FirstOrDefault(aa => aa.Applicant?.ServiceId != null && aa.Applicant.ServiceId != Guid.Empty);
             if (appWithService?.Applicant != null)
             {
                 serviceId = appWithService.Applicant.ServiceId;
-                if (!variantId.HasValue)
-                {
-                    variantId = appWithService.Applicant.ServiceVariantId;
-                }
+            }
+        }
+
+        if (!variantId.HasValue || variantId.Value == Guid.Empty)
+        {
+            var appWithVariant = app.ApplicationApplicants
+                .OrderBy(aa => aa.SequenceOrder)
+                .FirstOrDefault(aa => aa.Applicant?.ServiceVariantId != null && aa.Applicant.ServiceVariantId != Guid.Empty);
+            if (appWithVariant?.Applicant != null)
+            {
+                variantId = appWithVariant.Applicant.ServiceVariantId;
             }
         }
 
@@ -196,6 +205,7 @@ public class UploadApplicantRequirementCommandHandler
         {
             if (existingRequirement != null)
             {
+                existingRequirement.ApplicantId = resolvedApplicantId;
                 existingRequirement.StoredFileId = request.StoredFileId;
                 existingRequirement.StoredFile = null;
                 existingRequirement.ServiceVariantRequirementId = request.ServiceVariantRequirementId ?? existingRequirement.ServiceVariantRequirementId;

@@ -181,9 +181,23 @@ export function useExamFilingWizard({
         );
       }
     }
+    const cohortVariantId =
+      activeApplicant?.selectedVariantId ||
+      applicants.find((a) => Boolean(a.selectedVariantId))?.selectedVariantId ||
+      null;
+    const cohortElementId =
+      activeApplicant?.selectedElementId ||
+      applicants.find((a) => Boolean(a.selectedElementId))?.selectedElementId ||
+      null;
+    const normalizedApplicants = applicants.map((app) => ({
+      ...app,
+      selectedVariantId: app.selectedVariantId || cohortVariantId || "",
+      selectedElementId: app.selectedElementId || cohortElementId || "",
+    }));
+
     let mapped: ReturnType<typeof mapApplicantsPayload> = [];
     try {
-      mapped = mapApplicantsPayload(applicants, queries.formFields, serviceName);
+      mapped = mapApplicantsPayload(normalizedApplicants, queries.formFields, serviceName);
     } catch (serializationErr: unknown) {
       const serializationMsg =
         serializationErr instanceof Error
@@ -209,8 +223,8 @@ export function useExamFilingWizard({
       serviceId: serviceId,
       scheduleId: effectiveScheduleId,
       fieldOfficeId: selectedOfficeId,
-      serviceVariantId: activeApplicant?.selectedVariantId || null,
-      serviceVariantElementIds: activeApplicant?.selectedElementId ? [activeApplicant.selectedElementId] : [],
+      serviceVariantId: cohortVariantId,
+      serviceVariantElementIds: cohortElementId ? [cohortElementId] : [],
       isDraft: true,
       applicants: mapped,
     };

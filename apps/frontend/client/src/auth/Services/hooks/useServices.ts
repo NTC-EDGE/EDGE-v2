@@ -329,7 +329,7 @@ export function useServices() {
       }
       const effectiveVariantId =
         generalApplicants[currentGeneralApplicantIndex]?.selectedVariantId ||
-        generalApplicants[0]?.selectedVariantId ||
+        generalApplicants.find((a) => Boolean(a.selectedVariantId))?.selectedVariantId ||
         "";
       if (!effectiveVariantId) {
         if (active) {
@@ -995,7 +995,12 @@ export function useServices() {
 
   const handleAddExamApplicant = () => {
     const nextId = examApplicants.length + 1;
-    const newApp = initialExamApplicant(nextId);
+    const baseApp = examApplicants[0];
+    const newApp: ExamApplicantData = {
+      ...initialExamApplicant(nextId),
+      selectedVariantId: baseApp?.selectedVariantId || "",
+      selectedElementId: baseApp?.selectedElementId || "",
+    };
     setExamApplicants((prev) => [...prev, newApp]);
     setCurrentExamApplicantIndex(examApplicants.length);
     setExamWizardStep(3);

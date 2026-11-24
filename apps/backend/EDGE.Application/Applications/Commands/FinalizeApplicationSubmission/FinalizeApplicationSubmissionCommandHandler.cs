@@ -101,7 +101,19 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         }
 
         // 1. Strict Validation: Verify mandatory fields on linked applicants
-        foreach (var aa in app.ApplicationApplicants)
+        var orderedApplicants = app.ApplicationApplicants
+            .OrderBy(aa => aa.SequenceOrder)
+            .ToList();
+
+        var fallbackServiceId = orderedApplicants
+            .Select(aa => aa.Applicant?.ServiceId)
+            .FirstOrDefault(id => id.HasValue && id.Value != Guid.Empty);
+
+        var fallbackVariantId = orderedApplicants
+            .Select(aa => aa.Applicant?.ServiceVariantId)
+            .FirstOrDefault(id => id.HasValue && id.Value != Guid.Empty);
+
+        foreach (var aa in orderedApplicants)
         {
             var a = aa.Applicant;
             if (a?.ApplicantDetail == null)
@@ -121,11 +133,22 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
             }
 
             // Verify requirement attachments for each applicant if mandatory requirements exist
-            if (a.ServiceId.HasValue && a.ServiceId.Value != Guid.Empty)
+            var effectiveServiceId = (a.ServiceId.HasValue && a.ServiceId.Value != Guid.Empty)
+                ? a.ServiceId
+                : fallbackServiceId;
+            var effectiveVariantId = (a.ServiceVariantId.HasValue && a.ServiceVariantId.Value != Guid.Empty)
+                ? a.ServiceVariantId
+                : fallbackVariantId;
+
+            if (effectiveServiceId.HasValue && effectiveServiceId.Value != Guid.Empty)
             {
                 var svrList = await _requirementRepository.GetServiceVariantRequirementsAsync(
-                    a.ServiceId.Value, a.ServiceVariantId, cancellationToken);
-                var mandatorySvr = svrList.Where(r => r.IsRequired).ToList();
+                    effectiveServiceId.Value, effectiveVariantId, cancellationToken);
+                var distinctSvr = svrList
+                    .GroupBy(svr => svr.RequirementId)
+                    .Select(g => g.OrderByDescending(x => x.IsRequired).First())
+                    .ToList();
+                var mandatorySvr = distinctSvr.Where(r => r.IsRequired).ToList();
                 if (mandatorySvr.Any())
                 {
                     var matchingReqs = app.ApplicationRequirements
@@ -133,7 +156,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
                             (r.StoredFileId.HasValue || !string.IsNullOrWhiteSpace(r.Url)) &&
                             (r.ApplicantId == a.Id ||
                              r.ApplicantId == aa.Id ||
-                             (app.ApplicationApplicants.Count == 1 && (r.ApplicantId == app.Id || r.ApplicantId == Guid.Empty))))
+                             (orderedApplicants.Count == 1 && (r.ApplicantId == app.Id || r.ApplicantId == Guid.Empty))))
                         .ToList();
 
                     var uploadedReqIds = new HashSet<Guid>();

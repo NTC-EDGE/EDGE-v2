@@ -310,17 +310,25 @@ export function useGeneralServiceWizard(
             return desc || typeStr || "";
           };
 
-          // Auto-select initial variant if applicant has no variant selected yet, or backfill missing selectedVariantName
+          // Auto-select initial variant if any applicant has no variant selected yet, or backfill missing selectedVariantName
           if (fetchedVariants.length > 0) {
             const firstVariant = fetchedVariants[0];
             if (firstVariant) {
-              setApplicants((prev) =>
-                prev.map((app, idx) => {
-                  if (idx === currentApplicantIndex && !app.selectedVariantId) {
+              setApplicants((prev) => {
+                const cohortVariantId =
+                  prev.find((a) => Boolean(a.selectedVariantId))?.selectedVariantId || firstVariant.id;
+                const cohortVariantObj =
+                  fetchedVariants.find(
+                    (v) => String(v.id).toLowerCase() === String(cohortVariantId).toLowerCase()
+                  ) || firstVariant;
+                const cohortVariantName = buildReadableVariantName(cohortVariantObj);
+
+                return prev.map((app) => {
+                  if (!app.selectedVariantId) {
                     return {
                       ...app,
-                      selectedVariantId: firstVariant.id,
-                      selectedVariantName: buildReadableVariantName(firstVariant),
+                      selectedVariantId: cohortVariantObj.id,
+                      selectedVariantName: cohortVariantName,
                     };
                   }
                   if (app.selectedVariantId && !app.selectedVariantName) {
@@ -335,8 +343,8 @@ export function useGeneralServiceWizard(
                     }
                   }
                   return app;
-                })
-              );
+                });
+              });
             }
           }
         }
@@ -351,7 +359,12 @@ export function useGeneralServiceWizard(
   }, [service?.id]);
 
   const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
-  const effectiveVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
+  const cohortSelectedVariantId =
+    activeApplicant.selectedVariantId ||
+    applicants.find((a) => Boolean(a.selectedVariantId))?.selectedVariantId ||
+    null;
+  const effectiveVariantId = cohortSelectedVariantId || (variants[0] ? variants[0].id : null);
+  const createdDraftIdRef = React.useRef<string | null>(null);
   const { form } = useServiceForm(service?.id, effectiveVariantId);
 
   React.useEffect(() => {
@@ -686,9 +699,17 @@ export function useGeneralServiceWizard(
     }
 
     const flatFormFields = form?.sections?.flatMap((s) => s.fields || []) || [];
+    const cohortElementId =
+      activeApplicant.selectedElementId ||
+      applicants.find((a) => Boolean(a.selectedElementId))?.selectedElementId;
+    const normalizedApplicants = applicants.map((app) => ({
+      ...app,
+      selectedVariantId: app.selectedVariantId || effectiveVariantId || undefined,
+      selectedElementId: app.selectedElementId || cohortElementId || undefined,
+    }));
     let mappedApplicants: ReturnType<typeof serializeCertificateApplicant>[] = [];
     try {
-      mappedApplicants = applicants.map((app) =>
+      mappedApplicants = normalizedApplicants.map((app) =>
         serializeCertificateApplicant(app, service, flatFormFields)
       );
     } catch (serializationErr: unknown) {
@@ -743,19 +764,23 @@ export function useGeneralServiceWizard(
       }
     }
 
+    const resolvedExistingDraftId =
+      (existingDraftId && isGuid(existingDraftId) ? existingDraftId : null) ||
+      (createdDraftIdRef.current && isGuid(createdDraftIdRef.current) ? createdDraftIdRef.current : undefined);
+
     const payload = {
       tenantId: selectedRegionId,
       submissionMode: appMode === "BULK" || mappedApplicants.length > 1 ? "Bulk" : "Single",
       intent: filingIntent,
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
-      serviceVariantId: activeApplicant.selectedVariantId || null,
-      serviceVariantElementIds: activeApplicant.selectedElementId && isGuid(activeApplicant.selectedElementId)
-        ? [activeApplicant.selectedElementId]
+      serviceVariantId: effectiveVariantId || null,
+      serviceVariantElementIds: cohortElementId && isGuid(cohortElementId)
+        ? [cohortElementId]
         : [],
       scheduleId: effectiveScheduleId || (isExamService ? null : undefined),
       isDraft: true,
-      existingDraftId: existingDraftId && isGuid(existingDraftId) ? existingDraftId : undefined,
+      existingDraftId: resolvedExistingDraftId,
       applicants: mappedApplicants,
     };
 
@@ -774,9 +799,11 @@ export function useGeneralServiceWizard(
       if (!applicationId) {
         throw new Error("Application creation returned no identifier.");
       }
+      createdDraftIdRef.current = applicationId;
 
       if (!isDraft) {
-        const allApplicantsForUpload = appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
+        const allApplicantsForUpload =
+          appMode === "BULK" || mappedApplicants.length > 1 ? normalizedApplicants : [normalizedApplicants[currentApplicantIndex] || activeApplicant];
         await uploadRequirementsAfterSubmit({
           api,
           applicationId,
@@ -790,6 +817,7 @@ export function useGeneralServiceWizard(
         if (finObj.succeeded === false) {
           throw new Error((typeof finObj.message === "string" && finObj.message) || "Failed to finalize application submission.");
         }
+        createdDraftIdRef.current = null;
       }
     } catch (err: unknown) {
       throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting application.");
