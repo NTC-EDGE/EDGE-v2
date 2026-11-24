@@ -628,6 +628,8 @@ export function resolvePreviewApplicationType(params: ResolvePreviewApplicationT
       upper === 'BULK' ||
       upper === 'SINGLE APPLICATION' ||
       upper === 'BULK APPLICATION' ||
+      upper === 'INDIVIDUAL' ||
+      upper === 'COMPANY' ||
       upper === 'NA' ||
       upper === 'N/A' ||
       upper === 'NONE' ||
@@ -638,8 +640,14 @@ export function resolvePreviewApplicationType(params: ResolvePreviewApplicationT
 
   const formatAppType = (v: string): string => {
     const trimmed = v.trim();
-    if (trimmed.toLowerCase() === 'firsttaker') return 'First Taker';
-    if (trimmed.toLowerCase() === 'civicactiongroup') return 'Civic Action Group';
+    const lower = trimmed.toLowerCase();
+    if (lower === 'firsttaker' || lower === 'first_taker') return 'First Taker';
+    if (lower === 'civicactiongroup' || lower === 'civic_action_group') return 'Civic Action Group';
+    const parenMatch = trimmed.match(/\((First\s*Taker|FirstTaker|Retaker|Renewal|Modification|Upgrading|Upgrade|Additional|New)\)\s*$/i);
+    if (parenMatch && parenMatch[1]) {
+      const inner = parenMatch[1].trim();
+      return inner.toLowerCase() === 'firsttaker' ? 'First Taker' : inner;
+    }
     return trimmed;
   };
 

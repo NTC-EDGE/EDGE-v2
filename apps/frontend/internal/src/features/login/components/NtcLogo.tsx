@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View, Image, ViewStyle, StyleProp } from "react-native";
+import { StyleSheet, View, Image, ViewStyle, StyleProp, useColorScheme } from "react-native";
 import { useTheme } from "@edge/ui";
 
 const logoAsset = require("../../../../assets/logo.png");
@@ -18,6 +18,8 @@ export function NtcLogo({
   style,
 }: NtcLogoProps) {
   const { isDark } = useTheme();
+  const deviceColorScheme = useColorScheme();
+  const effectiveIsDark = Boolean(isDark || deviceColorScheme === "dark");
   const heightMap: Record<"small" | "medium" | "large" | "xlarge", number> = {
     small: 42,
     medium: 68,
@@ -32,7 +34,7 @@ export function NtcLogo({
   // 'light' means light background (dark blue EDGE text: logo.png)
   // 'auto' automatically resolves from active theme / device color scheme
   const resolvedVariant =
-    variant === "auto" ? (isDark ? "dark" : "light") : variant;
+    variant === "auto" ? (effectiveIsDark ? "dark" : "light") : variant;
 
   const asset =
     resolvedVariant === "dark" || resolvedVariant === "footer"

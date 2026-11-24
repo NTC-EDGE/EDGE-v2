@@ -60,17 +60,10 @@ export function useLoginForm() {
     setIsGoogleSubmitting(false);
   };
 
-  const handleApplyPreset = (email: string) => {
-    form.setValue("identifier", email, { shouldValidate: true });
-    form.setValue("password", "NtcStaff123!", { shouldValidate: true });
-    setToastMessage(null);
-  };
-
   return {
     form,
     onSubmit,
     handleGoogleSignIn,
-    handleApplyPreset,
     isSubmitting: form.formState.isSubmitting,
     isGoogleSubmitting,
     showGoogleSso,

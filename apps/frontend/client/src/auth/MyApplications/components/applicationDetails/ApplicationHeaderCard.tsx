@@ -137,7 +137,9 @@ export function ApplicationHeaderCard({
           </View>
         ) : null}
 
-        {applicationType ? (
+        {applicationType &&
+        (!resolvedServiceVariant ||
+          !resolvedServiceVariant.toLowerCase().replace(/\s+/g, '').includes(applicationType.toLowerCase().replace(/\s+/g, ''))) ? (
           <View style={[styles.headerVariantBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
             <Icon name="file-text" size={11} color="#16A34A" />
             <Text style={[styles.headerVariantBadgeText, { color: '#16A34A' }]}>

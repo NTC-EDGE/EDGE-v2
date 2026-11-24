@@ -101,7 +101,19 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         }
 
         // 1. Strict Validation: Verify mandatory fields on linked applicants
-        foreach (var aa in app.ApplicationApplicants)
+        var orderedApplicants = app.ApplicationApplicants
+            .OrderBy(aa => aa.SequenceOrder)
+            .ToList();
+
+        var fallbackServiceId = orderedApplicants
+            .Select(aa => aa.Applicant?.ServiceId)
+            .FirstOrDefault(id => id.HasValue && id.Value != Guid.Empty);
+
+        var fallbackVariantId = orderedApplicants
+            .Select(aa => aa.Applicant?.ServiceVariantId)
+            .FirstOrDefault(id => id.HasValue && id.Value != Guid.Empty);
+
+        foreach (var aa in orderedApplicants)
         {
             var a = aa.Applicant;
             if (a?.ApplicantDetail == null)
@@ -121,11 +133,22 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
             }
 
             // Verify requirement attachments for each applicant if mandatory requirements exist
-            if (a.ServiceId.HasValue && a.ServiceId.Value != Guid.Empty)
+            var effectiveServiceId = (a.ServiceId.HasValue && a.ServiceId.Value != Guid.Empty)
+                ? a.ServiceId
+                : fallbackServiceId;
+            var effectiveVariantId = (a.ServiceVariantId.HasValue && a.ServiceVariantId.Value != Guid.Empty)
+                ? a.ServiceVariantId
+                : fallbackVariantId;
+
+            if (effectiveServiceId.HasValue && effectiveServiceId.Value != Guid.Empty)
             {
                 var svrList = await _requirementRepository.GetServiceVariantRequirementsAsync(
-                    a.ServiceId.Value, a.ServiceVariantId, cancellationToken);
-                var mandatorySvr = svrList.Where(r => r.IsRequired).ToList();
+                    effectiveServiceId.Value, effectiveVariantId, cancellationToken);
+                var distinctSvr = svrList
+                    .GroupBy(svr => svr.RequirementId)
+                    .Select(g => g.OrderByDescending(x => x.IsRequired).First())
+                    .ToList();
+                var mandatorySvr = distinctSvr.Where(r => r.IsRequired).ToList();
                 if (mandatorySvr.Any())
                 {
                     var matchingReqs = app.ApplicationRequirements
@@ -133,7 +156,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
                             (r.StoredFileId.HasValue || !string.IsNullOrWhiteSpace(r.Url)) &&
                             (r.ApplicantId == a.Id ||
                              r.ApplicantId == aa.Id ||
-                             (app.ApplicationApplicants.Count == 1 && (r.ApplicantId == app.Id || r.ApplicantId == Guid.Empty))))
+                             (orderedApplicants.Count == 1 && (r.ApplicantId == app.Id || r.ApplicantId == Guid.Empty))))
                         .ToList();
 
                     var uploadedReqIds = new HashSet<Guid>();
@@ -161,7 +184,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
             }
         }
 
-        // 2. Transition status to Submitted & generate ApplicationNumber
+        // 2. Transition status to Submitted (or Evaluating if resubmitting to an active owning evaluator) & generate ApplicationNumber
         var previousStatus = app.Status;
         var isResubmission = previousStatus == ApplicationStatus.Returned;
         var targetAppNumber = !string.IsNullOrWhiteSpace(app.ApplicationNumber)
@@ -173,7 +196,62 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
             return ApiResponse<Guid>.Fail($"Application with ID '{request.Id}' was not found.");
         }
 
-        trackedApp.Status = ApplicationStatus.Submitted;
+        string? retainedEvaluatorName = null;
+        if (isResubmission && app.Histories != null && app.Histories.Any())
+        {
+            var orderedHistories = app.Histories.OrderByDescending(h => h.Timestamp).ToList();
+            foreach (var h in orderedHistories)
+            {
+                var act = h.Action ?? string.Empty;
+                var rem = h.Remarks ?? string.Empty;
+                var role = h.StaffRole ?? string.Empty;
+
+                // If the evaluator explicitly released the application back to the queue, do not auto-retain
+                bool isRelease = act.Contains("Released", StringComparison.OrdinalIgnoreCase) ||
+                                 act.Contains("Returned to Queue", StringComparison.OrdinalIgnoreCase) ||
+                                 rem.Contains("Released by", StringComparison.OrdinalIgnoreCase) ||
+                                 rem.Contains("Returned to queue", StringComparison.OrdinalIgnoreCase);
+                if (isRelease && !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                bool isEvaluatorTouch =
+                    !string.IsNullOrWhiteSpace(h.StaffName) &&
+                    !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) &&
+                    !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase) &&
+                    !role.Contains("Applicant", StringComparison.OrdinalIgnoreCase) &&
+                    (role.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) ||
+                     role.Contains("Engineer", StringComparison.OrdinalIgnoreCase) ||
+                     role.Contains("Return Officer", StringComparison.OrdinalIgnoreCase) ||
+                     role.Contains("Officer", StringComparison.OrdinalIgnoreCase) ||
+                     role.Contains("Chief", StringComparison.OrdinalIgnoreCase) ||
+                     role.Contains("Director", StringComparison.OrdinalIgnoreCase) ||
+                     role.Contains("Legal", StringComparison.OrdinalIgnoreCase) ||
+                     act.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
+                     act.Contains("Returned with Notice", StringComparison.OrdinalIgnoreCase) ||
+                     h.ToStatus == ApplicationStatus.Evaluating ||
+                     (h.ToStatus == ApplicationStatus.Returned && !act.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !act.Contains("Cashier", StringComparison.OrdinalIgnoreCase)));
+
+                if (isEvaluatorTouch)
+                {
+                    retainedEvaluatorName = h.StaffName!.Trim();
+                    break;
+                }
+            }
+        }
+
+        var targetStatus = (isResubmission && !string.IsNullOrWhiteSpace(retainedEvaluatorName))
+            ? ApplicationStatus.Evaluating
+            : ApplicationStatus.Submitted;
+
+        trackedApp.Status = targetStatus;
+        if (isResubmission)
+        {
+            trackedApp.Remarks = !string.IsNullOrWhiteSpace(retainedEvaluatorName)
+                ? $"Application updated and resubmitted by applicant. Returned to {retainedEvaluatorName} for continued evaluation."
+                : "Application updated and resubmitted by applicant.";
+        }
         if (string.IsNullOrWhiteSpace(trackedApp.ApplicationNumber))
         {
             trackedApp.ApplicationNumber = targetAppNumber;
@@ -197,8 +275,12 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = trackedApp.Id,
-                    Status = ApplicationStatus.Submitted,
-                    Remarks = isResubmission ? "Application resubmitted after return" : "Application finalized and submitted",
+                    Status = targetStatus,
+                    Remarks = isResubmission
+                        ? (!string.IsNullOrWhiteSpace(retainedEvaluatorName)
+                            ? $"Application resubmitted after return. Assigned to {retainedEvaluatorName} for continued evaluation."
+                            : "Application resubmitted after return")
+                        : "Application finalized and submitted",
                     Timestamp = DateTime.UtcNow,
                     UserId = trackedApp.UserId
                 }, cancellationToken);
@@ -214,11 +296,15 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
                     ApplicationId = trackedApp.Id,
                     Action = isResubmission ? "Application resubmitted by applicant" : "Application submitted by applicant",
                     FromStatus = previousStatus,
-                    ToStatus = ApplicationStatus.Submitted,
+                    ToStatus = targetStatus,
                     PerformedByUserId = trackedApp.UserId,
                     StaffName = submitterName,
                     StaffRole = "Applicant",
-                    Remarks = isResubmission ? "Application resubmitted with updated details/requirements" : "Application submission finalized",
+                    Remarks = isResubmission
+                        ? (!string.IsNullOrWhiteSpace(retainedEvaluatorName)
+                            ? $"Application resubmitted with updated details/requirements. Continued evaluation by {retainedEvaluatorName}."
+                            : "Application resubmitted with updated details/requirements")
+                        : "Application submission finalized",
                     Timestamp = DateTime.UtcNow
                 }, cancellationToken);
 

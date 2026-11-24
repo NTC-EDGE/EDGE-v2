@@ -28,7 +28,7 @@ import { ConfirmationDialog } from "./ConfirmationDialog";
 import { ClientAnnouncementBanner } from "./ClientAnnouncementBanner";
 import { ClientAnnouncementModal } from "./ClientAnnouncementModal";
 
-const ntcLogo = require("../../../assets/ntc-logo.png");
+const ntcLogo = require("../../../assets/footer-logo.png");
 
 const CLIENT_NOTIF_STORAGE_PREFIX = "edge_client_read_notifications";
 
@@ -351,7 +351,7 @@ export function ClientAppLayout({
         <View style={styles.logoWrapper}>
           <Image
             source={ntcLogo}
-            style={{ width: 50, height: 36, marginRight: 6 }}
+            style={{ width: isMobile ? 102 : 118, height: isMobile ? 30 : 34, marginRight: 6 }}
             resizeMode="contain"
           />
           <View style={{ flexDirection: "column" }}>

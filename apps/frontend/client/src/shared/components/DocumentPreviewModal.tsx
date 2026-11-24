@@ -8,8 +8,10 @@ import {
   StyleSheet,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Icon, TYPOGRAPHY, ImageCropRotateModal, EditedImageResult } from "@edge/ui";
+import { storageService } from "@edge/api";
 
 export interface DocumentPreviewFile {
   name: string;
@@ -73,11 +75,60 @@ export function DocumentPreviewModal({
   const fileType = isObj && typeof file.type === "string" ? file.type : undefined;
 
   const [activeImageUri, setActiveImageUri] = useState<string>(fileUri);
+  const [resolvedMimeType, setResolvedMimeType] = useState<string>("");
+  const [isLoadingRemoteBlob, setIsLoadingRemoteBlob] = useState<boolean>(false);
 
   useEffect(() => {
     setActiveImageUri(fileUri);
+    setResolvedMimeType("");
     setImageError(false);
-  }, [fileUri, file]);
+
+    if (!visible || !fileUri) return;
+
+    const trimmedUri = fileUri.trim();
+    const isProtectedStoragePath =
+      trimmedUri.startsWith("/api/") ||
+      trimmedUri.includes("/storage/files/");
+
+    if (!isProtectedStoragePath) return;
+
+    let active = true;
+    setIsLoadingRemoteBlob(true);
+
+    (async () => {
+      try {
+        const [blobData, blobErr] = await storageService.downloadFileByUrl(trimmedUri);
+        if (!active) return;
+        if (blobErr === null && blobData instanceof Blob && blobData.size > 0) {
+          let mime = blobData.type || "";
+          if (!mime || mime === "application/octet-stream") {
+            const lowerN = (fileName || "").toLowerCase();
+            const lowerT = (fileType || "").toLowerCase();
+            if (lowerN.endsWith(".pdf") || lowerT.includes("pdf")) mime = "application/pdf";
+            else if (lowerN.endsWith(".png") || lowerT.includes("png")) mime = "image/png";
+            else if (lowerN.endsWith(".jpg") || lowerN.endsWith(".jpeg") || lowerT.includes("jpeg") || lowerT.includes("jpg")) mime = "image/jpeg";
+            else if (lowerN.endsWith(".webp") || lowerT.includes("webp")) mime = "image/webp";
+            else if (lowerT.startsWith("image")) mime = "image/png";
+          }
+          const typedBlob = mime ? new Blob([blobData], { type: mime }) : blobData;
+          if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+            const objUrl = URL.createObjectURL(typedBlob);
+            setActiveImageUri(objUrl);
+            if (mime) setResolvedMimeType(mime);
+            setImageError(false);
+          }
+        }
+      } catch {
+        // fallback to existing URI
+      } finally {
+        if (active) setIsLoadingRemoteBlob(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [fileUri, file, visible, fileName, fileType]);
 
   useEffect(() => {
     if (!visible) {
@@ -107,13 +158,15 @@ export function DocumentPreviewModal({
   if (!file) return null;
 
   const fileNameLower = (fileName || "").toLowerCase();
-  const uriLower = (fileUri || "").toLowerCase();
+  const uriLower = (activeImageUri || fileUri || "").toLowerCase();
+  const typeLower = (resolvedMimeType || fileType || "").toLowerCase();
 
   const isPdf =
     fileNameLower.endsWith(".pdf") ||
     uriLower.endsWith(".pdf") ||
     uriLower.includes("application/pdf") ||
-    (isObj && fileType === "PDF");
+    typeLower === "pdf" ||
+    typeLower.includes("application/pdf");
 
   const isImage =
     !isPdf &&
@@ -124,7 +177,8 @@ export function DocumentPreviewModal({
       fileNameLower.endsWith(".gif") ||
       fileNameLower.endsWith(".svg") ||
       uriLower.startsWith("data:image") ||
-      (isObj && fileType === "IMAGE") ||
+      typeLower === "image" ||
+      typeLower.startsWith("image/") ||
       (uriLower.startsWith("blob:") && !isPdf));
 
   const handleDownloadAction = () => {
@@ -133,10 +187,11 @@ export function DocumentPreviewModal({
       return;
     }
 
-    if (fileUri && Platform.OS === "web" && typeof window !== "undefined" && typeof document !== "undefined") {
+    const downloadTargetUri = (activeImageUri || fileUri || "").trim();
+    if (downloadTargetUri && Platform.OS === "web" && typeof window !== "undefined" && typeof document !== "undefined") {
       try {
         const anchor = document.createElement("a");
-        anchor.setAttribute("href", fileUri);
+        anchor.setAttribute("href", downloadTargetUri);
         anchor.setAttribute("download", fileName);
         anchor.style.visibility = "hidden";
         document.body.appendChild(anchor);
@@ -240,7 +295,14 @@ export function DocumentPreviewModal({
 
           {/* Body Content */}
           <ScrollView contentContainerStyle={styles.bodyContent}>
-            {isImage && hasValidRenderUri && !imageError ? (
+            {isLoadingRemoteBlob ? (
+              <View style={styles.noPreviewCard}>
+                <ActivityIndicator size="large" color="#2563EB" />
+                <Text style={[styles.noPreviewText, { marginTop: 12 }]}>
+                  Loading document preview...
+                </Text>
+              </View>
+            ) : isImage && hasValidRenderUri && !imageError ? (
               /* Simple Pure Image Preview */
               <View style={styles.imageWrapper}>
                 <Image
@@ -262,7 +324,7 @@ export function DocumentPreviewModal({
               /* Simple Pure PDF Preview */
               <View style={styles.pdfWrapper}>
                 <iframe
-                  src={fileUri}
+                  src={effectiveUri}
                   title={fileName}
                   style={{
                     width: "100%",

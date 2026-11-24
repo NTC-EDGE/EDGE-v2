@@ -371,6 +371,12 @@ export function ApplicationCard({
             <Text style={[styles.viewDetailsBtnText, { color: '#0284C7', marginLeft: 4, marginRight: 2 }]}>Awaiting Verification</Text>
             <Icon name="chevron-right" size={14} color="#0284C7" />
           </View>
+        ) : effectiveStatus === 'DECLINED' ? (
+          <View style={[styles.viewDetailsBtn, { backgroundColor: '#DC2626', borderColor: '#B91C1C' }]}>
+            <Icon name="edit-3" size={13} color="#FFFFFF" />
+            <Text style={[styles.viewDetailsBtnText, { marginLeft: 4, marginRight: 2 }]}>Edit Application</Text>
+            <Icon name="chevron-right" size={14} color="#FFFFFF" />
+          </View>
         ) : (
           <View style={styles.viewDetailsBtn}>
             <Text style={styles.viewDetailsBtnText}>View Details</Text>

@@ -63,6 +63,38 @@ function isSubjectForPayment(app: ApplicationData): boolean {
   );
 }
 
+function isReturnedToApplicant(application: ApplicationData): boolean {
+  if (application.status.toLowerCase() !== "returned") return false;
+  const noteLower = (application.note ?? "").toLowerCase();
+  if (
+    noteLower.includes("returned by accountant") ||
+    noteLower.includes("soa returned") ||
+    noteLower.includes("returned by cashier")
+  ) {
+    return false;
+  }
+  if (noteLower.includes("notice of discrepancy") || noteLower.includes("returned with notice")) {
+    return true;
+  }
+  if (application.history && application.history.length > 0) {
+    const latestReturn = [...application.history]
+      .reverse()
+      .find((h) => h.status?.toLowerCase() === "returned" || h.action.toLowerCase().includes("return"));
+    if (latestReturn) {
+      const act = latestReturn.action.toLowerCase();
+      const rem = (latestReturn.remarks ?? "").toLowerCase();
+      if (
+        act.includes("accountant") ||
+        act.includes("soa") ||
+        rem.includes("returned by accountant")
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function formatStatusDisplay(application: ApplicationData): string {
   const s = application.status.toLowerCase();
   if (s === "foraccountant") return "FOR ORDER OF PAYMENT";
@@ -70,7 +102,7 @@ function formatStatusDisplay(application: ApplicationData): string {
   if (s === "submitted") return "FOR EVALUATION";
   if (s === "evaluating") return "EVALUATING";
   if (s === "forissuance") return "FOR ISSUANCE";
-  if (s === "returned") return "RETURNED";
+  if (s === "returned") return isReturnedToApplicant(application) ? "RETURNED TO CLIENT" : "RETURNED";
   if (s === "completed" || s === "approved") return "COMPLETE";
   return application.status.toUpperCase();
 }
@@ -177,15 +209,16 @@ export function ActivityCard({
     }
 
     const st = application.status.toLowerCase();
-    if (st === "evaluating") {
+    if (st === "evaluating" || st === "returned") {
       const name =
         evaluatingOfficer ||
         application.evaluatingOfficer ||
         (!isGenericOfficer(application.assignedTo, application.office)
           ? application.assignedTo
           : "Unassigned");
+      const prefix = st === "returned" ? "Evaluator" : "Evaluating";
       return {
-        label: `Evaluating: ${name}`,
+        label: `${prefix}: ${name}`,
         icon: isEvaluatedByOther ? ("lock" as const) : ("user-check" as const),
         color: isDark ? colors.brand[400] : colors.brand[700],
         textColor: isDark ? colors.brand[300] : colors.brand[900],

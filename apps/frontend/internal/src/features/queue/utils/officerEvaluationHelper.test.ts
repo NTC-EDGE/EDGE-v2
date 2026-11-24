@@ -1100,5 +1100,62 @@ describe("officerEvaluationHelper", () => {
         })
       ).toBe(false);
     });
+
+    it("retains evaluator ownership when an evaluator returns an application to client and client resubmits (Evaluating)", () => {
+      const resubmittedApp = createMockApp({
+        status: "Evaluating",
+        evaluatingOfficer: "Engr. Maria Santos",
+        assignedTo: "Engr. Maria Santos",
+        queueTab: "pending",
+        history: [
+          {
+            id: "h-1",
+            action: "Evaluation Started",
+            staff: "Engr. Maria Santos",
+            role: "Evaluator",
+            status: "Evaluating",
+            timestamp: "Sep 20, 2026, 10:00 AM",
+          },
+          {
+            id: "h-2",
+            action: "Returned with Notice",
+            staff: "Engr. Maria Santos",
+            role: "Evaluator",
+            status: "Returned",
+            remarks: "Notice of Discrepancy: Please update blurry ID.",
+            timestamp: "Sep 20, 2026, 10:15 AM",
+          },
+          {
+            id: "h-3",
+            action: "Application resubmitted by applicant",
+            staff: "Juan Dela Cruz",
+            role: "Applicant",
+            status: "Evaluating",
+            remarks: "Application updated and resubmitted by applicant.",
+            timestamp: "Sep 20, 2026, 10:30 AM",
+          },
+        ],
+      });
+
+      const mariaState = computeOfficerEvaluationState({
+        application: resubmittedApp,
+        identifiers: ["engr. maria santos", "maria santos"],
+      });
+
+      expect(mariaState.isEvaluating).toBe(true);
+      expect(mariaState.isEvaluatedByMe).toBe(true);
+      expect(mariaState.isStageClaimedByMe).toBe(true);
+      expect(mariaState.isStageUnclaimed).toBe(false);
+      expect(mariaState.isStageClaimedByOther).toBe(false);
+
+      const otherEvaluatorState = computeOfficerEvaluationState({
+        application: resubmittedApp,
+        identifiers: ["engr. bob reyes", "bob reyes"],
+      });
+
+      expect(otherEvaluatorState.isEvaluatedByMe).toBe(false);
+      expect(otherEvaluatorState.isStageClaimedByMe).toBe(false);
+      expect(otherEvaluatorState.isStageClaimedByOther).toBe(true);
+    });
   });
 });

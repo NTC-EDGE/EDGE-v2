@@ -94,16 +94,48 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             .OrderByDescending(h => h.Timestamp)
             .ToList();
 
+        string? resolvedEvaluatorName = null;
+        foreach (var h in allHistories)
+        {
+            var act = h.Action ?? string.Empty;
+            var rem = h.Remarks ?? string.Empty;
+            var role = h.StaffRole ?? string.Empty;
+
+            bool isRelease = act.Contains("Released", StringComparison.OrdinalIgnoreCase) ||
+                             act.Contains("Returned to Queue", StringComparison.OrdinalIgnoreCase) ||
+                             rem.Contains("Released by", StringComparison.OrdinalIgnoreCase) ||
+                             rem.Contains("Returned to queue", StringComparison.OrdinalIgnoreCase);
+            if (isRelease && !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            bool isEvaluatorHistory =
+                !string.IsNullOrWhiteSpace(h.StaffName) &&
+                !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) &&
+                !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase) &&
+                !role.Contains("Applicant", StringComparison.OrdinalIgnoreCase) &&
+                !act.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) &&
+                !act.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) &&
+                (h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant ||
+                 h.ToStatus == Domain.Enums.ApplicationStatus.Evaluating ||
+                 role.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) ||
+                 role.Contains("Engineer", StringComparison.OrdinalIgnoreCase) ||
+                 role.Contains("Return Officer", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("Returned with Notice", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("SOA", StringComparison.OrdinalIgnoreCase));
+
+            if (isEvaluatorHistory)
+            {
+                resolvedEvaluatorName = h.StaffName;
+                break;
+            }
+        }
+
         var evaluatorHistory = allHistories.FirstOrDefault(h =>
             !string.IsNullOrWhiteSpace(h.StaffName) &&
-            (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))) &&
-            (h.Action == null || (!h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase))) &&
-            (h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant ||
-             (h.StaffRole != null && (h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) || h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) ||
-             (h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
-                                   h.Action.Contains("SOA", StringComparison.OrdinalIgnoreCase)))));
-
-        var resolvedEvaluatorName = evaluatorHistory?.StaffName;
+            string.Equals(h.StaffName, resolvedEvaluatorName, StringComparison.OrdinalIgnoreCase));
         var resolvedEvaluatorTitle = regionalSignatories.GetResolvedEvaluatorTitle(evaluatorHistory?.StaffRole);
         var resolvedApproverName = regionalSignatories.GetResolvedApproverName();
         var resolvedApproverTitle = regionalSignatories.GetResolvedApproverTitle();
@@ -187,6 +219,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             AmountPaid = resolvedAmountPaid,
             PaidAt = paidOp?.PaidAt,
             Services = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>())
+                .OrderBy(aa => aa.SequenceOrder)
                 .Where(aa => aa.Applicant?.Service != null)
                 .Select(aa => new ApplicationServiceDto
                 {
@@ -243,12 +276,17 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 Url = r.Url,
                 IsApproved = r.IsApproved
             }).ToList(),
-            Applicants = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>()).Select(aa =>
+            Applicants = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>())
+                .OrderBy(aa => aa.SequenceOrder)
+                .Select(aa =>
             {
                 var a = aa.Applicant;
+                var resolvedApplicantId = a?.Id ?? aa.ApplicantId;
                 var applicantDto = new ApplicantDto
                 {
-                    Id = a?.Id ?? Guid.Empty,
+                    Id = resolvedApplicantId,
+                    ApplicantId = resolvedApplicantId,
+                    SequenceOrder = aa.SequenceOrder,
                     TenantId = a?.TenantId ?? Guid.Empty,
                     UserId = a?.UserId,
                     IsGuest = a?.IsGuest ?? true,
@@ -346,6 +384,20 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                             Value = fv.Value
                         })
                         .ToList();
+
+                    if (applicantDto.Details != null && string.IsNullOrWhiteSpace(applicantDto.Details.CivilStatus))
+                    {
+                        var civilStatusFv = applicantDto.FormFieldValues.FirstOrDefault(fv =>
+                            fv != null &&
+                            !string.IsNullOrWhiteSpace(fv.Value) &&
+                            (fv.FieldId == Guid.Parse("fd000000-0000-0000-0000-000000000042") ||
+                             fv.FieldLabel.Contains("civil", StringComparison.OrdinalIgnoreCase) ||
+                             fv.FieldLabel.Contains("marital", StringComparison.OrdinalIgnoreCase)))?.Value;
+                        if (!string.IsNullOrWhiteSpace(civilStatusFv))
+                        {
+                            applicantDto.Details.CivilStatus = civilStatusFv.Trim();
+                        }
+                    }
 
                     var applicantElement = applicantDto.FormFieldValues.FirstOrDefault(fv =>
                         fv != null &&

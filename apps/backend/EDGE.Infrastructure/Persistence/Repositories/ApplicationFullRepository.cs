@@ -1357,13 +1357,45 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .Select(h => h.StaffName!.Trim())
                 .FirstOrDefault();
 
-            string? evaluatingOfficer = x.RecentHistories
-                .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
-                            (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))) &&
-                            ((h.StaffRole != null && (h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) || h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) ||
-                             (h.Action != null && (h.Action.Contains("Evaluation Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Evaluated by", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && (string.Equals(h.ToStatus, nameof(ApplicationStatus.Evaluating), StringComparison.OrdinalIgnoreCase) || string.Equals(h.ToStatus, nameof(ApplicationStatus.Submitted), StringComparison.OrdinalIgnoreCase)))))))
-                .Select(h => h.StaffName!.Trim())
-                .FirstOrDefault();
+            string? evaluatingOfficer = null;
+            foreach (var h in x.RecentHistories)
+            {
+                var act = h.Action ?? string.Empty;
+                var rem = h.Remarks ?? string.Empty;
+                var role = h.StaffRole ?? string.Empty;
+
+                bool isRelease = act.Contains("Released", StringComparison.OrdinalIgnoreCase) ||
+                                 act.Contains("Returned to Queue", StringComparison.OrdinalIgnoreCase) ||
+                                 rem.Contains("Released by", StringComparison.OrdinalIgnoreCase) ||
+                                 rem.Contains("Returned to queue", StringComparison.OrdinalIgnoreCase);
+                if (isRelease && !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                bool isEvalTouch =
+                    !string.IsNullOrWhiteSpace(h.StaffName) &&
+                    !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) &&
+                    !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase) &&
+                    !role.Contains("Applicant", StringComparison.OrdinalIgnoreCase) &&
+                    (role.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) ||
+                     role.Contains("Engineer", StringComparison.OrdinalIgnoreCase) ||
+                     role.Contains("Return Officer", StringComparison.OrdinalIgnoreCase) ||
+                     act.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
+                     act.Contains("Returned with Notice", StringComparison.OrdinalIgnoreCase) ||
+                     act.Contains("Evaluated by", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(h.ToStatus, nameof(ApplicationStatus.Evaluating), StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase) ||
+                     (act.Contains("Take Application", StringComparison.OrdinalIgnoreCase) &&
+                      (string.Equals(h.ToStatus, nameof(ApplicationStatus.Evaluating), StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(h.ToStatus, nameof(ApplicationStatus.Submitted), StringComparison.OrdinalIgnoreCase))));
+
+                if (isEvalTouch)
+                {
+                    evaluatingOfficer = h.StaffName!.Trim();
+                    break;
+                }
+            }
 
             string? assignedTo = null;
             if (!string.IsNullOrWhiteSpace(x.Remarks) && x.Remarks.Contains("endorsed to", StringComparison.OrdinalIgnoreCase))
@@ -1379,6 +1411,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             string? officerInCharge = x.Status switch
             {
                 ApplicationStatus.Evaluating => evaluatingOfficer ?? assignedTo ?? "Unassigned",
+                ApplicationStatus.Returned => evaluatingOfficer ?? assignedTo ?? "Unassigned",
                 ApplicationStatus.ForAccountant => accountingOfficer ?? assignedTo ?? "Unassigned",
                 ApplicationStatus.PendingPayment => cashierOfficer ?? assignedTo ?? "Unassigned",
                 ApplicationStatus.ForIssuance => issuingOfficer ?? assignedTo ?? "Unassigned",
@@ -1754,16 +1787,22 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         if (list.Count == 0)
         {
-            var fallback = await _context.ApplicationRequirements
-                .Include(r => r.StoredFile)
-                .Include(r => r.Requirement)
-                .Include(r => r.ServiceVariantRequirement)
-                .Where(r => r.ApplicationId == applicationId && (r.ApplicantId == applicationId || r.ApplicantId == Guid.Empty))
-                .ToListAsync(cancellationToken);
+            var applicantCount = await _context.ApplicationApplicants
+                .CountAsync(aa => aa.ApplicationId == applicationId, cancellationToken);
 
-            if (fallback.Count > 0)
+            if (applicantCount <= 1)
             {
-                return fallback;
+                var fallback = await _context.ApplicationRequirements
+                    .Include(r => r.StoredFile)
+                    .Include(r => r.Requirement)
+                    .Include(r => r.ServiceVariantRequirement)
+                    .Where(r => r.ApplicationId == applicationId && (r.ApplicantId == applicationId || r.ApplicantId == Guid.Empty))
+                    .ToListAsync(cancellationToken);
+
+                if (fallback.Count > 0)
+                {
+                    return fallback;
+                }
             }
         }
 
@@ -2187,14 +2226,44 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
-        item.EvaluatingOfficer = reversedHistories
-            .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
-                        (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))) &&
-                        ((h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Review Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Generated", StringComparison.OrdinalIgnoreCase))) ||
-                         string.Equals(h.ToStatus, nameof(ApplicationStatus.Evaluating), StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase)))
-            .Select(h => h.StaffName.Trim())
-            .FirstOrDefault();
+        string? resolvedEval = null;
+        foreach (var h in reversedHistories)
+        {
+            var act = h.Action ?? string.Empty;
+            var rem = h.Remarks ?? string.Empty;
+            var role = h.StaffRole ?? string.Empty;
+
+            bool isRelease = act.Contains("Released", StringComparison.OrdinalIgnoreCase) ||
+                             act.Contains("Returned to Queue", StringComparison.OrdinalIgnoreCase) ||
+                             rem.Contains("Released by", StringComparison.OrdinalIgnoreCase) ||
+                             rem.Contains("Returned to queue", StringComparison.OrdinalIgnoreCase);
+            if (isRelease && !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            bool isEvalTouch =
+                !string.IsNullOrWhiteSpace(h.StaffName) &&
+                !role.Contains("Accountant", StringComparison.OrdinalIgnoreCase) &&
+                !role.Contains("Cashier", StringComparison.OrdinalIgnoreCase) &&
+                !role.Contains("Applicant", StringComparison.OrdinalIgnoreCase) &&
+                (role.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) ||
+                 role.Contains("Engineer", StringComparison.OrdinalIgnoreCase) ||
+                 role.Contains("Return Officer", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("Returned with Notice", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("Review Started", StringComparison.OrdinalIgnoreCase) ||
+                 act.Contains("SOA Generated", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(h.ToStatus, nameof(ApplicationStatus.Evaluating), StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase));
+
+            if (isEvalTouch)
+            {
+                resolvedEval = h.StaffName.Trim();
+                break;
+            }
+        }
+        item.EvaluatingOfficer = resolvedEval;
 
         item.AssignedOfficerName = Enum.TryParse<ApplicationStatus>(item.Status, true, out var currentStatus)
             ? currentStatus switch

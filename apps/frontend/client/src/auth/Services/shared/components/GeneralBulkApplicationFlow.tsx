@@ -788,6 +788,10 @@ export function GeneralBulkApplicationFlow({
             service={service}
             activeApplicant={activeApplicant}
             variantRequirements={variantRequirements}
+            appMode="BULK"
+            applicants={applicants}
+            currentApplicantIndex={currentApplicantIndex}
+            setCurrentApplicantIndex={setCurrentApplicantIndex}
             isWeb={isWeb}
             onUploadPress={(req, file) => {
               clearFieldError(req);

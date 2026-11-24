@@ -37,6 +37,7 @@ import { useToast, extractApiErrorMessage } from '../../../shared/components/Toa
 import { ConvertToRealModal } from './applicationDetails/ConvertToRealModal';
 import { isEligibleForRenewal, getRenewalDaysRemaining } from '../data/applicationsData';
 import { ReassessmentModal } from './applicationDetails/ReassessmentModal';
+import { EditReturnedApplicationModal } from './applicationDetails/EditReturnedApplicationModal';
 import { resolveApplicationTenantId, isGuid } from '../../../shared/helpers/tenantHelper';
 import { openApplicationDetail } from '../../../shared/helpers/applicationNavigationHelper';
 import { resolveFileFromUpload } from '../../Services/shared/helpers/requirementUploadHelper';
@@ -78,7 +79,7 @@ export function ApplicationDetailsPage({
   const [isConverting, setIsConverting] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
-  const [isResubmitting, setIsResubmitting] = useState(false);
+  const [isEditReturnedModalOpen, setIsEditReturnedModalOpen] = useState(false);
 
   useEffect(() => {
     setAppState(initialApp);
@@ -416,49 +417,8 @@ export function ApplicationDetailsPage({
     }
   };
 
-  const handleResubmitReturnedApplication = async () => {
-    if (!app.id || isResubmitting) return;
-    setIsResubmitting(true);
-    try {
-      let submitted = false;
-      try {
-        const submitRes = await api.post<unknown>(`/api/v2/applications/${app.id}/submit`, {});
-        const resObj = isRecord(submitRes) ? submitRes : {};
-        if (resObj.succeeded !== false) {
-          submitted = true;
-        }
-      } catch {
-        submitted = false;
-      }
-
-      if (!submitted) {
-        await api.patch(`/api/v2/applications/${app.id}/status`, {
-          status: 'Submitted',
-          action: 'Application Resubmitted by Applicant',
-          staffName: primaryName || 'Applicant',
-          staffRole: 'Applicant',
-          remarks: 'Applicant updated requirements and resubmitted application for evaluation.',
-        });
-      }
-
-      toast.success(
-        'Application Resubmitted',
-        'Your application and uploaded documents have been resubmitted for evaluation.'
-      );
-      setAppState((prev) => ({
-        ...prev,
-        status: 'FOR_EVALUATION',
-        rawStatus: 'Submitted',
-      }));
-      refetch();
-    } catch (err: unknown) {
-      toast.error(
-        'Resubmission Failed',
-        extractApiErrorMessage(err) || 'Failed to resubmit application. Please ensure all required documents are attached.'
-      );
-    } finally {
-      setIsResubmitting(false);
-    }
+  const handleOpenEditReturnedModal = () => {
+    setIsEditReturnedModalOpen(true);
   };
 
   return (
@@ -680,11 +640,10 @@ export function ApplicationDetailsPage({
 
             {isReturnedForCorrection && (
               <TouchableOpacity
-                onPress={handleResubmitReturnedApplication}
-                disabled={isResubmitting}
+                onPress={handleOpenEditReturnedModal}
                 activeOpacity={0.8}
                 style={{
-                  backgroundColor: isResubmitting ? '#FCA5A5' : '#DC2626',
+                  backgroundColor: '#DC2626',
                   paddingHorizontal: 16,
                   paddingVertical: 10,
                   borderRadius: 8,
@@ -694,9 +653,9 @@ export function ApplicationDetailsPage({
                   alignSelf: isDesktop ? 'center' : 'flex-end',
                 }}
               >
-                <Icon name={isResubmitting ? 'loader' : 'send'} size={14} color="#FFFFFF" />
+                <Icon name="edit-3" size={14} color="#FFFFFF" />
                 <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
-                  {isResubmitting ? 'Resubmitting...' : 'Resubmit Application'}
+                  Edit Application
                 </Text>
               </TouchableOpacity>
             )}
@@ -873,6 +832,24 @@ export function ApplicationDetailsPage({
         onClose={() => setIsReassessmentModalOpen(false)}
         onSubmit={handleRequestReassessment}
         isLoading={isReprocessing}
+      />
+      <EditReturnedApplicationModal
+        visible={isEditReturnedModalOpen}
+        app={app}
+        onClose={() => setIsEditReturnedModalOpen(false)}
+        onSuccess={() => {
+          setIsEditReturnedModalOpen(false);
+          setAppState((prev) => ({
+            ...prev,
+            status: 'FOR_EVALUATION',
+            rawStatus: 'Evaluating',
+          }));
+          toast.success(
+            'Application Updated & Resubmitted',
+            'Your updated application has been returned directly to the evaluating officer for continued review.'
+          );
+          refetch();
+        }}
       />
     </ScrollView>
   );

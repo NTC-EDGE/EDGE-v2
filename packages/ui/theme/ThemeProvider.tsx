@@ -18,6 +18,27 @@ export interface ThemeProviderProps {
 export function ThemeProvider({ children, initialMode = 'system' }: ThemeProviderProps) {
   const [mode, setModeState] = useState<ThemeMode>(initialMode);
   const systemScheme = useColorScheme();
+  const [webSystemDark, setWebSystemDark] = useState<boolean | null>(() => {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      setWebSystemDark(event.matches);
+    };
+    setWebSystemDark(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -40,10 +61,13 @@ export function ThemeProvider({ children, initialMode = 'system' }: ThemeProvide
 
   const isDark = useMemo(() => {
     if (mode === 'system') {
+      if (webSystemDark !== null) {
+        return webSystemDark;
+      }
       return systemScheme === 'dark';
     }
     return mode === 'dark';
-  }, [mode, systemScheme]);
+  }, [mode, systemScheme, webSystemDark]);
 
   const colors = useMemo<ThemeColors>(() => {
     return isDark ? DARK_COLORS : LIGHT_COLORS;

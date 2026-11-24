@@ -18,7 +18,7 @@ export type ApplicationMode = 'SINGLE' | 'BULK';
 export type ModeFilterOption = 'ALL' | 'SINGLE' | 'BULK' | 'ASSESSMENT';
 export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'READY_FOR_PAYMENT' | 'PAYMENT_SUBMITTED' | 'DECLINED' | 'PENDING';
 export type DensityOption = 'std' | 'cozy' | 'compact';
-export type ExamineeType = 'New' | 'Renewal' | 'Modification' | 'Upgrading' | 'Additional';
+export type ExamineeType = 'New' | 'Renewal' | 'Modification' | 'Upgrading' | 'Additional' | 'First Taker' | 'Retaker' | string;
 
 export interface ApplicationDocument {
   id: string;
@@ -139,6 +139,8 @@ export interface SingleApplication {
   // Examinee
   examineeType: ExamineeType;
   schedule: Schedule;
+  birthDate?: string;
+  civilStatus?: string;
 
   // Backend dynamic fields compatibility
   submissionMode?: string;
@@ -164,6 +166,7 @@ export interface SingleApplication {
   remarks?: string;
   serviceVariantName?: string;
   variant?: string;
+  serviceVariantType?: string;
   tenantName?: string;
   tenantId?: string;
   serviceId?: string;
@@ -257,6 +260,7 @@ export interface BulkApplicant {
   serviceId?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  serviceVariantType?: string;
   element?: string;
   eSignature?: string;
   signatureUrl?: string;
@@ -370,6 +374,7 @@ export interface BulkApplication {
   remarks?: string;
   serviceVariantName?: string;
   variant?: string;
+  serviceVariantType?: string;
   tenantName?: string;
   tenantId?: string;
   serviceId?: string;
@@ -782,6 +787,7 @@ interface ApiApplicantDto {
   id?: string;
   name?: string;
   applicantType?: string;
+  applicationType?: string;
   status?: string;
   includedInSOA?: boolean;
   companyName?: string;
@@ -865,6 +871,7 @@ interface ApiApplicantDto {
   serviceId?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  serviceVariantType?: string;
   element?: string;
   elements?: string;
   requirements?: RawRequirement[];
@@ -894,6 +901,7 @@ export interface ApiApplicationDto {
   serviceId?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  serviceVariantType?: string;
   element?: string;
   elements?: string;
   soaNumber?: string | null;
@@ -1230,7 +1238,10 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
         ? `${apDetails.birthMonth} ${apDetails.birthDay}, ${apDetails.birthYear}`
         : findApFv((lbl) => lbl.includes('birth')));
 
-    const civilStatus = apDetails.civilStatus || findApFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
+    const civilStatus =
+      apDetails.civilStatus ||
+      ap.civilStatus ||
+      findApFv((lbl, id) => id === 'fd000000-0000-0000-0000-000000000042' || lbl.includes('civil') || lbl.includes('marital'));
     const barangay = apDetails.barangayName || apDetails.barangay || findApFv((lbl) => lbl.includes('barangay')) || '';
     const cityMunicipality = apDetails.cityMunicipality || findApFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) || 'N/A';
     const province = apDetails.province || findApFv((lbl) => lbl.includes('province')) || 'N/A';
@@ -1244,11 +1255,43 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
 
     const notes = apDetails.notes || ap.notes || ap.evaluationRemarks;
 
+    const rawVariantOrAppType =
+      ap.applicationType ||
+      dto.serviceVariantType ||
+      apDetails.examineeType ||
+      ap.examineeType ||
+      findApFv((lbl, id) =>
+        id === 'fd000000-0000-0000-0000-000000000008' ||
+        id === 'fd000000-0000-0000-0000-000000000007' ||
+        lbl.includes('examinee type') ||
+        lbl.includes('type of application') ||
+        lbl.includes('application type')
+      ) ||
+      ap.serviceVariantName ||
+      ap.details?.serviceVariantName ||
+      dto.serviceVariantName ||
+      'New';
+
+    const formatVariantAppType = (val: string): string => {
+      const trimmed = val.trim();
+      const lower = trimmed.toLowerCase();
+      if (lower === 'firsttaker' || lower === 'first_taker') return 'First Taker';
+      if (lower === 'civicactiongroup' || lower === 'civic_action_group') return 'Civic Action Group';
+      const parenMatch = trimmed.match(/\((First\s*Taker|FirstTaker|Retaker|Renewal|Modification|Upgrading|Upgrade|Additional|New)\)\s*$/i);
+      if (parenMatch && parenMatch[1]) {
+        const inner = parenMatch[1].trim();
+        return inner.toLowerCase() === 'firsttaker' ? 'First Taker' : inner;
+      }
+      return trimmed;
+    };
+
+    const resolvedApExamineeType: ExamineeType = formatVariantAppType(rawVariantOrAppType);
+
     return {
       id: ap.id || `app-cand-${idx}`,
       name,
       applicantType: appType,
-      applicationType: appType,
+      applicationType: ap.applicationType ? formatVariantAppType(ap.applicationType) : (dto.serviceVariantType ? formatVariantAppType(dto.serviceVariantType) : resolvedApExamineeType),
       status: appStatus,
       includedInSOA: ap.includedInSOA !== undefined ? ap.includedInSOA : true,
       sex: apDetails.sex === 'Female' ? 'Female' : 'Male',
@@ -1261,7 +1304,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       zipCode,
       mobileNumber: apDetails.contactNumber || apDetails.mobileNumber || 'N/A',
       email: apDetails.emailAddress || apDetails.email || 'N/A',
-      examineeType: (apDetails.examineeType || ap.examineeType || 'New') as ExamineeType,
+      examineeType: resolvedApExamineeType,
       birthDate,
       civilStatus,
       companyName: compName,
@@ -1289,7 +1332,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
         zipCode,
         contactNumber: apDetails.contactNumber || apDetails.mobileNumber,
         emailAddress: apDetails.emailAddress || apDetails.email,
-        examineeType: (apDetails.examineeType || ap.examineeType || 'New') as ExamineeType,
+        examineeType: resolvedApExamineeType,
         birthDate,
         civilStatus,
         companyName: compName,
@@ -1309,6 +1352,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       serviceId: ap.serviceId || dto.serviceId,
       serviceVariantId: ap.serviceVariantId || dto.serviceVariantId,
       serviceVariantName: ap.serviceVariantName || ap.details?.serviceVariantName || dto.serviceVariantName,
+      serviceVariantType: ap.applicationType || dto.serviceVariantType,
       element: ap.element || ap.elements || ap.details?.element || ap.details?.elements || dto.element || dto.elements || resolvePreviewElements({ formFieldValues: apFormFields }) || undefined,
     };
   });
@@ -1349,7 +1393,12 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       fv.fieldId === 'fd000000-0000-0000-0000-000000000014'
   )?.value;
 
-  const resolvedVariantName = rawVariantName || variantFromFields || '';
+  const resolvedVariantType =
+    dto.serviceVariantType ||
+    (rawApplicants.length > 0 ? rawApplicants[0]?.applicationType : undefined) ||
+    (mappedApplicants.length > 0 ? mappedApplicants[0]?.applicationType : undefined);
+
+  const resolvedVariantName = rawVariantName || variantFromFields || resolvedVariantType || '';
 
   const elementFromFields = primaryFormFieldValues.find(
     (fv) =>
@@ -1673,6 +1722,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       office: dto.office,
       remarks: dto.remarks,
       serviceVariantName: resolvedVariantName,
+      serviceVariantType: resolvedVariantType,
       tenantId: dto.tenantId,
       serviceId: dto.serviceId,
       serviceVariantId: dto.serviceVariantId,
@@ -1721,7 +1771,9 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     zipCode: firstDetails?.zipCode || '',
     mobileNumber: firstDetails?.contactNumber || firstDetails?.mobileNumber || 'N/A',
     email: firstDetails?.emailAddress || firstDetails?.email || 'N/A',
-    examineeType: (resolvedVariantName || 'New') as ExamineeType,
+    birthDate: mappedApplicants[0]?.birthDate,
+    civilStatus: mappedApplicants[0]?.civilStatus,
+    examineeType: mappedApplicants[0]?.examineeType || resolvedVariantType || resolvedVariantName || 'New',
     schedule: {
       date: 'TBD',
       time: 'TBD',
@@ -1735,6 +1787,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     office: dto.office,
     remarks: dto.remarks,
     serviceVariantName: resolvedVariantName,
+    serviceVariantType: resolvedVariantType,
     tenantId: dto.tenantId,
     soaNumber: resolvedSoaNumber,
     soa: mappedSoa,

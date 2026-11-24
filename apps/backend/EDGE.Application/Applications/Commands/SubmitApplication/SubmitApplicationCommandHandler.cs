@@ -205,6 +205,49 @@ public class SubmitApplicationCommandHandler
         if (service != null)
         {
             form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
+
+            // Ensure explicit biographical DTO properties (such as CivilStatus, Sex, Nationality)
+            // that are stored via FormFieldValues are always synthesized into FormFieldValues before validation.
+            var civilStatusFieldId = Guid.Parse("fd000000-0000-0000-0000-000000000042");
+            var sexFieldId = Guid.Parse("fd000000-0000-0000-0000-000000000041");
+            var nationalityFieldId = Guid.Parse("fd000000-0000-0000-0000-000000000043");
+
+            foreach (var applicantDto in request.Applicants)
+            {
+                if (!string.IsNullOrWhiteSpace(applicantDto.CivilStatus) &&
+                    !applicantDto.FormFieldValues.Any(fv => fv.FieldId == civilStatusFieldId))
+                {
+                    applicantDto.FormFieldValues.Add(new FormFieldValueSubmissionDto
+                    {
+                        FieldId = civilStatusFieldId,
+                        FieldLabel = "Civil Status",
+                        Value = applicantDto.CivilStatus.Trim()
+                    });
+                }
+
+                if (!string.IsNullOrWhiteSpace(applicantDto.Sex) &&
+                    !applicantDto.FormFieldValues.Any(fv => fv.FieldId == sexFieldId))
+                {
+                    applicantDto.FormFieldValues.Add(new FormFieldValueSubmissionDto
+                    {
+                        FieldId = sexFieldId,
+                        FieldLabel = "Sex / Gender",
+                        Value = applicantDto.Sex.Trim()
+                    });
+                }
+
+                if (!string.IsNullOrWhiteSpace(applicantDto.Nationality) &&
+                    !applicantDto.FormFieldValues.Any(fv => fv.FieldId == nationalityFieldId))
+                {
+                    applicantDto.FormFieldValues.Add(new FormFieldValueSubmissionDto
+                    {
+                        FieldId = nationalityFieldId,
+                        FieldLabel = "Nationality / Citizenship",
+                        Value = applicantDto.Nationality.Trim()
+                    });
+                }
+            }
+
             if (!request.IsDraft)
             {
                 var submittedFieldIds = request.Applicants
@@ -261,9 +304,15 @@ public class SubmitApplicationCommandHandler
         string effectiveAppTypeKey = "New";
         Guid? resolvedVariantId = null;
 
-        if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+        var requestedVariantId = (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+            ? request.ServiceVariantId
+            : request.Applicants
+                .Select(a => a.ServiceVariantId)
+                .FirstOrDefault(id => id.HasValue && id.Value != Guid.Empty);
+
+        if (requestedVariantId.HasValue && requestedVariantId.Value != Guid.Empty)
         {
-            var selectedVariant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
+            var selectedVariant = await _serviceRepository.GetVariantByIdAsync(requestedVariantId.Value, cancellationToken);
             if (selectedVariant != null && (service == null || selectedVariant.ServiceId == service.Id))
             {
                 resolvedVariantId = selectedVariant.Id;
@@ -292,7 +341,8 @@ public class SubmitApplicationCommandHandler
             }
 
             resolvedVariantId = service.ServiceVariants?
-                .FirstOrDefault(v => v.Type.ToString().Equals(effectiveAppTypeKey, StringComparison.OrdinalIgnoreCase))?.Id;
+                .FirstOrDefault(v => v.Type.ToString().Equals(effectiveAppTypeKey, StringComparison.OrdinalIgnoreCase))?.Id
+                ?? service.ServiceVariants?.FirstOrDefault()?.Id;
         }
 
         // Validate ServiceVariantElementIds if provided
@@ -338,10 +388,32 @@ public class SubmitApplicationCommandHandler
 
                 if (existing != null && (existing.Status == ApplicationStatus.Draft || existing.Status == ApplicationStatus.Returned))
                 {
+                    var wasReturned = existing.Status == ApplicationStatus.Returned;
                     existing.TenantId = request.TenantId;
                     existing.ScheduleId = effectiveScheduleId;
                     existing.RegionId = tenant.RegionId;
                     existing.Office = officeName;
+                    // When editing a Returned application via the wizard pre-save step (IsDraft == true),
+                    // preserve ApplicationStatus.Returned so FinalizeApplicationSubmissionCommandHandler
+                    // recognizes it as a Returned resubmission and routes it back to the owning evaluator.
+                    if (wasReturned && request.IsDraft)
+                    {
+                        status = ApplicationStatus.Returned;
+                    }
+                    else if (wasReturned && !request.IsDraft && existing.Histories != null && existing.Histories.Any())
+                    {
+                        var hasRetainedEvaluator = existing.Histories
+                            .OrderByDescending(h => h.Timestamp)
+                            .Any(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                                      (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Applicant", StringComparison.OrdinalIgnoreCase))) &&
+                                      (h.Action == null || (!h.Action.Contains("Released", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Returned to Queue", StringComparison.OrdinalIgnoreCase))) &&
+                                      (h.ToStatus == ApplicationStatus.Evaluating ||
+                                       (h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned with Notice", StringComparison.OrdinalIgnoreCase)))));
+                        if (hasRetainedEvaluator)
+                        {
+                            status = ApplicationStatus.Evaluating;
+                        }
+                    }
                     existing.Status = status;
                     existing.Intent = intent;
                     existing.SubmissionMode = submissionMode;
@@ -438,6 +510,7 @@ public class SubmitApplicationCommandHandler
                 {
                     // Re-use existing applicant entity to preserve ID and documentary requirement attachments
                     var appApplicant = existingAppApplicants[i];
+                    appApplicant.SequenceOrder = currentSeq;
                     applicant = appApplicant.Applicant!;
 
                     applicant.TenantId = request.TenantId;
@@ -602,8 +675,8 @@ public class SubmitApplicationCommandHandler
                         appApplicant, cancellationToken);
                 }
 
-                // Ensure all existing application requirements are linked to the target applicant ID
-                if (application.ApplicationRequirements != null && application.ApplicationRequirements.Any())
+                // Ensure legacy unlinked single-applicant requirements are linked to the target applicant ID
+                if (request.Applicants.Count == 1 && application.ApplicationRequirements != null && application.ApplicationRequirements.Any())
                 {
                     foreach (var req in application.ApplicationRequirements)
                     {

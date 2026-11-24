@@ -104,12 +104,12 @@ export function serializeCertificateApplicant(
     }
   });
 
-  // Only fallback to global FIELD_GUID_MAP when no explicit Form Builder schema fields are provided
-  if (validFieldIdSet.size === 0) {
-    Object.values(FIELD_GUID_MAP).forEach((guid) => {
-      validFieldIdSet.add(guid.toLowerCase().trim());
-    });
-  }
+  // Always include all canonical seeded FIELD_GUID_MAP IDs (such as Civil Status, Sex, Nationality,
+  // Date of Birth, and granular address fields from ApplicantInformationFormSection) so standard
+  // applicant fields are never stripped out when a service also has dynamic Form Builder sections.
+  Object.values(FIELD_GUID_MAP).forEach((guid) => {
+    validFieldIdSet.add(guid.toLowerCase().trim());
+  });
 
   const finalFieldValues: FormFieldValuePayload[] = [];
   const processedFieldIds = new Set<string>();

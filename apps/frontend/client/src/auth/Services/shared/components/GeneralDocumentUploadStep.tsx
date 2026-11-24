@@ -213,6 +213,7 @@ export function GeneralDocumentUploadStep({
       )}
 
       <SharedDocumentUpload
+        key={`doc-upload-applicant-${activeApplicant.id ?? currentApplicantIndex}`}
         requirements={reqList}
         uploads={activeApplicant.uploads}
         onUpload={onUploadPress}
