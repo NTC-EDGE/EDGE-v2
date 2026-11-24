@@ -24,13 +24,7 @@ public class UpdateCurrentSignatureCommandHandler : IRequestHandler<UpdateCurren
 
     public async Task<User?> Handle(UpdateCurrentSignatureCommand request, CancellationToken cancellationToken)
     {
-        var authUserId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(authUserId))
-        {
-            return null;
-        }
-
-        var user = await _userRepository.GetByAuthUserIdAsync(authUserId, cancellationToken);
+        var user = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
         if (user == null)
         {
             return null;

@@ -20,6 +20,7 @@ import {
   AnimatedCard,
   ThemeToggle,
 } from "@edge/ui";
+import { userService } from "@edge/api";
 import { useAuthContext } from "../../auth/context/AuthContext";
 import { useRole } from "../../shell/context/RoleContext";
 import { useAppNavigation } from "../../../navigation/types";
@@ -46,13 +47,15 @@ export function SettingsScreen(): React.ReactElement {
 
   // Profile Inputs
   const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [suffix, setSuffix] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [position, setPosition] = useState("admin");
-  const [department, setDepartment] = useState("admin");
-  const [designation, setDesignation] = useState("admin");
-  const [phone, setPhone] = useState("09123456789");
+  const [phone, setPhone] = useState("");
+  const [position, setPosition] = useState("");
+  const [department, setDepartment] = useState("");
+  const [designation, setDesignation] = useState("");
 
   // Profile state flags
   const [profileLoading, setProfileLoading] = useState(false);
@@ -72,7 +75,7 @@ export function SettingsScreen(): React.ReactElement {
   // Appearance Settings
   const [reduceMotion, setReduceMotion] = useState(false);
 
-  // Initialize profile values from Clerk context
+  // Initialize profile values from Clerk context and Backend DB
   useEffect(() => {
     if (clerkUser !== null && clerkUser !== undefined) {
       setFirstName(clerkUser.firstName ?? "");
@@ -80,6 +83,25 @@ export function SettingsScreen(): React.ReactElement {
       setUsername(clerkUser.username ?? "");
       setEmail(clerkUser.primaryEmailAddress?.emailAddress ?? "");
     }
+    let active = true;
+    (async () => {
+      const [dbProfile] = await userService.getMyProfile();
+      if (!active || !dbProfile) return;
+      if (dbProfile.firstName) setFirstName((prev) => prev || dbProfile.firstName);
+      if (dbProfile.lastName) setLastName((prev) => prev || dbProfile.lastName);
+      if (dbProfile.middleName) setMiddleName(dbProfile.middleName);
+      if (dbProfile.suffix) setSuffix(dbProfile.suffix);
+      if (dbProfile.contactNumber) setPhone(dbProfile.contactNumber);
+      if (dbProfile.email) setEmail((prev) => prev || dbProfile.email);
+      if (dbProfile.staffAssignment) {
+        setDepartment(dbProfile.staffAssignment.division ?? "");
+        setPosition(dbProfile.staffAssignment.position ?? dbProfile.staffAssignment.jobTitle ?? "");
+        setDesignation(dbProfile.staffAssignment.designation ?? "");
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [clerkUser]);
 
   // Password checklist calculations
@@ -93,23 +115,36 @@ export function SettingsScreen(): React.ReactElement {
       return;
     }
 
+    if (!firstName.trim() || !lastName.trim()) {
+      setProfileError("First Name and Last Name are required.");
+      return;
+    }
+
     setProfileLoading(true);
     setProfileError("");
     setProfileSuccess("");
 
     try {
       const profileChanged =
-        firstName !== (clerkUser.firstName ?? "") ||
-        lastName !== (clerkUser.lastName ?? "") ||
-        username !== (clerkUser.username ?? "");
+        firstName.trim() !== (clerkUser.firstName ?? "") ||
+        lastName.trim() !== (clerkUser.lastName ?? "") ||
+        username.trim() !== (clerkUser.username ?? "");
 
       if (profileChanged) {
         await clerkUser.update({
-          firstName,
-          lastName,
-          username: username || undefined,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          username: username.trim() || undefined,
         });
       }
+
+      await userService.updateMyProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        middleName: middleName.trim(),
+        suffix: suffix.trim(),
+        contactNumber: phone.trim(),
+      });
 
       setProfileSuccess("Profile details updated successfully.");
       setIsEditingProfile(false);
@@ -266,36 +301,98 @@ export function SettingsScreen(): React.ReactElement {
 
                 <View style={styles.gridRow}>
                   <View style={styles.formGroupHalf}>
-                    <Text style={[styles.label, { color: colors.text }]}>First Name</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>First Name *</Text>
                     <TextInput
                       style={[styles.input, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
                       value={firstName}
                       onChangeText={setFirstName}
+                      placeholder="First Name"
+                      placeholderTextColor={colors.textMuted}
                     />
                   </View>
 
                   <View style={styles.formGroupHalf}>
-                    <Text style={[styles.label, { color: colors.text }]}>Last Name</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>Middle Name</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+                      value={middleName}
+                      onChangeText={setMiddleName}
+                      placeholder="Middle Name"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.gridRow}>
+                  <View style={styles.formGroupHalf}>
+                    <Text style={[styles.label, { color: colors.text }]}>Last Name *</Text>
                     <TextInput
                       style={[styles.input, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
                       value={lastName}
                       onChangeText={setLastName}
+                      placeholder="Last Name"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  </View>
+
+                  <View style={styles.formGroupHalf}>
+                    <Text style={[styles.label, { color: colors.text }]}>Suffix / Extension</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+                      value={suffix}
+                      onChangeText={setSuffix}
+                      placeholder="e.g. Jr., III"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.gridRow}>
+                  <View style={styles.formGroupHalf}>
+                    <Text style={[styles.label, { color: colors.text }]}>Contact / Mobile Number</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+                      value={phone}
+                      onChangeText={setPhone}
+                      placeholder="e.g. 09171234567"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+
+                  <View style={styles.formGroupHalf}>
+                    <Text style={[styles.label, { color: colors.text }]}>Username</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+                      value={username}
+                      onChangeText={setUsername}
+                      placeholder="username"
+                      placeholderTextColor={colors.textMuted}
+                      autoCapitalize="none"
                     />
                   </View>
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.text }]}>Official Email Address</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <Text style={[styles.label, { color: colors.text, marginBottom: 0 }]}>Official Email Address (Confidential / Provisioned)</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Lucide name="lock" size={12} color={colors.textMuted} />
+                      <Text style={{ fontSize: 11, color: colors.textMuted }}>Read-only</Text>
+                    </View>
+                  </View>
                   <TextInput
-                    style={[styles.input, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+                    style={[styles.input, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderColor: colors.border, color: colors.textMuted }]}
                     value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
+                    editable={false}
                   />
+                  <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
+                    Official login email is a security-bound identity credential and can only be modified by an authorized Regional/System Administrator.
+                  </Text>
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.text }]}>Assigned Workstation Role</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>Assigned Workstation Role & Organizational Assignment (Confidential)</Text>
                   <View
                     style={[
                       styles.readOnlyRoleBox,
@@ -305,12 +402,19 @@ export function SettingsScreen(): React.ReactElement {
                       },
                     ]}
                   >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
                       <Lucide name="shield" size={16} color={isDark ? colors.brand.primary : colors.brand.secondary} />
-                      <Text style={[styles.readOnlyRoleText, { color: colors.text }]}>{currentRole}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.readOnlyRoleText, { color: colors.text }]}>{currentRole}</Text>
+                        {(department.length > 0 || position.length > 0 || designation.length > 0) && (
+                          <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                            {[department, position, designation].filter((s) => s.trim().length > 0).join(" • ")}
+                          </Text>
+                        )}
+                      </View>
                     </View>
                     <Text style={[styles.readOnlyRoleHint, { color: colors.textMuted }]}>
-                      Assigned and managed by Regional Admin
+                      Managed by Regional Admin
                     </Text>
                   </View>
                 </View>

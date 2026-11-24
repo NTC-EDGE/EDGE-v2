@@ -240,20 +240,22 @@ public static class UserEndpoints
     public static async Task<IResult> GetCurrentUserProfile(
         IMediator mediator,
         EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService,
+        EDGE.Application.Common.Interfaces.IUserRepository userRepository,
         EDGE.Application.Common.Interfaces.IUserAuthorizationService userAuthorizationService)
     {
         var authUserId = currentUserService.UserId;
         if (string.IsNullOrEmpty(authUserId))
             return Results.Unauthorized();
 
-        var user = await mediator.Send(
-            new EDGE.Application.Users.Queries.GetUserByAuthUserId.GetUserByAuthUserIdQuery(authUserId));
+        var user = await userRepository.ResolveCurrentUserAsync(currentUserService)
+                   ?? await mediator.Send(new EDGE.Application.Users.Queries.GetUserByAuthUserId.GetUserByAuthUserIdQuery(authUserId));
 
         if (user is null)
             return Results.NotFound(new { message = "User profile not found." });
 
         var isInternal = await userAuthorizationService.IsInternalUserAsync();
         var canSubmit = await userAuthorizationService.CanSubmitApplicationAsync();
+        var primaryMembership = user.TenantMemberships?.FirstOrDefault();
 
         return Results.Ok(new
         {
@@ -277,6 +279,16 @@ public static class UserEndpoints
             isSuperAdmin = user.IsSuperAdmin,
             isInternalUser = isInternal,
             canSubmitApplication = canSubmit,
+            staffAssignment = primaryMembership != null ? new
+            {
+                tenantId = primaryMembership.TenantId,
+                roleName = primaryMembership.Role?.Name,
+                division = primaryMembership.Division,
+                position = primaryMembership.Position,
+                designation = primaryMembership.Designation,
+                jobTitle = primaryMembership.JobTitle,
+                level = primaryMembership.Level,
+            } : null,
             address = new
             {
                 street = user.Street,
