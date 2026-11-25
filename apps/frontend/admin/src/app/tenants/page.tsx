@@ -656,7 +656,7 @@ export default function TenantsPage() {
         title={toggleTargetTenant?.isActive ? "Deactivate Tenant Confirmation" : "Activate Tenant Confirmation"}
         description={
           toggleTargetTenant?.isActive
-            ? `Are you sure you want to deactivate "${toggleTargetTenant.name}"? Deactivating this tenant branch will restrict operational access for associated staff members and regional clients.`
+            ? `Are you sure you want to deactivate "${toggleTargetTenant.name}"? Deactivating this Regional Office will block new client applications and staff logins. Note: A Regional Office cannot be deactivated while applications are actively in-flight (Under Evaluation, With Accountant, Pending Payment/Cashier, or Awaiting Issuance).`
             : `Are you sure you want to activate "${toggleTargetTenant?.name}"? This will restore operational access for associated members and clients.`
         }
         confirmLabel={toggleTargetTenant?.isActive ? "Deactivate Tenant" : "Activate Tenant"}

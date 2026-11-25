@@ -489,6 +489,30 @@ public class TenantRepository : ITenantRepository
         );
     }
 
+    public async Task<Dictionary<EDGE.Domain.Enums.ApplicationStatus, int>> GetInFlightApplicationCountsByStatusAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var inFlightStatuses = new[]
+        {
+            Domain.Enums.ApplicationStatus.Submitted,
+            Domain.Enums.ApplicationStatus.Evaluating,
+            Domain.Enums.ApplicationStatus.Returned,
+            Domain.Enums.ApplicationStatus.ForAccountant,
+            Domain.Enums.ApplicationStatus.PendingPayment,
+            Domain.Enums.ApplicationStatus.ForIssuance
+        };
+
+        var groupedCounts = await _context.Applications
+            .AsNoTracking()
+            .Where(a => a.TenantId == tenantId && !a.IsDeleted && inFlightStatuses.Contains(a.Status))
+            .GroupBy(a => a.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        return groupedCounts.ToDictionary(g => g.Status, g => g.Count);
+    }
+
     public void Delete(Tenant tenant)
     {
         _context.Tenants.Remove(tenant);
