@@ -17,23 +17,38 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public VerifyPaymentCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
-        IApplicationEmailNotificationService? emailNotificationService = null)
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<bool>> Handle(VerifyPaymentCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var internalMaintCfg = await _systemConfigRepository.GetByKeyAsync("INTERNAL_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (internalMaintCfg != null && string.Equals(internalMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<bool>.Fail(
+                    "Internal Officer Portal is currently under scheduled maintenance. Cashier payment verifications and officer interactions are temporarily disabled.");
+            }
+        }
+
         var op = await _repository.GetOpByIdAsync(request.OpId, cancellationToken);
 
         if (op == null) return ApiResponse<bool>.Fail("Order of Payment not found.");

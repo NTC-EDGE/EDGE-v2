@@ -1,11 +1,13 @@
 import { createContext, useContext, ReactNode, useState, useEffect, useCallback, useRef } from "react";
-import { Platform } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
+import { Icon, TYPOGRAPHY } from "@edge/ui";
 import {
   parseApiError,
   verifyStaffMembership,
   fetchMyTenantMemberships,
+  usePublicSystemConfig,
   setTokenProvider,
   setAuthToken,
   setTenantId,
@@ -225,6 +227,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [logout]);
 
+  // Public System Configuration (Security: SESSION_TIMEOUT_MINS, MAX_FAILED_LOGINS & Maintenance Lockout)
+  const {
+    config: publicConfig,
+    isLoading: isCheckingConfig,
+    refetch: refetchPublicConfig,
+  } = usePublicSystemConfig({
+    revalidateOnFocus: true,
+    refreshInterval: 15000,
+  });
+  const [isRefreshingMaintenance, setIsRefreshingMaintenance] = useState(false);
+  const failedLoginCountRef = useRef<number>(0);
+  const lockoutUntilMsRef = useRef<number>(0);
+
+  // Enforce configured SESSION_TIMEOUT_MINS idle session timeout for authenticated internal officers
+  useEffect(() => {
+    if (
+      Platform.OS !== "web" ||
+      typeof window === "undefined" ||
+      !isMembershipVerified ||
+      publicConfig.sessionTimeoutMins <= 0
+    ) {
+      return;
+    }
+
+    const timeoutMs = publicConfig.sessionTimeoutMins * 60 * 1000;
+    let idleTimerId: ReturnType<typeof setTimeout> | null = null;
+
+    const resetIdleTimer = () => {
+      if (idleTimerId !== null) {
+        clearTimeout(idleTimerId);
+      }
+      idleTimerId = setTimeout(() => {
+        if (isMembershipVerifiedRef.current) {
+          void logout();
+        }
+      }, timeoutMs);
+    };
+
+    const activityEvents = ["mousemove", "keydown", "click", "touchstart", "scroll"];
+    for (const evt of activityEvents) {
+      window.addEventListener(evt, resetIdleTimer, { passive: true });
+    }
+    resetIdleTimer();
+
+    return () => {
+      if (idleTimerId !== null) {
+        clearTimeout(idleTimerId);
+      }
+      for (const evt of activityEvents) {
+        window.removeEventListener(evt, resetIdleTimer);
+      }
+    };
+  }, [isMembershipVerified, publicConfig.sessionTimeoutMins, logout]);
+
   // Restore stored region code on page reload and verify membership before mounting /dashboard
   useEffect(() => {
     let isMounted = true;
@@ -339,8 +395,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Clerk publishable key is not configured.");
     }
 
+    if (publicConfig.internalMaintenanceMode) {
+      throw new Error(
+        `${publicConfig.systemName} Internal Officer Portal is currently under scheduled maintenance. Officer account sign-in and portal interactions are temporarily disabled.`
+      );
+    }
+
     if (signIn === null || signIn === undefined) {
       throw new Error("Authentication service is not loaded yet. Please try again.");
+    }
+
+    if (lockoutUntilMsRef.current > Date.now()) {
+      const remainingMins = Math.max(1, Math.ceil((lockoutUntilMsRef.current - Date.now()) / 60000));
+      throw new Error(
+        `Maximum failed sign-in attempts (${publicConfig.maxFailedLogins}) reached. Please wait ${remainingMins} minute(s) before trying again.`
+      );
     }
 
     await removeStoredRegionCode();
@@ -387,6 +456,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (signIn.status === "complete") {
+        failedLoginCountRef.current = 0;
+        lockoutUntilMsRef.current = 0;
         await signIn.finalize();
       } else if (
         signIn.status === "needs_second_factor" ||
@@ -429,6 +500,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err: unknown) {
       setIsMembershipVerified(false);
       setMfaFactors(null);
+      failedLoginCountRef.current += 1;
+      if (
+        publicConfig.maxFailedLogins > 0 &&
+        failedLoginCountRef.current >= publicConfig.maxFailedLogins
+      ) {
+        lockoutUntilMsRef.current = Date.now() + 5 * 60 * 1000;
+        failedLoginCountRef.current = 0;
+        throw new Error(
+          `Maximum failed sign-in attempts (${publicConfig.maxFailedLogins}) reached. Account temporarily locked for 5 minutes.`
+        );
+      }
       const parsedMessage = parseApiError(err);
       throw new Error(parsedMessage);
     }
@@ -641,26 +723,236 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clerkUser: clerkUser.user,
       }}
     >
-      {children}
-      {mfaFactors !== null && mfaFactors.length > 0 ? (
-        <MfaOtpVerificationModal
-          visible={mfaFactors !== null && mfaFactors.length > 0}
-          supportedFactors={mfaFactors}
-          onVerifyOtp={verifyMfaOtp}
-          onResendOtp={resendMfaOtp}
-          onCancel={cancelMfaVerification}
-        />
-      ) : null}
-      {showRegionModal ? (
-        <RegionSelectionModal
-          visible={showRegionModal}
-          onConfirmRegion={handleConfirmRegion}
-          onSignOut={logout}
-        />
-      ) : null}
+      {publicConfig.internalMaintenanceMode ? (
+        <View style={internalMaintenanceStyles.overlayContainer}>
+          <View style={internalMaintenanceStyles.card}>
+            <View style={internalMaintenanceStyles.accentBar} />
+            <View style={internalMaintenanceStyles.badgePill}>
+              <Icon name="alert-triangle" size={14} color="#D97706" />
+              <Text style={internalMaintenanceStyles.badgeText}>
+                INTERNAL PORTAL • MAINTENANCE LOCKOUT
+              </Text>
+            </View>
+
+            <View style={internalMaintenanceStyles.iconCircle}>
+              <Icon name="lock" size={30} color="#D97706" />
+            </View>
+
+            <Text style={internalMaintenanceStyles.title}>
+              {publicConfig.systemName} is Under Scheduled Maintenance
+            </Text>
+
+            <Text style={internalMaintenanceStyles.description}>
+              The System Administrator has placed the portal in Maintenance Mode. All internal officer account interactions, application evaluations, Statement of Account / Order of Payment approvals, and cashier transactions are temporarily disabled until maintenance is turned off.
+            </Text>
+
+            <View style={internalMaintenanceStyles.infoBox}>
+              <Icon name="info" size={16} color="#1E40AF" />
+              <Text style={internalMaintenanceStyles.infoText}>
+                If you are a System Administrator, use the Admin Portal System Configuration to disable Maintenance Mode. Support contact:{" "}
+                <Text style={{ fontWeight: "700", color: "#0F2C59" }}>
+                  {publicConfig.supportEmail}
+                </Text>
+              </Text>
+            </View>
+
+            <View style={internalMaintenanceStyles.buttonGroup}>
+              <TouchableOpacity
+                onPress={async () => {
+                  setIsRefreshingMaintenance(true);
+                  try {
+                    await refetchPublicConfig();
+                  } finally {
+                    setIsRefreshingMaintenance(false);
+                  }
+                }}
+                disabled={isRefreshingMaintenance || isCheckingConfig}
+                style={internalMaintenanceStyles.primaryBtn}
+                activeOpacity={0.85}
+              >
+                <Icon name="refresh-cw" size={15} color="#FFFFFF" />
+                <Text style={internalMaintenanceStyles.primaryBtnText}>
+                  {isRefreshingMaintenance ? "Checking Status..." : "Check System Status"}
+                </Text>
+              </TouchableOpacity>
+
+              {Boolean(clerkAuth.isSignedIn) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    void logout();
+                  }}
+                  style={internalMaintenanceStyles.secondaryBtn}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="log-out" size={15} color="#475569" />
+                  <Text style={internalMaintenanceStyles.secondaryBtnText}>
+                    Sign Out of Officer Account
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      ) : (
+        <>
+          {children}
+          {mfaFactors !== null && mfaFactors.length > 0 ? (
+            <MfaOtpVerificationModal
+              visible={mfaFactors !== null && mfaFactors.length > 0}
+              supportedFactors={mfaFactors}
+              onVerifyOtp={verifyMfaOtp}
+              onResendOtp={resendMfaOtp}
+              onCancel={cancelMfaVerification}
+            />
+          ) : null}
+          {showRegionModal ? (
+            <RegionSelectionModal
+              visible={showRegionModal}
+              onConfirmRegion={handleConfirmRegion}
+              onSignOut={logout}
+            />
+          ) : null}
+        </>
+      )}
     </AuthContext.Provider>
   );
 }
+
+const internalMaintenanceStyles = StyleSheet.create({
+  overlayContainer: {
+    flex: 1,
+    backgroundColor: "#0F172A",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 460,
+    alignSelf: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 28,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    overflow: "hidden",
+  },
+  accentBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 5,
+    backgroundColor: "#D97706",
+  },
+  badgePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FEF3C7",
+    borderColor: "#FDE68A",
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 18,
+    marginTop: 6,
+  },
+  badgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#B45309",
+    letterSpacing: 0.6,
+  },
+  iconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  title: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  description: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#475569",
+    textAlign: "center",
+    marginBottom: 18,
+  },
+  infoBox: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#EFF6FF",
+    borderColor: "#BFDBFE",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 22,
+  },
+  infoText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#1E3A8A",
+    flex: 1,
+  },
+  buttonGroup: {
+    width: "100%",
+    gap: 10,
+  },
+  primaryBtn: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#0F2C59",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  primaryBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  secondaryBtn: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#F8FAFC",
+    borderColor: "#CBD5E1",
+    borderWidth: 1,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  secondaryBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#475569",
+  },
+});
 
 export function useAuthContext() {
   const context = useContext(AuthContext);

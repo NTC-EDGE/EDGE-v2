@@ -18,8 +18,18 @@ public class UpdateSystemConfigCommandHandler : IRequestHandler<UpdateSystemConf
         _unitOfWork = unitOfWork;
     }
 
+    private static bool IsPublicSafeConfigKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return false;
+        return !key.StartsWith("SMTP_", System.StringComparison.OrdinalIgnoreCase) &&
+               !key.Contains("PASSWORD", System.StringComparison.OrdinalIgnoreCase) &&
+               !key.Contains("SECRET", System.StringComparison.OrdinalIgnoreCase) &&
+               !string.Equals(key, "EMAIL_ENABLED", System.StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task<SystemConfigDto> Handle(UpdateSystemConfigCommand request, CancellationToken cancellationToken)
     {
+        var isPublicKey = IsPublicSafeConfigKey(request.Key);
         var config = await _repository.GetByKeyAsync(request.Key, cancellationToken);
         if (config == null)
         {
@@ -30,7 +40,7 @@ public class UpdateSystemConfigCommandHandler : IRequestHandler<UpdateSystemConf
                 Description = request.Description ?? "Application configuration setting",
                 Category = request.Category ?? "General",
                 DataType = "String",
-                IsPublic = false
+                IsPublic = isPublicKey
             };
             await _repository.AddAsync(config, cancellationToken);
         }
@@ -44,6 +54,10 @@ public class UpdateSystemConfigCommandHandler : IRequestHandler<UpdateSystemConf
             if (!string.IsNullOrWhiteSpace(request.Category))
             {
                 config.Category = request.Category;
+            }
+            if (isPublicKey && !config.IsPublic)
+            {
+                config.IsPublic = true;
             }
             _repository.Update(config);
         }

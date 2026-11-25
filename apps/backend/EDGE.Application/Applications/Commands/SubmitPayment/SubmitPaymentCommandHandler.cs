@@ -20,6 +20,7 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
     private readonly ILogger<SubmitPaymentCommandHandler> _logger;
     private readonly INumberingSeriesService? _numberingSeriesService;
     private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public SubmitPaymentCommandHandler(
         IApplicationFullRepository repository,
@@ -28,7 +29,8 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         IUserRepository userRepository,
         ILogger<SubmitPaymentCommandHandler> logger,
         INumberingSeriesService? numberingSeriesService = null,
-        IApplicationEmailNotificationService? emailNotificationService = null)
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -37,10 +39,23 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         _logger = logger;
         _numberingSeriesService = numberingSeriesService;
         _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<bool>> Handle(SubmitPaymentCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var clientMaintCfg = await _systemConfigRepository.GetByKeyAsync("CLIENT_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (clientMaintCfg != null && string.Equals(clientMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<bool>.Fail(
+                    "Client Portal is currently under scheduled maintenance. Payment submissions and client account interactions are temporarily disabled.");
+            }
+        }
+
         var app = await _repository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
         if (app == null)
         {

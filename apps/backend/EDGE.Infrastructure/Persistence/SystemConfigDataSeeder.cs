@@ -15,6 +15,27 @@ public static class SystemConfigDataSeeder
 
         var defaultConfigs = new List<SystemConfig>
         {
+            // 1. General
+            new()
+            {
+                Category = "General",
+                Key = "SYSTEM_NAME",
+                Value = "NTC EDGE Portal",
+                Description = "The global title displayed across headers, browser tabs, and system emails.",
+                DataType = "String",
+                IsPublic = true
+            },
+            new()
+            {
+                Category = "General",
+                Key = "SUPPORT_EMAIL",
+                Value = "support@ntc.gov.ph",
+                Description = "Primary helpdesk email address shown to external applicants for inquiries.",
+                DataType = "String",
+                IsPublic = true
+            },
+
+            // 2. Renewal
             new()
             {
                 Category = "Renewal",
@@ -33,6 +54,28 @@ public static class SystemConfigDataSeeder
                 DataType = "Number",
                 IsPublic = true
             },
+
+            // 3. Security
+            new()
+            {
+                Category = "Security",
+                Key = "SESSION_TIMEOUT_MINS",
+                Value = "30",
+                Description = "Automatically logs out inactive users after the specified duration in minutes.",
+                DataType = "Number",
+                IsPublic = true
+            },
+            new()
+            {
+                Category = "Security",
+                Key = "MAX_FAILED_LOGINS",
+                Value = "5",
+                Description = "Number of consecutive failed sign-in attempts before temporary account lockout.",
+                DataType = "Number",
+                IsPublic = true
+            },
+
+            // 4. Email / SMTP
             new()
             {
                 Category = "Email",
@@ -112,7 +155,7 @@ public static class SystemConfigDataSeeder
                 Value = "http://localhost:8081",
                 Description = "Base URL of the Client Portal used in email notification links.",
                 DataType = "String",
-                IsPublic = false
+                IsPublic = true
             },
             new()
             {
@@ -121,15 +164,69 @@ public static class SystemConfigDataSeeder
                 Value = "http://localhost:8082",
                 Description = "Base URL of the Internal Officer Portal used in internal queue assignment email links.",
                 DataType = "String",
-                IsPublic = false
+                IsPublic = true
+            },
+
+            // 5. Upload
+            new()
+            {
+                Category = "Upload",
+                Key = "MAX_UPLOAD_SIZE_MB",
+                Value = "25",
+                Description = "Maximum file size in megabytes allowed per document attachment upload.",
+                DataType = "Number",
+                IsPublic = true
+            },
+            new()
+            {
+                Category = "Upload",
+                Key = "ALLOWED_FILE_TYPES",
+                Value = ".pdf,.jpg,.jpeg,.png,.zip",
+                Description = "Comma-separated list of permitted file extensions for applicant requirement uploads.",
+                DataType = "String",
+                IsPublic = true
+            },
+
+            // 6. Maintenance
+            new()
+            {
+                Category = "Maintenance",
+                Key = "MAINTENANCE_MODE",
+                Value = "false",
+                Description = "Global Master Switch: When active, both the Client Portal and Internal Officer Portal are locked in Maintenance Mode and all user account interactions are disabled.",
+                DataType = "Boolean",
+                IsPublic = true
+            },
+            new()
+            {
+                Category = "Maintenance",
+                Key = "CLIENT_MAINTENANCE_MODE",
+                Value = "false",
+                Description = "Client Portal Only: When active, locks the Client Portal and disables external applicant account interactions while allowing Internal Officers to continue working.",
+                DataType = "Boolean",
+                IsPublic = true
+            },
+            new()
+            {
+                Category = "Maintenance",
+                Key = "INTERNAL_MAINTENANCE_MODE",
+                Value = "false",
+                Description = "Internal Officer Portal Only: When active, locks the Internal Officer Portal and disables staff evaluations, accounting, and cashier actions while keeping the Client Portal open.",
+                DataType = "Boolean",
+                IsPublic = true
             }
         };
 
         foreach (var def in defaultConfigs)
         {
-            if (!existingConfigs.Any(c => c.Key == def.Key))
+            var existing = existingConfigs.FirstOrDefault(c => c.Key == def.Key);
+            if (existing == null)
             {
                 await context.SystemConfigs.AddAsync(def);
+            }
+            else if (def.IsPublic && !existing.IsPublic)
+            {
+                existing.IsPublic = true;
             }
         }
 

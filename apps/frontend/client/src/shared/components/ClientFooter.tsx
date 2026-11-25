@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Icon as Lucide } from "@edge/ui";
+import { usePublicSystemConfig } from "@edge/api";
 import { TYPOGRAPHY, SPACING } from "../theme/tokens";
 import { useClientSupportModals } from "../support/hooks/useClientSupportModals";
 import { SendFeedbackModal } from "../support/components/SendFeedbackModal";
@@ -18,6 +19,7 @@ export function ClientFooter() {
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
   const currentYear = new Date().getFullYear();
+  const { config: publicConfig } = usePublicSystemConfig();
 
   const support = useClientSupportModals();
 
@@ -67,11 +69,31 @@ export function ClientFooter() {
 
           <View style={styles.mobileBottomRow}>
             <Text style={styles.mobileCopyrightText}>
-              © {currentYear} NTC Philippines • EDGE Portal
+              © {currentYear} {publicConfig.systemName}
             </Text>
-            <View style={styles.mobileStatusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.mobileStatusText}>Operational</Text>
+            <View
+              style={[
+                styles.mobileStatusBadge,
+                publicConfig.clientMaintenanceMode && {
+                  backgroundColor: "rgba(245, 158, 11, 0.16)",
+                  borderColor: "rgba(245, 158, 11, 0.35)",
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.statusDot,
+                  publicConfig.clientMaintenanceMode && { backgroundColor: "#F59E0B" },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.mobileStatusText,
+                  publicConfig.clientMaintenanceMode && { color: "#FCD34D" },
+                ]}
+              >
+                {publicConfig.clientMaintenanceMode ? "Maintenance" : "Operational"}
+              </Text>
             </View>
           </View>
         </View>
@@ -87,11 +109,11 @@ export function ClientFooter() {
             <View style={styles.leftSection}>
               <Text style={styles.brandTitle}>
                 Republic of the Philippines • National Telecommunications
-                Commission
+                Commission ({publicConfig.systemName})
               </Text>
               <Text style={styles.copyrightText}>
-                © {currentYear} NTC EDGE Licensing & Spectrum Portal. All Rights
-                Reserved. RA 7925 Official System.
+                © {currentYear} {publicConfig.systemName}. All Rights Reserved.
+                Support: {publicConfig.supportEmail}
               </Text>
             </View>
 
@@ -121,10 +143,31 @@ export function ClientFooter() {
                   <Text style={styles.supportButtonText}>Help Center</Text>
                 </TouchableOpacity>
 
-                <View style={styles.badgeContainer}>
-                  <View style={styles.statusDot} />
-                  <Text style={styles.statusText}>
-                    NTC EDGE • System Operational
+                <View
+                  style={[
+                    styles.badgeContainer,
+                    publicConfig.clientMaintenanceMode && {
+                      backgroundColor: "rgba(245, 158, 11, 0.16)",
+                      borderColor: "rgba(245, 158, 11, 0.35)",
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.statusDot,
+                      publicConfig.clientMaintenanceMode && { backgroundColor: "#F59E0B" },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.statusText,
+                      publicConfig.clientMaintenanceMode && { color: "#FCD34D" },
+                    ]}
+                  >
+                    {publicConfig.systemName} •{" "}
+                    {publicConfig.clientMaintenanceMode
+                      ? "Maintenance Mode"
+                      : "System Operational"}
                   </Text>
                 </View>
               </View>

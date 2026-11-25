@@ -27,6 +27,7 @@ public class SubmitApplicationCommandHandler
     private readonly IUserAuthorizationService _userAuthorizationService;
     private readonly ILogger<SubmitApplicationCommandHandler> _logger;
     private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public SubmitApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -42,7 +43,8 @@ public class SubmitApplicationCommandHandler
         IUserRepository userRepository,
         IUserAuthorizationService userAuthorizationService,
         ILogger<SubmitApplicationCommandHandler> logger,
-        IApplicationEmailNotificationService? emailNotificationService = null)
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _applicationRepository = applicationRepository;
         _applicantRepository = applicantRepository;
@@ -58,11 +60,24 @@ public class SubmitApplicationCommandHandler
         _userAuthorizationService = userAuthorizationService;
         _logger = logger;
         _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
         SubmitApplicationCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var clientMaintCfg = await _systemConfigRepository.GetByKeyAsync("CLIENT_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (clientMaintCfg != null && string.Equals(clientMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Client Portal is currently under scheduled maintenance. All application submissions and client account interactions are temporarily disabled.");
+            }
+        }
+
         // 0. Verify Application Submission Permissions
         if (!await _userAuthorizationService.CanSubmitApplicationAsync(cancellationToken))
         {

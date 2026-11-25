@@ -55,6 +55,7 @@ export * from './services/tenantMemberService';
 export * from './services/reportService';
 export * from './services/tenantConfigService';
 export * from './hooks/useTenantConfig';
+export * from './hooks/usePublicSystemConfig';
 export * from './hooks/useOperationalReportStatistics';
 export * from './utils/paymentBreakdown';
 export * from './utils/tenantUtils';

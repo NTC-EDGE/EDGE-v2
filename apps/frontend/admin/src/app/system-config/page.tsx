@@ -37,13 +37,15 @@ const CATEGORY_KEYS: Record<string, string[]> = {
     "INTERNAL_PORTAL_BASE_URL",
   ],
   Upload: ["MAX_UPLOAD_SIZE_MB", "ALLOWED_FILE_TYPES"],
-  Maintenance: ["MAINTENANCE_MODE"],
+  Maintenance: ["MAINTENANCE_MODE", "CLIENT_MAINTENANCE_MODE", "INTERNAL_MAINTENANCE_MODE"],
 };
 
 const DEFAULT_CONFIG_VALUES: Record<string, string> = {
   SYSTEM_NAME: "NTC EDGE Portal",
   SUPPORT_EMAIL: "support@ntc.gov.ph",
   MAINTENANCE_MODE: "false",
+  CLIENT_MAINTENANCE_MODE: "false",
+  INTERNAL_MAINTENANCE_MODE: "false",
   MAX_UPLOAD_SIZE_MB: "25",
   ALLOWED_FILE_TYPES: ".pdf,.jpg,.png,.zip",
   EMAIL_ENABLED: "true",
@@ -545,11 +547,20 @@ export default function SystemConfigPage() {
             <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Power className="h-5 w-5 text-indigo-500 dark:text-indigo-400" /> Maintenance Mode Controls
             </h2>
-            <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between">
+
+            {/* 1. Global Master Maintenance Switch */}
+            <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">Enable Portal Maintenance Mode</p>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                  When active, non-admin applicants will see a maintenance notice banner upon login.
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    Global Maintenance Mode (Client &amp; Internal Portals)
+                  </p>
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                    Master Switch
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                  When active, both the Client Portal and Internal Officer Portal are locked in Maintenance Mode and all user account interactions are disabled.
                 </p>
               </div>
               <button
@@ -560,13 +571,87 @@ export default function SystemConfigPage() {
                     configsState["MAINTENANCE_MODE"] === "true" ? "false" : "true"
                   )
                 }
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   configsState["MAINTENANCE_MODE"] === "true"
                     ? "bg-rose-600 text-white"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                {configsState["MAINTENANCE_MODE"] === "true" ? "ACTIVE (MAINTENANCE)" : "INACTIVE (NORMAL)"}
+                {configsState["MAINTENANCE_MODE"] === "true" ? "ACTIVE (ALL LOCKED)" : "INACTIVE (NORMAL)"}
+              </button>
+            </div>
+
+            {/* 2. Client Portal Only Maintenance Switch */}
+            <div className="p-5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    Client Portal Maintenance Mode
+                  </p>
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                    Applicants Only
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                  Locks only the Client Portal (disabling client account access, application submissions, and payments) while allowing Internal Officers to continue processing queues.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  handleInputChange(
+                    "CLIENT_MAINTENANCE_MODE",
+                    configsState["CLIENT_MAINTENANCE_MODE"] === "true" ? "false" : "true"
+                  )
+                }
+                className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  configsState["CLIENT_MAINTENANCE_MODE"] === "true" || configsState["MAINTENANCE_MODE"] === "true"
+                    ? "bg-rose-600 text-white"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                {configsState["MAINTENANCE_MODE"] === "true"
+                  ? "LOCKED BY GLOBAL"
+                  : configsState["CLIENT_MAINTENANCE_MODE"] === "true"
+                  ? "ACTIVE (CLIENT LOCKED)"
+                  : "INACTIVE (NORMAL)"}
+              </button>
+            </div>
+
+            {/* 3. Internal Officer Portal Only Maintenance Switch */}
+            <div className="p-5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    Internal Officer Portal Maintenance Mode
+                  </p>
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">
+                    Internal Staff Only
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                  Locks only the Internal Officer Portal (disabling staff evaluations, SOA/OP generation, cashiering, and document issuance) while keeping the Client Portal open.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  handleInputChange(
+                    "INTERNAL_MAINTENANCE_MODE",
+                    configsState["INTERNAL_MAINTENANCE_MODE"] === "true" ? "false" : "true"
+                  )
+                }
+                className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  configsState["INTERNAL_MAINTENANCE_MODE"] === "true" || configsState["MAINTENANCE_MODE"] === "true"
+                    ? "bg-rose-600 text-white"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                {configsState["MAINTENANCE_MODE"] === "true"
+                  ? "LOCKED BY GLOBAL"
+                  : configsState["INTERNAL_MAINTENANCE_MODE"] === "true"
+                  ? "ACTIVE (INTERNAL LOCKED)"
+                  : "INACTIVE (NORMAL)"}
               </button>
             </div>
           </div>
@@ -582,6 +667,8 @@ export default function SystemConfigPage() {
         description={
           activeTab === "Email"
             ? `Are you sure you want to update the Email Gateway / SMTP configuration (${configsState["SMTP_SERVER"] || "smtp.ntc.gov.ph"}:${configsState["SMTP_PORT"] || "587"}, Delivery: ${(configsState["EMAIL_ENABLED"] ?? "true") === "true" ? "ENABLED" : "DISABLED"})? These changes will immediately affect outbound email notifications for clients and regional officers.`
+            : activeTab === "Maintenance"
+            ? `Are you sure you want to apply these Maintenance Mode settings (Global: ${configsState["MAINTENANCE_MODE"] === "true" ? "LOCKED" : "OFF"}, Client Portal: ${configsState["MAINTENANCE_MODE"] === "true" || configsState["CLIENT_MAINTENANCE_MODE"] === "true" ? "LOCKED" : "OPEN"}, Internal Officer Portal: ${configsState["MAINTENANCE_MODE"] === "true" || configsState["INTERNAL_MAINTENANCE_MODE"] === "true" ? "LOCKED" : "OPEN"})? Users on locked portals will immediately be blocked from interacting with their accounts.`
             : `Are you sure you want to apply and save your changes to the ${activeTab} system configuration settings?`
         }
         confirmLabel="Confirm & Save Changes"

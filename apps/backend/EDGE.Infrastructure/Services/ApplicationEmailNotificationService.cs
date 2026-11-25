@@ -27,6 +27,7 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
     private readonly IUserNotificationRepository _userNotificationRepository;
     private readonly IEmailService _emailService;
     private readonly EmailOptions _emailOptions;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
     private readonly IHubContext<NotificationHub>? _hubContext;
     private readonly ILogger<ApplicationEmailNotificationService> _logger;
 
@@ -40,7 +41,8 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
         IEmailService emailService,
         IOptions<EmailOptions> emailOptions,
         ILogger<ApplicationEmailNotificationService> logger,
-        IHubContext<NotificationHub>? hubContext = null)
+        IHubContext<NotificationHub>? hubContext = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _applicationRepository = applicationRepository;
         _templateRepository = templateRepository;
@@ -52,6 +54,7 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
         _emailOptions = emailOptions.Value;
         _logger = logger;
         _hubContext = hubContext;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task SendApplicationSubmittedAsync(Guid applicationId, CancellationToken cancellationToken = default)
@@ -103,8 +106,8 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
                     var internalPlaceholders = BuildBasePlaceholders(app, context);
                     internalPlaceholders["Evaluator Name"] = officer.Name;
                     internalPlaceholders["EvaluatorName"] = officer.Name;
-                    internalPlaceholders["Application Link"] = $"{_emailOptions.InternalPortalBaseUrl.TrimEnd('/')}/queue?applicationId={app.Id}";
-                    internalPlaceholders["ApplicationLink"] = $"{_emailOptions.InternalPortalBaseUrl.TrimEnd('/')}/queue?applicationId={app.Id}";
+                    internalPlaceholders["Application Link"] = $"{context.InternalPortalBaseUrl.TrimEnd('/')}/queue?applicationId={app.Id}";
+                    internalPlaceholders["ApplicationLink"] = $"{context.InternalPortalBaseUrl.TrimEnd('/')}/queue?applicationId={app.Id}";
 
                     await DispatchTemplateEmailAsync(
                         "Internal_ApplicationSubmitted",
@@ -226,7 +229,7 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
                         internalPlaceholders["AccountantName"] = accountant.Name;
                         internalPlaceholders["Approving Personnel Name"] = context.LastStaffName;
                         internalPlaceholders["Approval Date"] = DateTime.UtcNow.ToString("MMMM dd, yyyy", CultureInfo.InvariantCulture);
-                        internalPlaceholders["Application Link"] = $"{_emailOptions.InternalPortalBaseUrl.TrimEnd('/')}/queue?applicationId={app.Id}";
+                        internalPlaceholders["Application Link"] = $"{context.InternalPortalBaseUrl.TrimEnd('/')}/queue?applicationId={app.Id}";
 
                         await DispatchTemplateEmailAsync(
                             "Internal_ApplicationApproved",
@@ -307,7 +310,7 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
                 internalPlaceholders["CashierName"] = cashier.Name;
                 internalPlaceholders["Payment Method"] = !string.IsNullOrWhiteSpace(paymentMethod) ? paymentMethod : "Portal Payment";
                 internalPlaceholders["Payment Submission Date"] = DateTime.UtcNow.ToString("MMMM dd, yyyy", CultureInfo.InvariantCulture);
-                internalPlaceholders["Application Link"] = $"{_emailOptions.InternalPortalBaseUrl.TrimEnd('/')}/queue?applicationId={app.Id}";
+                internalPlaceholders["Application Link"] = $"{context.InternalPortalBaseUrl.TrimEnd('/')}/queue?applicationId={app.Id}";
 
                 await DispatchTemplateEmailAsync(
                     "Internal_ApplicationProceededToPayment",
@@ -465,7 +468,7 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
 
     private Dictionary<string, string> BuildBasePlaceholders(Domain.Entities.Application app, ResolvedApplicationContext ctx)
     {
-        var clientLink = $"{_emailOptions.ClientPortalBaseUrl.TrimEnd('/')}/my-applications?applicationId={app.Id}";
+        var clientLink = $"{ctx.ClientPortalBaseUrl.TrimEnd('/')}/my-applications?applicationId={app.Id}";
         var submissionDate = app.CreatedAt.ToString("MMMM dd, yyyy", CultureInfo.InvariantCulture);
 
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -492,7 +495,11 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
             ["License / Permit / Certificate"] = ctx.IssuedDocSummary,
             ["Reasons / Remarks"] = app.Remarks ?? "Please check the portal for details.",
             ["Application Link"] = clientLink,
-            ["ApplicationLink"] = clientLink
+            ["ApplicationLink"] = clientLink,
+            ["System Name"] = ctx.SystemName,
+            ["SystemName"] = ctx.SystemName,
+            ["Support Email"] = ctx.SupportEmail,
+            ["SupportEmail"] = ctx.SupportEmail
         };
     }
 
@@ -578,6 +585,38 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
         var latestHistory = app.Histories?.OrderByDescending(h => h.Timestamp).FirstOrDefault();
         var latestDoc = app.IssuedDocumentDetails?.OrderByDescending(d => d.CreatedAt).FirstOrDefault();
 
+        var clientPortalBaseUrl = _emailOptions.ClientPortalBaseUrl;
+        var internalPortalBaseUrl = _emailOptions.InternalPortalBaseUrl;
+        var systemName = "NTC EDGE Portal";
+        var supportEmail = "support@ntc.gov.ph";
+
+        if (_systemConfigRepository != null)
+        {
+            var clientUrlCfg = await _systemConfigRepository.GetByKeyAsync("CLIENT_PORTAL_BASE_URL", cancellationToken);
+            if (clientUrlCfg != null && !string.IsNullOrWhiteSpace(clientUrlCfg.Value))
+            {
+                clientPortalBaseUrl = clientUrlCfg.Value.Trim();
+            }
+
+            var internalUrlCfg = await _systemConfigRepository.GetByKeyAsync("INTERNAL_PORTAL_BASE_URL", cancellationToken);
+            if (internalUrlCfg != null && !string.IsNullOrWhiteSpace(internalUrlCfg.Value))
+            {
+                internalPortalBaseUrl = internalUrlCfg.Value.Trim();
+            }
+
+            var sysNameCfg = await _systemConfigRepository.GetByKeyAsync("SYSTEM_NAME", cancellationToken);
+            if (sysNameCfg != null && !string.IsNullOrWhiteSpace(sysNameCfg.Value))
+            {
+                systemName = sysNameCfg.Value.Trim();
+            }
+
+            var supEmailCfg = await _systemConfigRepository.GetByKeyAsync("SUPPORT_EMAIL", cancellationToken);
+            if (supEmailCfg != null && !string.IsNullOrWhiteSpace(supEmailCfg.Value))
+            {
+                supportEmail = supEmailCfg.Value.Trim();
+            }
+        }
+
         return new ResolvedApplicationContext
         {
             ClientEmail = clientEmail?.Trim() ?? string.Empty,
@@ -593,7 +632,11 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
             ExamDateFormatted = examDateStr,
             OrNumber = latestOp?.OfficialReceiptNumber ?? latestDoc?.OfficialReceiptNumber ?? "Pending",
             IssuedDocSummary = latestDoc != null ? $"{latestDoc.DocumentType} #{latestDoc.LicenseNumber ?? latestDoc.FormNumber}" : serviceName,
-            LastStaffName = !string.IsNullOrWhiteSpace(latestHistory?.StaffName) ? latestHistory!.StaffName! : "Regional Officer"
+            LastStaffName = !string.IsNullOrWhiteSpace(latestHistory?.StaffName) ? latestHistory!.StaffName! : "Regional Officer",
+            ClientPortalBaseUrl = clientPortalBaseUrl,
+            InternalPortalBaseUrl = internalPortalBaseUrl,
+            SystemName = systemName,
+            SupportEmail = supportEmail
         };
     }
 
@@ -713,5 +756,9 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
         public string OrNumber { get; init; } = string.Empty;
         public string IssuedDocSummary { get; init; } = string.Empty;
         public string LastStaffName { get; init; } = "Regional Officer";
+        public string ClientPortalBaseUrl { get; init; } = "http://localhost:8081";
+        public string InternalPortalBaseUrl { get; init; } = "http://localhost:8082";
+        public string SystemName { get; init; } = "NTC EDGE Portal";
+        public string SupportEmail { get; init; } = "support@ntc.gov.ph";
     }
 }

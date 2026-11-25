@@ -21,6 +21,7 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
     private readonly IUserAuthorizationService _userAuthService;
     private readonly ILogger<IssueApplicationCommandHandler> _logger;
     private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public IssueApplicationCommandHandler(
         IApplicationFullRepository repository,
@@ -29,7 +30,8 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
         IUserRepository userRepository,
         IUserAuthorizationService userAuthService,
         ILogger<IssueApplicationCommandHandler> logger,
-        IApplicationEmailNotificationService? emailNotificationService = null)
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -38,10 +40,23 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
         _userAuthService = userAuthService;
         _logger = logger;
         _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<IssuedDocumentDto>> Handle(IssueApplicationCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var internalMaintCfg = await _systemConfigRepository.GetByKeyAsync("INTERNAL_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (internalMaintCfg != null && string.Equals(internalMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<IssuedDocumentDto>.Fail(
+                    "Internal Officer Portal is currently under scheduled maintenance. Document issuance and officer account interactions are temporarily disabled.");
+            }
+        }
+
         // 1. Validate authorization: user must have IssueApplication, ApproveApplication, or regional evaluator/supervisor role
         var canIssue = await _userAuthService.HasAnyPermissionAsync(
             new[] { Permissions.IssueApplication, Permissions.ApproveApplication, Permissions.EvaluateApplication },
@@ -124,6 +139,32 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
         var baseFormNum = request.FormNumber.Trim();
         var baseLicNum = string.IsNullOrWhiteSpace(request.LicenseNumber) ? null : request.LicenseNumber.Trim();
 
+        DateTime? effectiveExpiryDate = request.ExpiryDate;
+        if (!effectiveExpiryDate.HasValue && app.RenewedFromApplicationId.HasValue)
+        {
+            int defaultValidityYears = 1;
+            if (_systemConfigRepository != null)
+            {
+                var validityCfg = await _systemConfigRepository.GetByKeyAsync("Renewal:DefaultValidityYears", cancellationToken);
+                if (validityCfg != null && int.TryParse(validityCfg.Value?.Trim(), out var parsedYears) && parsedYears > 0)
+                {
+                    defaultValidityYears = parsedYears;
+                }
+            }
+
+            var prevApp = await _repository.GetByIdWithDetailsAsync(app.RenewedFromApplicationId.Value, cancellationToken);
+            var prevExpiry = prevApp?.IssuedDocumentDetails?
+                .Where(d => d.ExpiryDate.HasValue)
+                .OrderByDescending(d => d.ExpiryDate)
+                .FirstOrDefault()?.ExpiryDate;
+
+            var baseDateForRenewal = prevExpiry.HasValue && prevExpiry.Value > request.IssueDate
+                ? prevExpiry.Value
+                : request.IssueDate;
+
+            effectiveExpiryDate = baseDateForRenewal.AddYears(defaultValidityYears);
+        }
+
         for (int idx = 0; idx < targetApplicantIds.Count; idx++)
         {
             var appApplicantId = targetApplicantIds[idx];
@@ -152,7 +193,7 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
                 StationClass = string.IsNullOrWhiteSpace(request.StationClass) ? null : request.StationClass.Trim(),
                 FrequencyBand = string.IsNullOrWhiteSpace(request.FrequencyBand) ? null : request.FrequencyBand.Trim(),
                 IssueDate = request.IssueDate,
-                ExpiryDate = request.ExpiryDate,
+                ExpiryDate = effectiveExpiryDate,
                 OriginalEvaluatorUserId = originalEvaluatorUserId,
                 OriginalEvaluatorName = originalEvaluatorName,
                 IssuedByUserId = userContext.UserId,

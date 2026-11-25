@@ -19,6 +19,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
     private readonly INumberingSeriesService? _numberingSeriesService;
     private readonly IRegionalConfigurationService? _regionalConfigService;
     private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public ApproveSoaCommandHandler(
         IApplicationFullRepository repository,
@@ -27,7 +28,8 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         IUserRepository userRepository,
         INumberingSeriesService? numberingSeriesService = null,
         IRegionalConfigurationService? regionalConfigService = null,
-        IApplicationEmailNotificationService? emailNotificationService = null)
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -36,10 +38,23 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         _numberingSeriesService = numberingSeriesService;
         _regionalConfigService = regionalConfigService;
         _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(ApproveSoaCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var internalMaintCfg = await _systemConfigRepository.GetByKeyAsync("INTERNAL_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (internalMaintCfg != null && string.Equals(internalMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Internal Officer Portal is currently under scheduled maintenance. Accounting SOA/OP approvals and officer interactions are temporarily disabled.");
+            }
+        }
+
         StatementOfAccount? soa = null;
 
         // 1. Resolve SOA by direct SoaId if provided

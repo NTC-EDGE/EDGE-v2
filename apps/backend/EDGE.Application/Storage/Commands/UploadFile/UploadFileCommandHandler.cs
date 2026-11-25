@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -17,19 +19,22 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, ApiRe
     private readonly IStoredFileRepository _fileRepository;
     private readonly ITenantRepository _tenantRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public UploadFileCommandHandler(
         IStorageService storageService,
         IFileEncryptionService encryptionService,
         IStoredFileRepository fileRepository,
         ITenantRepository tenantRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _storageService = storageService;
         _encryptionService = encryptionService;
         _fileRepository = fileRepository;
         _tenantRepository = tenantRepository;
         _unitOfWork = unitOfWork;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<StoredFileDto>> Handle(UploadFileCommand request, CancellationToken cancellationToken)
@@ -46,6 +51,45 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, ApiRe
         }
 
         var sanitizedFileName = Path.GetFileName(request.FileName);
+        var effectiveSizeBytes = request.FileSizeBytes > 0 ? request.FileSizeBytes : request.FileStream.Length;
+
+        // Enforce dynamic System Configuration upload policies (MAX_UPLOAD_SIZE_MB & ALLOWED_FILE_TYPES)
+        long maxUploadSizeMb = 25;
+        if (_systemConfigRepository != null)
+        {
+            var maxUploadCfg = await _systemConfigRepository.GetByKeyAsync("MAX_UPLOAD_SIZE_MB", cancellationToken);
+            if (maxUploadCfg != null && long.TryParse(maxUploadCfg.Value?.Trim(), out var parsedMaxMb) && parsedMaxMb > 0)
+            {
+                maxUploadSizeMb = parsedMaxMb;
+            }
+
+            var allowedTypesCfg = await _systemConfigRepository.GetByKeyAsync("ALLOWED_FILE_TYPES", cancellationToken);
+            if (allowedTypesCfg != null && !string.IsNullOrWhiteSpace(allowedTypesCfg.Value))
+            {
+                var allowedExtensions = new HashSet<string>(
+                    allowedTypesCfg.Value
+                        .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(ext => ext.Trim().StartsWith('.') ? ext.Trim().ToLowerInvariant() : "." + ext.Trim().ToLowerInvariant()),
+                    StringComparer.OrdinalIgnoreCase);
+
+                if (allowedExtensions.Contains(".jpg")) allowedExtensions.Add(".jpeg");
+                if (allowedExtensions.Contains(".jpeg")) allowedExtensions.Add(".jpg");
+
+                var fileExt = Path.GetExtension(sanitizedFileName)?.ToLowerInvariant() ?? string.Empty;
+                if (allowedExtensions.Count > 0 && !string.IsNullOrEmpty(fileExt) && !allowedExtensions.Contains(fileExt))
+                {
+                    return ApiResponse<StoredFileDto>.Fail(
+                        $"File type '{fileExt}' is not allowed by system configuration. Allowed file types: {allowedTypesCfg.Value}.");
+                }
+            }
+        }
+
+        if (effectiveSizeBytes > maxUploadSizeMb * 1024L * 1024L)
+        {
+            return ApiResponse<StoredFileDto>.Fail(
+                $"File size exceeds the maximum allowed upload limit of {maxUploadSizeMb} MB.");
+        }
+
         var category = string.IsNullOrWhiteSpace(request.Category) ? "general" : request.Category.ToLowerInvariant();
 
         // 1. Encrypt stream with AES-256-GCM

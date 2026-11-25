@@ -21,6 +21,7 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
     private readonly ILogger<UpdateApplicationStatusCommandHandler> _logger;
     private readonly INumberingSeriesService? _numberingSeriesService;
     private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public UpdateApplicationStatusCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -28,7 +29,8 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
         ICurrentUserService currentUserService,
         ILogger<UpdateApplicationStatusCommandHandler> logger,
         INumberingSeriesService? numberingSeriesService = null,
-        IApplicationEmailNotificationService? emailNotificationService = null)
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
@@ -36,10 +38,23 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
         _logger = logger;
         _numberingSeriesService = numberingSeriesService;
         _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var internalMaintCfg = await _systemConfigRepository.GetByKeyAsync("INTERNAL_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (internalMaintCfg != null && string.Equals(internalMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Internal Officer Portal is currently under scheduled maintenance. Officer evaluation actions and account interactions are temporarily disabled.");
+            }
+        }
+
         var app = await _applicationRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken)
                   ?? await _applicationRepository.GetByIdAsync(request.Id, cancellationToken);
         if (app == null)
