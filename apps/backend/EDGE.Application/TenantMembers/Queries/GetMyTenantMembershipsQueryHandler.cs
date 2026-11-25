@@ -64,12 +64,8 @@ public class GetMyTenantMembershipsQueryHandler : IRequestHandler<GetMyTenantMem
 
         if (isSuperAdmin)
         {
-            // SuperAdmins are granted access across all active Regional Offices / Tenants
-            var candidateTenants = allTenants.Where(t => t.IsActive).ToList();
-            if (candidateTenants.Count == 0 && allTenants.Count > 0)
-            {
-                candidateTenants = allTenants.ToList();
-            }
+            // SuperAdmins are granted access across all active, non-deleted Regional Offices / Tenants
+            var candidateTenants = allTenants.Where(t => t.IsActive && !t.IsDeleted).ToList();
 
             foreach (var tenant in candidateTenants)
             {
@@ -82,7 +78,8 @@ public class GetMyTenantMembershipsQueryHandler : IRequestHandler<GetMyTenantMem
                     TenantName: tenant.Name,
                     RegionId: region?.Id ?? Guid.Empty,
                     RegionCode: regionCode,
-                    RegionName: regionName
+                    RegionName: regionName,
+                    IsActive: tenant.IsActive
                 ));
             }
 
@@ -97,18 +94,19 @@ public class GetMyTenantMembershipsQueryHandler : IRequestHandler<GetMyTenantMem
         if (user != null)
         {
             var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(user.Id, cancellationToken) ?? new List<TenantMember>();
-            foreach (var mem in userMemberships)
+            foreach (var mem in userMemberships.Where(m => !m.IsDeleted))
             {
                 var tenant = allTenants.FirstOrDefault(t => t.Id == mem.TenantId);
-                if (tenant != null && tenant.IsActive)
+                if (tenant != null && tenant.IsActive && !tenant.IsDeleted)
                 {
                     var region = allRegions.FirstOrDefault(r => r.Id == tenant.RegionId);
                     list.Add(new TenantRegionMembershipDto(
                         TenantId: tenant.Id,
                         TenantName: tenant.Name,
                         RegionId: region?.Id ?? Guid.Empty,
-                        RegionCode: region?.Code ?? "NCR",
-                        RegionName: region?.Name ?? "National Capital Region"
+                        RegionCode: region?.Code ?? (!string.IsNullOrWhiteSpace(tenant.Code) ? tenant.Code : "NCR"),
+                        RegionName: region?.Name ?? tenant.Name,
+                        IsActive: tenant.IsActive
                     ));
                 }
             }
@@ -118,14 +116,15 @@ public class GetMyTenantMembershipsQueryHandler : IRequestHandler<GetMyTenantMem
         if (list.Count == 0 && string.IsNullOrEmpty(rawUserId))
         {
             var defaultNcr = allRegions.FirstOrDefault(r => string.Equals(r.Code, "NCR", StringComparison.OrdinalIgnoreCase));
-            var defaultTenant = allTenants.FirstOrDefault();
+            var defaultTenant = allTenants.FirstOrDefault(t => t.IsActive && !t.IsDeleted);
 
             list.Add(new TenantRegionMembershipDto(
                 TenantId: defaultTenant?.Id ?? Guid.NewGuid(),
                 TenantName: defaultTenant?.Name ?? "NTC Regional Office - NCR",
                 RegionId: defaultNcr?.Id ?? Guid.NewGuid(),
                 RegionCode: defaultNcr?.Code ?? "NCR",
-                RegionName: defaultNcr?.Name ?? "National Capital Region"
+                RegionName: defaultNcr?.Name ?? "National Capital Region",
+                IsActive: true
             ));
         }
 

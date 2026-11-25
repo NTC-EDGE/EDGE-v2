@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -83,12 +83,52 @@ export function RegionSelectionModal({
   // Data Layer SWR Hook for caller's tenant memberships
   const { memberships, isLoading, isError, error: swrError, refetch } = useMyTenantMemberships(token, visible);
 
-  // Automatically select the first authorized region when memberships load
+  // Filter strictly for active tenant memberships
+  const activeMemberships = useMemo(
+    () => memberships.filter((m) => m.isActive !== false),
+    [memberships]
+  );
+
+  const autoConfirmTriggeredRef = useRef(false);
+
   useEffect(() => {
-    if (memberships.length > 0 && selectedRegion.length === 0) {
-      setSelectedRegion(memberships[0].regionCode);
+    if (!visible) {
+      autoConfirmTriggeredRef.current = false;
     }
-  }, [memberships, selectedRegion]);
+  }, [visible]);
+
+  // Automatically select the first authorized active region when memberships load
+  useEffect(() => {
+    if (activeMemberships.length > 0 && selectedRegion.length === 0) {
+      setSelectedRegion(activeMemberships[0].regionCode);
+    }
+  }, [activeMemberships, selectedRegion]);
+
+  // Auto-confirm single-tenant non-SuperAdmin staff so they don't have to manually select their only active tenant
+  useEffect(() => {
+    if (
+      visible &&
+      !isLoading &&
+      !isError &&
+      !isSuperAdminUser &&
+      activeMemberships.length === 1 &&
+      !isSubmitting &&
+      !autoConfirmTriggeredRef.current
+    ) {
+      autoConfirmTriggeredRef.current = true;
+      const singleRegionCode = activeMemberships[0].regionCode;
+      setSelectedRegion(singleRegionCode);
+      setActionError("");
+      setIsSubmitting(true);
+      onConfirmRegion(singleRegionCode)
+        .catch((err: unknown) => {
+          setActionError(parseApiError(err));
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+        });
+    }
+  }, [visible, isLoading, isError, isSuperAdminUser, activeMemberships, isSubmitting, onConfirmRegion]);
 
   const displayActionError = actionError.length > 0 ? actionError : "";
 
@@ -168,24 +208,24 @@ export function RegionSelectionModal({
                 </TouchableOpacity>
               </View>
             </View>
-          ) : memberships.length === 0 ? (
-            /* Case 2: User is NOT a member of any region */
+          ) : activeMemberships.length === 0 ? (
+            /* Case 2: User is NOT a member of any active region */
             <View style={styles.noMembershipBox}>
               <View style={[styles.alertIconCircle, { backgroundColor: colors.semantic.errorBg }]}>
                 <Lucide name="alert-triangle" size={28} color={colors.semantic.error} />
               </View>
-              <Text style={[styles.noMembershipTitle, { color: colors.semantic.errorText }]}>Account Not Registered</Text>
+              <Text style={[styles.noMembershipTitle, { color: colors.semantic.errorText }]}>No Active Regional Office Access</Text>
               <Text style={[styles.noMembershipText, { color: colors.textMuted }]}>
-                The selected account is not yet registered in the system. Please make sure to sign in with a registered account or contact your system administrator.
+                The selected account is either not yet assigned to a Regional Office or your assigned Regional Office is currently inactive. Please sign in with an authorized account or contact your system administrator.
               </Text>
 
               <TouchableOpacity style={[styles.signOutButton, { backgroundColor: colors.semantic.error }]} onPress={() => setIsSignOutConfirmVisible(true)}>
                 <Lucide name="log-out" size={16} color={colors.neutral.white} />
-                <Text style={styles.signOutButtonText}>Sign Out & Use Registered Account</Text>
+                <Text style={styles.signOutButtonText}>Sign Out & Use Authorized Account</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            /* Case 3: User has 1 or more assigned region memberships */
+            /* Case 3: User has 1 or more assigned active region memberships */
             <View style={styles.bodyContent}>
               {displayActionError.length > 0 ? (
                 <View style={[styles.errorBanner, { backgroundColor: colors.semantic.errorBg, borderColor: colors.semantic.errorBorder }]}>
@@ -195,7 +235,7 @@ export function RegionSelectionModal({
               ) : null}
 
               <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
-                {isSuperAdminUser ? "All Regional Offices (Global SuperAdmin Access)" : "Your Authorized Regional Offices"}
+                {isSuperAdminUser ? "All Active Regional Offices (Global SuperAdmin Access)" : "Your Authorized Regional Offices"}
               </Text>
 
               <TouchableOpacity
@@ -206,7 +246,7 @@ export function RegionSelectionModal({
                 <View style={styles.dropdownInner}>
                   <Lucide name="map-pin" size={18} color={colors.textMuted} />
                   <Text style={[styles.dropdownValue, { color: colors.text }]}>
-                    {memberships.find((m) => m.regionCode === selectedRegion)?.regionName ?? selectedRegion}
+                    {activeMemberships.find((m) => m.regionCode === selectedRegion)?.regionName ?? selectedRegion}
                   </Text>
                 </View>
                 <Lucide
@@ -219,7 +259,7 @@ export function RegionSelectionModal({
               {showDropdown ? (
                 <View style={[styles.popoverMenu, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled={true}>
-                    {memberships.map((item) => (
+                    {activeMemberships.map((item) => (
                       <TouchableOpacity
                         key={item.tenantId}
                         style={[

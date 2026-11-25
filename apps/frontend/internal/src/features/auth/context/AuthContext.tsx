@@ -5,6 +5,7 @@ import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
 import {
   parseApiError,
   verifyStaffMembership,
+  fetchMyTenantMemberships,
   setTokenProvider,
   setAuthToken,
   setTenantId,
@@ -124,6 +125,21 @@ function isHttpStatusError(err: unknown, targetStatus: number): boolean {
   return Reflect.get(response, "status") === targetStatus;
 }
 
+function isSuperAdminClerkUser(cu: ReturnType<typeof useUser>["user"]): boolean {
+  if (cu === null || cu === undefined) return false;
+  const primaryEmail = (cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses[0]?.emailAddress ?? "").toLowerCase();
+  if (primaryEmail.includes("superadmin") || primaryEmail === "superadmin@ntcedge.com") {
+    return true;
+  }
+  const pubMeta = cu.publicMetadata;
+  if (typeof pubMeta === "object" && pubMeta !== null) {
+    if (pubMeta["is_super_admin"] === true || pubMeta["role"] === "superadmin") {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const isClerkEnabled = typeof CLERK_PUBLISHABLE_KEY === "string" && CLERK_PUBLISHABLE_KEY.trim().length > 0;
   const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
@@ -219,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (!clerkAuth.isLoaded) {
+      if (!clerkAuth.isLoaded || !clerkUser.isLoaded) {
         return;
       }
 
@@ -242,10 +258,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isMounted) setIsRestoringSession(true);
 
       const storedRegion = await getStoredRegionCode();
-      if (storedRegion === null || storedRegion.trim().length === 0) {
-        if (isMounted) setIsRestoringSession(false);
-        return;
-      }
 
       try {
         if (getTokenRef.current !== undefined) {
@@ -256,7 +268,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthToken(token);
         }
 
-        const verifiedClaims = await verifyStaffMembership(token, storedRegion);
+        let targetRegionCode = storedRegion !== null && storedRegion.trim().length > 0 ? storedRegion.trim() : null;
+
+        // If no stored region exists yet (e.g. fresh login), check if the user is a single-tenant non-SuperAdmin staff member
+        if (targetRegionCode === null) {
+          const isSuperAdmin = isSuperAdminClerkUser(clerkUser.user);
+          if (!isSuperAdmin) {
+            const memberships = await fetchMyTenantMemberships(token);
+            const activeMemberships = memberships.filter((m) => m.isActive !== false);
+            if (activeMemberships.length === 1) {
+              targetRegionCode = activeMemberships[0].regionCode;
+            }
+          }
+        }
+
+        if (targetRegionCode === null) {
+          if (isMounted) setIsRestoringSession(false);
+          return;
+        }
+
+        const verifiedClaims = await verifyStaffMembership(token, targetRegionCode);
+        const confirmedRegionCode = verifiedClaims.regionCode || targetRegionCode;
         if (isMounted) {
           setTenantId(verifiedClaims.tenantId ?? null);
           setBackendStaffClaims({
@@ -266,7 +298,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             roles: verifiedClaims.assignedRoles,
             permissions: verifiedClaims.effectivePermissions,
           });
-          setSelectedRegionState(storedRegion);
+          await setStoredRegionCode(confirmedRegionCode);
+          setSelectedRegionState(confirmedRegionCode);
           setIsMembershipVerified(true);
           setIsRestoringSession(false);
         }
@@ -299,7 +332,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [isClerkEnabled, clerkAuth.isLoaded, clerkAuth.isSignedIn]);
+  }, [isClerkEnabled, clerkAuth.isLoaded, clerkAuth.isSignedIn, clerkUser.isLoaded, clerkUser.user]);
 
   const loginWithClerk = async (email: string, password: string) => {
     if (!isClerkEnabled) {
