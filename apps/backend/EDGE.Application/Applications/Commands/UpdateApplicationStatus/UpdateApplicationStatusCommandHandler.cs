@@ -20,19 +20,22 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<UpdateApplicationStatusCommandHandler> _logger;
     private readonly INumberingSeriesService? _numberingSeriesService;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public UpdateApplicationStatusCommandHandler(
         IApplicationFullRepository applicationRepository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         ILogger<UpdateApplicationStatusCommandHandler> logger,
-        INumberingSeriesService? numberingSeriesService = null)
+        INumberingSeriesService? numberingSeriesService = null,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _logger = logger;
         _numberingSeriesService = numberingSeriesService;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
@@ -329,6 +332,26 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (_emailNotificationService != null)
+            {
+                if (newStatus == ApplicationStatus.Returned)
+                {
+                    await _emailNotificationService.SendApplicationReturnedForComplianceAsync(app.Id, request.Remarks, cancellationToken);
+                }
+                else if (newStatus == ApplicationStatus.ForAccountant || isAssessmentCompletion)
+                {
+                    await _emailNotificationService.SendApplicationUnderAccountingReviewAsync(app.Id, cancellationToken);
+                }
+                else if (newStatus == ApplicationStatus.PendingPayment)
+                {
+                    await _emailNotificationService.SendApplicationReadyForPaymentAsync(app.Id, null, cancellationToken);
+                }
+                else if (newStatus == ApplicationStatus.Completed && !isAssessmentCompletion)
+                {
+                    await _emailNotificationService.SendApplicationCompletedAsync(app.Id, null, cancellationToken);
+                }
+            }
 
             return ApiResponse<Guid>.Success(app.Id, $"Application status updated to '{newStatus}' successfully.");
         }

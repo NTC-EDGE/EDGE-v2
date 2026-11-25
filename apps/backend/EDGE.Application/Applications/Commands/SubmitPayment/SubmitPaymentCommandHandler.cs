@@ -19,6 +19,7 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
     private readonly IUserRepository _userRepository;
     private readonly ILogger<SubmitPaymentCommandHandler> _logger;
     private readonly INumberingSeriesService? _numberingSeriesService;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public SubmitPaymentCommandHandler(
         IApplicationFullRepository repository,
@@ -26,7 +27,8 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         ILogger<SubmitPaymentCommandHandler> logger,
-        INumberingSeriesService? numberingSeriesService = null)
+        INumberingSeriesService? numberingSeriesService = null,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -34,6 +36,7 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         _userRepository = userRepository;
         _logger = logger;
         _numberingSeriesService = numberingSeriesService;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<bool>> Handle(SubmitPaymentCommand request, CancellationToken cancellationToken)
@@ -218,6 +221,15 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         app.Remarks = paymentSummary;
         await _repository.UpdateAsync(app, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_emailNotificationService != null)
+        {
+            await _emailNotificationService.SendPaymentSubmittedToCashierAsync(
+                app.Id,
+                request.PaymentMethod.ToString(),
+                request.ReferenceNumber ?? op.CheckNumber,
+                cancellationToken);
+        }
 
         _logger.LogInformation("Payment submitted successfully for Application '{ApplicationId}' and OP '{OpId}'. Reference: '{RefNumber}'.", app.Id, op.Id, request.ReferenceNumber);
 

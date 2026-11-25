@@ -12,6 +12,7 @@ export const DEFAULT_TENANT_CONFIG: RegionalConfigDto = {
   requestAndComplaintRouting: 'DirectToLegal',
   allowManualSoaNumber: false,
   allowManualOpNumber: false,
+  enableInternalEmailNotifications: true,
 };
 
 function isRegionalConfigDto(data: unknown): data is RegionalConfigDto {
@@ -77,6 +78,8 @@ export const updateTenantConfig = async (
     requestAndComplaintRouting: config.requestAndComplaintRouting ?? DEFAULT_TENANT_CONFIG.requestAndComplaintRouting,
     allowManualSoaNumber: config.allowManualSoaNumber ?? DEFAULT_TENANT_CONFIG.allowManualSoaNumber,
     allowManualOpNumber: config.allowManualOpNumber ?? DEFAULT_TENANT_CONFIG.allowManualOpNumber,
+    enableInternalEmailNotifications:
+      config.enableInternalEmailNotifications ?? DEFAULT_TENANT_CONFIG.enableInternalEmailNotifications,
   };
 };
 

@@ -320,6 +320,23 @@ export function AdminSettingsScreen(): React.ReactElement {
                 configs={regionalConfigs}
                 branchOffices={branchOffices}
                 stats={stats}
+                enableInternalEmailNotifications={tenantConfig.enableInternalEmailNotifications !== false}
+                onToggleInternalEmailNotifications={async (enabled) => {
+                  const targetTenantId = effectiveTenantId || '00000000-0000-0000-0000-000000000001';
+                  const [res, err] = await safeAsync(
+                    updateTenantConfig({
+                      ...tenantConfig,
+                      tenantId: targetTenantId,
+                      enableInternalEmailNotifications: enabled,
+                    })
+                  );
+                  if (err || !res) {
+                    showToast(err || 'Failed to update internal email alerts status.', 'error');
+                    return;
+                  }
+                  showToast(`Internal officer email alerts ${enabled ? 'enabled' : 'disabled'}.`, 'success');
+                  void refetchTenantConfig();
+                }}
                 onEditConfig={handleEditConfig}
                 onDeleteConfig={handleDeleteConfig}
                 onAddBranchOffice={handleAddBranchOffice}
@@ -359,6 +376,7 @@ export function AdminSettingsScreen(): React.ReactElement {
                   requestAndComplaintRouting: savedData.requestAndComplaintRouting,
                   allowManualSoaNumber: savedData.allowManualSoaNumber,
                   allowManualOpNumber: savedData.allowManualOpNumber,
+                  enableInternalEmailNotifications: tenantConfig.enableInternalEmailNotifications !== false,
                 })
               );
               if (err || !res) {

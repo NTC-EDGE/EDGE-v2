@@ -16,17 +16,20 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public VerifyPaymentCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<bool>> Handle(VerifyPaymentCommand request, CancellationToken cancellationToken)
@@ -101,6 +104,16 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
         }, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_emailNotificationService != null && op.ApplicationId != Guid.Empty)
+        {
+            await _emailNotificationService.SendPaymentConfirmedForIssuanceAsync(
+                op.ApplicationId,
+                request.OfficialReceiptNumber,
+                request.AmountReceived,
+                cancellationToken);
+        }
+
         return ApiResponse<bool>.Success(true);
     }
 }

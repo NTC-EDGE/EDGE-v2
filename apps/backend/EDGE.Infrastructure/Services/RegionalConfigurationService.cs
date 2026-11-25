@@ -79,8 +79,14 @@ public class RegionalConfigurationService : IRegionalConfigurationService
             ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:AllowManualOpNumber", cancellationToken)
             ?? await _systemConfigRepository.GetByKeyAsync("AllowManualOpNumber", cancellationToken);
 
+        var enableInternalEmailConfig = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:EnableInternalEmailNotifications", cancellationToken)
+            ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:EnableInternalEmailNotifications", cancellationToken);
+
         var allowManualSoa = bool.TryParse(allowManualSoaConfig?.Value, out var parsedManualSoa) && parsedManualSoa;
         var allowManualOp = bool.TryParse(allowManualOpConfig?.Value, out var parsedManualOp) && parsedManualOp;
+        var enableInternalEmail = enableInternalEmailConfig == null
+            || !bool.TryParse(enableInternalEmailConfig.Value, out var parsedInternalEmail)
+            || parsedInternalEmail;
 
         return new RegionalConfigurationDto
         {
@@ -95,7 +101,8 @@ public class RegionalConfigurationService : IRegionalConfigurationService
             SupportEmail = !string.IsNullOrWhiteSpace(emailConfig?.Value) ? emailConfig.Value : "region10@ntc.gov.ph",
             SupportPhone = !string.IsNullOrWhiteSpace(phoneConfig?.Value) ? phoneConfig.Value : "(088) 856-1234 / (02) 8924-4008",
             AllowManualSoaNumber = allowManualSoa,
-            AllowManualOpNumber = allowManualOp
+            AllowManualOpNumber = allowManualOp,
+            EnableInternalEmailNotifications = enableInternalEmail
         };
     }
 
@@ -109,6 +116,7 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:RequestAndComplaintRouting", dto.RequestAndComplaintRouting ?? "DirectToLegal", $"Client application routing preference for Requests and Complaints in tenant {tenantId}", cancellationToken);
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:AllowManualSoaNumber", dto.AllowManualSoaNumber.ToString().ToLowerInvariant(), $"Whether manual SOA number entry and editing is allowed for tenant {tenantId}", cancellationToken, "Boolean");
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:AllowManualOpNumber", dto.AllowManualOpNumber.ToString().ToLowerInvariant(), $"Whether manual OP number entry and editing is allowed for tenant {tenantId}", cancellationToken, "Boolean");
+        await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:EnableInternalEmailNotifications", dto.EnableInternalEmailNotifications.ToString().ToLowerInvariant(), $"Whether automated email alerts are enabled for internal officers of tenant {tenantId}", cancellationToken, "Boolean");
 
         if (!string.IsNullOrWhiteSpace(dto.SupportEmail))
         {

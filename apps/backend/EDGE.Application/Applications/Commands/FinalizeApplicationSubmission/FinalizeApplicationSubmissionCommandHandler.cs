@@ -24,6 +24,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
     private readonly IUserAuthorizationService _userAuthorizationService;
     private readonly ILogger<FinalizeApplicationSubmissionCommandHandler> _logger;
     private readonly ITenantRepository? _tenantRepository;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public FinalizeApplicationSubmissionCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -34,7 +35,8 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         IUnitOfWork unitOfWork,
         IUserAuthorizationService userAuthorizationService,
         ILogger<FinalizeApplicationSubmissionCommandHandler> logger,
-        ITenantRepository? tenantRepository = null)
+        ITenantRepository? tenantRepository = null,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _applicationRepository = applicationRepository;
         _requirementRepository = requirementRepository;
@@ -45,6 +47,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         _userAuthorizationService = userAuthorizationService;
         _logger = logger;
         _tenantRepository = tenantRepository;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(FinalizeApplicationSubmissionCommand request, CancellationToken cancellationToken)
@@ -323,6 +326,11 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (_emailNotificationService != null)
+            {
+                await _emailNotificationService.SendApplicationSubmittedAsync(trackedApp.Id, cancellationToken);
+            }
 
             return ApiResponse<Guid>.Success(trackedApp.Id, "Application finalized and submitted successfully.");
         }

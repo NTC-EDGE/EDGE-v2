@@ -20,6 +20,7 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
     private readonly IUserRepository _userRepository;
     private readonly IUserAuthorizationService _userAuthService;
     private readonly ILogger<IssueApplicationCommandHandler> _logger;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public IssueApplicationCommandHandler(
         IApplicationFullRepository repository,
@@ -27,7 +28,8 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IUserAuthorizationService userAuthService,
-        ILogger<IssueApplicationCommandHandler> logger)
+        ILogger<IssueApplicationCommandHandler> logger,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -35,6 +37,7 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
         _userRepository = userRepository;
         _userAuthService = userAuthService;
         _logger = logger;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<IssuedDocumentDto>> Handle(IssueApplicationCommand request, CancellationToken cancellationToken)
@@ -188,6 +191,14 @@ public class IssueApplicationCommandHandler : IRequestHandler<IssueApplicationCo
         }, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_emailNotificationService != null)
+        {
+            var docSummary = !string.IsNullOrWhiteSpace(issuedDoc.LicenseNumber)
+                ? $"{issuedDoc.DocumentType} #{issuedDoc.LicenseNumber}"
+                : $"{issuedDoc.DocumentType} (Form #{issuedDoc.FormNumber})";
+            await _emailNotificationService.SendApplicationCompletedAsync(app.Id, docSummary, cancellationToken);
+        }
 
         _logger.LogInformation(
             "Application {ApplicationId} successfully issued by {StaffName}. FormNumber: {FormNumber}, LicenseNumber: {LicenseNumber}, IsAlternate: {IsAlternate}",

@@ -18,6 +18,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
     private readonly IUserRepository _userRepository;
     private readonly INumberingSeriesService? _numberingSeriesService;
     private readonly IRegionalConfigurationService? _regionalConfigService;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public ApproveSoaCommandHandler(
         IApplicationFullRepository repository,
@@ -25,7 +26,8 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         INumberingSeriesService? numberingSeriesService = null,
-        IRegionalConfigurationService? regionalConfigService = null)
+        IRegionalConfigurationService? regionalConfigService = null,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -33,6 +35,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         _userRepository = userRepository;
         _numberingSeriesService = numberingSeriesService;
         _regionalConfigService = regionalConfigService;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(ApproveSoaCommand request, CancellationToken cancellationToken)
@@ -274,6 +277,11 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         }, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_emailNotificationService != null)
+        {
+            await _emailNotificationService.SendApplicationReadyForPaymentAsync(app.Id, primaryOp?.Id, cancellationToken);
+        }
 
         return ApiResponse<Guid>.Success(primaryOp!.Id, "Statement of Account and Application approved. Order of Payment generated successfully.");
     }

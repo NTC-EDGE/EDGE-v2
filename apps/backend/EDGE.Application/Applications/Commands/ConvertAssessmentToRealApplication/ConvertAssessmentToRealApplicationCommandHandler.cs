@@ -23,6 +23,7 @@ public class ConvertAssessmentToRealApplicationCommandHandler
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<ConvertAssessmentToRealApplicationCommandHandler> _logger;
     private readonly ITenantRepository? _tenantRepository;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public ConvertAssessmentToRealApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -30,7 +31,8 @@ public class ConvertAssessmentToRealApplicationCommandHandler
         ICurrentUserService currentUserService,
         ILogger<ConvertAssessmentToRealApplicationCommandHandler> logger,
         IApplicantRepository? applicantRepository = null,
-        ITenantRepository? tenantRepository = null)
+        ITenantRepository? tenantRepository = null,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
@@ -38,6 +40,7 @@ public class ConvertAssessmentToRealApplicationCommandHandler
         _logger = logger;
         _applicantRepository = applicantRepository;
         _tenantRepository = tenantRepository;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -401,6 +404,11 @@ public class ConvertAssessmentToRealApplicationCommandHandler
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (_emailNotificationService != null)
+            {
+                await _emailNotificationService.SendApplicationSubmittedAsync(newApp.Id, cancellationToken);
+            }
 
             return ApiResponse<Guid>.Success(
                 newApp.Id,

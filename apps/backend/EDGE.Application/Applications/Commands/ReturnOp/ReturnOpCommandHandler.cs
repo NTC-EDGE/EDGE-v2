@@ -15,17 +15,20 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public ReturnOpCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<bool>> Handle(ReturnOpCommand request, CancellationToken cancellationToken)
@@ -135,6 +138,12 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_emailNotificationService != null && app != null && app.Status == ApplicationStatus.Returned)
+        {
+            await _emailNotificationService.SendApplicationReturnedForComplianceAsync(app.Id, request.Remarks, cancellationToken);
+        }
+
         return ApiResponse<bool>.Success(true);
     }
 }

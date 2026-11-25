@@ -26,6 +26,7 @@ public class SubmitApplicationCommandHandler
     private readonly IUserRepository _userRepository;
     private readonly IUserAuthorizationService _userAuthorizationService;
     private readonly ILogger<SubmitApplicationCommandHandler> _logger;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public SubmitApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -40,7 +41,8 @@ public class SubmitApplicationCommandHandler
         IServiceVariantElementRepository elementRepository,
         IUserRepository userRepository,
         IUserAuthorizationService userAuthorizationService,
-        ILogger<SubmitApplicationCommandHandler> logger)
+        ILogger<SubmitApplicationCommandHandler> logger,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _applicationRepository = applicationRepository;
         _applicantRepository = applicantRepository;
@@ -55,6 +57,7 @@ public class SubmitApplicationCommandHandler
         _userRepository = userRepository;
         _userAuthorizationService = userAuthorizationService;
         _logger = logger;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -808,6 +811,11 @@ public class SubmitApplicationCommandHandler
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (!request.IsDraft && _emailNotificationService != null)
+            {
+                await _emailNotificationService.SendApplicationSubmittedAsync(application.Id, cancellationToken);
+            }
 
             string successMessage = status == ApplicationStatus.Draft
                 ? "Application draft saved successfully."
