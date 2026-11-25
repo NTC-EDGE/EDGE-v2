@@ -51,7 +51,7 @@ public static class SystemConfigEndpoints
     public static async Task<IResult> GetSystemConfigs(
         IMediator mediator,
         [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 10,
+        [FromQuery] int pageSize = 100,
         [FromQuery] string? searchTerm = null,
         [FromQuery] string? category = null)
     {
@@ -63,7 +63,7 @@ public static class SystemConfigEndpoints
     public static async Task<IResult> GetPublicSystemConfigs(
         IMediator mediator,
         [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 100)
     {
         var result = await mediator.Send(new GetSystemConfigsQuery(pageNumber, pageSize, Category: null, PublicOnly: true));
         return Results.Ok(result);
