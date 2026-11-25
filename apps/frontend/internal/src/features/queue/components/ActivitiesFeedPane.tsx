@@ -182,7 +182,7 @@ export function ActivitiesFeedPane({
   const { currentRole } = useRole();
   const isAdmin = currentRole === "Admin";
   const officerName = user?.name || user?.email || "Evaluating Officer";
-  const { config: tenantConfig } = useTenantConfig();
+  const { config: tenantConfig } = useTenantConfig(user?.tenantId);
 
   const PAGE_SIZE_STEP = 15;
   const [pageSize, setPageSize] = useState(PAGE_SIZE_STEP);
@@ -199,6 +199,7 @@ export function ActivitiesFeedPane({
   }, [searchQuery]);
 
   const { applications: rawDtos, pagination, isLoading, refetch } = useApplicationActivities({
+    tenantId: user?.tenantId,
     queueTab: activeQueueTab,
     role: currentRole,
     assignedTo: officerName,

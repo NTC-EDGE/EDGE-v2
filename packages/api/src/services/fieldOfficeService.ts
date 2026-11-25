@@ -1,6 +1,7 @@
 import { apiClient } from "../apiClient";
 import { ApiResponse } from "../types";
 import { FieldOfficeDto } from "../hooks/useAdminFieldOffices";
+import { resolveEffectiveTenantId } from "../utils/tenantUtils";
 
 export interface CreateFieldOfficePayload {
   tenantId?: string;
@@ -28,7 +29,8 @@ export interface UpdateFieldOfficePayload extends CreateFieldOfficePayload {
  * Service function to fetch field offices from backend API.
  */
 export async function fetchFieldOffices(tenantId?: string): Promise<FieldOfficeDto[]> {
-  const url = tenantId ? `/api/v2/tenants/${tenantId}/field-offices` : '/api/v2/field-offices';
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
+  const url = effectiveTenantId ? `/api/v2/tenants/${effectiveTenantId}/field-offices` : '/api/v2/field-offices';
   const response = await apiClient.get<ApiResponse<FieldOfficeDto[]> | FieldOfficeDto[]>(url);
   const data = response.data;
   if (Array.isArray(data)) {
@@ -44,7 +46,8 @@ export async function fetchFieldOffices(tenantId?: string): Promise<FieldOfficeD
  * Service function to fetch a field office by ID.
  */
 export async function fetchFieldOfficeById(id: string, tenantId?: string): Promise<FieldOfficeDto | null> {
-  const url = `/api/v2/field-offices/${id}${tenantId ? `?tenantId=${tenantId}` : ''}`;
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
+  const url = `/api/v2/field-offices/${id}${effectiveTenantId ? `?tenantId=${encodeURIComponent(effectiveTenantId)}` : ''}`;
   const response = await apiClient.get<ApiResponse<FieldOfficeDto> | FieldOfficeDto>(url);
   const data = response.data;
   if (data !== null && typeof data === 'object' && 'data' in data && data.data) {
@@ -60,7 +63,9 @@ export async function fetchFieldOfficeById(id: string, tenantId?: string): Promi
  * Service function to create a new field office record.
  */
 export async function createFieldOffice(payload: CreateFieldOfficePayload): Promise<FieldOfficeDto> {
-  const response = await apiClient.post<FieldOfficeDto>('/api/v2/field-offices', payload);
+  const effectiveTenantId = resolveEffectiveTenantId(payload.tenantId);
+  const body = effectiveTenantId ? { ...payload, tenantId: effectiveTenantId } : payload;
+  const response = await apiClient.post<FieldOfficeDto>('/api/v2/field-offices', body);
   return response.data;
 }
 
@@ -68,7 +73,9 @@ export async function createFieldOffice(payload: CreateFieldOfficePayload): Prom
  * Service function to update an existing field office record.
  */
 export async function updateFieldOffice(id: string, payload: UpdateFieldOfficePayload): Promise<FieldOfficeDto> {
-  const response = await apiClient.put<FieldOfficeDto>(`/api/v2/field-offices/${id}`, payload);
+  const effectiveTenantId = resolveEffectiveTenantId(payload.tenantId);
+  const body = effectiveTenantId ? { ...payload, tenantId: effectiveTenantId } : payload;
+  const response = await apiClient.put<FieldOfficeDto>(`/api/v2/field-offices/${id}`, body);
   return response.data;
 }
 
@@ -76,7 +83,8 @@ export async function updateFieldOffice(id: string, payload: UpdateFieldOfficePa
  * Service function to delete a field office record.
  */
 export async function deleteFieldOffice(id: string, tenantId?: string): Promise<boolean> {
-  const url = `/api/v2/field-offices/${id}${tenantId ? `?tenantId=${tenantId}` : ''}`;
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
+  const url = `/api/v2/field-offices/${id}${effectiveTenantId ? `?tenantId=${encodeURIComponent(effectiveTenantId)}` : ''}`;
   await apiClient.delete(url);
   return true;
 }

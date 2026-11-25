@@ -11,14 +11,16 @@ import {
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, SkeletonLoader } from '@edge/ui';
 import { useAdminAuditLogs } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 
 export function AuditLogsTab() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const { user } = useAuthContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
 
-  const { logs, totalCount, isLoading, isError, refetch } = useAdminAuditLogs(page, 15, searchTerm);
+  const { logs, totalCount, isLoading, isError, refetch } = useAdminAuditLogs(page, 15, searchTerm, user?.tenantId);
 
   return (
     <View style={styles.container}>

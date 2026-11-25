@@ -141,6 +141,10 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
         {
             filterTenantId = request.TenantId.Value;
         }
+        else if (_tenantContextService.TenantId.HasValue && _tenantContextService.TenantId.Value != Guid.Empty)
+        {
+            filterTenantId = _tenantContextService.TenantId.Value;
+        }
 
         string? effectiveFieldOffice = request.FieldOffice;
 

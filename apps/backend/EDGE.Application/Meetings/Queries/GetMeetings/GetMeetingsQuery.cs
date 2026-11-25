@@ -1,5 +1,6 @@
 using MediatR;
 using System.Text.Json;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Meetings.DTOs;
 
@@ -17,15 +18,18 @@ public class GetMeetingsQueryHandler : IRequestHandler<GetMeetingsQuery, List<Me
     private readonly IMeetingRepository _meetingRepository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ITenantContextService? _tenantContextService;
 
     public GetMeetingsQueryHandler(
         IMeetingRepository meetingRepository,
         IUserRepository userRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ITenantContextService? tenantContextService = null)
     {
         _meetingRepository = meetingRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<List<MeetingDto>> Handle(GetMeetingsQuery request, CancellationToken cancellationToken)
@@ -33,7 +37,11 @@ public class GetMeetingsQueryHandler : IRequestHandler<GetMeetingsQuery, List<Me
         var currentUser = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken)
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
-        var meetings = await _meetingRepository.GetMeetingsAsync(currentUser.Id, request.TenantId, request.Filter, cancellationToken);
+        var effectiveTenantId = (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+            ? request.TenantId
+            : _tenantContextService?.TenantId;
+
+        var meetings = await _meetingRepository.GetMeetingsAsync(currentUser.Id, effectiveTenantId, request.Filter, cancellationToken);
 
         return meetings.Select(m => new MeetingDto
         {

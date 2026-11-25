@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from 'react-native';
 import { Icon, useTheme } from '@edge/ui';
-import { useUsers, useTenants, useTenantMembers } from '@edge/api';
+import { useUsers, useTenants, useTenantMembers, resolveEffectiveTenantId } from '@edge/api';
 
 export interface TenantParticipantPickerProps {
   selectedUserIds: string[];
@@ -22,7 +22,7 @@ export const TenantParticipantPicker: React.FC<TenantParticipantPickerProps> = (
   const { users } = useUsers({ pageSize: 500 });
   const { tenants } = useTenants();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(() => resolveEffectiveTenantId() ?? 'all');
 
   const { members } = useTenantMembers(selectedTenantId !== 'all' ? selectedTenantId : undefined);
 

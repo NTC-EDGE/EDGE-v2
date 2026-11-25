@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Conversations.DTOs;
 
@@ -9,15 +10,18 @@ public class GetConversationsQueryHandler : IRequestHandler<GetConversationsQuer
     private readonly IConversationRepository _conversationRepository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ITenantContextService? _tenantContextService;
 
     public GetConversationsQueryHandler(
         IConversationRepository conversationRepository,
         IUserRepository userRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ITenantContextService? tenantContextService = null)
     {
         _conversationRepository = conversationRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<List<ConversationDto>> Handle(GetConversationsQuery request, CancellationToken cancellationToken)
@@ -25,7 +29,11 @@ public class GetConversationsQueryHandler : IRequestHandler<GetConversationsQuer
         var currentUser = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken)
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
-        var conversations = await _conversationRepository.GetUserConversationsAsync(currentUser.Id, request.TenantId, request.Filter, cancellationToken);
+        var effectiveTenantId = (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+            ? request.TenantId
+            : _tenantContextService?.TenantId;
+
+        var conversations = await _conversationRepository.GetUserConversationsAsync(currentUser.Id, effectiveTenantId, request.Filter, cancellationToken);
 
         var result = conversations.Select(c =>
         {

@@ -1,6 +1,7 @@
 import useSWR from "swr";
 import { apiClient } from "../apiClient";
 import { PaginatedApiResponse, SoaNote } from "../types";
+import { resolveEffectiveTenantId } from "../utils/tenantUtils";
 
 export interface UseSoaNotesParams {
   pageNumber?: number;
@@ -20,12 +21,13 @@ export interface UseSoaNotesReturn {
 
 export function useSoaNotes(params?: UseSoaNotesParams): UseSoaNotesReturn {
   const { pageNumber = 1, pageSize = 20, searchTerm, tenantId, enabled = true } = params ?? {};
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
 
   const queryParams = new URLSearchParams();
   queryParams.append("pageNumber", pageNumber.toString());
   queryParams.append("pageSize", pageSize.toString());
   if (searchTerm) queryParams.append("searchTerm", searchTerm);
-  if (tenantId) queryParams.append("tenantId", tenantId);
+  if (effectiveTenantId) queryParams.append("tenantId", effectiveTenantId);
 
   const url = enabled ? `/api/v2/soa-notes?${queryParams.toString()}` : null;
 

@@ -37,11 +37,14 @@ public class GetFeedbacksQueryHandler : IRequestHandler<GetFeedbacksQuery, List<
         var hasGlobalTenantAccess = isSuperAdmin || activeTenantIds.Count == 0 || activeTenantIds.Count >= allTenants.Count;
 
         var items = await _feedbackRepository.GetAllAsync(cancellationToken);
+        var effectiveTenantId = (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+            ? request.TenantId
+            : _tenantContextService.TenantId;
 
-        if (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+        if (effectiveTenantId.HasValue && effectiveTenantId.Value != Guid.Empty)
         {
             items = items
-                .Where(f => f.TenantId == request.TenantId.Value)
+                .Where(f => f.TenantId == effectiveTenantId.Value)
                 .ToList();
         }
         else if (!hasGlobalTenantAccess)

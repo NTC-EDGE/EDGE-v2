@@ -6,6 +6,7 @@ import {
   PublicRegionalOfficeDto,
   SubmitFeedbackPayload,
 } from "../types";
+import { resolveEffectiveTenantId } from "../utils/tenantUtils";
 
 export interface UseAdminFeedbackReturn {
   feedback: FeedbackDto[];
@@ -15,12 +16,9 @@ export interface UseAdminFeedbackReturn {
 }
 
 export function useAdminFeedback(tenantId?: string | null): UseAdminFeedbackReturn {
-  const explicitTenantId =
-    typeof tenantId === "string" && tenantId.trim().length > 0
-      ? tenantId.trim()
-      : null;
-  const queryUrl = explicitTenantId
-    ? `/api/v2/feedback?tenantId=${encodeURIComponent(explicitTenantId)}`
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
+  const queryUrl = effectiveTenantId
+    ? `/api/v2/feedback?tenantId=${encodeURIComponent(effectiveTenantId)}`
     : "/api/v2/feedback";
 
   const { data, error, isLoading, mutate } = useSWR<ApiResponse<FeedbackDto[]>>(

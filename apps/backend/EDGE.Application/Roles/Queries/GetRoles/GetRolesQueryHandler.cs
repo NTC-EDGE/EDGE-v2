@@ -20,18 +20,21 @@ public class GetRolesQueryHandler : IRequestHandler<GetRolesQuery, List<Role>>
     public async Task<List<Role>> Handle(GetRolesQuery request, CancellationToken cancellationToken)
     {
         var isSuperAdmin = await _tenantContextService.IsCurrentUserSuperAdminAsync(cancellationToken);
+        var effectiveTenantId = (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+            ? request.TenantId
+            : _tenantContextService.TenantId;
 
         List<Role> roles;
-        if (request.TenantId.HasValue)
+        if (effectiveTenantId.HasValue && effectiveTenantId.Value != Guid.Empty)
         {
             if (!isSuperAdmin)
             {
                 await _tenantContextService.EnsureUserActiveMemberAsync(
-                    request.TenantId.Value,
+                    effectiveTenantId.Value,
                     "You are not authorized to view roles for another tenant.",
                     cancellationToken);
             }
-            roles = await _roleRepository.GetAllByTenantAsync(request.TenantId.Value, cancellationToken);
+            roles = await _roleRepository.GetAllByTenantAsync(effectiveTenantId.Value, cancellationToken);
         }
         else if (isSuperAdmin)
         {

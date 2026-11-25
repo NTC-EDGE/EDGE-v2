@@ -1,6 +1,7 @@
 import useSWR from 'swr';
 import { apiClient } from '../apiClient';
 import { PaginatedApiResponse, ScheduleItemDto } from '../types';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 export interface UseAdminSchedulesParams {
   tenantId?: string;
@@ -22,8 +23,9 @@ export interface UseAdminSchedulesReturn {
 
 export function useAdminSchedules(params?: UseAdminSchedulesParams): UseAdminSchedulesReturn {
   const searchParams = new URLSearchParams();
-  if (params?.tenantId !== undefined && params.tenantId !== null && params.tenantId.trim().length > 0) {
-    searchParams.append('tenantId', params.tenantId.trim());
+  const effectiveTenantId = resolveEffectiveTenantId(params?.tenantId);
+  if (effectiveTenantId !== null) {
+    searchParams.append('tenantId', effectiveTenantId);
   }
   if (params?.serviceId !== undefined && params.serviceId !== null && params.serviceId.trim().length > 0) {
     searchParams.append('serviceId', params.serviceId.trim());

@@ -40,6 +40,7 @@ export function DashboardScreen(): React.ReactElement {
 
   // Live applications and aggregated telemetry
   const { applications, statistics, isLoading, isError } = useAdminApplications({
+    tenantId: user?.tenantId,
     role: currentRole,
     scope: 'queue',
     pageSize: 15,

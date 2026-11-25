@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.SoaNotes.DTOs;
@@ -13,13 +14,16 @@ public class GetAllSoaNotesQueryHandler : IRequestHandler<GetAllSoaNotesQuery, P
 {
     private readonly ISoaNoteRepository _soaNoteRepository;
     private readonly ICurrentUserService? _currentUserService;
+    private readonly ITenantContextService? _tenantContextService;
 
     public GetAllSoaNotesQueryHandler(
         ISoaNoteRepository soaNoteRepository,
-        ICurrentUserService? currentUserService = null)
+        ICurrentUserService? currentUserService = null,
+        ITenantContextService? tenantContextService = null)
     {
         _soaNoteRepository = soaNoteRepository;
         _currentUserService = currentUserService;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<PaginatedApiResponse<SoaNoteDto>> Handle(GetAllSoaNotesQuery request, CancellationToken cancellationToken)
@@ -29,7 +33,15 @@ public class GetAllSoaNotesQueryHandler : IRequestHandler<GetAllSoaNotesQuery, P
         if (pageSize <= 0) pageSize = 1;
 
         Guid? effectiveTenantId = request.TenantId;
-        if (!effectiveTenantId.HasValue && _currentUserService?.TenantId.HasValue == true && _currentUserService.TenantId.Value != Guid.Empty)
+        if ((!effectiveTenantId.HasValue || effectiveTenantId.Value == Guid.Empty) &&
+            _tenantContextService?.TenantId.HasValue == true &&
+            _tenantContextService.TenantId.Value != Guid.Empty)
+        {
+            effectiveTenantId = _tenantContextService.TenantId.Value;
+        }
+        if ((!effectiveTenantId.HasValue || effectiveTenantId.Value == Guid.Empty) &&
+            _currentUserService?.TenantId.HasValue == true &&
+            _currentUserService.TenantId.Value != Guid.Empty)
         {
             effectiveTenantId = _currentUserService.TenantId.Value;
         }

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAdminFeedback, apiClient } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 
 export type RatingFilterType = 'all' | '5' | '4' | 'critical' | 'anon';
 
@@ -10,7 +11,8 @@ export interface DeleteModalState {
 }
 
 export function useFeedbackState() {
-  const { feedback, isLoading, isError, refetch } = useAdminFeedback();
+  const { user } = useAuthContext();
+  const { feedback, isLoading, isError, refetch } = useAdminFeedback(user?.tenantId);
 
   // Search, Filter & Pagination State
   const [searchQuery, setSearchQuery] = useState('');

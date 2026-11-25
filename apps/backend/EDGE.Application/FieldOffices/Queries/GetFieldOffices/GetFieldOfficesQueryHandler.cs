@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.FieldOffices.DTOs;
 
@@ -7,15 +8,23 @@ namespace EDGE.Application.FieldOffices.Queries.GetFieldOffices;
 public class GetFieldOfficesQueryHandler : IRequestHandler<GetFieldOfficesQuery, List<FieldOfficeDto>>
 {
     private readonly IFieldOfficeRepository _repository;
+    private readonly ITenantContextService? _tenantContextService;
 
-    public GetFieldOfficesQueryHandler(IFieldOfficeRepository repository)
+    public GetFieldOfficesQueryHandler(
+        IFieldOfficeRepository repository,
+        ITenantContextService? tenantContextService = null)
     {
         _repository = repository;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<List<FieldOfficeDto>> Handle(GetFieldOfficesQuery request, CancellationToken cancellationToken)
     {
-        var offices = await _repository.GetFilteredAsync(request.TenantId, request.RegionId, cancellationToken);
+        var effectiveTenantId = (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+            ? request.TenantId
+            : _tenantContextService?.TenantId;
+
+        var offices = await _repository.GetFilteredAsync(effectiveTenantId, request.RegionId, cancellationToken);
         if (request.IsActive.HasValue)
         {
             offices = offices.Where(f => f.IsActive == request.IsActive.Value).ToList();

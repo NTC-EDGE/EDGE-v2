@@ -58,6 +58,12 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, Pagin
                 effectiveTenantId = activeTenantIds[0];
             }
         }
+        else if ((!effectiveTenantId.HasValue || effectiveTenantId.Value == Guid.Empty) &&
+                 _tenantContextService.TenantId.HasValue &&
+                 _tenantContextService.TenantId.Value != Guid.Empty)
+        {
+            effectiveTenantId = _tenantContextService.TenantId.Value;
+        }
 
         var (schedules, totalCount) = await _scheduleRepository.GetAllAsync(
             effectiveTenantId,

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, SkeletonLoader } from '@edge/ui';
 import { useAdminFeedback, FeedbackDto } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 import { FeedbackItem } from '../types/adminSettingsTypes';
 
 interface FeedbackTabProps {
@@ -20,8 +21,9 @@ interface FeedbackTabProps {
 export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const { user } = useAuthContext();
 
-  const { feedback: apiFeedback, isLoading, isError, refetch } = useAdminFeedback();
+  const { feedback: apiFeedback, isLoading, isError, refetch } = useAdminFeedback(user?.tenantId);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);

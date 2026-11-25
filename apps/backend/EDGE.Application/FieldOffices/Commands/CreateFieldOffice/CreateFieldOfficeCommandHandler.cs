@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
@@ -18,25 +19,32 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly ITenantRepository _tenantRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ITenantContextService? _tenantContextService;
 
     public CreateFieldOfficeCommandHandler(
         IFieldOfficeRepository repository,
         IGeographicRepository geographicRepository,
         ITenantMemberRepository tenantMemberRepository,
         ITenantRepository tenantRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ITenantContextService? tenantContextService = null)
     {
         _repository = repository;
         _geographicRepository = geographicRepository;
         _tenantMemberRepository = tenantMemberRepository;
         _tenantRepository = tenantRepository;
         _unitOfWork = unitOfWork;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<FieldOfficeDto> Handle(CreateFieldOfficeCommand request, CancellationToken cancellationToken)
     {
         // 1. Resolve Tenant
         var tenantId = request.TenantId.GetValueOrDefault();
+        if (tenantId == Guid.Empty && _tenantContextService?.TenantId.HasValue == true)
+        {
+            tenantId = _tenantContextService.TenantId.Value;
+        }
         if (tenantId == Guid.Empty)
         {
             throw new ArgumentException("Tenant ID is required to create a field office.", nameof(request.TenantId));
