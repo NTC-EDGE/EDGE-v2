@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ActionMenu } from "@/components/ui/action-menu";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
@@ -58,6 +59,7 @@ export default function NotificationTemplatesPage() {
   const [bodyHtml, setBodyHtml] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false);
   const [previewTab, setPreviewTab] = useState<"code" | "preview">("preview");
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
 
@@ -87,8 +89,13 @@ export default function NotificationTemplatesPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedTemplate) return;
+    setIsConfirmSaveOpen(true);
+  };
+
+  const handleConfirmSaveTemplate = async () => {
     if (!selectedTemplate) return;
 
     setIsSaving(true);
@@ -101,11 +108,13 @@ export default function NotificationTemplatesPage() {
     );
 
     if (res) {
-      setToast({ message: "Notification template updated successfully.", type: "success" });
+      setToast({ message: `Confirmed: Notification template "${selectedTemplate.name}" updated successfully.`, type: "success" });
       mutate();
+      setIsConfirmSaveOpen(false);
       setIsEditModalOpen(false);
     } else {
       setToast({ message: getErrorMessage(err, "Failed to update notification template."), type: "error" });
+      setIsConfirmSaveOpen(false);
     }
     setIsSaving(false);
   };
@@ -444,6 +453,17 @@ export default function NotificationTemplatesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmActionDialog
+        isOpen={isConfirmSaveOpen}
+        onClose={() => !isSaving && setIsConfirmSaveOpen(false)}
+        onConfirm={handleConfirmSaveTemplate}
+        title="Confirm Email Template Changes"
+        description={`Are you sure you want to save changes to "${selectedTemplate?.name || selectedTemplate?.eventKey}" (Status: ${isActive ? "Active" : "Disabled"})? This will immediately update the automated email sent for this event.`}
+        confirmLabel="Confirm & Save Template"
+        cancelLabel="Cancel"
+        loading={isSaving}
+      />
 
       <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>

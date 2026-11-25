@@ -17,16 +17,60 @@ import {
   RefreshCw
 } from "lucide-react";
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+
+const CATEGORY_KEYS: Record<string, string[]> = {
+  General: ["SYSTEM_NAME", "SUPPORT_EMAIL"],
+  Renewal: ["Renewal:DaysBeforeExpiration", "Renewal:DefaultValidityYears"],
+  Security: ["SESSION_TIMEOUT_MINS", "MAX_FAILED_LOGINS"],
+  Email: [
+    "EMAIL_ENABLED",
+    "SMTP_SERVER",
+    "SMTP_PORT",
+    "SMTP_USE_SSL",
+    "SMTP_USERNAME",
+    "SMTP_PASSWORD",
+    "SMTP_FROM_EMAIL",
+    "SMTP_FROM_NAME",
+    "CLIENT_PORTAL_BASE_URL",
+    "INTERNAL_PORTAL_BASE_URL",
+  ],
+  Upload: ["MAX_UPLOAD_SIZE_MB", "ALLOWED_FILE_TYPES"],
+  Maintenance: ["MAINTENANCE_MODE"],
+};
+
+const DEFAULT_CONFIG_VALUES: Record<string, string> = {
+  SYSTEM_NAME: "NTC EDGE Portal",
+  SUPPORT_EMAIL: "support@ntc.gov.ph",
+  MAINTENANCE_MODE: "false",
+  MAX_UPLOAD_SIZE_MB: "25",
+  ALLOWED_FILE_TYPES: ".pdf,.jpg,.png,.zip",
+  EMAIL_ENABLED: "true",
+  SMTP_SERVER: "smtp.ntc.gov.ph",
+  SMTP_PORT: "587",
+  SMTP_USE_SSL: "true",
+  SMTP_USERNAME: "",
+  SMTP_PASSWORD: "",
+  SMTP_FROM_EMAIL: "no-reply@ntc.gov.ph",
+  SMTP_FROM_NAME: "NTC EDGE Portal",
+  CLIENT_PORTAL_BASE_URL: "http://localhost:8081",
+  INTERNAL_PORTAL_BASE_URL: "http://localhost:8082",
+  SESSION_TIMEOUT_MINS: "30",
+  MAX_FAILED_LOGINS: "5",
+  "Renewal:DaysBeforeExpiration": "60,30,15,1,0",
+  "Renewal:DefaultValidityYears": "1",
+};
 
 export default function SystemConfigPage() {
   const { useSystemConfigs, updateSystemConfig } = useSystemConfigService();
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [activeTab, setActiveTab] = useState<string>("General");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [configsState, setConfigsState] = useState<Record<string, string>>({});
+  const [configsState, setConfigsState] = useState<Record<string, string>>(DEFAULT_CONFIG_VALUES);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false);
 
   const { data: responseData, mutate, isLoading, error } = useSystemConfigs(1, 50, searchTerm, activeTab);
 
@@ -48,22 +92,11 @@ export default function SystemConfigPage() {
       list.forEach((c) => {
         stateMap[c.key] = c.value;
       });
-      setConfigsState((prev) => (Object.keys(prev).length > 0 ? prev : stateMap));
-    } else {
-      setConfigsState((prev) => {
-        if (Object.keys(prev).length > 0) return prev;
-        return {
-          SYSTEM_NAME: "NTC EDGE Portal",
-          MAINTENANCE_MODE: "false",
-          MAX_UPLOAD_SIZE_MB: "25",
-          ALLOWED_FILE_TYPES: ".pdf,.jpg,.png,.zip",
-          SMTP_SERVER: "smtp.ntc.gov.ph",
-          SMTP_PORT: "587",
-          SESSION_TIMEOUT_MINS: "30",
-          "Renewal:DaysBeforeExpiration": "60,30,15,1",
-          "Renewal:DefaultValidityYears": "1",
-        };
-      });
+      setConfigsState((prev) => ({
+        ...DEFAULT_CONFIG_VALUES,
+        ...prev,
+        ...stateMap,
+      }));
     }
   }, [responseData]);
 
@@ -75,15 +108,22 @@ export default function SystemConfigPage() {
     setConfigsState((prev) => ({ ...prev, [key]: val }));
   };
 
+  const handleRequestSaveCategory = () => {
+    setIsConfirmSaveOpen(true);
+  };
+
   const handleSaveCategory = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
 
     const categoryConfigs = configs.filter((c) => c.category === activeTab);
-    const keysToSave =
-      categoryConfigs.length > 0
-        ? categoryConfigs.map((c) => c.key)
-        : Object.keys(configsState);
+    const defaultCategoryKeys = CATEGORY_KEYS[activeTab] ?? [];
+    const keysToSave = Array.from(
+      new Set([
+        ...defaultCategoryKeys,
+        ...categoryConfigs.map((c) => c.key),
+      ])
+    );
 
     let hasError = false;
     let lastErrorMsg = "";
@@ -107,10 +147,11 @@ export default function SystemConfigPage() {
 
     await mutate();
     setIsSaving(false);
+    setIsConfirmSaveOpen(false);
     if (hasError) {
       setToast({ message: lastErrorMsg, type: "error" });
     } else {
-      setToast({ message: "System configuration settings updated successfully.", type: "success" });
+      setToast({ message: `Confirmed: ${activeTab} system configuration settings updated successfully.`, type: "success" });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     }
@@ -141,7 +182,7 @@ export default function SystemConfigPage() {
           </div>
         </div>
         <button
-          onClick={handleSaveCategory}
+          onClick={handleRequestSaveCategory}
           disabled={isSaving}
           className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
         >
@@ -322,29 +363,151 @@ export default function SystemConfigPage() {
         )}
 
         {activeTab === "Email" && (
-          <div className="space-y-6 max-w-2xl">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Mail className="h-5 w-5 text-indigo-500 dark:text-indigo-400" /> Email Gateway / SMTP Settings
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6 max-w-3xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">SMTP Server Host</label>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-indigo-500 dark:text-indigo-400" /> Email Gateway / SMTP Settings
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Configure the outbound SMTP server, sender identity, and portal base URLs for automated client and internal officer email notifications.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  handleChange(
+                    "EMAIL_ENABLED",
+                    (configsState["EMAIL_ENABLED"] ?? "true") === "true" ? "false" : "true"
+                  )
+                }
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                  (configsState["EMAIL_ENABLED"] ?? "true") === "true"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400"
+                }`}
+              >
+                {(configsState["EMAIL_ENABLED"] ?? "true") === "true"
+                  ? "EMAIL DELIVERY: ENABLED"
+                  : "EMAIL DELIVERY: DISABLED"}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  SMTP Server Host
+                </label>
                 <input
                   type="text"
+                  placeholder="e.g. smtp.ntc.gov.ph or smtp.gmail.com"
                   value={configsState["SMTP_SERVER"] ?? "smtp.ntc.gov.ph"}
                   onChange={(e) => handleChange("SMTP_SERVER", e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">SMTP Port</label>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  SMTP Port
+                </label>
                 <input
                   type="text"
+                  placeholder="587"
                   value={configsState["SMTP_PORT"] ?? "587"}
                   onChange={(e) => handleChange("SMTP_PORT", e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  SMTP Username / Account Email
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. notifications@ntc.gov.ph"
+                  value={configsState["SMTP_USERNAME"] ?? ""}
+                  onChange={(e) => handleChange("SMTP_USERNAME", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  SMTP Password / App Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="Enter SMTP password or app password"
+                  value={configsState["SMTP_PASSWORD"] ?? ""}
+                  onChange={(e) => handleChange("SMTP_PASSWORD", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Sender From Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder="no-reply@ntc.gov.ph"
+                  value={configsState["SMTP_FROM_EMAIL"] ?? "no-reply@ntc.gov.ph"}
+                  onChange={(e) => handleChange("SMTP_FROM_EMAIL", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Sender Display Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="NTC EDGE Portal"
+                  value={configsState["SMTP_FROM_NAME"] ?? "NTC EDGE Portal"}
+                  onChange={(e) => handleChange("SMTP_FROM_NAME", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Client Portal Base URL (For Email Action Links)
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://client.edge.ntc.gov.ph"
+                  value={configsState["CLIENT_PORTAL_BASE_URL"] ?? "http://localhost:8081"}
+                  onChange={(e) => handleChange("CLIENT_PORTAL_BASE_URL", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Internal Officer Portal Base URL
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://internal.edge.ntc.gov.ph"
+                  value={configsState["INTERNAL_PORTAL_BASE_URL"] ?? "http://localhost:8082"}
+                  onChange={(e) => handleChange("INTERNAL_PORTAL_BASE_URL", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-white">Use SSL / STARTTLS Encryption</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Encrypts outbound SMTP traffic using TLS (Recommended for port 587 and 465).
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={(configsState["SMTP_USE_SSL"] ?? "true") === "true"}
+                onChange={(e) => handleChange("SMTP_USE_SSL", e.target.checked ? "true" : "false")}
+                className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
             </div>
           </div>
         )}
@@ -410,6 +573,21 @@ export default function SystemConfigPage() {
         )}
       </div>
       )}
+
+      <ConfirmActionDialog
+        isOpen={isConfirmSaveOpen}
+        onClose={() => !isSaving && setIsConfirmSaveOpen(false)}
+        onConfirm={handleSaveCategory}
+        title={`Confirm ${activeTab} Configuration Changes`}
+        description={
+          activeTab === "Email"
+            ? `Are you sure you want to update the Email Gateway / SMTP configuration (${configsState["SMTP_SERVER"] || "smtp.ntc.gov.ph"}:${configsState["SMTP_PORT"] || "587"}, Delivery: ${(configsState["EMAIL_ENABLED"] ?? "true") === "true" ? "ENABLED" : "DISABLED"})? These changes will immediately affect outbound email notifications for clients and regional officers.`
+            : `Are you sure you want to apply and save your changes to the ${activeTab} system configuration settings?`
+        }
+        confirmLabel="Confirm & Save Changes"
+        cancelLabel="Cancel"
+        loading={isSaving}
+      />
 
       <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>

@@ -45,48 +45,87 @@ public class SmtpEmailService : IEmailService
             return true;
         }
 
+        var dbEmailEnabled = await _systemConfigRepository.GetByKeyAsync("EMAIL_ENABLED", cancellationToken);
+        if (dbEmailEnabled != null && bool.TryParse(dbEmailEnabled.Value, out var isDbEmailEnabled) && !isDbEmailEnabled)
+        {
+            _logger.LogInformation("Email delivery is disabled via Admin System Configuration (EMAIL_ENABLED=false). Simulated email to '{ToEmail}' with Subject: '{Subject}'.", toEmail, subject);
+            return true;
+        }
+
         var smtpHost = _options.SmtpHost;
         var smtpPort = _options.SmtpPort;
+        var useSsl = _options.UseSsl;
+        var smtpUsername = _options.SmtpUsername;
+        var smtpPassword = _options.SmtpPassword;
         var fromAddress = _options.FromAddress;
         var fromName = _options.FromName;
 
-        if (string.IsNullOrWhiteSpace(smtpHost))
+        var dbHost = await _systemConfigRepository.GetByKeyAsync("SMTP_SERVER", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(dbHost?.Value))
         {
-            var dbHost = await _systemConfigRepository.GetByKeyAsync("SMTP_SERVER", cancellationToken);
-            if (!string.IsNullOrWhiteSpace(dbHost?.Value))
+            smtpHost = dbHost.Value.Trim();
+        }
+
+        var dbPort = await _systemConfigRepository.GetByKeyAsync("SMTP_PORT", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(dbPort?.Value) && int.TryParse(dbPort.Value.Trim(), out var parsedPort) && parsedPort > 0)
+        {
+            smtpPort = parsedPort;
+        }
+        else if (smtpPort <= 0)
+        {
+            smtpPort = 587;
+        }
+
+        var dbUseSsl = await _systemConfigRepository.GetByKeyAsync("SMTP_USE_SSL", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(dbUseSsl?.Value) && bool.TryParse(dbUseSsl.Value.Trim(), out var parsedSsl))
+        {
+            useSsl = parsedSsl;
+        }
+
+        if (string.IsNullOrWhiteSpace(smtpUsername))
+        {
+            var dbUsername = await _systemConfigRepository.GetByKeyAsync("SMTP_USERNAME", cancellationToken);
+            if (!string.IsNullOrWhiteSpace(dbUsername?.Value))
             {
-                smtpHost = dbHost.Value.Trim();
+                smtpUsername = dbUsername.Value.Trim();
             }
         }
 
-        if (smtpPort <= 0)
+        if (string.IsNullOrWhiteSpace(smtpPassword))
         {
-            var dbPort = await _systemConfigRepository.GetByKeyAsync("SMTP_PORT", cancellationToken);
-            if (!string.IsNullOrWhiteSpace(dbPort?.Value) && int.TryParse(dbPort.Value.Trim(), out var parsedPort))
+            var dbPassword = await _systemConfigRepository.GetByKeyAsync("SMTP_PASSWORD", cancellationToken);
+            if (!string.IsNullOrWhiteSpace(dbPassword?.Value))
             {
-                smtpPort = parsedPort;
-            }
-            else
-            {
-                smtpPort = 587;
+                smtpPassword = dbPassword.Value;
             }
         }
 
-        if (string.IsNullOrWhiteSpace(fromAddress))
+        var dbFromEmail = await _systemConfigRepository.GetByKeyAsync("SMTP_FROM_EMAIL", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(dbFromEmail?.Value))
+        {
+            fromAddress = dbFromEmail.Value.Trim();
+        }
+        else if (string.IsNullOrWhiteSpace(fromAddress))
         {
             var dbSupportEmail = await _systemConfigRepository.GetByKeyAsync("SUPPORT_EMAIL", cancellationToken);
             fromAddress = !string.IsNullOrWhiteSpace(dbSupportEmail?.Value) ? dbSupportEmail.Value.Trim() : "no-reply@ntc.gov.ph";
         }
 
+        var dbFromName = await _systemConfigRepository.GetByKeyAsync("SMTP_FROM_NAME", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(dbFromName?.Value))
+        {
+            fromName = dbFromName.Value.Trim();
+        }
+
         // If no live SMTP host or credentials are configured (e.g., local development environment or placeholder smtp.ntc.gov.ph without credentials),
         // log the email dispatch cleanly so application workflows succeed without network timeouts.
         bool isUnconfiguredPlaceholderHost = string.IsNullOrWhiteSpace(smtpHost) ||
-            (string.Equals(smtpHost, "smtp.ntc.gov.ph", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(_options.SmtpUsername));
+            (string.Equals(smtpHost, "smtp.ntc.gov.ph", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(smtpUsername));
 
         if (isUnconfiguredPlaceholderHost)
         {
             _logger.LogInformation(
-                "[Email Dispatch Log] To: {ToName} <{ToEmail}> | Subject: {Subject} | BodyLength: {BodyLength} chars (Configure Email:SmtpHost / Email:SmtpUsername in User Secrets or Environment Variables for live SMTP delivery)",
+                "[Email Dispatch Log] To: {ToName} <{ToEmail}> | Subject: {Subject} | BodyLength: {BodyLength} chars (Configure SMTP_SERVER / SMTP_USERNAME in Admin System Configuration or EmailOptions for live SMTP delivery)",
                 toName ?? "Recipient",
                 toEmail,
                 subject,
@@ -110,15 +149,15 @@ public class SmtpEmailService : IEmailService
 
             using var smtpClient = new SmtpClient(smtpHost, smtpPort)
             {
-                EnableSsl = _options.UseSsl,
+                EnableSsl = useSsl,
                 DeliveryMethod = SmtpDeliveryMethod.Network,
                 Timeout = 15000
             };
 
-            if (!string.IsNullOrWhiteSpace(_options.SmtpUsername))
+            if (!string.IsNullOrWhiteSpace(smtpUsername))
             {
                 smtpClient.UseDefaultCredentials = false;
-                smtpClient.Credentials = new NetworkCredential(_options.SmtpUsername, _options.SmtpPassword);
+                smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
             }
 
             await smtpClient.SendMailAsync(message, cancellationToken);

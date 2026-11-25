@@ -32,6 +32,96 @@ public static class SystemConfigDataSeeder
                 Description = "Default statutory validity duration in years added to original expiration date upon renewal.",
                 DataType = "Number",
                 IsPublic = true
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "EMAIL_ENABLED",
+                Value = "true",
+                Description = "Master switch to enable or disable outbound SMTP email delivery across the portal.",
+                DataType = "Boolean",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "SMTP_SERVER",
+                Value = "smtp.ntc.gov.ph",
+                Description = "Outbound SMTP server hostname (e.g. smtp.ntc.gov.ph or smtp.gmail.com).",
+                DataType = "String",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "SMTP_PORT",
+                Value = "587",
+                Description = "Outbound SMTP server port (typically 587 for STARTTLS or 465 for SSL).",
+                DataType = "Number",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "SMTP_USE_SSL",
+                Value = "true",
+                Description = "Enable SSL/TLS encryption for SMTP connections.",
+                DataType = "Boolean",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "SMTP_USERNAME",
+                Value = "",
+                Description = "SMTP authentication username or account email address.",
+                DataType = "String",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "SMTP_PASSWORD",
+                Value = "",
+                Description = "SMTP authentication password or App Password.",
+                DataType = "String",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "SMTP_FROM_EMAIL",
+                Value = "no-reply@ntc.gov.ph",
+                Description = "Default sender From email address for automated notifications.",
+                DataType = "String",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "SMTP_FROM_NAME",
+                Value = "NTC EDGE Portal",
+                Description = "Default sender display name for automated notifications.",
+                DataType = "String",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "CLIENT_PORTAL_BASE_URL",
+                Value = "http://localhost:8081",
+                Description = "Base URL of the Client Portal used in email notification links.",
+                DataType = "String",
+                IsPublic = false
+            },
+            new()
+            {
+                Category = "Email",
+                Key = "INTERNAL_PORTAL_BASE_URL",
+                Value = "http://localhost:8082",
+                Description = "Base URL of the Internal Officer Portal used in internal queue assignment email links.",
+                DataType = "String",
+                IsPublic = false
             }
         };
 
