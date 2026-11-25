@@ -114,13 +114,13 @@ public class SubmitApplicationCommandHandler
             if (request.IsDraft)
             {
                 var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-                tenant = allTenants.FirstOrDefault();
+                tenant = allTenants.FirstOrDefault(t => t.IsActive && !t.IsDeleted);
 
                 if (tenant != null)
                 {
                     _logger.LogWarning(
                         "TenantId '{RequestedTenantId}' was not found. " +
-                        "Falling back to first available tenant '{FallbackTenantId}' (Name: '{FallbackTenantName}') " +
+                        "Falling back to first available active tenant '{FallbackTenantId}' (Name: '{FallbackTenantName}') " +
                         "for draft application save. Verify tenant seed data and configuration.",
                         request.TenantId,
                         tenant.Id,
@@ -133,6 +133,12 @@ public class SubmitApplicationCommandHandler
                 return ApiResponse<Guid>.Fail(
                     "Validation Error: The specified tenant does not exist.");
             }
+        }
+
+        if (!tenant.IsActive || tenant.IsDeleted)
+        {
+            return ApiResponse<Guid>.Fail(
+                $"Validation Error: The selected Regional Office '{tenant.Name}' is currently inactive and cannot accept applications.");
         }
 
         string? officeName = null;

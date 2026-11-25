@@ -77,7 +77,7 @@ public class SubmitApplicationCommandHandlerTests
 
         _mockCurrentUserService.Setup(u => u.UserId).Returns(userId.ToString());
         _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "NCR Regional Office" });
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "NCR Regional Office", IsActive = true });
 
         var service = new Service
         {
@@ -159,7 +159,7 @@ public class SubmitApplicationCommandHandlerTests
 
         _mockCurrentUserService.Setup(u => u.UserId).Returns((string?)null);
         _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "Region 7" });
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "Region 7", IsActive = true });
 
         var service = new Service
         {
@@ -219,7 +219,7 @@ public class SubmitApplicationCommandHandlerTests
         var serviceId = Guid.NewGuid();
 
         _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = Guid.NewGuid() });
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = Guid.NewGuid(), IsActive = true });
 
         var service = new Service
         {
@@ -303,7 +303,7 @@ public class SubmitApplicationCommandHandlerTests
 
         _mockCurrentUserService.Setup(u => u.UserId).Returns((string?)null);
         _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "Region 7" });
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "Region 7", IsActive = true });
 
         var service = new Service
         {
@@ -391,7 +391,7 @@ public class SubmitApplicationCommandHandlerTests
 
         _mockCurrentUserService.Setup(u => u.UserId).Returns(userId.ToString());
         _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "NCR Regional Office" });
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "NCR Regional Office", IsActive = true });
 
         var service = new Service
         {
@@ -456,7 +456,7 @@ public class SubmitApplicationCommandHandlerTests
 
         _mockCurrentUserService.Setup(u => u.UserId).Returns(userId.ToString());
         _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "NCR Regional Office" });
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "NCR Regional Office", IsActive = true });
 
         var service = new Service
         {

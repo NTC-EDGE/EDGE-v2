@@ -23,6 +23,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUserAuthorizationService _userAuthorizationService;
     private readonly ILogger<FinalizeApplicationSubmissionCommandHandler> _logger;
+    private readonly ITenantRepository? _tenantRepository;
 
     public FinalizeApplicationSubmissionCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -32,7 +33,8 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         ITenantContextService tenantContextService,
         IUnitOfWork unitOfWork,
         IUserAuthorizationService userAuthorizationService,
-        ILogger<FinalizeApplicationSubmissionCommandHandler> logger)
+        ILogger<FinalizeApplicationSubmissionCommandHandler> logger,
+        ITenantRepository? tenantRepository = null)
     {
         _applicationRepository = applicationRepository;
         _requirementRepository = requirementRepository;
@@ -42,6 +44,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         _unitOfWork = unitOfWork;
         _userAuthorizationService = userAuthorizationService;
         _logger = logger;
+        _tenantRepository = tenantRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(FinalizeApplicationSubmissionCommand request, CancellationToken cancellationToken)
@@ -61,6 +64,16 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         if (app.Status != ApplicationStatus.Draft && app.Status != ApplicationStatus.Returned)
         {
             return ApiResponse<Guid>.Fail("Application has already been submitted or is not in Draft state.");
+        }
+
+        if (_tenantRepository != null && app.TenantId != Guid.Empty)
+        {
+            var targetTenant = await _tenantRepository.GetByIdAsync(app.TenantId, cancellationToken);
+            if (targetTenant != null && (!targetTenant.IsActive || targetTenant.IsDeleted))
+            {
+                return ApiResponse<Guid>.Fail(
+                    $"Validation Error: The selected Regional Office '{targetTenant.Name}' is currently inactive and cannot accept application submissions.");
+            }
         }
 
         // Verify authorization: caller must be an active tenant member, superadmin, or the creator/applicant

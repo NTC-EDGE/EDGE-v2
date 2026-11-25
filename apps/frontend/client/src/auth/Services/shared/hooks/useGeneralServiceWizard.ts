@@ -621,9 +621,15 @@ export function useGeneralServiceWizard(
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
           list = res.items;
         }
-        setTenants(list);
-        if (list.length > 0 && !selectedRegionId) {
-          setSelectedRegionId(list[0].id);
+        const activeList = list.filter((t) => t.isActive !== false);
+        setTenants(activeList);
+        if (activeList.length > 0) {
+          const isCurrentActive = activeList.some((t) => t.id === selectedRegionId);
+          if (!selectedRegionId || !isCurrentActive) {
+            setSelectedRegionId(activeList[0].id);
+          }
+        } else if (selectedRegionId) {
+          setSelectedRegionId("");
         }
         hasFetchedTenantsRef.current = true;
       } catch (err) {
@@ -687,6 +693,18 @@ export function useGeneralServiceWizard(
   };
 
   const submitApplicationPayload = async (isDraft = false) => {
+    if (!selectedRegionId || !isGuid(selectedRegionId)) {
+      throw new Error(
+        "Please select an active NTC Regional Office before submitting your application."
+      );
+    }
+
+    if (tenants.length > 0 && !tenants.some((t) => t.id === selectedRegionId && t.isActive !== false)) {
+      throw new Error(
+        "The selected NTC Regional Office is currently inactive and cannot accept applications. Please select an active Regional Office."
+      );
+    }
+
     if (!isDraft) {
       const incompleteCount = applicants.filter(
         (app) => !isGeneralApplicantComplete(app, service, variantRequirements)
