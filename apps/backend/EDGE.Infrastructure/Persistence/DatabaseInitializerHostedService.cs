@@ -121,8 +121,7 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fast-Track seed data failed.");
-            throw new InvalidOperationException("Fast-Track seed data failed. Please check the logs for details.", ex);
+            _logger.LogError(ex, "Fast-Track seed data encountered an issue. Continuing startup so API remains available.");
         }
 
         // 5. Seed Notification Templates (External & Internal)

@@ -209,7 +209,17 @@ public static class FastTrackFormSeeder
                         keep.IsDeleted = false;
                         keep.IsDeletedBy = string.Empty;
                     }
-                    if (keep.Key != trimmedKey)
+
+                    // Avoid IX_FormSections_FormId_Key unique constraint collision with another section on the same FormId
+                    bool keyCollides = !string.Equals(keep.Key, trimmedKey, StringComparison.Ordinal) &&
+                        allDbSections.Any(s =>
+                            s.FormId == keep.FormId &&
+                            s.Id != keep.Id &&
+                            !group.Any(g => g.Id == s.Id) &&
+                            !removedSecIds.Contains(s.Id) &&
+                            string.Equals((s.Key ?? string.Empty).Trim(), trimmedKey, StringComparison.OrdinalIgnoreCase));
+
+                    if (!keyCollides && keep.Key != trimmedKey)
                     {
                         keep.Key = trimmedKey;
                     }
@@ -230,18 +240,24 @@ public static class FastTrackFormSeeder
                     {
                         if (keepFieldIds.Add(dupSf.FieldId))
                         {
-                            context.SectionFields.Add(new SectionField
+                            var newSf = new SectionField
                             {
                                 FormSectionId = keep.Id,
                                 FieldId = dupSf.FieldId,
                                 IsRequired = dupSf.IsRequired,
                                 OrderIndex = dupSf.OrderIndex,
                                 VisibilityCondition = dupSf.VisibilityCondition
-                            });
+                            };
+                            context.SectionFields.Add(newSf);
+                            allDupSectionFields.Add(newSf);
                         }
                     }
 
-                    if (toRemoveFields.Count > 0) context.SectionFields.RemoveRange(toRemoveFields);
+                    if (toRemoveFields.Count > 0)
+                    {
+                        context.SectionFields.RemoveRange(toRemoveFields);
+                        allDupSectionFields.RemoveAll(sf => toRemoveIds.Contains(sf.FormSectionId));
+                    }
                     context.FormSections.RemoveRange(toRemove);
                     foreach (var r in toRemove) removedSecIds.Add(r.Id);
                     totalRemoved += toRemove.Count;
@@ -618,7 +634,8 @@ public static class FastTrackFormSeeder
                     sec.IsDeletedBy = string.Empty;
                     secChanged = true;
                 }
-                if (sec.Key != key)
+                if (sec.Key != key &&
+                    !existingSections.Any(other => other.Id != sec.Id && string.Equals((other.Key ?? string.Empty).Trim(), key, StringComparison.OrdinalIgnoreCase)))
                 {
                     sec.Key = key;
                     secChanged = true;

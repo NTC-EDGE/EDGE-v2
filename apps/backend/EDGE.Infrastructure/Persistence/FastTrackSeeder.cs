@@ -61,6 +61,14 @@ public static class FastTrackSeeder
         await FastTrackVariantSeeder.UpdateVariantsAsync(context);
         await FastTrackCatalogSeeder.BackfillNewCatalogDetailsAsync(context, logger);
         await ServiceInformationDataSeeder.SeedAsync(context);
-        await FastTrackFormSeeder.SeedFormsInternalAsync(context, logger);
+        try
+        {
+            await FastTrackFormSeeder.SeedFormsInternalAsync(context, logger);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "FastTrackFormSeeder encountered an error during self-healing/seeding. Clearing change tracker and continuing startup.");
+            context.ChangeTracker.Clear();
+        }
     }
 }
