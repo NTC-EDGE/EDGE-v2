@@ -67,10 +67,11 @@ try
     // Forward client IP and protocol headers from reverse proxies (Cloudflare, NGINX, ALB)
     app.UseForwardedHeaders();
 
+    // Apply CORS before exception handling so even error responses and preflight OPTIONS requests include CORS headers
+    app.UseApiCors();
+
     // Use global exception handling middleware
     app.UseMiddleware<ExceptionHandlingMiddleware>();
-
-    app.UseApiCors();
 
     // Prevent browser HTTP disk/memory caching on dynamic API responses
     app.Use(async (context, next) =>

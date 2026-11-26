@@ -13,11 +13,6 @@ const getApiUrl = (): string => {
 export const apiClient = axios.create({
   baseURL: getApiUrl(),
   timeout: 10000,
-  headers: {
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    Pragma: 'no-cache',
-    Expires: '0',
-  },
 });
 
 function isRecord(val: unknown): val is Record<string, unknown> {
@@ -123,11 +118,7 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
     } catch {
       token = null;
     }
-    const headers: Record<string, string> = {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      Pragma: 'no-cache',
-      Expires: '0',
-    };
+    const headers: Record<string, string> = {};
     if (token !== null && token.length > 0) {
       headers['Authorization'] = `Bearer ${token}`;
     }
