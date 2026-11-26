@@ -142,7 +142,7 @@ public class GetFormByVariantIdQueryHandler : IRequestHandler<GetFormByVariantId
 
             var filteredSfs = isCustomized
                 ? rawSfs
-                : rawSfs.Where(sf => IsVariantConditionApplicable(sf.VisibilityCondition, variant)).ToList();
+                : rawSfs.Where(sf => IsVariantConditionApplicable(ExtractEffectiveFieldCondition(sf), variant)).ToList();
 
             if (!isCustomized && rawSfs.Count > 0 && filteredSfs.Count == 0)
             {
@@ -193,6 +193,41 @@ public class GetFormByVariantIdQueryHandler : IRequestHandler<GetFormByVariantId
         };
 
         return ApiResponse<FormDto>.Success(dto);
+    }
+
+    private static string? ExtractEffectiveFieldCondition(SectionField sf)
+    {
+        if (!string.IsNullOrWhiteSpace(sf.VisibilityCondition))
+        {
+            return sf.VisibilityCondition;
+        }
+
+        var rules = sf.Field?.ValidationRules;
+        if (!string.IsNullOrWhiteSpace(rules) && rules.Trim().StartsWith("{", StringComparison.Ordinal))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(rules.Trim());
+                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                    doc.RootElement.TryGetProperty("condition", out var condEl))
+                {
+                    if (condEl.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    {
+                        return condEl.GetRawText();
+                    }
+                    if (condEl.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        return condEl.GetString();
+                    }
+                }
+            }
+            catch
+            {
+                // ignore malformed JSON
+            }
+        }
+
+        return null;
     }
 
     private static bool IsVariantConditionApplicable(string? visibilityCondition, ServiceVariant variant)

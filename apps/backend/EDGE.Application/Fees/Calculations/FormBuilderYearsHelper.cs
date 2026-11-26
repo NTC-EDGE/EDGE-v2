@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using EDGE.Application.Forms.Dtos;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 
@@ -86,6 +87,8 @@ public static class FormBuilderYearsHelper
         var targetApplicant = targetApplicantId.HasValue && targetApplicantId.Value != Guid.Empty
             ? app.ApplicationApplicants?.FirstOrDefault(aa => aa.ApplicantId == targetApplicantId.Value)?.Applicant
             : app.ApplicationApplicants?.FirstOrDefault()?.Applicant;
+        var targetVariant = targetApplicant?.ServiceVariant
+            ?? app.ApplicationApplicants?.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
 
         // Collect relevant FormSubmissions (prioritizing targetApplicant)
         var submissions = new List<FormSubmission>();
@@ -123,9 +126,13 @@ public static class FormBuilderYearsHelper
             foreach (var section in activeServiceForm.Sections.Where(s => !s.IsDeleted))
             {
                 if (section.SectionFields == null) continue;
+                var secVis = FormSectionDto.ExtractSectionVisibilityCondition(section.SectionFields);
+                if (!FormFieldDto.IsConditionApplicableToVariant(secVis, targetVariant)) continue;
+
                 foreach (var sf in section.SectionFields)
                 {
-                    if (IsYearsField(sf.Field, sf.FieldId))
+                    if (IsYearsField(sf.Field, sf.FieldId) &&
+                        FormFieldDto.IsConditionApplicableToVariant(sf.VisibilityCondition, targetVariant))
                     {
                         formSchemaHasYearsField = true;
                     }
@@ -158,9 +165,13 @@ public static class FormBuilderYearsHelper
                 foreach (var section in sub.Form.Sections.Where(s => !s.IsDeleted))
                 {
                     if (section.SectionFields == null) continue;
+                    var secVis = FormSectionDto.ExtractSectionVisibilityCondition(section.SectionFields);
+                    if (!FormFieldDto.IsConditionApplicableToVariant(secVis, targetVariant)) continue;
+
                     foreach (var sf in section.SectionFields)
                     {
-                        if (IsYearsField(sf.Field, sf.FieldId))
+                        if (IsYearsField(sf.Field, sf.FieldId) &&
+                            FormFieldDto.IsConditionApplicableToVariant(sf.VisibilityCondition, targetVariant))
                         {
                             formSchemaHasYearsField = true;
                         }

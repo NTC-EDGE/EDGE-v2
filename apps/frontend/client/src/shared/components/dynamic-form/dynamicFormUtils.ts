@@ -90,7 +90,22 @@ export function buildFormVariantFlags(
   const isNonIndividualEntity = applicantType === "company" || isAeroStationPurchase || isAeroStationPossess || (!applicantType && matchedVariant?.isIndividual === false && !isVanityOrSpecialEvent);
   const isIndividualVar = !isNonIndividualEntity;
   const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary && !varDesc.includes("special radio operator");
-  const showNumberOfYears = !isDuplicateCopy && !isCertifiedTrueCopy && !isVas && (isCpeAccreditation || isRocService || (isAmateurCert && isModification) || (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
+  const isLicenseService = catLower.includes("license") || titLower.includes("license") || titLower.includes("ntc 1-04") || titLower.includes("ntc 1-11");
+  const isEquipOrMpPermit = catLower.includes("permit") && (titLower.includes("equipment") || titLower.includes("mobile phone") || titLower.includes("ntc 1-18")) && !varDesc.includes("transport");
+  const isForeignPilot = varDesc.includes("foreign pilot");
+  const showNumberOfYears =
+    !isDuplicateCopy &&
+    !isCertifiedTrueCopy &&
+    !isModification &&
+    !isLifetimeSupplementary &&
+    !varDesc.includes("lifetime") &&
+    ((isVas && isRenewal) ||
+      isCpeAccreditation ||
+      isEquipOrMpPermit ||
+      (isRocService && !isForeignPilot) ||
+      isAmateurCert ||
+      isLicenseService ||
+      (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
   const isPermitService =
     catLower.includes("permit") ||
     titLower.includes("permit") ||

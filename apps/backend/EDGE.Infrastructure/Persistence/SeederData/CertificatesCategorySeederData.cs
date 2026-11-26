@@ -454,11 +454,11 @@ public static class CertificatesCategorySeederData
     {
         new("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
         {
-            new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" })
+            new("examSeminarDetails", "Exam / Seminar Details", new() { "noOfYears", "examSeminarAddress", "examSeminarDate", "examSeminarRating" })
         }),
         new("NTC_1_03", Guid.Parse("f0300000-0000-0000-0000-000000000001"), Guid.Parse("f03a0000-0000-0000-0000-000000000000"), new()
         {
-            new("certificateParticulars", "Certificate Particulars", new() { "licenseNo", "dateOfExpiry", "modificationDueTo" }),
+            new("certificateParticulars", "Certificate Particulars", new() { "noOfYears", "licenseNo", "dateOfExpiry", "modificationDueTo" }),
             new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" })
         }),
         new("NTC_1_19", Guid.Parse("f1900000-0000-0000-0000-000000000001"), Guid.Parse("f19a0000-0000-0000-0000-000000000000"), new()
@@ -468,7 +468,7 @@ public static class CertificatesCategorySeederData
         }),
         new("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
         {
-            new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry", "corVasNo", "corVasExpiryDate" }),
+            new("vasParticulars", "VAS Registration Particulars", new() { "noOfYears", "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry", "corVasNo", "corVasExpiryDate" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
             new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" })
         }),
@@ -481,7 +481,7 @@ public static class CertificatesCategorySeederData
         }),
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {
-            new("location", "Location", new() { "serviceArea", "exactLocation", "longitude", "latitude" }),
+            new("location", "Location", new() { "noOfYears", "serviceArea", "exactLocation", "longitude", "latitude" }),
             new("tvroEquipment", "Particulars of Equipment", new() { "tvroEquipment" }),
             new("antennaSystem", "Particulars of Antenna System", new() { "tvroAntenna" }),
             new("signalReception", "Particulars of Signal to be Received", new() { "tvroSignal" })

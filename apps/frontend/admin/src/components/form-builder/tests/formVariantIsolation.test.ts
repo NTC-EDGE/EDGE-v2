@@ -145,9 +145,42 @@ describe("Form Builder - Master Superset, Variant Overrides, Propagation & Delet
     expect(formatServiceVariantDisplayName("Commercial ROC (Renewal)", "Renewal")).toBe(
       "Commercial ROC (Renewal)"
     );
-    expect(formatServiceVariantDisplayName("Commercial Exam", "FirstTaker")).toBe(
+    expect( formatServiceVariantDisplayName("Commercial Exam", "FirstTaker")).toBe(
       "Commercial Exam (First Taker)"
     );
     expect(variantNamesMatch("Amateur Radio", "Amateur Radio (NTC 1-09)")).toBe(true);
+  });
+
+  it("convertBackendFormToSchema deduplicates repetitive sections and repetitive fields within a section", async () => {
+    const { convertBackendFormToSchema } = await import("../utils/schemaFromBackend");
+    const schema = convertBackendFormToSchema({
+      formId: "f-dedup-1",
+      name: "NTC 1-11: Radio Station License",
+      sections: [
+        {
+          key: "stations",
+          title: "Particulars of Station",
+          orderIndex: 0,
+          fields: [
+            { fieldId: "fd000000-0000-0000-0000-000000000028", label: "Call Sign", type: "text", isRequired: true, orderIndex: 0 },
+            { fieldId: "dup-guid-999", label: "Call Sign", type: "text", isRequired: true, orderIndex: 1 },
+          ],
+        },
+        {
+          key: "particulars-of-station",
+          title: "Particulars of Station",
+          orderIndex: 1,
+          fields: [
+            { fieldId: "fd000000-0000-0000-0000-000000000103", label: "Frequency(ies)", type: "text", isRequired: true, orderIndex: 0 },
+          ],
+        },
+      ],
+    });
+
+    const sectionHeaders = schema.fields.filter((f) => f.type === "section-header");
+    const regularFields = schema.fields.filter((f) => f.type !== "section-header");
+    expect(sectionHeaders.length).toBe(1);
+    expect(regularFields.length).toBe(2);
+    expect(regularFields.map((f) => f.label)).toEqual(["Call Sign", "Frequency(ies)"]);
   });
 });

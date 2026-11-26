@@ -197,6 +197,33 @@ export function useBuilderFieldActions(params: {
       formService?.revertVariantForm
     ) {
       await formService.revertVariantForm(matchedVariant.id).catch(() => null);
+      const baseId = masterBaseForm?.id || activeForm.baseFormId || activeForm.id;
+      if (baseId && formService.getFormWorkspace) {
+        const wsRes = await formService.getFormWorkspace(baseId).catch(() => null);
+        if (wsRes && wsRes.succeeded && wsRes.data) {
+          const freshBase = convertBackendFormToSchema(wsRes.data.form);
+          setMasterBaseForm?.((prev) => ({
+            ...freshBase,
+            name: freshBase.name || prev?.name || "",
+            description: freshBase.description || prev?.description || "",
+            serviceName: freshBase.serviceName || prev?.serviceName,
+            serviceCode: freshBase.serviceCode || prev?.serviceCode,
+            customizedVariantIds: freshBase.customizedVariantIds,
+          }));
+        }
+      } else {
+        setMasterBaseForm?.((prev) =>
+          prev
+            ? {
+                ...prev,
+                customizedVariantIds: (prev.customizedVariantIds ?? []).filter(
+                  (id) => id.toLowerCase() !== matchedVariant.id.toLowerCase()
+                ),
+              }
+            : prev
+        );
+      }
+      await mutate?.();
       await executeSelectVariant(selectedVariant);
       setToast({
         message: `Reset "${selectedVariant}" back to the Base Form blueprint.`,
@@ -205,7 +232,8 @@ export function useBuilderFieldActions(params: {
       return;
     }
 
-    const restoredFields = resetVariantToBaseFields(activeForm.fields, selectedVariant, allVariantNames);
+    const sourceFields = (masterBaseForm ?? activeForm).fields;
+    const restoredFields = resetVariantToBaseFields(sourceFields, selectedVariant, allVariantNames);
     const updated: FormSchema = { ...activeForm, fields: restoredFields, updatedAt: new Date().toISOString() };
     setActiveForm(updated);
     setIsDirty(true);
@@ -216,12 +244,15 @@ export function useBuilderFieldActions(params: {
     });
   }, [
     activeForm,
+    masterBaseForm,
     selectedVariant,
     allVariantNames,
     backendServiceVariants,
     formService,
+    mutate,
     executeSelectVariant,
     setActiveForm,
+    setMasterBaseForm,
     setIsDirty,
     setSelectedFieldId,
     setToast,

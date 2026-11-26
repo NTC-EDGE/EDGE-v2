@@ -796,18 +796,17 @@ public static class LicensesCategorySeederData
         // Canonical Form: NTC 1-04 (Ship Station License - Maritime)
         new("NTC_1_04", Guid.Parse("f7200000-0000-0000-0000-000000000001"), Guid.Parse("f72a0000-0000-0000-0000-000000000000"), new()
         {
-            new("vessel", "Particulars of Station / Vessel", new() { "vesselName", "callSign", "stationLicenseNo", "imoNumber" }),
-            new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
+            new("vessel", "Particulars of Station / Vessel", new() { "noOfYears", "vesselName", "callSign", "stationLicenseNo", "imoNumber" }),
+            new("equipment", "Equipment Particulars", new() { "equipmentDetails" }),
             new("radioOfficers", "Particulars of Radio Officers", new() { "officerName", "certificateNumber", "expiryDate", "citizenship" })
         }),
         // Canonical Form: NTC 1-11 (Radio Station License: FLM, Aero, Other)
         // Shared across NTC_1_11, NTC_AERO_LICENSES, NTC_OTHER_LICENSES
         new("NTC_1_11", Guid.Parse("f7300000-0000-0000-0000-000000000001"), Guid.Parse("f73a0000-0000-0000-0000-000000000000"), new()
         {
-            new("stations", "Particulars of Station / Equipment / Antenna", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange", "powerOutput" }),
+            new("stations", "Particulars of Station / Equipment / Antenna", new() { "noOfYears", "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
+            new("equipment", "Particulars of Equipment", new() { "equipmentDetails" }),
             new("antennas", "Particulars of Antenna System", new() { "antennaType", "height", "gain", "directivity", "polarization" }),
-            new("pointsOfCommunication", "Points of Communication", new() { "stationLocation", "serviceArea" }),
             new("aircraft", "Aircraft Particulars (if Aircraft Station)", new() { "aircraftRegNo", "aircraftMakeModel", "aircraftSerialNo", "registeredOwner", "baseOfOperation" })
         })
     };

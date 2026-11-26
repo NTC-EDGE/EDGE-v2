@@ -478,8 +478,30 @@ export function collectAllFormVariants(
     apiServiceCodes.add(form.serviceCode.toUpperCase().trim());
   }
 
+  // Count how many distinct services in apiVariants share the same lowercase variant name
+  const nameCounts = new Map<string, number>();
   for (const v of apiVariants) {
-    addVariant(v.name, v.serviceId, v.serviceName, v.serviceCode, "service", v.id, v.applicationType);
+    const k = (v.name ?? "").trim().toLowerCase();
+    if (k) {
+      nameCounts.set(k, (nameCounts.get(k) ?? 0) + 1);
+    }
+  }
+
+  for (const v of apiVariants) {
+    const rawName = (v.name ?? "").trim();
+    const k = rawName.toLowerCase();
+    let displayName = rawName;
+    if ((nameCounts.get(k) ?? 0) > 1 && v.serviceName) {
+      const shortSvc = v.serviceName
+        .replace(/^PERMITS\s+(IN\s+THE|FOR|TO)\s+/i, "")
+        .replace(/^COPY\s+OF\s+/i, "")
+        .replace(/\s+SERVICE$/i, "")
+        .trim();
+      if (shortSvc && !rawName.toLowerCase().includes(shortSvc.toLowerCase())) {
+        displayName = `${rawName} — ${shortSvc}`;
+      }
+    }
+    addVariant(displayName, v.serviceId, v.serviceName, v.serviceCode, "service", v.id, v.applicationType);
   }
 
   // 2. Canonical default variants for linked services not already covered by apiVariants

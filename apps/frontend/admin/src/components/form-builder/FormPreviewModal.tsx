@@ -3,6 +3,10 @@
 import React, { useState } from "react";
 import { Building2, Layers, CheckCircle2, Code2, Eye, Plus, Trash2, Sliders } from "lucide-react";
 import { parseFieldCondition } from "./utils";
+import {
+  isFieldApplicableForVariant as checkFieldApplicableForVariant,
+  resolveFieldForVariant,
+} from "./utils/variantConditionUtils";
 import { collectAllFormVariants } from "./canonicalFormServices";
 import {
   Dialog,
@@ -396,28 +400,7 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
   }, [open, form.id]);
 
   const isFieldApplicableForVariant = (f: FormField, variant: string): boolean => {
-    if (f.type === "section-header" || f.type === "divider") return true;
-    const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
-    if (!cond) return true;
-    if (variant === "ALL") return true;
-
-    const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
-    const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
-
-    if (!hasVariants && !hasAppTypes) return true;
-
-    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const target = normalize(variant);
-
-    const matchesList = (list?: string[]) => {
-      if (!list || list.length === 0) return false;
-      return list.some((item) => {
-        const norm = normalize(item);
-        return norm === target || norm.includes(target) || target.includes(norm);
-      });
-    };
-
-    return matchesList(cond.variants) || matchesList(cond.applicationTypes);
+    return checkFieldApplicableForVariant(f, variant);
   };
 
   const handleVariantChange = (newVariant: string) => {
@@ -440,7 +423,7 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
   };
 
   const isFieldVisibleInPreview = (f: FormField): boolean => {
-    if (f.type === "section-header" || f.type === "divider") return true;
+    if (f.type === "divider") return true;
     if (!isFieldApplicableForVariant(f, selectedVariant)) return false;
 
     const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
@@ -461,7 +444,29 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
     return true;
   };
 
-  const visibleFields = form.fields.filter(isFieldVisibleInPreview);
+  const visibleFields = React.useMemo(() => {
+    const rawVisible = form.fields
+      .filter(isFieldVisibleInPreview)
+      .map((f) => (selectedVariant === "ALL" ? f : resolveFieldForVariant(f, selectedVariant)));
+
+    if (selectedVariant === "ALL") return rawVisible;
+
+    // Omit section-headers when all child fields in that section were excluded for selectedVariant
+    return rawVisible.filter((field, idx) => {
+      if (field.type !== "section-header") return true;
+      const nextField = rawVisible[idx + 1];
+      const hadChildrenOriginally = (() => {
+        const origIdx = form.fields.findIndex((x) => x.id === field.id);
+        if (origIdx < 0) return false;
+        const nextOrig = form.fields[origIdx + 1];
+        return Boolean(nextOrig && nextOrig.type !== "section-header");
+      })();
+      if (hadChildrenOriginally && (!nextField || nextField.type === "section-header")) {
+        return false;
+      }
+      return true;
+    });
+  }, [form.fields, selectedVariant, formValues]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

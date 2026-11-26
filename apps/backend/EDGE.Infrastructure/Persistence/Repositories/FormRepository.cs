@@ -31,28 +31,39 @@ public class FormRepository : IFormRepository
     /// </summary>
     private static readonly Dictionary<Guid, Guid> ServiceToCanonicalServiceMap = new()
     {
-        // Permits sharing NTC 1-09 (Svc109Id = 40000000-0000-0000-0000-000000000009)
-        [Guid.Parse("40000000-0000-0000-0000-000000000070")] = Guid.Parse("40000000-0000-0000-0000-000000000009"), // NTC_AERO_PERMITS -> NTC_1_09
-        [Guid.Parse("40000000-0000-0000-0000-000000000071")] = Guid.Parse("40000000-0000-0000-0000-000000000009"), // NTC_MAR_PERMITS -> NTC_1_09
-        [Guid.Parse("40000000-0000-0000-0000-000000000072")] = Guid.Parse("40000000-0000-0000-0000-000000000009"), // NTC_FLM_PERMITS -> NTC_1_09
-        [Guid.Parse("40000000-0000-0000-0000-000000000073")] = Guid.Parse("40000000-0000-0000-0000-000000000009"), // NTC_PTE_PERMITS -> NTC_1_09
+        // Permits sharing NTC 1-09 (Svc109Id = 50000000-0000-0000-0000-000000000009)
+        [Guid.Parse("50000000-0000-0000-0000-000000000060")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_AERO_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000061")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_MAR_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000062")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_FLM_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000063")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_PTE_PERMITS -> NTC_1_09
+        // Legacy Permit IDs -> NTC_1_09
+        [Guid.Parse("40000000-0000-0000-0000-000000000009")] = Guid.Parse("50000000-0000-0000-0000-000000000009"),
+        [Guid.Parse("40000000-0000-0000-0000-000000000070")] = Guid.Parse("50000000-0000-0000-0000-000000000009"),
+        [Guid.Parse("40000000-0000-0000-0000-000000000071")] = Guid.Parse("50000000-0000-0000-0000-000000000009"),
+        [Guid.Parse("40000000-0000-0000-0000-000000000072")] = Guid.Parse("50000000-0000-0000-0000-000000000009"),
+        [Guid.Parse("40000000-0000-0000-0000-000000000073")] = Guid.Parse("50000000-0000-0000-0000-000000000009"),
 
-        // Licenses sharing NTC 1-11 (Svc111Id = 50000000-0000-0000-0000-000000000011 / 50000000-0000-0000-0000-000000000073)
+        // Licenses sharing NTC 1-11 (SvcLicFlmId = 50000000-0000-0000-0000-000000000073)
         [Guid.Parse("50000000-0000-0000-0000-000000000070")] = Guid.Parse("50000000-0000-0000-0000-000000000003"), // SvcLicAmaId -> NTC_1_03 (CertificatesCategory Svc103Id)
         [Guid.Parse("50000000-0000-0000-0000-000000000071")] = Guid.Parse("50000000-0000-0000-0000-000000000073"), // NTC_AERO_LICENSES -> NTC_1_11 (SvcLicFlmId)
         [Guid.Parse("50000000-0000-0000-0000-000000000074")] = Guid.Parse("50000000-0000-0000-0000-000000000073"), // NTC_OTHER_LICENSES -> NTC_1_11 (SvcLicFlmId)
         [Guid.Parse("50000000-0000-0000-0000-000000000011")] = Guid.Parse("50000000-0000-0000-0000-000000000073"), // Legacy Svc111Id -> SvcLicFlmId
+        [Guid.Parse("50000000-0000-0000-0000-000000000014")] = Guid.Parse("50000000-0000-0000-0000-000000000073"),
 
-        // Permits sharing NTC 1-18 (Svc118Id = 10000000-0000-0000-0000-000000000018)
-        [Guid.Parse("40000000-0000-0000-0000-000000000074")] = Guid.Parse("10000000-0000-0000-0000-000000000018"), // NTC_EQUIP_PERMITS -> NTC_1_18
-        [Guid.Parse("40000000-0000-0000-0000-000000000075")] = Guid.Parse("10000000-0000-0000-0000-000000000018"), // NTC_MP_PERMITS -> NTC_1_18
+        // Permits & Accreditations sharing NTC 1-18 (Svc118Id = 50000000-0000-0000-0000-000000000018)
+        [Guid.Parse("50000000-0000-0000-0000-000000000064")] = Guid.Parse("50000000-0000-0000-0000-000000000018"), // NTC_EQUIP_PERMITS -> NTC_1_18
+        [Guid.Parse("50000000-0000-0000-0000-000000000065")] = Guid.Parse("50000000-0000-0000-0000-000000000018"), // NTC_MP_PERMITS -> NTC_1_18
+        [Guid.Parse("10000000-0000-0000-0000-000000000018")] = Guid.Parse("50000000-0000-0000-0000-000000000018"),
+        [Guid.Parse("40000000-0000-0000-0000-000000000074")] = Guid.Parse("50000000-0000-0000-0000-000000000018"),
+        [Guid.Parse("40000000-0000-0000-0000-000000000075")] = Guid.Parse("50000000-0000-0000-0000-000000000018"),
 
-        // Copies sharing NTC 1-21 (Svc121Id = 50000000-0000-0000-0000-000000000021 / 40000000-0000-0000-0000-000000000021)
-        [Guid.Parse("40000000-0000-0000-0000-000000000076")] = Guid.Parse("50000000-0000-0000-0000-000000000021"), // NTC_COPY_PERMITS -> NTC_1_21
+        // Copies sharing NTC 1-21 (Svc121Id = 50000000-0000-0000-0000-000000000021)
+        [Guid.Parse("50000000-0000-0000-0000-000000000066")] = Guid.Parse("50000000-0000-0000-0000-000000000021"), // NTC_COPY_PERMITS -> NTC_1_21
         [Guid.Parse("50000000-0000-0000-0000-000000000076")] = Guid.Parse("50000000-0000-0000-0000-000000000021"), // NTC_COPY_LICENSES -> NTC_1_21
-        [Guid.Parse("40000000-0000-0000-0000-000000000021")] = Guid.Parse("50000000-0000-0000-0000-000000000021"), // Legacy Svc121Id -> NTC_1_21
+        [Guid.Parse("40000000-0000-0000-0000-000000000076")] = Guid.Parse("50000000-0000-0000-0000-000000000021"),
+        [Guid.Parse("40000000-0000-0000-0000-000000000021")] = Guid.Parse("50000000-0000-0000-0000-000000000021"),
 
-        // Amateur Licenses sharing NTC 1-03 (Svc103Id = 50000000-0000-0000-0000-000000000003 / 20000000-0000-0000-0000-000000000003)
+        // Amateur Licenses sharing NTC 1-03 (Svc103Id = 50000000-0000-0000-0000-000000000003)
         [Guid.Parse("20000000-0000-0000-0000-000000000003")] = Guid.Parse("50000000-0000-0000-0000-000000000003"),
         [Guid.Parse("50000000-0000-0000-0000-000000000012")] = Guid.Parse("50000000-0000-0000-0000-000000000003"),
 
@@ -262,6 +273,7 @@ public class FormRepository : IFormRepository
 
         var allServiceForms = await _context.Forms
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .AsSplitQuery()
             .Include(f => f.Service)
             .Include(f => f.ServiceVariant)
@@ -324,34 +336,198 @@ public class FormRepository : IFormRepository
                 .ThenByDescending(f => f.LastModifiedAt ?? f.CreatedAt)
                 .FirstOrDefault();
 
-        if (selectedForm != null && !selectedForm.ServiceVariantId.HasValue && (!serviceVariantId.HasValue || serviceVariantId.Value == Guid.Empty))
+        if (selectedForm != null)
         {
-            EnsureBaseFormSupersetInMemory(selectedForm, allServiceForms);
+            if (!selectedForm.ServiceVariantId.HasValue && (!serviceVariantId.HasValue || serviceVariantId.Value == Guid.Empty))
+            {
+                EnsureBaseFormSupersetInMemory(selectedForm, allServiceForms);
+            }
+
+            DeduplicateFormSectionsAndFieldsInMemory(selectedForm);
+
+            if (!selectedForm.ServiceVariantId.HasValue && serviceVariantId.HasValue && serviceVariantId.Value != Guid.Empty)
+            {
+                var targetVariant = await _context.ServiceVariants
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(v => v.Id == serviceVariantId.Value, cancellationToken);
+                if (targetVariant != null)
+                {
+                    ApplyVariantProjectionInMemory(selectedForm, targetVariant);
+                }
+            }
         }
 
         return selectedForm;
     }
 
+    private static void DeduplicateFormSectionsAndFieldsInMemory(Form form)
+    {
+        if (form.Sections == null || form.Sections.Count == 0) return;
+
+        var uniqueSections = new List<FormSection>();
+        var sectionsByKey = new Dictionary<string, FormSection>(StringComparer.OrdinalIgnoreCase);
+        var sectionsByNormTitle = new Dictionary<string, FormSection>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var sec in form.Sections.Where(s => !s.IsDeleted).OrderBy(s => s.OrderIndex))
+        {
+            var secKey = (sec.Key ?? string.Empty).Trim();
+            var normTitle = NormalizeAlphaNum(sec.Title);
+
+            FormSection? existingSec = null;
+            if (!string.IsNullOrEmpty(secKey) && sectionsByKey.TryGetValue(secKey, out var byKey))
+            {
+                existingSec = byKey;
+            }
+            else if (!string.IsNullOrEmpty(normTitle) && sectionsByNormTitle.TryGetValue(normTitle, out var byTitle))
+            {
+                existingSec = byTitle;
+            }
+
+            if (existingSec != null)
+            {
+                if (sec.SectionFields != null && existingSec.SectionFields != null)
+                {
+                    int nextOrder = existingSec.SectionFields.Count > 0
+                        ? existingSec.SectionFields.Max(x => x.OrderIndex) + 1
+                        : 0;
+                    foreach (var sf in sec.SectionFields.OrderBy(x => x.OrderIndex))
+                    {
+                        sf.OrderIndex = nextOrder++;
+                        existingSec.SectionFields.Add(sf);
+                    }
+                }
+                continue;
+            }
+
+            uniqueSections.Add(sec);
+            if (!string.IsNullOrEmpty(secKey)) sectionsByKey[secKey] = sec;
+            if (!string.IsNullOrEmpty(normTitle)) sectionsByNormTitle[normTitle] = sec;
+        }
+
+        for (int sIdx = 0; sIdx < uniqueSections.Count; sIdx++)
+        {
+            var sec = uniqueSections[sIdx];
+            sec.OrderIndex = sIdx;
+            if (sec.SectionFields == null || sec.SectionFields.Count <= 1) continue;
+
+            var seenFieldIds = new HashSet<Guid>();
+            var seenLabelTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var cleanFields = new List<SectionField>();
+
+            // Prefer canonical deterministic fd000000-... FieldIds if duplicate Label+Type exists
+            var canonicalLabelMap = new Dictionary<string, SectionField>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sf in sec.SectionFields)
+            {
+                if (sf.Field != null &&
+                    !string.Equals(sf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase) &&
+                    sf.FieldId.ToString().StartsWith("fd000000-", StringComparison.OrdinalIgnoreCase))
+                {
+                    var lKey = $"{NormalizeAlphaNum(sf.Field.Label)}::{(sf.Field.FieldType ?? "text").Trim().ToLowerInvariant()}";
+                    if (!canonicalLabelMap.ContainsKey(lKey))
+                    {
+                        canonicalLabelMap[lKey] = sf;
+                    }
+                }
+            }
+
+            int fIdx = 0;
+            foreach (var rawSf in sec.SectionFields.OrderBy(x => x.OrderIndex))
+            {
+                var sf = rawSf;
+                bool isCanonicalFieldId = sf.FieldId.ToString().StartsWith("fd000000-", StringComparison.OrdinalIgnoreCase);
+                if (sf.Field != null && !string.Equals(sf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase))
+                {
+                    var normLbl = NormalizeAlphaNum(sf.Field.Label);
+                    var normType = (sf.Field.FieldType ?? "text").Trim().ToLowerInvariant();
+                    if (!string.IsNullOrEmpty(normLbl))
+                    {
+                        var lKey = $"{normLbl}::{normType}";
+                        if (!isCanonicalFieldId && canonicalLabelMap.TryGetValue(lKey, out var canonicalSf))
+                        {
+                            sf = canonicalSf;
+                            isCanonicalFieldId = true;
+                        }
+                        // Two distinct canonical fd000000-... fields (e.g. targetPermitType and targetCertificateType in NTC_1_21)
+                        // are distinct pool fields even if they share a short display label ("Type").
+                        if (!isCanonicalFieldId && !seenLabelTypes.Add(lKey))
+                        {
+                            continue;
+                        }
+                        seenLabelTypes.Add(lKey);
+                    }
+                }
+
+                if (sf.FieldId != Guid.Empty && !seenFieldIds.Add(sf.FieldId))
+                {
+                    continue;
+                }
+
+                sf.OrderIndex = fIdx++;
+                cleanFields.Add(sf);
+            }
+
+            sec.SectionFields = cleanFields;
+        }
+
+        form.Sections = uniqueSections;
+    }
+
     private static void ApplyVariantProjectionInMemory(Form form, ServiceVariant variant)
     {
         if (form.Sections == null) return;
-        foreach (var sec in form.Sections.Where(s => !s.IsDeleted))
+        var projectedSections = new List<FormSection>();
+
+        foreach (var sec in form.Sections.Where(s => !s.IsDeleted).OrderBy(s => s.OrderIndex))
         {
-            if (sec.SectionFields == null) continue;
-            // Apply sectionVariantTitles if configured on first field
-            var firstRules = sec.SectionFields.FirstOrDefault()?.Field?.ValidationRules;
-            var customSecTitle = TryExtractVariantSectionTitle(firstRules, variant);
-            if (!string.IsNullOrWhiteSpace(customSecTitle))
+            var secVis = FormSectionDto.ExtractSectionVisibilityCondition(sec.SectionFields);
+            if (!IsConditionApplicableToVariant(secVis, variant))
             {
-                sec.Title = customSecTitle!;
+                continue;
             }
 
-            foreach (var sf in sec.SectionFields)
+            if (sec.SectionFields != null)
             {
-                if (sf.Field == null) continue;
-                ApplyVariantFieldOverrideInMemory(sf, variant);
+                // Apply sectionVariantTitles if configured on any field in section
+                foreach (var sf in sec.SectionFields)
+                {
+                    var customSecTitle = TryExtractVariantSectionTitle(sf.Field?.ValidationRules, variant);
+                    if (!string.IsNullOrWhiteSpace(customSecTitle))
+                    {
+                        sec.Title = customSecTitle!;
+                        break;
+                    }
+                }
+
+                var rawCount = sec.SectionFields.Count;
+                var applicableSfs = sec.SectionFields
+                    .OrderBy(sf => sf.OrderIndex)
+                    .Where(sf => IsConditionApplicableToVariant(sf.VisibilityCondition, variant))
+                    .ToList();
+
+                if (rawCount > 0 && applicableSfs.Count == 0)
+                {
+                    continue;
+                }
+
+                int fIdx = 0;
+                foreach (var sf in applicableSfs)
+                {
+                    sf.OrderIndex = fIdx++;
+                    if (sf.Field != null)
+                    {
+                        ApplyVariantFieldOverrideInMemory(sf, variant);
+                    }
+                }
+
+                sec.SectionFields = applicableSfs;
             }
+
+            sec.OrderIndex = projectedSections.Count;
+            projectedSections.Add(sec);
         }
+
+        form.Sections = projectedSections;
     }
 
     private static string? TryExtractVariantSectionTitle(string? validationRules, ServiceVariant variant)
@@ -469,6 +645,12 @@ public class FormRepository : IFormRepository
             .GroupBy(s => (s.Key ?? string.Empty).Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        var sectionsByNormTitle = baseForm.Sections
+            .Where(s => !s.IsDeleted && !string.IsNullOrWhiteSpace(s.Title))
+            .GroupBy(s => NormalizeAlphaNum(s.Title), StringComparer.OrdinalIgnoreCase)
+            .Where(g => !string.IsNullOrEmpty(g.Key))
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
         int maxSecOrder = baseForm.Sections.Count > 0 ? baseForm.Sections.Max(s => s.OrderIndex) : 0;
 
         foreach (var vf in activeVariantForms)
@@ -477,17 +659,15 @@ public class FormRepository : IFormRepository
                 ? FormatVariantDisplayName(vf.ServiceVariant)
                 : (!string.IsNullOrWhiteSpace(vf.Name) ? vf.Name! : $"var_{vf.ServiceVariantId}");
             var variantIdStr = vf.ServiceVariantId!.Value.ToString();
-            var scopedCondJson = JsonSerializer.Serialize(new
-            {
-                variants = new[] { variantLabel, variantIdStr }
-            });
 
             foreach (var vSec in vf.Sections.Where(s => !s.IsDeleted).OrderBy(s => s.OrderIndex))
             {
                 var secKey = (vSec.Key ?? string.Empty).Trim();
                 if (string.IsNullOrEmpty(secKey)) secKey = "general";
+                var normSecTitle = NormalizeAlphaNum(vSec.Title);
 
-                if (!sectionsByKey.TryGetValue(secKey, out var targetSec))
+                if (!sectionsByKey.TryGetValue(secKey, out var targetSec) &&
+                    (string.IsNullOrEmpty(normSecTitle) || !sectionsByNormTitle.TryGetValue(normSecTitle, out targetSec)))
                 {
                     targetSec = new FormSection
                     {
@@ -500,7 +680,16 @@ public class FormRepository : IFormRepository
                     };
                     baseForm.Sections.Add(targetSec);
                     sectionsByKey[secKey] = targetSec;
+                    if (!string.IsNullOrEmpty(normSecTitle))
+                    {
+                        sectionsByNormTitle[normSecTitle] = targetSec;
+                    }
                 }
+
+                var existingLabelsInTargetSec = targetSec.SectionFields
+                    .Where(sf => sf.Field != null && !string.Equals(sf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase))
+                    .Select(sf => $"{NormalizeAlphaNum(sf.Field!.Label)}::{(sf.Field.FieldType ?? "text").Trim().ToLowerInvariant()}")
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 int nextFieldOrder = targetSec.SectionFields.Count > 0
                     ? targetSec.SectionFields.Max(sf => sf.OrderIndex) + 1
@@ -513,7 +702,17 @@ public class FormRepository : IFormRepository
                         continue;
                     }
 
+                    if (vsf.Field != null && !string.Equals(vsf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var lKey = $"{NormalizeAlphaNum(vsf.Field.Label)}::{(vsf.Field.FieldType ?? "text").Trim().ToLowerInvariant()}";
+                        if (!string.IsNullOrEmpty(NormalizeAlphaNum(vsf.Field.Label)) && !existingLabelsInTargetSec.Add(lKey))
+                        {
+                            continue;
+                        }
+                    }
+
                     existingFieldIds.Add(vsf.FieldId);
+                    var scopedCond = UpsertVariantInclusionInCondition(vsf.VisibilityCondition, variantLabel, variantIdStr);
                     targetSec.SectionFields.Add(new SectionField
                     {
                         FormSectionId = targetSec.Id,
@@ -521,9 +720,7 @@ public class FormRepository : IFormRepository
                         Field = vsf.Field,
                         IsRequired = vsf.IsRequired,
                         OrderIndex = nextFieldOrder++,
-                        VisibilityCondition = !string.IsNullOrWhiteSpace(vsf.VisibilityCondition)
-                            ? vsf.VisibilityCondition
-                            : scopedCondJson
+                        VisibilityCondition = scopedCond
                     });
                 }
             }
@@ -543,21 +740,26 @@ public class FormRepository : IFormRepository
                     .ThenInclude(sf => sf.Field)
             .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted, cancellationToken);
 
-        if (form != null && form.ServiceId != Guid.Empty && !form.ServiceVariantId.HasValue && form.IsActive)
+        if (form != null)
         {
-            var groupIds = GetCanonicalServiceGroupIds(form.ServiceId);
-            var siblingForms = await _context.Forms
-                .IgnoreQueryFilters()
-                .AsNoTracking()
-                .AsSplitQuery()
-                .Include(f => f.ServiceVariant)
-                .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
-                    .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
-                        .ThenInclude(sf => sf.Field)
-                .Where(f => groupIds.Contains(f.ServiceId) && f.ServiceVariantId.HasValue && f.IsActive && !f.IsDeleted)
-                .ToListAsync(cancellationToken);
+            if (form.ServiceId != Guid.Empty && !form.ServiceVariantId.HasValue && form.IsActive)
+            {
+                var groupIds = GetCanonicalServiceGroupIds(form.ServiceId);
+                var siblingForms = await _context.Forms
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .AsSplitQuery()
+                    .Include(f => f.ServiceVariant)
+                    .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
+                        .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
+                            .ThenInclude(sf => sf.Field)
+                    .Where(f => groupIds.Contains(f.ServiceId) && f.ServiceVariantId.HasValue && f.IsActive && !f.IsDeleted)
+                    .ToListAsync(cancellationToken);
 
-            EnsureBaseFormSupersetInMemory(form, siblingForms);
+                EnsureBaseFormSupersetInMemory(form, siblingForms);
+            }
+
+            DeduplicateFormSectionsAndFieldsInMemory(form);
         }
 
         return form;
@@ -583,6 +785,11 @@ public class FormRepository : IFormRepository
             var groupIds = GetCanonicalServiceGroupIds(bf.ServiceId);
             var siblings = forms.Where(f => groupIds.Contains(f.ServiceId)).ToList();
             EnsureBaseFormSupersetInMemory(bf, siblings);
+        }
+
+        foreach (var f in forms)
+        {
+            DeduplicateFormSectionsAndFieldsInMemory(f);
         }
 
         return forms;
@@ -928,6 +1135,8 @@ public class FormRepository : IFormRepository
 
             EnsureBaseFormSupersetInMemory(form, activeVariantSiblings);
         }
+
+        DeduplicateFormSectionsAndFieldsInMemory(form);
 
         var versions = new List<FormVersionSummaryDto>();
         var customizedVariantIds = new List<Guid>();
@@ -1450,7 +1659,14 @@ public class FormRepository : IFormRepository
             .GroupBy(s => s.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        var existingSectionsByNormTitle = existingSections
+            .Where(s => !string.IsNullOrWhiteSpace(s.Title))
+            .GroupBy(s => NormalizeAlphaNum(s.Title), StringComparer.OrdinalIgnoreCase)
+            .Where(g => !string.IsNullOrEmpty(g.Key))
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
         var usedSectionKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var usedExistingSectionIds = new HashSet<Guid>();
         var targetSections = new List<FormSection>();
 
         int secIndex = 0;
@@ -1469,8 +1685,23 @@ public class FormRepository : IFormRepository
             }
             usedSectionKeys.Add(uniqueKey);
 
-            if (existingSectionsByKey.TryGetValue(uniqueKey, out var existingSec))
+            var normTitle = NormalizeAlphaNum(secDto.Title);
+            if (!existingSectionsByKey.TryGetValue(uniqueKey, out var existingSec) ||
+                usedExistingSectionIds.Contains(existingSec.Id))
             {
+                existingSec = null;
+                if (!string.IsNullOrEmpty(normTitle) &&
+                    existingSectionsByNormTitle.TryGetValue(normTitle, out var byTitle) &&
+                    !usedExistingSectionIds.Contains(byTitle.Id))
+                {
+                    existingSec = byTitle;
+                }
+            }
+
+            if (existingSec != null)
+            {
+                usedExistingSectionIds.Add(existingSec.Id);
+                existingSec.Key = uniqueKey;
                 existingSec.Title = string.IsNullOrWhiteSpace(secDto.Title) ? $"Section {secIndex + 1}" : secDto.Title.Trim();
                 existingSec.OrderIndex = secIndex;
                 existingSec.IsDeleted = false;
@@ -1492,6 +1723,7 @@ public class FormRepository : IFormRepository
                 };
                 await _context.FormSections.AddAsync(newSec, cancellationToken);
                 existingSectionsByKey[newSec.Key] = newSec;
+                usedExistingSectionIds.Add(newSec.Id);
                 targetSections.Add(newSec);
             }
             secIndex++;
@@ -1542,13 +1774,23 @@ public class FormRepository : IFormRepository
 
             int fIdx = 0;
             var seenFieldIdsInSec = new HashSet<Guid>();
+            var seenLabelTypesInSec = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var fDto in secDto.Fields ?? new List<FormFieldDto>())
             {
-                if (fDto.FieldId == Guid.Empty || seenFieldIdsInSec.Contains(fDto.FieldId))
+                if (fDto.FieldId == Guid.Empty || !seenFieldIdsInSec.Add(fDto.FieldId))
                 {
                     continue;
                 }
-                seenFieldIdsInSec.Add(fDto.FieldId);
+
+                if (!string.Equals(fDto.Type, "divider", StringComparison.OrdinalIgnoreCase))
+                {
+                    var normLbl = NormalizeAlphaNum(fDto.Label);
+                    var normType = (fDto.Type ?? "text").Trim().ToLowerInvariant();
+                    if (!string.IsNullOrEmpty(normLbl) && !seenLabelTypesInSec.Add($"{normLbl}::{normType}"))
+                    {
+                        continue;
+                    }
+                }
 
                 newSectionFields.Add(new SectionField
                 {
@@ -1711,6 +1953,12 @@ public class FormRepository : IFormRepository
             .GroupBy(s => (s.Key ?? string.Empty).Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        var baseSectionsByNormTitle = baseSectionsList
+            .Where(s => !string.IsNullOrWhiteSpace(s.Title))
+            .GroupBy(s => NormalizeAlphaNum(s.Title), StringComparer.OrdinalIgnoreCase)
+            .Where(g => !string.IsNullOrEmpty(g.Key))
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
         var baseSfByFieldId = baseSectionsList
             .SelectMany(s => s.SectionFields)
             .GroupBy(sf => sf.FieldId)
@@ -1724,7 +1972,10 @@ public class FormRepository : IFormRepository
         foreach (var vSec in loadedVariantForm.Sections.Where(s => !s.IsDeleted).OrderBy(s => s.OrderIndex))
         {
             var secKey = string.IsNullOrWhiteSpace(vSec.Key) ? "general" : vSec.Key.Trim();
-            if (!baseSectionsByKey.TryGetValue(secKey, out var baseSec))
+            var normSecTitle = NormalizeAlphaNum(vSec.Title);
+
+            if (!baseSectionsByKey.TryGetValue(secKey, out var baseSec) &&
+                (string.IsNullOrEmpty(normSecTitle) || !baseSectionsByNormTitle.TryGetValue(normSecTitle, out baseSec)))
             {
                 int insertAt = prevMatchedBaseSecIdx >= 0 && prevMatchedBaseSecIdx + 1 <= baseSectionsList.Count
                     ? prevMatchedBaseSecIdx + 1
@@ -1749,6 +2000,10 @@ public class FormRepository : IFormRepository
                     baseSectionsList[i].OrderIndex = i;
                 }
                 baseSectionsByKey[secKey] = baseSec;
+                if (!string.IsNullOrEmpty(normSecTitle))
+                {
+                    baseSectionsByNormTitle[normSecTitle] = baseSec;
+                }
                 prevMatchedBaseSecIdx = insertAt;
                 anyChanges = true;
             }
@@ -1758,14 +2013,32 @@ public class FormRepository : IFormRepository
             }
 
             var orderedBaseSfs = baseSec.SectionFields.OrderBy(x => x.OrderIndex).ToList();
+            var baseSecSfByLabelType = orderedBaseSfs
+                .Where(sf => sf.Field != null && !string.Equals(sf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase))
+                .GroupBy(sf => $"{NormalizeAlphaNum(sf.Field!.Label)}::{(sf.Field.FieldType ?? "text").Trim().ToLowerInvariant()}", StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
             Guid? predecessorFieldId = null;
 
             foreach (var vsf in vSec.SectionFields.OrderBy(x => x.OrderIndex))
             {
                 if (vsf.FieldId == Guid.Empty) continue;
-                variantFieldIds.Add(vsf.FieldId);
 
-                if (!baseSfByFieldId.TryGetValue(vsf.FieldId, out var existingBaseSf))
+                if (!baseSfByFieldId.TryGetValue(vsf.FieldId, out var existingBaseSf) &&
+                    vsf.Field != null &&
+                    !string.Equals(vsf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase))
+                {
+                    var lKey = $"{NormalizeAlphaNum(vsf.Field.Label)}::{(vsf.Field.FieldType ?? "text").Trim().ToLowerInvariant()}";
+                    if (!string.IsNullOrEmpty(NormalizeAlphaNum(vsf.Field.Label)) &&
+                        baseSecSfByLabelType.TryGetValue(lKey, out var matchedByLabel))
+                    {
+                        existingBaseSf = matchedByLabel;
+                    }
+                }
+
+                variantFieldIds.Add(existingBaseSf?.FieldId ?? vsf.FieldId);
+
+                if (existingBaseSf == null)
                 {
                     // Brand-new field added inside customized Service Variant -> reflect in Base Form ("All Sections & Fields")!
                     var scopedCond = UpsertVariantInclusionInCondition(vsf.VisibilityCondition, variantDisplayName, variantIdStr);
@@ -1785,6 +2058,7 @@ public class FormRepository : IFormRepository
                     {
                         FormSectionId = baseSec.Id,
                         FieldId = vsf.FieldId,
+                        Field = vsf.Field,
                         IsRequired = vsf.IsRequired,
                         OrderIndex = insertSfIdx,
                         VisibilityCondition = scopedCond
@@ -1796,6 +2070,14 @@ public class FormRepository : IFormRepository
                         orderedBaseSfs[i].OrderIndex = i;
                     }
                     baseSfByFieldId[vsf.FieldId] = addedBaseSf;
+                    if (vsf.Field != null && !string.Equals(vsf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var lKey = $"{NormalizeAlphaNum(vsf.Field.Label)}::{(vsf.Field.FieldType ?? "text").Trim().ToLowerInvariant()}";
+                        if (!string.IsNullOrEmpty(NormalizeAlphaNum(vsf.Field.Label)))
+                        {
+                            baseSecSfByLabelType[lKey] = addedBaseSf;
+                        }
+                    }
                     anyChanges = true;
                 }
                 else
@@ -2357,7 +2639,7 @@ public class FormRepository : IFormRepository
 
     public async Task<Form?> GetActiveVariantFormAsync(Guid variantId, CancellationToken cancellationToken = default)
     {
-        return await _context.Forms
+        var form = await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
             .Include(f => f.ServiceVariant)
@@ -2369,6 +2651,13 @@ public class FormRepository : IFormRepository
             .OrderByDescending(f => f.IsActive)
             .ThenByDescending(f => f.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (form != null)
+        {
+            DeduplicateFormSectionsAndFieldsInMemory(form);
+        }
+
+        return form;
     }
 
     public async Task<bool> RevertVariantFormAsync(Guid variantId, CancellationToken cancellationToken = default)
@@ -2381,6 +2670,8 @@ public class FormRepository : IFormRepository
             .IgnoreQueryFilters()
             .Where(f => f.ServiceVariantId == variantId && !f.IsDeleted)
             .ToListAsync(cancellationToken);
+
+        var revertedFormIds = variantForms.Select(vf => vf.Id).ToHashSet();
 
         foreach (var form in variantForms)
         {
@@ -2397,44 +2688,111 @@ public class FormRepository : IFormRepository
                 .Include(f => f.Sections.Where(s => !s.IsDeleted))
                     .ThenInclude(s => s.SectionFields)
                         .ThenInclude(sf => sf.Field)
-                .Where(f => groupIds.Contains(f.ServiceId) && f.ServiceVariantId == null && f.IsActive && !f.IsDeleted)
+                .Where(f => groupIds.Contains(f.ServiceId) && f.ServiceVariantId == null && !f.IsDeleted)
                 .ToListAsync(cancellationToken);
 
-            var varDisplayName = FormatVariantDisplayName(variant);
             foreach (var bf in activeBaseForms)
             {
                 foreach (var sec in bf.Sections.Where(s => !s.IsDeleted))
                 {
                     foreach (var sf in sec.SectionFields.ToList())
                     {
-                        var revertedCond = StripRevertedVariantFromCondition(sf.VisibilityCondition, variant);
+                        bool isCanonicalSeededField = sf.FieldId.ToString().StartsWith("fd000000-", StringComparison.OrdinalIgnoreCase);
+                        var defaultSeededCond = FastTrackFormSeeder.GetCanonicalFieldDefaultVisibilityCondition(bf.Key, sf.FieldId.ToString());
+
+                        // If this field was added exclusively inside the customized variant and is not a canonical Base Form field,
+                        // strip the reverted variant from its `variants` list (marking __NONE__ if no other variants remain).
+                        // Otherwise (for Base Form fields), restore its canonical Base Form applicability for the reverted variant!
+                        var revertedCond = StripRevertedVariantFromCondition(sf.VisibilityCondition, variant, isCanonicalSeededField, defaultSeededCond);
                         if (revertedCond != sf.VisibilityCondition)
                         {
                             sf.VisibilityCondition = revertedCond;
                         }
 
-                        // Remove variantOverrides entry for this reverted variant
+                        // Clean variantOverrides, sectionVariantTitles, condition, and sectionVisibilityCondition in ValidationRules
                         if (sf.Field != null && !string.IsNullOrWhiteSpace(sf.Field.ValidationRules) &&
                             sf.Field.ValidationRules.Trim().StartsWith("{", StringComparison.Ordinal))
                         {
                             try
                             {
                                 var obj = JsonNode.Parse(sf.Field.ValidationRules.Trim()) as JsonObject;
-                                if (obj?["variantOverrides"] is JsonObject ovObj)
+                                if (obj != null)
                                 {
-                                    var keysToRemove = ovObj
-                                        .Select(kvp => kvp.Key)
-                                        .Where(k => VariantRuleMatchesVariant(k, variant))
-                                        .ToList();
-                                    foreach (var k in keysToRemove) ovObj.Remove(k);
-                                    if (ovObj.Count == 0) obj.Remove("variantOverrides");
-                                    sf.Field.ValidationRules = obj.ToJsonString();
+                                    bool rulesChanged = false;
+
+                                    if (obj["variantOverrides"] is JsonObject ovObj)
+                                    {
+                                        var keysToRemove = ovObj
+                                            .Select(kvp => kvp.Key)
+                                            .Where(k =>
+                                                VariantRuleMatchesVariant(k, variant) ||
+                                                revertedFormIds.Any(fid => k.EndsWith($"::form::{fid}", StringComparison.OrdinalIgnoreCase)))
+                                            .ToList();
+                                        if (keysToRemove.Count > 0)
+                                        {
+                                            foreach (var k in keysToRemove) ovObj.Remove(k);
+                                            if (ovObj.Count == 0) obj.Remove("variantOverrides");
+                                            rulesChanged = true;
+                                        }
+                                    }
+
+                                    if (obj["sectionVariantTitles"] is JsonObject titlesObj)
+                                    {
+                                        var titleKeysToRemove = titlesObj
+                                            .Select(kvp => kvp.Key)
+                                            .Where(k => VariantRuleMatchesVariant(k, variant))
+                                            .ToList();
+                                        if (titleKeysToRemove.Count > 0)
+                                        {
+                                            foreach (var k in titleKeysToRemove) titlesObj.Remove(k);
+                                            if (titlesObj.Count == 0) obj.Remove("sectionVariantTitles");
+                                            rulesChanged = true;
+                                        }
+                                    }
+
+                                    if (obj["condition"] is JsonObject condObj)
+                                    {
+                                        var cleanedInnerCond = StripRevertedVariantFromCondition(condObj.ToJsonString(), variant, isCanonicalSeededField, defaultSeededCond);
+                                        if (string.IsNullOrWhiteSpace(cleanedInnerCond))
+                                        {
+                                            obj.Remove("condition");
+                                            rulesChanged = true;
+                                        }
+                                        else if (cleanedInnerCond != condObj.ToJsonString())
+                                        {
+                                            obj["condition"] = JsonNode.Parse(cleanedInnerCond);
+                                            rulesChanged = true;
+                                        }
+                                    }
+
+                                    if (obj["sectionVisibilityCondition"] is JsonValue secVisVal &&
+                                        secVisVal.TryGetValue<string>(out var rawSecVis) &&
+                                        !string.IsNullOrWhiteSpace(rawSecVis))
+                                    {
+                                        var cleanedSecVis = StripRevertedVariantFromCondition(rawSecVis, variant, isCanonicalSeededField: true);
+                                        if (string.IsNullOrWhiteSpace(cleanedSecVis))
+                                        {
+                                            obj.Remove("sectionVisibilityCondition");
+                                            rulesChanged = true;
+                                        }
+                                        else if (cleanedSecVis != rawSecVis)
+                                        {
+                                            obj["sectionVisibilityCondition"] = cleanedSecVis;
+                                            rulesChanged = true;
+                                        }
+                                    }
+
+                                    if (rulesChanged)
+                                    {
+                                        sf.Field.ValidationRules = obj.ToJsonString();
+                                    }
                                 }
                             }
                             catch { /* ignore */ }
                         }
                     }
                 }
+                bf.LastModifiedAt = DateTime.UtcNow;
             }
         }
 
@@ -2442,10 +2800,21 @@ public class FormRepository : IFormRepository
         return true;
     }
 
-    private static string? StripRevertedVariantFromCondition(string? rawCond, ServiceVariant variant)
+    private static string? StripRevertedVariantFromCondition(
+        string? rawCond,
+        ServiceVariant variant,
+        bool isCanonicalSeededField = false,
+        string? defaultSeededCond = null)
     {
+        bool hasDefaultSeededCond = !string.IsNullOrWhiteSpace(defaultSeededCond);
+        bool canonicallyApplicable = !hasDefaultSeededCond || IsConditionApplicableToVariant(defaultSeededCond, variant);
+
         if (string.IsNullOrWhiteSpace(rawCond) || !rawCond.Trim().StartsWith("{", StringComparison.Ordinal))
         {
+            if (hasDefaultSeededCond && !canonicallyApplicable)
+            {
+                return defaultSeededCond;
+            }
             return rawCond;
         }
 
@@ -2455,13 +2824,55 @@ public class FormRepository : IFormRepository
             if (obj == null) return rawCond;
 
             bool changed = false;
-            if (obj["excludedVariants"] is JsonArray exclArr)
+
+            if (hasDefaultSeededCond && !canonicallyApplicable)
             {
-                var remaining = exclArr
+                // This canonical field is NOT applicable to this variant in the Base Form by default (e.g. noOfYears on Modification / Permit to Purchase).
+                // Ensure the reverted variant is removed from `variants` (or re-excluded if `excludedVariants` is used).
+                if (obj["variants"] is JsonArray defVarArr && defVarArr.Count > 0)
+                {
+                    var remaining = defVarArr
+                        .Select(x => x?.GetValue<string>() ?? string.Empty)
+                        .Where(s => !string.IsNullOrWhiteSpace(s) && !VariantRuleMatchesVariant(s, variant))
+                        .ToList();
+                    if (remaining.Count != defVarArr.Count)
+                    {
+                        var next = new JsonArray();
+                        if (remaining.Count == 0) next.Add("__NONE__");
+                        else foreach (var r in remaining) next.Add(r);
+                        obj["variants"] = next;
+                        changed = true;
+                    }
+                }
+                else
+                {
+                    var exclArr = obj["excludedVariants"] as JsonArray ?? new JsonArray();
+                    var currentExcl = exclArr
+                        .Select(x => x?.GetValue<string>() ?? string.Empty)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .ToList();
+                    if (!currentExcl.Any(s => VariantRuleMatchesVariant(s, variant)))
+                    {
+                        currentExcl.Add(FormatVariantDisplayName(variant));
+                        var next = new JsonArray();
+                        foreach (var r in currentExcl) next.Add(r);
+                        obj["excludedVariants"] = next;
+                        changed = true;
+                    }
+                }
+
+                if (!changed) return rawCond;
+                return obj.Count == 0 ? null : obj.ToJsonString();
+            }
+
+            // 1. Always remove this variant from excludedVariants so Base Form fields hidden for this variant are restored!
+            if (obj["excludedVariants"] is JsonArray exclArr2)
+            {
+                var remaining = exclArr2
                     .Select(x => x?.GetValue<string>() ?? string.Empty)
                     .Where(s => !string.IsNullOrWhiteSpace(s) && !VariantRuleMatchesVariant(s, variant))
                     .ToList();
-                if (remaining.Count != exclArr.Count)
+                if (remaining.Count != exclArr2.Count)
                 {
                     changed = true;
                     if (remaining.Count == 0) obj.Remove("excludedVariants");
@@ -2474,19 +2885,51 @@ public class FormRepository : IFormRepository
                 }
             }
 
+            // 2. Handle `variants`:
+            // - If this is a canonical Base Form field and `variants` was set to `["__NONE__"]` (or excluded this canonically applicable variant),
+            //   restore this variant (or remove `variants` if it only had `__NONE__` and no defaultSeededCond) so the Base Form field reflects again!
+            // - If this is a custom field added exclusively inside the customized variant, remove the reverted variant from `variants`.
             if (obj["variants"] is JsonArray varArr && varArr.Count > 0)
             {
-                var remaining = varArr
+                var currentTokens = varArr
                     .Select(x => x?.GetValue<string>() ?? string.Empty)
-                    .Where(s => !string.IsNullOrWhiteSpace(s) && !VariantRuleMatchesVariant(s, variant))
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
                     .ToList();
-                if (remaining.Count != varArr.Count)
+
+                if (isCanonicalSeededField &&
+                    !hasDefaultSeededCond &&
+                    currentTokens.All(t => string.Equals(t, "__NONE__", StringComparison.OrdinalIgnoreCase)))
                 {
+                    obj.Remove("variants");
                     changed = true;
-                    var next = new JsonArray();
-                    if (remaining.Count == 0) next.Add("__NONE__");
-                    else foreach (var r in remaining) next.Add(r);
-                    obj["variants"] = next;
+                }
+                else if (isCanonicalSeededField && hasDefaultSeededCond && canonicallyApplicable)
+                {
+                    if (!currentTokens.Any(s => VariantRuleMatchesVariant(s, variant)))
+                    {
+                        var cleaned = currentTokens
+                            .Where(t => !string.Equals(t, "__NONE__", StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        cleaned.Add(FormatVariantDisplayName(variant));
+                        var next = new JsonArray();
+                        foreach (var r in cleaned) next.Add(r);
+                        obj["variants"] = next;
+                        changed = true;
+                    }
+                }
+                else if (!isCanonicalSeededField)
+                {
+                    var remaining = currentTokens
+                        .Where(s => !VariantRuleMatchesVariant(s, variant))
+                        .ToList();
+                    if (remaining.Count != currentTokens.Count)
+                    {
+                        changed = true;
+                        var next = new JsonArray();
+                        if (remaining.Count == 0) next.Add("__NONE__");
+                        else foreach (var r in remaining) next.Add(r);
+                        obj["variants"] = next;
+                    }
                 }
             }
 

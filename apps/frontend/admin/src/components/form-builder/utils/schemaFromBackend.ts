@@ -56,8 +56,39 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
   let extractedLinkedServices: LinkedServiceItem[] | undefined = undefined;
   let extractedLinkedVariants: string[] | undefined = undefined;
 
+  const normalizeAlphaNum = (val?: string) =>
+    (val ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
   if (Array.isArray(dto.sections)) {
-    for (const section of dto.sections) {
+    // Deduplicate sections sharing the same normalized key or normalized title (merging fields if needed)
+    const deduplicatedSections: NonNullable<BackendFormDtoLike["sections"]> = [];
+    const secByKey = new Map<string, NonNullable<BackendFormDtoLike["sections"]>[number]>();
+    const secByTitle = new Map<string, NonNullable<BackendFormDtoLike["sections"]>[number]>();
+
+    for (const rawSec of dto.sections) {
+      const k = (rawSec.key ?? "").trim().toLowerCase();
+      const normTitle = normalizeAlphaNum(rawSec.title);
+      const existing =
+        (k.length > 0 ? secByKey.get(k) : undefined) ??
+        (normTitle.length > 0 ? secByTitle.get(normTitle) : undefined);
+
+      if (existing) {
+        if (Array.isArray(rawSec.fields) && rawSec.fields.length > 0) {
+          existing.fields = [...(existing.fields ?? []), ...rawSec.fields];
+        }
+        continue;
+      }
+
+      const clonedSec = {
+        ...rawSec,
+        fields: Array.isArray(rawSec.fields) ? [...rawSec.fields] : [],
+      };
+      deduplicatedSections.push(clonedSec);
+      if (k.length > 0) secByKey.set(k, clonedSec);
+      if (normTitle.length > 0) secByTitle.set(normTitle, clonedSec);
+    }
+
+    for (const section of deduplicatedSections) {
       let inferredSecVis: string | undefined = section.visibilityCondition || undefined;
       let inferredVariantTitles: Record<string, string> | undefined = undefined;
       if (Array.isArray(section.fields) && section.fields.length > 0) {
@@ -115,8 +146,26 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
       }
 
       if (Array.isArray(section.fields)) {
+        const seenSectionFieldIds = new Set<string>();
+        const seenSectionLabelTypes = new Set<string>();
+
         for (const f of section.fields) {
           const normType = normalizeFieldType(f.type ?? "text");
+          const rawFieldIdLower = (f.fieldId ?? "").trim().toLowerCase();
+          if (rawFieldIdLower.length > 0) {
+            if (seenSectionFieldIds.has(rawFieldIdLower)) continue;
+            seenSectionFieldIds.add(rawFieldIdLower);
+          }
+
+          if (normType !== "divider") {
+            const normLbl = normalizeAlphaNum(f.label);
+            if (normLbl.length > 0) {
+              const labelTypeKey = `${normLbl}::${normType}`;
+              if (seenSectionLabelTypes.has(labelTypeKey)) continue;
+              seenSectionLabelTypes.add(labelTypeKey);
+            }
+          }
+
           let parsedRules: Record<string, unknown> = {};
           let rawArrayPayload: unknown[] | null = null;
 
@@ -164,11 +213,16 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
             f.visibilityCondition === inheritedSecVis;
 
           const parsedCond = parsedRules["condition"];
-          const fieldCondition = isRecord(parsedCond)
-            ? parseFieldCondition(parsedCond)
+          const explicitVisCond = !isInheritedOnly && f.visibilityCondition
+            ? parseFieldCondition(f.visibilityCondition)
+            : undefined;
+          const fieldCondition = explicitVisCond
+            ? explicitVisCond
             : isInheritedOnly
             ? undefined
-            : parseFieldCondition(f.visibilityCondition);
+            : isRecord(parsedCond)
+            ? parseFieldCondition(parsedCond)
+            : undefined;
 
           const parsedOverrides = parseFieldVariantOverrides(parsedRules["variantOverrides"]);
 

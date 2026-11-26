@@ -132,14 +132,24 @@ export function variantNamesMatch(item: string, targetVariant: string): boolean 
   const normTarget = normalize(targetVariant);
   if (!normItem || !normTarget || normItem === "none" || normItem === "all") return false;
   if (normItem === normTarget) return true;
-  const parenMatch = targetVariant.match(/\(([^()]+)\)\s*$/) ?? targetVariant.match(/\(([^)]+)\)/);
-  if (parenMatch && normalize(parenMatch[1]) === normItem) return true;
-  const itemParenMatch = item.match(/\(([^()]+)\)\s*$/) ?? item.match(/\(([^)]+)\)/);
-  if (itemParenMatch && normalize(itemParenMatch[1]) === normTarget) return true;
-  const baseTarget = normalize(targetVariant.replace(/\([^()]*\)\s*$/, ""));
-  if (baseTarget && baseTarget === normItem) return true;
-  const baseItem = normalize(item.replace(/\([^()]*\)\s*$/, ""));
-  if (baseItem && baseItem === normTarget) return true;
+
+  // Strip disambiguated service suffix (" — Service Name") when only one side carries it
+  const itemHasServiceSuffix = item.includes(" — ");
+  const targetHasServiceSuffix = targetVariant.includes(" — ");
+  const cleanItem = !itemHasServiceSuffix && targetHasServiceSuffix ? item : item.split(" — ")[0] ?? item;
+  const cleanTarget = targetHasServiceSuffix && !itemHasServiceSuffix ? (targetVariant.split(" — ")[0] ?? targetVariant) : targetVariant;
+  const normCleanItem = normalize(cleanItem);
+  const normCleanTarget = normalize(cleanTarget);
+  if (normCleanItem.length > 0 && normCleanItem === normCleanTarget) return true;
+
+  const parenMatch = cleanTarget.match(/\(([^()]+)\)\s*$/) ?? cleanTarget.match(/\(([^)]+)\)/);
+  if (parenMatch && normalize(parenMatch[1]) === normCleanItem) return true;
+  const itemParenMatch = cleanItem.match(/\(([^()]+)\)\s*$/) ?? cleanItem.match(/\(([^)]+)\)/);
+  if (itemParenMatch && normalize(itemParenMatch[1]) === normCleanTarget) return true;
+  const baseTarget = normalize(cleanTarget.replace(/\([^()]*\)\s*$/, ""));
+  if (baseTarget && baseTarget === normCleanItem) return true;
+  const baseItem = normalize(cleanItem.replace(/\([^()]*\)\s*$/, ""));
+  if (baseItem && baseItem === normCleanTarget) return true;
   return false;
 }
 
@@ -553,20 +563,47 @@ export function detectSharedChangesImpact(
       (cur.label || "").trim() !== (prev.label || "").trim() ||
       (cur.sectionTitle || "").trim() !== (prev.sectionTitle || "").trim();
     const reqChanged = Boolean(cur.required) !== Boolean(prev.required);
+    const typeChanged = cur.type !== prev.type;
+    const colsChanged = (cur.cols ?? 2) !== (prev.cols ?? 2);
     const optsChanged = JSON.stringify(cur.options ?? []) !== JSON.stringify(prev.options ?? []);
+    const repColsChanged =
+      JSON.stringify(cur.repeaterColumns ?? []) !== JSON.stringify(prev.repeaterColumns ?? []);
     const phOrHelpChanged =
       (cur.placeholder ?? "") !== (prev.placeholder ?? "") ||
       (cur.helpText ?? "") !== (prev.helpText ?? "");
 
-    if (labelChanged || reqChanged || optsChanged || phOrHelpChanged) {
+    if (
+      labelChanged ||
+      reqChanged ||
+      typeChanged ||
+      colsChanged ||
+      optsChanged ||
+      repColsChanged ||
+      phOrHelpChanged
+    ) {
       if (labelChanged) {
         modifiedItems.push(`Renamed "${prev.sectionTitle || prev.label}" → "${cur.sectionTitle || cur.label}"`);
-      } else if (optsChanged) {
-        modifiedItems.push(`Updated options on "${cur.label}"`);
+      } else if (optsChanged || repColsChanged) {
+        modifiedItems.push(`Updated options/columns on "${cur.label}"`);
       } else {
         modifiedItems.push(`Updated properties on "${cur.sectionTitle || cur.label}"`);
       }
       for (const v of usingVariants) affectedSet.add(v.name);
+    }
+  }
+
+  // Also detect removed fields/sections or reordered fields
+  const updatedIds = new Set(updatedForm.fields.map((f) => f.id));
+  for (const prev of originalForm.fields) {
+    if (prev.type === "divider") continue;
+    if (!updatedIds.has(prev.id)) {
+      const usingVariants = getVariantsUsingField(prev, allVariants);
+      if (usingVariants.length > 0) {
+        modifiedItems.push(
+          `Removed ${prev.type === "section-header" ? "section" : "field"} "${prev.sectionTitle || prev.label}"`
+        );
+        for (const v of usingVariants) affectedSet.add(v.name);
+      }
     }
   }
 

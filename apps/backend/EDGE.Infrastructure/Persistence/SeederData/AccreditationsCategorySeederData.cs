@@ -152,7 +152,7 @@ public static class AccreditationsCategorySeederData
     {
         new("NTC_1_18", Guid.Parse("f1800000-0000-0000-0000-000000000001"), Guid.Parse("f18a0000-0000-0000-0000-000000000000"), new()
         {
-            new("personnel", "Technical Personnel", new() { "supervisingEngineer", "certificateEctNo", "certificateEctExpiryDate", "technicianName", "technicianCertNo", "technicianExpiryDate" })
+            new("personnel", "Technical Personnel", new() { "noOfYears", "supervisingEngineer", "certificateEctNo", "certificateEctExpiryDate", "technicianName", "technicianCertNo", "technicianExpiryDate" })
         })
     };
 

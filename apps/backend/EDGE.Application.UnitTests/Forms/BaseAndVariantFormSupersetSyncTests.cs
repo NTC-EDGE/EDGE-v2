@@ -546,4 +546,109 @@ public class BaseAndVariantFormSupersetSyncTests
         var baseAfterActivate = await getBaseHandler.Handle(new GetFormByIdQuery(baseFormId), CancellationToken.None);
         baseAfterActivate.Data!.Sections[0].Fields.Should().Contain(f => f.FieldId == draftExtraFieldId);
     }
+
+    [Fact]
+    public async Task RevertVariantForm_RestoresAllBaseFormFields_AcrossCanonicalLinkedServices_AndDeduplicatesRepetitiveFields()
+    {
+        using var context = CreateDbContext();
+        var formRepo = new FormRepository(context);
+        var variantRepo = new ServiceVariantRepository(context);
+        var serviceRepo = new ServiceRepository(context);
+        var contractValidator = new ContractFormValidator();
+
+        var category = new ServiceCategory { Id = Guid.NewGuid(), Name = "Permits", Code = "PRM", Type = ServiceCategoryType.Permit };
+        var canonical109ServiceId = Guid.Parse("50000000-0000-0000-0000-000000000009");
+        var aeroPermitServiceId = Guid.Parse("50000000-0000-0000-0000-000000000060");
+
+        var svc109 = new Service { Id = canonical109ServiceId, ServiceCategoryId = category.Id, ServiceCategory = category, Name = "Permits in the Amateur Service", Code = "NTC_1_09", Contract = "{}" };
+        var svcAero = new Service { Id = aeroPermitServiceId, ServiceCategoryId = category.Id, ServiceCategory = category, Name = "Permits in the Aeronautical Service", Code = "NTC_AERO_PERMITS", Contract = "{}" };
+        var varAeroPurchase = new ServiceVariant { Id = Guid.NewGuid(), ServiceId = aeroPermitServiceId, Type = ServiceVariantType.NA, Description = "Aeronautical Station Permit to Purchase" };
+
+        context.ServiceCategories.Add(category);
+        context.Services.AddRange(svc109, svcAero);
+        context.ServiceVariants.Add(varAeroPurchase);
+        await context.SaveChangesAsync();
+
+        var fieldCallSign = Guid.Parse("fd000000-0000-0000-0000-000000000028");
+        var fieldFreq = Guid.Parse("fd000000-0000-0000-0000-000000000103");
+        var fieldDealer = Guid.Parse("fd000000-0000-0000-0000-000000000120");
+        var baseFormId = Guid.Parse("fb200000-0000-0000-0000-000000000001");
+
+        await formRepo.SaveFormStructureAsync(
+            baseFormId,
+            canonical109ServiceId,
+            "1.0",
+            false,
+            new List<FormSectionDto>
+            {
+                new()
+                {
+                    Key = "stationEquipment",
+                    Title = "Particulars of Station & Equipment",
+                    OrderIndex = 0,
+                    Fields = new List<FormFieldDto>
+                    {
+                        new() { FieldId = fieldCallSign, Label = "Call Sign", Type = "text", IsRequired = false, OrderIndex = 0 },
+                        new() { FieldId = fieldFreq, Label = "Frequency(ies)", Type = "text", IsRequired = true, OrderIndex = 1 },
+                        // Simulate a repetitive field with a different random GUID but identical Label & Type in the same section
+                        new() { FieldId = Guid.NewGuid(), Label = "Frequency(ies)", Type = "text", IsRequired = true, OrderIndex = 2 }
+                    }
+                },
+                new()
+                {
+                    Key = "supplierDealer",
+                    Title = "Supplier / Dealer / Source",
+                    OrderIndex = 1,
+                    Fields = new List<FormFieldDto>
+                    {
+                        new() { FieldId = fieldDealer, Label = "Name of Dealer", Type = "text", IsRequired = true, OrderIndex = 0 }
+                    }
+                }
+            },
+            "NTC 1-09: Permits",
+            true,
+            "NTC_1_09");
+
+        // 1. Customize Aeronautical Permit to Purchase (remove Supplier/Dealer section and Frequency field, add a custom Aero field)
+        var customAeroFieldId = Guid.NewGuid();
+        var saveVarHandler = new SaveVariantFormCommandHandler(variantRepo, formRepo);
+        var saveRes = await saveVarHandler.Handle(new SaveVariantFormCommand(
+            varAeroPurchase.Id,
+            new List<FormSectionDto>
+            {
+                new()
+                {
+                    Key = "stationEquipment",
+                    Title = "Particulars of Station & Equipment",
+                    OrderIndex = 0,
+                    Fields = new List<FormFieldDto>
+                    {
+                        new() { FieldId = fieldCallSign, Label = "Aeronautical Call Sign", Type = "text", IsRequired = true, OrderIndex = 0 },
+                        new() { FieldId = customAeroFieldId, Label = "CAAP Airworthiness Reference", Type = "text", IsRequired = true, OrderIndex = 1 }
+                    }
+                }
+            },
+            "Aeronautical Purchase Form",
+            "1.0",
+            true), CancellationToken.None);
+
+        saveRes.Succeeded.Should().BeTrue();
+
+        // 2. Now Reset / Revert Aeronautical Permit to Purchase back to Base Form!
+        var reverted = await formRepo.RevertVariantFormAsync(varAeroPurchase.Id, CancellationToken.None);
+        reverted.Should().BeTrue();
+
+        // 3. Loading the variant form MUST return the clean Base Form with ALL Base Form sections & fields restored,
+        //    original Base Form labels restored, custom variant-only field excluded, and repetitive fields deduplicated!
+        var getVarHandler = new GetFormByVariantIdQueryHandler(variantRepo, formRepo, serviceRepo, contractValidator);
+        var afterResetRes = await getVarHandler.Handle(new GetFormByVariantIdQuery(varAeroPurchase.Id), CancellationToken.None);
+
+        afterResetRes.Succeeded.Should().BeTrue();
+        afterResetRes.Data!.IsCustomized.Should().BeFalse();
+        afterResetRes.Data.Sections.Should().HaveCount(2, "both Base Form sections must be restored after reset");
+        afterResetRes.Data.Sections[0].Fields.Should().HaveCount(2, "repetitive Frequency(ies) field must be deduplicated and custom variant field hidden");
+        afterResetRes.Data.Sections[0].Fields.Select(f => f.FieldId).Should().ContainInOrder(fieldCallSign, fieldFreq);
+        afterResetRes.Data.Sections[0].Fields.First(f => f.FieldId == fieldCallSign).Label.Should().Be("Call Sign");
+        afterResetRes.Data.Sections[1].Fields.Should().ContainSingle(f => f.FieldId == fieldDealer);
+    }
 }

@@ -30,6 +30,47 @@ public static class FastTrackFormSeeder
         ["NTC_1_25"] = "NTC 1-25: Consumer Complaints & Tape Preservation"
     };
 
+    public static readonly Guid CanonicalNoOfYearsFieldId = Guid.Parse("fd000000-0000-0000-0000-000000000201");
+
+    /// <summary>
+    /// Returns the canonical default variant visibility condition for a seeded field within one of the 13 Base Forms.
+    /// Ensures "Number of Years" (noOfYears) is visible by default on multi-year New/Renewal/Vanity variants
+    /// and hidden by default on Modification, Lifetime, Foreign Pilot, Purchase/Possess/Sell/Transfer/Storage/Transport,
+    /// Construction/Demo Permit, and TVRO Registration Certificate variants.
+    /// </summary>
+    public static string? GetCanonicalFieldDefaultVisibilityCondition(string? serviceKeyOrFormKey, string? fieldKeyOrId)
+    {
+        if (string.IsNullOrWhiteSpace(serviceKeyOrFormKey) || string.IsNullOrWhiteSpace(fieldKeyOrId))
+        {
+            return null;
+        }
+
+        var fk = fieldKeyOrId.Trim();
+        bool isNoOfYears = string.Equals(fk, "noOfYears", StringComparison.OrdinalIgnoreCase) ||
+                           (Guid.TryParse(fk, out var parsedId) && parsedId == CanonicalNoOfYearsFieldId);
+        if (!isNoOfYears)
+        {
+            return null;
+        }
+
+        var sk = serviceKeyOrFormKey.Trim().ToUpperInvariant();
+        return sk switch
+        {
+            "NTC_1_02" => @"{""excludedVariants"":[""Modification"",""Temporary Radio Operator Certificate for Foreign Pilot (New)"",""Temporary Radio Operator Certificate for Foreign Pilot (Modification)""]}",
+            "NTC_1_03" or "NTC_AMA_LICENSES" => @"{""excludedVariants"":[""Modification"",""Lifetime Amateur Radio Station License for Class A"",""Lifetime Amateur Radio Station License for Class A (New)"",""Lifetime Amateur Radio Station Supplementary Certificate (Modification)""]}",
+            "NTC_1_04" => @"{""excludedVariants"":[""Modification""]}",
+            "NTC_1_09" or "NTC_AERO_PERMITS" or "NTC_MAR_PERMITS" or "NTC_FLM_PERMITS" or "NTC_PTE_PERMITS" =>
+                @"{""variants"":[""Special Permit for Use of Vanity Call Sign (New)"",""Special Permit for Use of Vanity Call Sign (Renewal)"",""Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"",""Special Permit for the Use of Special Event Call Sign""]}",
+            "NTC_1_11" or "NTC_AERO_LICENSES" or "NTC_OTHER_LICENSES" =>
+                @"{""excludedVariants"":[""Modification"",""Construction Permit (New)"",""Construction Permit (Modification)"",""Temporary Permit to Demonstrate and Propagate""]}",
+            "NTC_1_18" or "NTC_EQUIP_PERMITS" or "NTC_MP_PERMITS" =>
+                @"{""excludedVariants"":[""Modification"",""Permit to Transport""]}",
+            "NTC_1_22" or "NTC_TVRO_LICENSES" =>
+                @"{""excludedVariants"":[""Modification"",""TVRO Registration Certificate (Commercial)"",""TVRO Registration Certificate (Non-Commercial)""]}",
+            _ => null
+        };
+    }
+
     public static async Task SeedFormsInternalAsync(ApplicationDbContext context, ILogger? logger = null)
     {
         // 1. Seed Central Reusable Fields Pool (Deterministic GUIDs)
@@ -83,73 +124,208 @@ public static class FastTrackFormSeeder
             await context.SaveChangesAsync();
         }
 
-        // 2. Self-heal any existing duplicate FormSections globally before seeding
+        // 2. Self-heal any existing forbidden or duplicate FormSections and duplicate SectionFields globally before seeding
+        var canonicalSectionKeys = FastTrackSeederData.GetAllFormDefs()
+            .SelectMany(fd => fd.Sections.Select(s => (s.Key ?? string.Empty).Trim()))
+            .Where(k => !string.IsNullOrEmpty(k))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var globalForbiddenSectionKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "applicant", "applicantPerson", "applicantAddress", "applicantContact", "applicantEducation",
+            "applicantParticulars", "applicant_information", "applicantInfo", "personalInfo", "personal_information",
+            "complainant", "typeOfCertificate", "permitType", "typeOfApplication", "applicationType",
+            "declaration", "declarationAndUndertaking", "declaration_section", "payment", "paymentDetails", "fees", "accounting", "cashier",
+            "deviceParticulars", "serviceProvider", "incidentParticulars", "natureOfComplaint", "details",
+            "respondentParticulars", "complaintParticulars", "broadcastParticulars", "assistanceRequest", "bsd", "vasRegistration",
+            "pointsOfCommunication"
+        };
+
         var allDbSections = await context.FormSections.IgnoreQueryFilters().ToListAsync();
-        var globalDuplicates = allDbSections
-            .GroupBy(s => new { s.FormId, Key = (s.Key ?? string.Empty).Trim().ToLowerInvariant() })
-            .Where(g => g.Count() > 1)
+        var forbiddenDbSections = allDbSections
+            .Where(s => globalForbiddenSectionKeys.Contains((s.Key ?? string.Empty).Trim()))
             .ToList();
 
-        if (globalDuplicates.Count > 0)
+        if (forbiddenDbSections.Count > 0)
         {
-            var dupSectionIds = globalDuplicates.SelectMany(g => g.Select(s => s.Id)).ToList();
-            var allDupSectionFields = await context.SectionFields
-                .Where(sf => dupSectionIds.Contains(sf.FormSectionId))
+            var forbiddenSecIds = forbiddenDbSections.Select(s => s.Id).ToHashSet();
+            var forbiddenSecFields = await context.SectionFields
+                .Where(sf => forbiddenSecIds.Contains(sf.FormSectionId))
                 .ToListAsync();
+            if (forbiddenSecFields.Count > 0) context.SectionFields.RemoveRange(forbiddenSecFields);
+            context.FormSections.RemoveRange(forbiddenDbSections);
+            await context.SaveChangesAsync();
+            allDbSections = allDbSections.Where(s => !forbiddenSecIds.Contains(s.Id)).ToList();
+        }
 
-            int totalRemoved = 0;
-            foreach (var group in globalDuplicates)
-            {
-                // Prefer keeping a non-deleted section that actually has SectionFields
-                var keep = group
-                    .OrderBy(s => s.IsDeleted)
-                    .ThenByDescending(s => allDupSectionFields.Count(sf => sf.FormSectionId == s.Id))
-                    .First();
+        static string NormalizeTitleKey(string? title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+            return new string(title.Trim().ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+        }
 
-                var trimmedKey = (keep.Key ?? string.Empty).Trim();
-                if (keep.IsDeleted)
-                {
-                    keep.IsDeleted = false;
-                    keep.IsDeletedBy = string.Empty;
-                }
-                if (keep.Key != trimmedKey)
-                {
-                    keep.Key = trimmedKey;
-                }
-
-                var toRemove = group.Where(s => s.Id != keep.Id).ToList();
-                var toRemoveIds = toRemove.Select(s => s.Id).ToHashSet();
-                var keepFieldIds = allDupSectionFields
-                    .Where(sf => sf.FormSectionId == keep.Id)
-                    .Select(sf => sf.FieldId)
-                    .ToHashSet();
-
-                var toRemoveFields = allDupSectionFields
-                    .Where(sf => toRemoveIds.Contains(sf.FormSectionId))
+        // 2a. Deduplicate FormSections by (FormId, Key) AND by (FormId, NormalizedTitle)
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var globalDuplicates = pass == 0
+                ? allDbSections
+                    .GroupBy(s => new { s.FormId, GroupKey = (s.Key ?? string.Empty).Trim().ToLowerInvariant() })
+                    .Where(g => !string.IsNullOrEmpty(g.Key.GroupKey) && g.Count() > 1)
+                    .ToList()
+                : allDbSections
+                    .GroupBy(s => new { s.FormId, GroupKey = NormalizeTitleKey(s.Title) })
+                    .Where(g => !string.IsNullOrEmpty(g.Key.GroupKey) && g.Count() > 1)
                     .ToList();
 
-                // Migrate any non-conflicting SectionFields from duplicate sections if keep has none for that FieldId
-                foreach (var dupSf in toRemoveFields)
+            if (globalDuplicates.Count > 0)
+            {
+                var dupSectionIds = globalDuplicates.SelectMany(g => g.Select(s => s.Id)).ToList();
+                var allDupSectionFields = await context.SectionFields
+                    .Where(sf => dupSectionIds.Contains(sf.FormSectionId))
+                    .ToListAsync();
+
+                var removedSecIds = new HashSet<Guid>();
+                int totalRemoved = 0;
+                foreach (var group in globalDuplicates)
                 {
-                    if (keepFieldIds.Add(dupSf.FieldId))
+                    // Prefer keeping a non-deleted section whose key is canonical and that actually has SectionFields
+                    var keep = group
+                        .OrderBy(s => s.IsDeleted)
+                        .ThenByDescending(s => canonicalSectionKeys.Contains((s.Key ?? string.Empty).Trim()))
+                        .ThenByDescending(s => allDupSectionFields.Count(sf => sf.FormSectionId == s.Id))
+                        .ThenBy(s => s.OrderIndex)
+                        .First();
+
+                    var canonicalMatchKey = group
+                        .Select(s => (s.Key ?? string.Empty).Trim())
+                        .FirstOrDefault(k => canonicalSectionKeys.Contains(k));
+
+                    var trimmedKey = !string.IsNullOrEmpty(canonicalMatchKey)
+                        ? canonicalMatchKey
+                        : (keep.Key ?? string.Empty).Trim();
+
+                    if (keep.IsDeleted)
                     {
-                        context.SectionFields.Add(new SectionField
+                        keep.IsDeleted = false;
+                        keep.IsDeletedBy = string.Empty;
+                    }
+                    if (keep.Key != trimmedKey)
+                    {
+                        keep.Key = trimmedKey;
+                    }
+
+                    var toRemove = group.Where(s => s.Id != keep.Id).ToList();
+                    var toRemoveIds = toRemove.Select(s => s.Id).ToHashSet();
+                    var keepFieldIds = allDupSectionFields
+                        .Where(sf => sf.FormSectionId == keep.Id)
+                        .Select(sf => sf.FieldId)
+                        .ToHashSet();
+
+                    var toRemoveFields = allDupSectionFields
+                        .Where(sf => toRemoveIds.Contains(sf.FormSectionId))
+                        .ToList();
+
+                    // Migrate any non-conflicting SectionFields from duplicate sections if keep has none for that FieldId
+                    foreach (var dupSf in toRemoveFields)
+                    {
+                        if (keepFieldIds.Add(dupSf.FieldId))
                         {
-                            FormSectionId = keep.Id,
-                            FieldId = dupSf.FieldId,
-                            IsRequired = dupSf.IsRequired,
-                            OrderIndex = dupSf.OrderIndex,
-                            VisibilityCondition = dupSf.VisibilityCondition
-                        });
+                            context.SectionFields.Add(new SectionField
+                            {
+                                FormSectionId = keep.Id,
+                                FieldId = dupSf.FieldId,
+                                IsRequired = dupSf.IsRequired,
+                                OrderIndex = dupSf.OrderIndex,
+                                VisibilityCondition = dupSf.VisibilityCondition
+                            });
+                        }
+                    }
+
+                    if (toRemoveFields.Count > 0) context.SectionFields.RemoveRange(toRemoveFields);
+                    context.FormSections.RemoveRange(toRemove);
+                    foreach (var r in toRemove) removedSecIds.Add(r.Id);
+                    totalRemoved += toRemove.Count;
+                }
+                await context.SaveChangesAsync();
+                allDbSections = allDbSections.Where(s => !removedSecIds.Contains(s.Id)).ToList();
+                logger?.LogInformation("Self-healing (pass {Pass}): Cleaned up {Count} duplicate FormSection entries across existing forms.", pass + 1, totalRemoved);
+            }
+        }
+
+        // 2b. Self-heal duplicate SectionFields within the same FormSection (same FieldId or same normalized Label+Type, plus redundant equipment fields next to equipmentDetails repeater)
+        var allSectionFields = await context.SectionFields.ToListAsync();
+        if (allSectionFields.Count > 0)
+        {
+            var fieldById = existingFields.ToDictionary(f => f.Id, f => f);
+            var redundantEquipmentFieldIds = new HashSet<Guid>
+            {
+                Guid.Parse("fd000000-0000-0000-0000-000000000270"), // makeModel
+                Guid.Parse("fd000000-0000-0000-0000-000000000111"), // serialNumber
+                Guid.Parse("fd000000-0000-0000-0000-000000000112"), // frequencyRange
+                Guid.Parse("fd000000-0000-0000-0000-000000000106"), // powerOutput
+                Guid.Parse("fd000000-0000-0000-0000-000000000025")  // classOfStation
+            };
+            var equipmentRepeaterId = Guid.Parse("fd000000-0000-0000-0000-000000000030");
+            var sectionById = allDbSections.ToDictionary(s => s.Id, s => s);
+
+            var sfsToRemove = new List<SectionField>();
+            foreach (var secGroup in allSectionFields.GroupBy(sf => sf.FormSectionId))
+            {
+                bool isEquipmentSec = sectionById.TryGetValue(secGroup.Key, out var secEntity) &&
+                    string.Equals((secEntity.Key ?? string.Empty).Trim(), "equipment", StringComparison.OrdinalIgnoreCase);
+                bool hasEquipmentRepeater = isEquipmentSec && secGroup.Any(sf => sf.FieldId == equipmentRepeaterId);
+
+                var seenFieldIdsInSec = new HashSet<Guid>();
+                var seenLabelTypesInSec = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // Order so deterministic canonical fd000000-... fields come first when deduplicating by Label+Type
+                var orderedSfs = secGroup
+                    .OrderBy(sf => sf.OrderIndex)
+                    .ThenByDescending(sf => sf.FieldId.ToString().StartsWith("fd000000-", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var sf in orderedSfs)
+                {
+                    if (hasEquipmentRepeater && redundantEquipmentFieldIds.Contains(sf.FieldId))
+                    {
+                        sfsToRemove.Add(sf);
+                        continue;
+                    }
+
+                    if (!seenFieldIdsInSec.Add(sf.FieldId))
+                    {
+                        sfsToRemove.Add(sf);
+                        continue;
+                    }
+
+                    if (fieldById.TryGetValue(sf.FieldId, out var fld) &&
+                        !string.Equals(fld.FieldType, "divider", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bool isCanonicalFieldId = sf.FieldId.ToString().StartsWith("fd000000-", StringComparison.OrdinalIgnoreCase);
+                        var normLbl = NormalizeTitleKey(fld.Label);
+                        var normType = (fld.FieldType ?? "text").Trim().ToLowerInvariant();
+                        if (!string.IsNullOrEmpty(normLbl))
+                        {
+                            var compositeKey = $"{normLbl}::{normType}";
+                            if (!isCanonicalFieldId && !seenLabelTypesInSec.Add(compositeKey))
+                            {
+                                sfsToRemove.Add(sf);
+                            }
+                            else
+                            {
+                                seenLabelTypesInSec.Add(compositeKey);
+                            }
+                        }
                     }
                 }
-
-                if (toRemoveFields.Count > 0) context.SectionFields.RemoveRange(toRemoveFields);
-                context.FormSections.RemoveRange(toRemove);
-                totalRemoved += toRemove.Count;
             }
-            await context.SaveChangesAsync();
-            logger?.LogInformation("Self-healing: Cleaned up {Count} duplicate FormSection entries across existing forms.", totalRemoved);
+
+            if (sfsToRemove.Count > 0)
+            {
+                context.SectionFields.RemoveRange(sfsToRemove);
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Self-healing: Removed {Count} repetitive SectionField entries.", sfsToRemove.Count);
+            }
         }
 
         // 3. Seed Form Builders & Sections per Service
@@ -416,7 +592,9 @@ public static class FastTrackFormSeeder
         {
             var key = rawKey.Trim();
             if (forbiddenSectionKeys.Contains(key)) continue;
-            var sec = existingSections.FirstOrDefault(s => string.Equals((s.Key ?? string.Empty).Trim(), key, StringComparison.OrdinalIgnoreCase));
+            var sec = existingSections.FirstOrDefault(s =>
+                string.Equals((s.Key ?? string.Empty).Trim(), key, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals((s.Title ?? string.Empty).Trim(), title.Trim(), StringComparison.OrdinalIgnoreCase));
             if (sec == null)
             {
                 sec = new FormSection
@@ -486,12 +664,45 @@ public static class FastTrackFormSeeder
                             FormSectionId = sec.Id,
                             FieldId = f.Id,
                             IsRequired = fk != "callSign" && fk != "serviceArea" && fk != "exactLocation" && fk != "longitude" && fk != "latitude" && fk != "bsdNo" && fk != "antennaType" && fk != "height" && fk != "gain" && fk != "directivity" && fk != "diameter" && fk != "polarization" && fk != "beamwidth" && fk != "antennaRemarks" && key != "antennaSystem" && key != "signalReception" && key != "bsd" && key != "assistanceRequest" && key != "applicantEducation" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
-                            OrderIndex = fieldOrder++
+                            OrderIndex = fieldOrder++,
+                            VisibilityCondition = GetCanonicalFieldDefaultVisibilityCondition(serviceKey, fk)
                         });
                     }
                 }
                 if (addedFieldIds.Count > 0)
                 {
+                    await context.SaveChangesAsync();
+                }
+            }
+            else if (currentFields.Count > 0 &&
+                     !targetForm.LastModifiedAt.HasValue &&
+                     fieldKeys != null &&
+                     fieldKeys.Contains("noOfYears", StringComparer.OrdinalIgnoreCase) &&
+                     fieldsPool.TryGetValue("noOfYears", out var noOfYearsField))
+            {
+                // Backfill canonical "Number of Years" (noOfYears) and its default variant visibility condition on existing unmodified Base Forms
+                var existingNoOfYearsSf = currentFields.FirstOrDefault(sf => sf.FieldId == noOfYearsField.Id);
+                var defaultNoOfYearsCond = GetCanonicalFieldDefaultVisibilityCondition(serviceKey, "noOfYears");
+                if (existingNoOfYearsSf == null)
+                {
+                    foreach (var sf in currentFields)
+                    {
+                        sf.OrderIndex += 1;
+                    }
+                    context.SectionFields.Add(new SectionField
+                    {
+                        FormSectionId = sec.Id,
+                        FieldId = noOfYearsField.Id,
+                        IsRequired = true,
+                        OrderIndex = 1,
+                        VisibilityCondition = defaultNoOfYearsCond
+                    });
+                    await context.SaveChangesAsync();
+                }
+                else if (string.IsNullOrWhiteSpace(existingNoOfYearsSf.VisibilityCondition) &&
+                         !string.IsNullOrWhiteSpace(defaultNoOfYearsCond))
+                {
+                    existingNoOfYearsSf.VisibilityCondition = defaultNoOfYearsCond;
                     await context.SaveChangesAsync();
                 }
             }

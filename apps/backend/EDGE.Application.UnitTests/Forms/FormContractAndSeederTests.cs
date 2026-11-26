@@ -494,4 +494,106 @@ public class FormContractAndSeederTests
             .AnyAsync(f => f.Id == referencedObsoleteForm.Id);
         stillExists.Should().BeTrue("Forms referenced by FormSubmissions must remain soft-deleted rather than physically deleted.");
     }
+
+    [Fact]
+    public async Task SeededCanonicalBaseForms_IncludeNoOfYearsOnAll8MultiYearForms_WithVariantScopedVisibility()
+    {
+        var formDefs = FastTrackSeederData.GetAllFormDefs();
+        var expectedFormsWithNoOfYears = new[]
+        {
+            "NTC_1_02", // Commercial & Specialty Radio Operator Certificates (ROC)
+            "NTC_1_03", // Amateur Radio Operator Certificates & Station Licenses
+            "NTC_1_04", // Maritime Ship Station & Coastal Station Licenses
+            "NTC_1_09", // Permits in Amateur (Vanity / Foreign Visitor), Aero, Maritime, FLM, PTE
+            "NTC_1_11", // Radio Station Licenses (Fixed & Land Mobile, Aeronautical, Other)
+            "NTC_1_18", // CPE Supplier Accreditation, RCE Permits, Mobile Phone Permits
+            "NTC_1_20", // VAS Provider Certificate of Registration (Renewal)
+            "NTC_1_22"  // TVRO / CATV Station Licenses
+        };
+
+        var expectedFormsWithoutNoOfYears = new[]
+        {
+            "NTC_1_01", // Exam Admission Slip
+            "NTC_1_19", // RFID / SRD / WDN Registration (per unit)
+            "NTC_1_21", // Certified True Copy / Duplicate Copy (uses noOfCopies)
+            "NTC_1_24", // Request for Blocking / Unblocking of IMEI & SIM
+            "NTC_1_25"  // Consumer Complaints & Tape Preservation
+        };
+
+        foreach (var code in expectedFormsWithNoOfYears)
+        {
+            var def = formDefs.FirstOrDefault(f => f.ServiceKey.Equals(code, StringComparison.OrdinalIgnoreCase));
+            def.Should().NotBeNull($"Canonical form '{code}' must exist.");
+            def!.Sections.SelectMany(s => s.FieldKeys).Should().Contain(
+                "noOfYears",
+                because: $"Canonical base form '{code}' serves multi-year transactions whose fees depend on Number of Years (YR).");
+        }
+
+        foreach (var code in expectedFormsWithoutNoOfYears)
+        {
+            var def = formDefs.FirstOrDefault(f => f.ServiceKey.Equals(code, StringComparison.OrdinalIgnoreCase));
+            def.Should().NotBeNull($"Canonical form '{code}' must exist.");
+            def!.Sections.SelectMany(s => s.FieldKeys).Should().NotContain(
+                "noOfYears",
+                because: $"Canonical base form '{code}' does not use Number of Years.");
+        }
+
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        using var context = new ApplicationDbContext(options);
+        context.Tenants.Add(new Tenant
+        {
+            Id = Guid.NewGuid(),
+            Name = "NTC Central Office",
+            Code = "NTC-CENTRAL"
+        });
+        await context.SaveChangesAsync();
+
+        await FastTrackSeeder.SeedAsync(context);
+
+        var repo = new EDGE.Infrastructure.Persistence.Repositories.FormRepository(context);
+        var allVariants = await context.ServiceVariants.AsNoTracking().ToListAsync();
+
+        // 1. NTC 1-02: Commercial ROC (New) includes noOfYears, Commercial ROC (Modification) and Foreign Pilot (New) exclude it
+        var rocNew = allVariants.First(v => v.Description == "Commercial Radio Operator Certificate" && v.Type == EDGE.Domain.Enums.ServiceVariantType.New);
+        var rocMod = allVariants.First(v => v.Description == "Commercial Radio Operator Certificate" && v.Type == EDGE.Domain.Enums.ServiceVariantType.Modification);
+        var foreignPilotNew = allVariants.First(v => v.Description.Contains("Foreign Pilot") && v.Type == EDGE.Domain.Enums.ServiceVariantType.New);
+
+        var formRocNew = await repo.GetFormByServiceIdAsync(rocNew.ServiceId, rocNew.Id);
+        var formRocMod = await repo.GetFormByServiceIdAsync(rocMod.ServiceId, rocMod.Id);
+        var formForeignPilot = await repo.GetFormByServiceIdAsync(foreignPilotNew.ServiceId, foreignPilotNew.Id);
+
+        formRocNew!.Sections.SelectMany(s => s.SectionFields).Select(sf => sf.FieldId)
+            .Should().Contain(FastTrackFormSeeder.CanonicalNoOfYearsFieldId);
+        formRocMod!.Sections.SelectMany(s => s.SectionFields).Select(sf => sf.FieldId)
+            .Should().NotContain(FastTrackFormSeeder.CanonicalNoOfYearsFieldId);
+        formForeignPilot!.Sections.SelectMany(s => s.SectionFields).Select(sf => sf.FieldId)
+            .Should().NotContain(FastTrackFormSeeder.CanonicalNoOfYearsFieldId);
+
+        // 2. NTC 1-18: CPE Supplier Accreditation (New) and RCE Dealer Permit (New) include noOfYears, Modification excludes it
+        var rceDealerNew = allVariants.First(v => v.Id == EDGE.Infrastructure.Persistence.SeederData.PermitsCategorySeederData.VarEquipDealerNew);
+        var rceDealerMod = allVariants.First(v => v.Id == EDGE.Infrastructure.Persistence.SeederData.PermitsCategorySeederData.VarEquipDealerMod);
+
+        var formRceNew = await repo.GetFormByServiceIdAsync(rceDealerNew.ServiceId, rceDealerNew.Id);
+        var formRceMod = await repo.GetFormByServiceIdAsync(rceDealerMod.ServiceId, rceDealerMod.Id);
+
+        formRceNew!.Sections.SelectMany(s => s.SectionFields).Select(sf => sf.FieldId)
+            .Should().Contain(FastTrackFormSeeder.CanonicalNoOfYearsFieldId);
+        formRceMod!.Sections.SelectMany(s => s.SectionFields).Select(sf => sf.FieldId)
+            .Should().NotContain(FastTrackFormSeeder.CanonicalNoOfYearsFieldId);
+
+        // 3. NTC 1-09: Vanity Call Sign (New) includes noOfYears, Permit to Purchase excludes it
+        var vanityNew = allVariants.First(v => (v.Description ?? string.Empty).Contains("Vanity Call Sign", StringComparison.OrdinalIgnoreCase) && v.Type == EDGE.Domain.Enums.ServiceVariantType.New);
+        var amaPurchase = allVariants.First(v => string.Equals(v.Description, "Amateur Radio Station Permit to Purchase", StringComparison.OrdinalIgnoreCase));
+
+        var formVanity = await repo.GetFormByServiceIdAsync(vanityNew.ServiceId, vanityNew.Id);
+        var formPurchase = await repo.GetFormByServiceIdAsync(amaPurchase.ServiceId, amaPurchase.Id);
+
+        formVanity!.Sections.SelectMany(s => s.SectionFields).Select(sf => sf.FieldId)
+            .Should().Contain(FastTrackFormSeeder.CanonicalNoOfYearsFieldId);
+        formPurchase!.Sections.SelectMany(s => s.SectionFields).Select(sf => sf.FieldId)
+            .Should().NotContain(FastTrackFormSeeder.CanonicalNoOfYearsFieldId);
+    }
 }

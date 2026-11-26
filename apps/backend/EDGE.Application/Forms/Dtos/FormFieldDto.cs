@@ -126,10 +126,77 @@ public class FormFieldDto
         };
     }
 
+    internal static bool IsConditionApplicableToVariant(string? visibilityCondition, ServiceVariant? variant)
+    {
+        if (variant == null || string.IsNullOrWhiteSpace(visibilityCondition)) return true;
+        var trimmed = visibilityCondition.Trim();
+        if (!trimmed.StartsWith("{", StringComparison.Ordinal)) return true;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(trimmed);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return true;
+
+            var excluded = ReadStringList(root, "excludedVariants");
+            if (excluded.Exists(tok => string.Equals(tok, "ALL", StringComparison.OrdinalIgnoreCase) || MatchesServiceVariant(tok, variant)))
+            {
+                return false;
+            }
+
+            var variants = ReadStringList(root, "variants");
+            variants.AddRange(ReadStringList(root, "variantType"));
+            var appTypes = ReadStringList(root, "applicationTypes");
+            appTypes.AddRange(ReadStringList(root, "variantDescription"));
+
+            if (variants.Count == 0 && appTypes.Count == 0) return true;
+            if (variants.Count > 0 && variants.TrueForAll(v => string.Equals(v, "__NONE__", StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            bool matchesVar = variants.Count == 0 || variants.Exists(tok => MatchesServiceVariant(tok, variant));
+            bool matchesApp = appTypes.Count == 0 || appTypes.Exists(tok => MatchesServiceVariant(tok, variant));
+
+            return variants.Count > 0 && appTypes.Count > 0
+                ? (matchesVar || matchesApp)
+                : (variants.Count > 0 ? matchesVar : matchesApp);
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static List<string> ReadStringList(JsonElement obj, string propName)
+    {
+        var list = new List<string>();
+        if (!obj.TryGetProperty(propName, out var el)) return list;
+        if (el.ValueKind == JsonValueKind.String)
+        {
+            var s = el.GetString()?.Trim();
+            if (!string.IsNullOrEmpty(s)) list.Add(s);
+        }
+        else if (el.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in el.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String)
+                {
+                    var s = item.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(s)) list.Add(s);
+                }
+            }
+        }
+        return list;
+    }
+
     internal static bool MatchesServiceVariant(string ruleToken, ServiceVariant variant)
     {
         if (string.IsNullOrWhiteSpace(ruleToken)) return false;
         var trimmed = ruleToken.Trim();
+        if (string.Equals(trimmed, "__NONE__", StringComparison.OrdinalIgnoreCase)) return false;
+        if (string.Equals(trimmed, "ALL", StringComparison.OrdinalIgnoreCase)) return true;
         if (Guid.TryParse(trimmed, out var g) && g == variant.Id) return true;
 
         static string Norm(string? s) => string.IsNullOrWhiteSpace(s)
@@ -143,19 +210,48 @@ public class FormFieldDto
             ServiceVariantType.CivicActionGroup => "Civic Action Group",
             _ => variant.Type.ToString()
         };
+        var rawType = variant.Type == ServiceVariantType.NA ? string.Empty : variant.Type.ToString();
         var desc = (variant.Description ?? string.Empty).Trim();
         var displayName = string.IsNullOrEmpty(desc)
             ? (string.IsNullOrEmpty(typeLabel) ? "Variant" : typeLabel)
-            : (string.IsNullOrEmpty(typeLabel) || desc.EndsWith($"({typeLabel})", StringComparison.OrdinalIgnoreCase)
+            : (string.IsNullOrEmpty(typeLabel) ||
+               desc.EndsWith($"({typeLabel})", StringComparison.OrdinalIgnoreCase) ||
+               (!string.IsNullOrEmpty(rawType) && desc.EndsWith($"({rawType})", StringComparison.OrdinalIgnoreCase))
                 ? desc
                 : $"{desc} ({typeLabel})");
 
         var normRule = Norm(trimmed);
+        if (string.IsNullOrEmpty(normRule)) return false;
+
         var normDisplay = Norm(displayName);
         var normRaw = Norm(!string.IsNullOrEmpty(desc) && variant.Type != ServiceVariantType.NA ? $"{desc} ({variant.Type})" : desc);
+        var normDesc = Norm(desc);
         var normType = variant.Type == ServiceVariantType.NA ? string.Empty : Norm(variant.Type.ToString());
 
-        return normRule.Length > 0 && (normRule == normDisplay || normRule == normRaw || (!string.IsNullOrEmpty(normType) && normRule == normType));
+        if (normRule == normDisplay || normRule == normRaw) return true;
+        if (!string.IsNullOrEmpty(normType) && normRule == normType) return true;
+        if (!string.IsNullOrEmpty(normDesc) && normRule == normDesc && variant.Type == ServiceVariantType.NA) return true;
+
+        if (trimmed.Contains('('))
+        {
+            var parenMatch = Regex.Match(trimmed, @"\(([^()]+)\)\s*$");
+            var parenNorm = parenMatch.Success ? Norm(parenMatch.Groups[1].Value) : string.Empty;
+            var baseNorm = Norm(Regex.Replace(trimmed, @"\([^()]*\)\s*$", string.Empty));
+
+            bool baseMatches = baseNorm.Length >= 3 && !string.IsNullOrEmpty(normDesc) &&
+                (normDesc == baseNorm || normDesc.Contains(baseNorm, StringComparison.Ordinal) || baseNorm.Contains(normDesc, StringComparison.Ordinal));
+            bool typeMatches = (string.IsNullOrEmpty(normType) && (parenNorm == "na" || string.IsNullOrEmpty(parenNorm))) ||
+                (!string.IsNullOrEmpty(normType) && parenNorm == normType) ||
+                (parenNorm.Length > 0 && normDisplay.Contains(parenNorm, StringComparison.Ordinal));
+
+            if (baseMatches && typeMatches) return true;
+        }
+        else if (normRule.Length >= 4 && !string.IsNullOrEmpty(normDesc) && normRule == normDesc)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     public static List<FormFieldOptionDto>? ExtractOptions(string? validationRules)
