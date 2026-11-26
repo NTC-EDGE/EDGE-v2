@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { TYPOGRAPHY, Icon } from '@edge/ui';
 import { CanonicalFormMetadata } from '../core/canonicalFormDefinitions';
 
@@ -10,6 +10,9 @@ export interface EquivalentFormHeaderCardProps {
   applicationType?: string | null;
   elements?: string | null;
   version?: string | null;
+  onPreviewFormPdf?: () => void;
+  onDownloadFormPdf?: () => void;
+  isDownloadingFormPdf?: boolean;
 }
 
 export function EquivalentFormHeaderCard({
@@ -19,21 +22,67 @@ export function EquivalentFormHeaderCard({
   applicationType: _applicationType,
   elements: _elements,
   version: _version,
+  onPreviewFormPdf,
+  onDownloadFormPdf,
+  isDownloadingFormPdf = false,
 }: EquivalentFormHeaderCardProps) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
+  const hasActions = onPreviewFormPdf !== undefined || onDownloadFormPdf !== undefined;
+
   return (
     <View style={styles.cardContainer}>
       {/* Top Banner Row */}
-      <View style={styles.topRow}>
-        {/* Form Number Seal */}
-        <View style={styles.sealBadge}>
-          <Icon name="file-text" size={16} color="#FFFFFF" />
-          <Text style={styles.sealBadgeText}>{canonicalForm.formNumber}</Text>
+      <View style={[styles.topRow, { justifyContent: 'space-between' }]}>
+        <View style={styles.badgesGroup}>
+          {/* Form Number Seal */}
+          <View style={styles.sealBadge}>
+            <Icon name="file-text" size={16} color="#FFFFFF" />
+            <Text style={styles.sealBadgeText}>{canonicalForm.formNumber}</Text>
+          </View>
+
+          {/* Category Pill */}
+          {canonicalForm.category ? (
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryPillText}>{canonicalForm.category}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* Category Pill */}
-        {canonicalForm.category ? (
-          <View style={styles.categoryPill}>
-            <Text style={styles.categoryPillText}>{canonicalForm.category}</Text>
+        {hasActions ? (
+          <View style={[styles.actionsRow, isMobile && styles.actionsRowMobile]}>
+            {onPreviewFormPdf !== undefined ? (
+              <TouchableOpacity
+                onPress={onPreviewFormPdf}
+                style={[styles.previewBtn, isMobile && styles.actionBtnMobile]}
+                activeOpacity={0.8}
+              >
+                <Icon name="eye" size={14} color="#1D4ED8" />
+                <Text style={styles.previewBtnText}>View Application Form</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {onDownloadFormPdf !== undefined ? (
+              <TouchableOpacity
+                onPress={onDownloadFormPdf}
+                disabled={isDownloadingFormPdf}
+                style={[
+                  styles.downloadBtn,
+                  isMobile && styles.actionBtnMobile,
+                  isDownloadingFormPdf && { opacity: 0.7 },
+                ]}
+                activeOpacity={0.8}
+              >
+                {isDownloadingFormPdf ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Icon name="download" size={14} color="#FFFFFF" />
+                )}
+                <Text style={styles.downloadBtnText}>
+                  {isDownloadingFormPdf ? 'Downloading...' : 'Download PDF'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -67,7 +116,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
+    gap: 10,
+  },
+  badgesGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  actionsRowMobile: {
+    width: '100%',
+    marginTop: 4,
+  },
+  actionBtnMobile: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  previewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  previewBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0F2C59',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  downloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   sealBadge: {
     flexDirection: 'row',

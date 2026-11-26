@@ -129,6 +129,133 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintNtc120Demo");
 
+        /// <summary>GET /api/forms/demo/ntc-1-21 — Application Form 1-21 (Duplicate / Certified True Copy).</summary>
+        group.MapGet("/ntc-1-21", (IFormPrintingService printingService) =>
+        {
+            var application = new Ntc121Application
+            {
+                ApplicationId = System.Guid.NewGuid(),
+                ApplicantPerson = new ApplicantPerson
+                {
+                    FirstName = "Juan",
+                    MiddleName = "D.",
+                    LastName = "Dela Cruz",
+                    Address = new Address { Street = "123 Main St", CityMunicipality = "Quezon City", Province = "Metro Manila", ZipCode = "1100" },
+                    ContactNumber = "09171234567",
+                    Email = "juan.delacruz@example.com"
+                },
+                PermitLicenseCertType = "Commercial Radio Operator Certificate",
+                PermitLicenseCertNo = "ROC-2026-00142",
+                PermitLicenseCertValidity = new System.DateOnly(2029, 7, 20),
+                CircumstancesOfLossMutilation = "Misplaced original certificate during office relocation.",
+                Declaration = new Declaration { SignatoryName = "Juan D. Dela Cruz", DateAccomplished = new System.DateOnly(2026, 7, 20) }
+            };
+            var pdfBytes = printingService.PrintNtc121(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-21_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc121Demo");
+
+        /// <summary>GET /api/forms/demo/ntc-1-22 — Application Form 1-22 (TVRO / CATV Station License / Registration).</summary>
+        group.MapGet("/ntc-1-22", (IFormPrintingService printingService) =>
+        {
+            var application = new Ntc122Application
+            {
+                ApplicationId = System.Guid.NewGuid(),
+                TypeOfApplication = TypeOfApplication.New,
+                TypeOfLicenseCert = TypeOfLicenseCert122.TvroRegistrationCert,
+                ClassificationOfApplicant = ClassificationOfApplicant122.CommercialBroadcasting,
+                NoOfYears = 3,
+                Applicant = new Applicant
+                {
+                    Name = "Skyline Cable & Satellite Network Corp.",
+                    TypeOfEntity = EntityType.Corporation,
+                    Address = new Address { Street = "88 Shaw Blvd", CityMunicipality = "Mandaluyong City", Province = "Metro Manila", ZipCode = "1550" },
+                    ContactNumber = "+63 2 8555 0100",
+                    Email = "regulatory@skylinecable.ph"
+                },
+                PaCaNo = "PA-2025-00881",
+                Validity = new System.DateOnly(2029, 7, 20),
+                ServiceArea = "Metro Manila",
+                ProposedStation = new Station { ExactLocation = "Mandaluyong Head-End Facility", Longitude = "121 02 45 E", Latitude = "14 34 50 N" },
+                Equipment = new TvroEquipmentDetails { MakeTypeModel = "Harmonic ProView IRD 8100", SerialNumber = "HRM-8100-991", FrequencyRange = "3.7 - 4.2 GHz" },
+                AntennaSystem = new AntennaSystemDetails { DishDiameter = "3.8m Parabolic", Polarization = "Linear H/V", Azimuth = "142.5 deg" },
+                SignalToBeReceived = new SignalToBeReceivedDetails { Satellite = "Measat-3a", Polarization = "Horizontal", ReceivedFrequency = "3840 MHz", NameOfPrograms = "News & Educational Feed" },
+                Declaration = new Declaration { SignatoryName = "Engr. Marco V. Santos", DateAccomplished = new System.DateOnly(2026, 7, 20) }
+            };
+            var pdfBytes = printingService.PrintNtc122(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-22_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc122Demo");
+
+        /// <summary>GET /api/forms/demo/ntc-1-24 — Application Form 1-24 (Affidavit of Ownership & Loss - Blocking/Unblocking).</summary>
+        group.MapGet("/ntc-1-24", (IFormPrintingService printingService) =>
+        {
+            var application = new Ntc124Application
+            {
+                ApplicationId = System.Guid.NewGuid(),
+                ActionRequested = ActionRequested124.Block,
+                AffiantName = "JUAN DELA CRUZ",
+                Age = 30,
+                Citizenship = "Filipino",
+                ResidentialAddress = new Address { Street = "123 Main St, Quezon City" },
+                TelephoneNumber = "09171234567",
+                ImeiNo = "351234567890123",
+                MakeModelType = "Apple iPhone 15 Pro",
+                SimMobileNumber = "09171234567",
+                ProofOfOwnership = new ProofOfOwnershipSelection { CopyGovernmentId = true, BoxWithImei = true },
+                Incident = new IncidentDetails
+                {
+                    IncidentType = IncidentType124.LostMisplaced,
+                    Sex = Sex.Male,
+                    AgeGroup = AgeGroup124.Age30_39,
+                    PlaceOfIncident = "Quezon City",
+                    DateOfIncident = new System.DateOnly(2026, 7, 15)
+                },
+                Declaration = new Declaration { SignatoryName = "JUAN DELA CRUZ", DateAccomplished = new System.DateOnly(2026, 7, 20) }
+            };
+            var pdfBytes = printingService.PrintNtc124(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-24_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc124Demo");
+
+        /// <summary>GET /api/forms/demo/ntc-1-25 — Application Form 1-25 (Consumer Complaint Form).</summary>
+        group.MapGet("/ntc-1-25", (IFormPrintingService printingService) =>
+        {
+            var application = new Ntc125Application
+            {
+                ApplicationId = System.Guid.NewGuid(),
+                ApplicationNumber = "APP-2026-COMP-001",
+                ReferenceNumber = "REF-2026-COMP-001",
+                Complainant = new ComplainantDetails
+                {
+                    Name = "MARIA SANTOS",
+                    Sex = "Female",
+                    CivilStatus = "Married",
+                    Nationality = "Filipino",
+                    ResidentialAddress = new Address { Street = "456 Oak St, Makati City" },
+                    ContactNumber = "09181234567",
+                    Email = "maria.santos@example.com"
+                },
+                ServiceProvider = new ServiceProviderDetails
+                {
+                    BusinessName = "Globe Telecom Inc.",
+                    BusinessAddress = "The Globe Tower, BGC, Taguig",
+                    ContactNumber = "211"
+                },
+                NatureOfComplaint = new NatureOfComplaintDetails
+                {
+                    ComplaintTypes = new System.Collections.Generic.List<string> { "Spam", "Scam" },
+                    DateOfIncident = new System.DateOnly(2026, 7, 18),
+                    TimeOfIncident = "14:30"
+                },
+                StateBrieflyDetails = "Received persistent fraudulent SMS messages.",
+                Declaration = new Declaration { SignatoryName = "MARIA SANTOS", DateAccomplished = new System.DateOnly(2026, 7, 20) }
+            };
+            var pdfBytes = printingService.PrintNtc125(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-25_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc125Demo");
+
         /// <summary>GET /api/forms/demo/official-receipt/blank — Blank Official Receipt Template (Portrait).</summary>
         group.MapGet("/official-receipt/blank", (IFormPrintingService printingService) =>
         {

@@ -65,6 +65,9 @@ export interface BaseApplicationPreviewProps {
   applicationType?: string | null;
   elements?: string | null;
   showEquivalentFormHeader?: boolean;
+  onPreviewFormPdf?: () => void;
+  onDownloadFormPdf?: () => void;
+  isDownloadingFormPdf?: boolean;
   // Flags (optional, derived if not passed)
   isExamService?: boolean;
   isLicenseService?: boolean;
@@ -111,6 +114,9 @@ export function BaseApplicationPreview({
   applicationType,
   elements,
   showEquivalentFormHeader = false,
+  onPreviewFormPdf,
+  onDownloadFormPdf,
+  isDownloadingFormPdf = false,
   isExamService,
   isAmateurCertService,
   onPreviewFile = () => {},
@@ -387,6 +393,9 @@ export function BaseApplicationPreview({
           applicationType={effectiveApplicationType}
           elements={effectiveElements}
           version={form?.version || '1.0'}
+          onPreviewFormPdf={onPreviewFormPdf}
+          onDownloadFormPdf={onDownloadFormPdf}
+          isDownloadingFormPdf={isDownloadingFormPdf}
         />
       )}
 

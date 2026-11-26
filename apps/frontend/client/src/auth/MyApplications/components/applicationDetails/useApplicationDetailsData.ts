@@ -2,14 +2,50 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { applicationService } from '@edge/api';
 import { useApi } from '../../../../shared/hooks/useApi';
 import { Application, ApplicationDocument, BulkApplicant, getAppDocuments, RawRequirement, mapApiApplicationToApplication } from '../../data/applicationsData';
-import { FIELD_ID_TYPE_OF_CERT, FIELD_ID_PERMIT_TYPE, FIELD_ID_APP_TYPE } from '../../../../shared/constants/fieldIds';
 import { RawApplicantHolder, RawApplicantDetails, normalizeStatus } from './applicationDetailsTypes';
 import { extractApplicantFullName, resolveBirthDate, resolveCivilStatus } from './applicationDetailsHelpers';
 import {
   resolvePreviewVariant,
   resolvePreviewApplicationType,
   resolvePreviewElements,
+  detectCanonicalForm,
 } from '../../../../shared/formPreview';
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
+}
+
+function getStringField(obj: unknown, key: string): string | undefined {
+  if (!isRecord(obj)) return undefined;
+  const val = obj[key];
+  return typeof val === 'string' && val.trim().length > 0 ? val : undefined;
+}
+
+function getNestedStringField(obj: unknown, parentKey: string, childKey: string): string | undefined {
+  if (!isRecord(obj)) return undefined;
+  const parent = obj[parentKey];
+  return getStringField(parent, childKey);
+}
+
+function normalizeSexValue(val: string | undefined): 'Male' | 'Female' | undefined {
+  if (val === 'Male' || val === 'Female') return val;
+  return undefined;
+}
+
+function normalizeDocCategory(
+  val: string | undefined
+): 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP' {
+  if (
+    val === 'ATTACHMENT' ||
+    val === 'ISSUED_PERMIT' ||
+    val === 'RECEIPT' ||
+    val === 'SOA' ||
+    val === 'ADMISSION_SLIP'
+  ) {
+    return val;
+  }
+  return 'ATTACHMENT';
+}
 
 export function useApplicationDetailsData(initialApp: Application) {
   const api = useApi();
@@ -27,22 +63,22 @@ export function useApplicationDetailsData(initialApp: Application) {
       const loadFullDetails = async () => {
         try {
           const res = await api.get<unknown>(`/api/v2/applications/${initialApp.id}`);
-          if (isMounted && res !== null && typeof res === 'object') {
-            const resObj = res as { succeeded?: boolean; data?: unknown };
-            const payload = resObj.succeeded && resObj.data !== undefined ? resObj.data : res;
-            if (payload !== null && typeof payload === 'object') {
-              const mapped = mapApiApplicationToApplication(payload as Parameters<typeof mapApiApplicationToApplication>[0]);
+          if (isMounted && isRecord(res)) {
+            const payload = res.succeeded === true && isRecord(res.data) ? res.data : res;
+            if (isRecord(payload)) {
+              const mapped = mapApiApplicationToApplication(payload);
 
-              const rawPayload = payload as { applicants?: Array<{ id?: string; applicantId?: string; requirements?: RawRequirement[] }> };
-              const payloadApplicants = Array.isArray(rawPayload.applicants) ? rawPayload.applicants : [];
+              const payloadApplicants = Array.isArray(payload.applicants) ? payload.applicants : [];
               const applicantList = mapped.applicants || [];
 
               // Collect all applicant IDs from payload and mapped applicants
               const applicantIdSet = new Set<string>();
               for (const pa of payloadApplicants) {
-                const aid = pa.id || pa.applicantId;
-                if (typeof aid === 'string' && aid.trim() !== '') {
-                  applicantIdSet.add(aid.trim());
+                if (isRecord(pa)) {
+                  const aid = getStringField(pa, 'id') || getStringField(pa, 'applicantId');
+                  if (typeof aid === 'string' && aid.trim() !== '') {
+                    applicantIdSet.add(aid.trim());
+                  }
                 }
               }
               for (const ap of applicantList) {
@@ -59,13 +95,14 @@ export function useApplicationDetailsData(initialApp: Application) {
                 try {
                   const reqRes = await api.get<unknown>(`/api/v2/applications/${initialApp.id}/applicants/${aid}/requirements`);
                   if (reqRes !== null && typeof reqRes === 'object') {
-                    const rObj = reqRes as { succeeded?: boolean; data?: unknown };
-                    const rData = rObj.succeeded && rObj.data !== undefined ? rObj.data : reqRes;
+                    const rData = isRecord(reqRes) && reqRes.succeeded === true && reqRes.data !== undefined
+                      ? reqRes.data
+                      : reqRes;
                     if (Array.isArray(rData)) {
                       const currentApplicantReqs: RawRequirement[] = [];
                       rData.forEach((item: unknown) => {
-                        if (item !== null && typeof item === 'object') {
-                          const io = item as Record<string, unknown>;
+                        if (isRecord(item)) {
+                          const io = item;
                           const reqItem: RawRequirement = {
                             id: typeof io.submittedRequirementId === 'string' && io.submittedRequirementId.trim() !== ''
                               ? io.submittedRequirementId
@@ -188,13 +225,13 @@ export function useApplicationDetailsData(initialApp: Application) {
 
   const singleApplicant = useMemo(() => {
     if (app.mode === 'BULK') return null;
-    const list = (app.applicants || app.Applicants || []) as RawApplicantHolder[];
+    const list: RawApplicantHolder[] = app.applicants || app.Applicants || [];
     const first = list.length > 0 ? list[0] : null;
-    const details: RawApplicantDetails | null = first ? (first.details || (first as unknown as RawApplicantDetails)) : null;
+    const details: RawApplicantDetails | null = first ? (first.details || first) : null;
     const applicantName = extractApplicantFullName(app, details, first);
-    const rawFormFields = (app.formFieldValues || first?.formFieldValues || details?.formFieldValues || []) as Array<{
+    const rawFormFields: Array<{
       fieldId?: string; fieldLabel?: string; value?: string;
-    }>;
+    }> = app.formFieldValues || first?.formFieldValues || details?.formFieldValues || [];
 
     const findField = (predicate: (label: string, id: string) => boolean) => {
       return rawFormFields.find((fv) => {
@@ -294,8 +331,8 @@ export function useApplicationDetailsData(initialApp: Application) {
     const rawAppType =
       first?.applicantType ||
       first?.applicationType ||
-      (app as { applicantType?: string }).applicantType ||
-      (details as { applicantType?: string })?.applicantType ||
+      getStringField(app, 'applicantType') ||
+      details?.applicantType ||
       'Individual';
 
     const isCompany = rawAppType.toLowerCase() === 'company';
@@ -312,15 +349,15 @@ export function useApplicationDetailsData(initialApp: Application) {
       details?.companyName ||
       first?.companyName ||
       app.companyName ||
-      (app.company as { name?: string })?.name ||
-      (app.Company as { Name?: string })?.Name ||
+      getNestedStringField(app, 'company', 'name') ||
+      getNestedStringField(app, 'Company', 'Name') ||
       findField((l) => l.includes('company name') || l.includes('business name') || l.includes('corporate name')) ||
       null;
 
     const resolvedRepName =
       details?.representativeName ||
       first?.representativeName ||
-      (app.representativeName as string) ||
+      getStringField(app, 'representativeName') ||
       findField((l) => l.includes('representative')) ||
       null;
 
@@ -341,6 +378,10 @@ export function useApplicationDetailsData(initialApp: Application) {
       'New';
 
     return {
+      id: first?.id,
+      serviceId: getStringField(first, 'serviceId') || app.serviceId,
+      serviceVariantId: getStringField(first, 'serviceVariantId') || app.serviceVariantId,
+      serviceVariantName: getStringField(first, 'serviceVariantName') || app.serviceVariantName,
       applicantName,
       applicantType: isCompany ? 'Company' : 'Individual',
       sex: resolvedSex,
@@ -354,8 +395,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       mobileNumber: resolvedMobile,
       email: resolvedEmail,
       examineeType: resolvedExamineeType,
-      birthDate: resolveBirthDate(details, rawFormFields) || (first as { birthDate?: string } | null)?.birthDate || (app as { birthDate?: string }).birthDate || null,
-      civilStatus: resolveCivilStatus(details, rawFormFields) || (first as { civilStatus?: string } | null)?.civilStatus || (app as { civilStatus?: string }).civilStatus || null,
+      birthDate: resolveBirthDate(details, rawFormFields) || getStringField(first, 'birthDate') || getStringField(app, 'birthDate') || null,
+      civilStatus: resolveCivilStatus(details, rawFormFields) || getStringField(first, 'civilStatus') || getStringField(app, 'civilStatus') || null,
       companyName: isCompany || Boolean(resolvedCompName) ? resolvedCompName : null,
       representativeName: isCompany || Boolean(resolvedCompName) ? resolvedRepName : null,
       notes: details?.notes || app.remarks || null,
@@ -398,11 +439,8 @@ export function useApplicationDetailsData(initialApp: Application) {
         const first = rawList[0];
         if (first.formFieldValues && first.formFieldValues.length > 0) {
           baseValues = first.formFieldValues;
-        } else if (first.details && 'formFieldValues' in first.details) {
-          const dF = (first.details as { formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }> }).formFieldValues;
-          if (dF && dF.length > 0) {
-            baseValues = dF;
-          }
+        } else if (first.details && first.details.formFieldValues && first.details.formFieldValues.length > 0) {
+          baseValues = first.details.formFieldValues;
         }
       }
     }
@@ -446,7 +484,7 @@ export function useApplicationDetailsData(initialApp: Application) {
   const appApplicants = useMemo<BulkApplicant[]>(() => {
     const rawApplicants = app.applicants || app.Applicants || [];
     return rawApplicants.map((ap: BulkApplicant) => {
-      const details = (ap.details || ap) as RawApplicantDetails;
+      const details: RawApplicantDetails = ap.details || ap;
       const apFormFields = ap.formFieldValues || ap.details?.formFieldValues || [];
       const findApField = (predicate: (l: string, id: string) => boolean) =>
         apFormFields.find((fv) => predicate((fv.fieldLabel || '').toLowerCase(), (fv.fieldId || '').toLowerCase()))?.value;
@@ -493,7 +531,7 @@ export function useApplicationDetailsData(initialApp: Application) {
         applicationType: ap.applicationType || ap.applicantType || 'Individual',
         status: ap.status || 'PENDING',
         includedInSOA: ap.includedInSOA !== undefined ? ap.includedInSOA : (ap.includedInSoa !== undefined ? ap.includedInSoa : false),
-        sex: ap.sex || ap.details?.sex || (findApField((l) => l === 'sex' || l === 'gender' || l.includes('sex / gender')) as 'Male' | 'Female' | undefined),
+        sex: ap.sex || normalizeSexValue(ap.details?.sex) || normalizeSexValue(findApField((l) => l === 'sex' || l === 'gender' || l.includes('sex / gender'))),
         nationality: ap.nationality || ap.details?.nationality || findApField((l) => l.includes('nationality') || l.includes('citizenship')),
         streetAddress: ap.streetAddress || ap.details?.streetAddress || ap.details?.address || findApField((l) => (l.includes('street') || l === 'address') && !l.includes('email') && !l.includes('station') && !l.includes('seller')),
         barangay: ap.barangay || ap.details?.barangay || findApField((l) => l.includes('barangay')),
@@ -559,12 +597,12 @@ export function useApplicationDetailsData(initialApp: Application) {
         if (Array.isArray(aReqs)) {
           aReqs.forEach(pushReq);
         }
-        const aUploads = (a as { uploads?: Record<string, { name?: string; uri?: string } | string> }).uploads;
-        if (aUploads && typeof aUploads === 'object') {
+        const aUploads = isRecord(a) && isRecord(a.uploads) ? a.uploads : undefined;
+        if (aUploads) {
           Object.entries(aUploads).forEach(([k, up]) => {
             if (up) {
-              const uName = typeof up === 'string' ? up : up.name || k;
-              const uUri = typeof up === 'string' ? '' : up.uri || '';
+              const uName = typeof up === 'string' ? up : getStringField(up, 'name') || k;
+              const uUri = typeof up === 'string' ? '' : getStringField(up, 'uri') || '';
               pushReq({
                 id: `upload-${k}`,
                 name: uName,
@@ -589,8 +627,7 @@ export function useApplicationDetailsData(initialApp: Application) {
 
         const rawName = req.fileName || req.requirementName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${index + 1}.pdf` : `Requirement_${index + 1}`);
         const reqDisplayName = req.requirementName || req.name || rawName;
-        let cat: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP' = 'ATTACHMENT';
-        if (['ATTACHMENT','ISSUED_PERMIT','RECEIPT','SOA','ADMISSION_SLIP'].includes(req.category || '')) cat = req.category as typeof cat;
+        const cat = normalizeDocCategory(req.category);
         const ext = rawName.toLowerCase().split('.').pop() || '';
         let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
         if (['jpg','jpeg','png','webp','gif','bmp','svg'].includes(ext)) typ = 'IMAGE';
@@ -652,48 +689,49 @@ export function useApplicationDetailsData(initialApp: Application) {
       }
     }
 
-    // For Request & Complaint applications, include official printable application form
-    const serviceNameLower = (app.serviceName || '').toLowerCase();
-    const serviceCategoryLower = (app.serviceCategory || '').toLowerCase();
-    const isRequestOrComplaint =
-      serviceNameLower.includes('request') ||
-      serviceNameLower.includes('complaint') ||
-      serviceCategoryLower.includes('request') ||
-      serviceCategoryLower.includes('complaint') ||
-      serviceNameLower.includes('blocking') ||
-      serviceNameLower.includes('unblocking') ||
-      serviceNameLower.includes('spam') ||
-      serviceNameLower.includes('scam') ||
-      serviceNameLower.includes('tape preservation');
-
-    if (isRequestOrComplaint && typeof app.id === 'string' && app.id.trim().length > 0) {
-      const isBlocking =
-        serviceNameLower.includes('blocking') ||
-        serviceNameLower.includes('unblocking');
-      const formDocName = isBlocking
-        ? 'Official_Application_Form_NTC_1-24.pdf'
-        : 'Official_Complaint_Form_NTC_1-25.pdf';
+    // Include official printable application form for all 13 canonical NTC forms
+    if (typeof app.id === 'string' && app.id.trim().length > 0) {
+      const canonicalForm = detectCanonicalForm(
+        {
+          id: singleApplicant?.serviceId || app.serviceId,
+          title: app.serviceName,
+          category: app.serviceCategory,
+        },
+        variantLabel
+      );
+      const formCodeLabel = canonicalForm
+        ? canonicalForm.formNumber.replace(/\s+/g, '_')
+        : 'NTC_Application_Form';
+      const formDocName = `Official_Application_Form_${formCodeLabel}.pdf`;
 
       const alreadyHasForm = resolvedDocs.some(
         (d) => d.id === `official-application-form-${app.id}` || d.name === formDocName
       );
 
       if (!alreadyHasForm) {
+        const primaryApplicantId =
+          typeof singleApplicant?.id === 'string' && singleApplicant.id.trim().length > 0
+            ? singleApplicant.id.trim()
+            : undefined;
         const formDocEntry: ApplicationDocument = {
           id: `official-application-form-${app.id}`,
           name: formDocName,
+          requirementName: canonicalForm
+            ? `Official Application Form (${canonicalForm.formNumber})`
+            : 'Official Application Form',
+          applicantId: primaryApplicantId,
           type: 'PDF',
           size: '1.2 MB',
           category: 'ATTACHMENT',
           uploadedAt: app.submittedAt || new Date().toISOString(),
-          url: applicationService.getApplicationFormPrintUrl(app.id),
+          url: applicationService.getApplicationFormPrintUrl(app.id.trim(), primaryApplicantId),
         };
         resolvedDocs = [formDocEntry, ...resolvedDocs];
       }
     }
 
     return resolvedDocs;
-  }, [app]);
+  }, [app, singleApplicant, variantLabel]);
 
   const primaryName = useMemo(() => {
     if (app.mode === 'BULK') return app.companyName || app.companyDetail?.name || extractApplicantFullName(app, null, null);

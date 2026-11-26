@@ -1,12 +1,16 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, Platform, Linking } from 'react-native';
 import { Icon, TYPOGRAPHY } from '@edge/ui';
 import { applicationService } from '@edge/api';
 import { Application, ApplicationDocument, RawRequirement } from '../../data/applicationsData';
 import {
   resolvePreviewApplicationType,
   resolvePreviewElements,
+  detectCanonicalForm,
+  EquivalentFormHeaderCard,
+  CanonicalFormMetadata,
 } from '../../../../shared/formPreview';
+import { triggerBrowserBlobDownload } from '../../helpers/applicationDocumentActions';
 import { SubmittedFormStructuredView } from './SubmittedFormStructuredView';
 import { ApplicantParticularsCard } from './ApplicantParticularsCard';
 import { ApplicantRequirementsCard } from './ApplicantRequirementsCard';
@@ -89,18 +93,7 @@ export function SingleApplicantSection({
   uploadingDocId,
   onUploadRequirement,
 }: SingleApplicantSectionProps) {
-  const serviceNameLower = (app.serviceName || '').toLowerCase();
-  const serviceCategoryLower = (app.serviceCategory || '').toLowerCase();
-  const isRequestOrComplaint =
-    serviceNameLower.includes('request') ||
-    serviceNameLower.includes('complaint') ||
-    serviceCategoryLower.includes('request') ||
-    serviceCategoryLower.includes('complaint') ||
-    serviceNameLower.includes('blocking') ||
-    serviceNameLower.includes('unblocking') ||
-    serviceNameLower.includes('spam') ||
-    serviceNameLower.includes('scam') ||
-    serviceNameLower.includes('tape preservation');
+  const [isDownloadingForm, setIsDownloadingForm] = useState(false);
 
   const effectiveAppType = resolvePreviewApplicationType({
     applicationType: applicationType || (singleApplicant?.applicantType === 'Company' ? undefined : singleApplicant?.examineeType),
@@ -115,13 +108,41 @@ export function SingleApplicantSection({
     formFieldValues,
   });
 
+  const canonicalForm = useMemo<CanonicalFormMetadata>(() => {
+    const detected = detectCanonicalForm(
+      {
+        id: singleApplicant?.serviceId || app.serviceId,
+        title: app.serviceName,
+        category: app.serviceCategory,
+      },
+      variantLabel
+    );
+    if (detected !== null) return detected;
+    return {
+      code: 'NTC_FORM',
+      formNumber: 'Official Form',
+      title: app.serviceName || 'NTC Official Application Form',
+      shortTitle: app.serviceName || 'Application Form',
+      category: app.serviceCategory || 'Application',
+      viewType: 'permits',
+      description: 'Official statutory application form and submitted particulars.',
+      canonicalServiceId: singleApplicant?.serviceId || app.serviceId || '',
+      associatedServiceCodes: [],
+      associatedServiceIds: [],
+    };
+  }, [singleApplicant?.serviceId, app.serviceId, app.serviceName, app.serviceCategory, variantLabel]);
+
+  const targetApplicantId =
+    typeof singleApplicant?.id === 'string' && singleApplicant.id.trim().length > 0
+      ? singleApplicant.id.trim()
+      : undefined;
+
   const handlePreviewForm = () => {
     if (typeof app.id !== 'string' || app.id.trim().length === 0) return;
-    const isBlocking = serviceNameLower.includes('blocking') || serviceNameLower.includes('unblocking');
-    const formDocName = isBlocking
-      ? 'Official Application Form (NTC 1-24).pdf'
-      : 'Official Complaint Form (NTC 1-25).pdf';
-    const formUrl = applicationService.getApplicationFormPrintUrl(app.id);
+    const formDocName = canonicalForm
+      ? `Official Application Form (${canonicalForm.formNumber}).pdf`
+      : 'Official Application Form.pdf';
+    const formUrl = applicationService.getApplicationFormPrintUrl(app.id.trim(), targetApplicantId);
 
     onPreviewCustomDoc({
       name: formDocName,
@@ -135,10 +156,50 @@ export function SingleApplicantSection({
     });
   };
 
+  const handleDownloadForm = async () => {
+    if (typeof app.id !== 'string' || app.id.trim().length === 0 || isDownloadingForm) return;
+    const safeRef = (app.referenceNumber || app.id.slice(0, 8)).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const formCodePart = canonicalForm ? canonicalForm.code : 'NTC_Application_Form';
+    const targetFileName = `${formCodePart}_${safeRef}.pdf`;
+
+    setIsDownloadingForm(true);
+    try {
+      const [blobData, blobErr] = await applicationService.downloadApplicationFormPdf(
+        app.id.trim(),
+        targetApplicantId
+      );
+      if (blobErr === null && blobData instanceof Blob && blobData.size > 0) {
+        const typedBlob = new Blob([blobData], { type: 'application/pdf' });
+        triggerBrowserBlobDownload(typedBlob, targetFileName);
+        return;
+      }
+
+      const fallbackUrl = applicationService.getApplicationFormDownloadUrl(
+        app.id.trim(),
+        targetApplicantId
+      );
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(fallbackUrl, '_blank');
+      } else {
+        void Linking.openURL(fallbackUrl);
+      }
+    } finally {
+      setIsDownloadingForm(false);
+    }
+  };
+
   return (
     <View style={{ gap: 20 }}>
+      {/* Official Application Form Header Card (Above Applicant Details) */}
+      <EquivalentFormHeaderCard
+        canonicalForm={canonicalForm}
+        onPreviewFormPdf={handlePreviewForm}
+        onDownloadFormPdf={handleDownloadForm}
+        isDownloadingFormPdf={isDownloadingForm}
+      />
+
       {/* Schedule & Venue or Processing Office Banner */}
-      {(scheduleSummaryText || isRequestOrComplaint) && (
+      {Boolean(scheduleSummaryText) && (
         <View
           style={{
             backgroundColor: '#FFFFFF',
@@ -152,79 +213,45 @@ export function SingleApplicantSection({
             gap: 12,
           }}
         >
-          {scheduleSummaryText ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: '#EFF6FF',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name={isExamService ? 'calendar' : 'map-pin'} size={18} color="#2563EB" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontFamily: TYPOGRAPHY.fonts.primary,
-                    fontSize: 11,
-                    fontWeight: '700',
-                    color: '#64748B',
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  {isExamService ? 'Assigned Examination Schedule & Venue' : 'Assigned Processing Office'}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: TYPOGRAPHY.fonts.primary,
-                    fontSize: 13,
-                    fontWeight: '600',
-                    color: '#0F172A',
-                    marginTop: 2,
-                  }}
-                >
-                  {scheduleSummaryText}
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View style={{ flex: 1 }} />
-          )}
-
-          {isRequestOrComplaint && (
-            <TouchableOpacity
-              onPress={handlePreviewForm}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+            <View
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
+                width: 36,
+                height: 36,
+                borderRadius: 18,
                 backgroundColor: '#EFF6FF',
-                borderWidth: 1,
-                borderColor: '#BFDBFE',
-                borderRadius: 8,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-              activeOpacity={0.8}
             >
-              <Icon name="file-text" size={14} color="#1D4ED8" />
+              <Icon name={isExamService ? 'calendar' : 'map-pin'} size={18} color="#2563EB" />
+            </View>
+            <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: '700',
-                  color: '#1D4ED8',
+                  color: '#64748B',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
                 }}
               >
-                View Official Form
+                {isExamService ? 'Assigned Examination Schedule & Venue' : 'Assigned Processing Office'}
               </Text>
-            </TouchableOpacity>
-          )}
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: '#0F172A',
+                  marginTop: 2,
+                }}
+              >
+                {scheduleSummaryText}
+              </Text>
+            </View>
+          </View>
         </View>
       )}
 
@@ -244,6 +271,9 @@ export function SingleApplicantSection({
         applicationType={effectiveAppType}
         elements={effectiveElements}
         isExamService={isExamService}
+        onPreviewFormPdf={handlePreviewForm}
+        onDownloadFormPdf={handleDownloadForm}
+        isDownloadingFormPdf={isDownloadingForm}
       />
 
       {/* Attached Requirements & Document Proofs */}

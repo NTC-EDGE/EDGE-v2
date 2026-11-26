@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
+import { applicationService } from '@edge/api';
 import { Application, ApplicationDocument, BulkApplicant, RawRequirement } from '../../data/applicationsData';
+import { detectCanonicalForm, resolvePreviewVariant } from '../../../../shared/formPreview';
 
 export function useSelectedBulkApplicant(app: Application, selectedApplicant: BulkApplicant | null) {
   const selectedApplicantFormFields = useMemo(() => {
@@ -46,7 +48,7 @@ export function useSelectedBulkApplicant(app: Application, selectedApplicant: Bu
             ? rawReqs
             : [];
 
-    return candidateReqs.map((req, idx) => {
+    let mappedDocs: ApplicationDocument[] = candidateReqs.map((req, idx) => {
       const urlStr = req.url || '';
       const hasFile = Boolean(
         (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
@@ -93,7 +95,61 @@ export function useSelectedBulkApplicant(app: Application, selectedApplicant: Bu
         storedFileId: hasFile ? req.storedFileId : undefined,
       };
     });
-  }, [selectedApplicant, app]);
+
+    if (typeof app.id === 'string' && app.id.trim().length > 0) {
+      const resolvedVariant = resolvePreviewVariant({
+        serviceVariantName: selectedApplicant.serviceVariantName || app.serviceVariantName,
+        variant: app.variant,
+        element: selectedApplicant.element || app.element,
+        examineeType: selectedApplicant.details?.examineeType,
+        formFieldValues: selectedApplicantFormFields,
+        fallback: '',
+      });
+      const canonicalForm = detectCanonicalForm(
+        {
+          id: selectedApplicant.serviceId || app.serviceId,
+          title: app.serviceName,
+          category: app.serviceCategory,
+        },
+        resolvedVariant
+      );
+      const formCodeLabel = canonicalForm
+        ? canonicalForm.formNumber.replace(/\s+/g, '_')
+        : 'NTC_Application_Form';
+      const formDocName = `Official_Application_Form_${formCodeLabel}.pdf`;
+      const formDocId = `official-application-form-${app.id}-${selectedApplicant.id || 'primary'}`;
+      const alreadyHasForm = mappedDocs.some(
+        (d) =>
+          d.id === formDocId ||
+          d.id === `official-application-form-${app.id}` ||
+          d.name === formDocName
+      );
+
+      if (!alreadyHasForm) {
+        const formDocEntry: ApplicationDocument = {
+          id: formDocId,
+          name: formDocName,
+          requirementName: canonicalForm
+            ? `Official Application Form (${canonicalForm.formNumber})`
+            : 'Official Application Form',
+          applicantId: selectedApplicant.id,
+          type: 'PDF',
+          size: '1.2 MB',
+          category: 'ATTACHMENT',
+          uploadedAt: app.submittedAt || new Date().toISOString(),
+          url: applicationService.getApplicationFormPrintUrl(
+            app.id.trim(),
+            typeof selectedApplicant.id === 'string' && selectedApplicant.id.trim().length > 0
+              ? selectedApplicant.id.trim()
+              : undefined
+          ),
+        };
+        mappedDocs = [formDocEntry, ...mappedDocs];
+      }
+    }
+
+    return mappedDocs;
+  }, [selectedApplicant, app, selectedApplicantFormFields]);
 
   return {
     selectedApplicantFormFields,

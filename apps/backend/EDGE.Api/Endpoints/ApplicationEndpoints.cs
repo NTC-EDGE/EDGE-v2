@@ -253,10 +253,11 @@ public static class ApplicationEndpoints
             .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
             .WithName("PrintApplicationForm")
             .WithSummary("Print Application Form")
-            .WithDescription("Generates and downloads official printable PDF statutory application form (e.g. NTC 1-24 Blocking/Unblocking, NTC 1-25 Complaints) for the application.");
+            .WithDescription("Generates and downloads official printable PDF statutory application form (NTC 1-01 through NTC 1-25) for the application.");
 
         group.MapGet("/{id:guid}/form/download", (
             Guid id,
+            [FromQuery] Guid? applicantId,
             IApplicationFullRepository repository,
             IFormPrintingService printingService,
             HttpContext httpContext,
@@ -267,6 +268,7 @@ public static class ApplicationEndpoints
             CancellationToken cancellationToken) =>
             PrintApplicationFormEndpoint(
                 id,
+                applicantId,
                 repository,
                 printingService,
                 httpContext,
@@ -1154,6 +1156,7 @@ public static class ApplicationEndpoints
 
     public static async Task<IResult> PrintApplicationFormEndpoint(
         Guid id,
+        [FromQuery] Guid? applicantId,
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
@@ -1215,23 +1218,7 @@ public static class ApplicationEndpoints
             }
         }
 
-        byte[] pdfBytes;
-        string safeFileName;
-
-        if (ApplicationFormPrintMapper.IsBlockingOrUnblocking(app))
-        {
-            var model124 = ApplicationFormPrintMapper.MapToNtc124(app);
-            pdfBytes = printingService.PrintNtc124(model124);
-            var refCode = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString();
-            safeFileName = $"NTC_1-24_Affidavit_{refCode}.pdf".Replace(" ", "_");
-        }
-        else
-        {
-            var model125 = ApplicationFormPrintMapper.MapToNtc125(app);
-            pdfBytes = printingService.PrintNtc125(model125);
-            var refCode = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString();
-            safeFileName = $"NTC_1-25_Complaint_{refCode}.pdf".Replace(" ", "_");
-        }
+        var (pdfBytes, safeFileName, _) = ApplicationFormPrintMapper.PrintApplicationForm(app, printingService, applicantId);
 
         if (download)
         {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { View, Text, Pressable, ScrollView, Platform } from "react-native";
+import { View, Text, Pressable, ScrollView, Platform, Linking } from "react-native";
 import {
   useTheme,
   COLORS,
@@ -26,6 +26,9 @@ import { reviewStyles as styles } from "./reviewStyles";
 import { ApplicantParticularsCard } from "../ApplicantParticularsCard";
 import {
   BaseApplicationPreview,
+  EquivalentFormHeaderCard,
+  CanonicalFormMetadata,
+  detectCanonicalForm,
   resolvePreviewVariant,
   resolvePreviewApplicationType,
   resolvePreviewElements,
@@ -37,6 +40,7 @@ import { resolveApplicantAuditHistory } from "../../utils/officerEvaluationHelpe
 import { splitFullName } from "../../data/applicationMapper";
 import { EditApplicantProfileModal } from "../modals/EditApplicantProfileModal";
 import { EditFormValuesModal } from "../modals/EditFormValuesModal";
+import { ApplicationFormPdfPreviewModal } from "../modals/ApplicationFormPdfPreviewModal";
 
 export function ApplicantRecordTab({
   app,
@@ -85,6 +89,8 @@ export function ApplicantRecordTab({
   const [toastState, setToastState] = useState<{ message: string; variant: 'success' | 'error' | 'warning' | 'info' } | null>(null);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [isEditFormValuesModalOpen, setIsEditFormValuesModalOpen] = useState(false);
+  const [isFormPdfPreviewOpen, setIsFormPdfPreviewOpen] = useState(false);
+  const [isDownloadingFormPdf, setIsDownloadingFormPdf] = useState(false);
 
   const { formData, isLoading: isLoadingForm } = useApplicationFormWithSubmission(app.id, activeApplicant?.id, activeApplicant?.serviceVariantId);
 
@@ -343,6 +349,86 @@ export function ApplicantRecordTab({
     formFieldValues: flatFormValues,
   });
 
+  const canonicalForm = useMemo<CanonicalFormMetadata>(() => {
+    const detected = detectCanonicalForm(
+      {
+        id: activeApplicant?.serviceId || app.serviceId || '',
+        title: app.serviceName || app.permitTitle,
+        category: app.serviceCategory || app.category,
+      },
+      effectiveVariantName
+    );
+    if (detected !== null) return detected;
+    return {
+      code: 'NTC_FORM',
+      formNumber: 'Official Form',
+      title: app.serviceName || app.permitTitle || 'NTC Official Application Form',
+      shortTitle: app.serviceName || app.permitTitle || 'Application Form',
+      category: app.serviceCategory || app.category || 'Application',
+      viewType: 'permits',
+      description: 'Official statutory application form and submitted particulars.',
+      canonicalServiceId: activeApplicant?.serviceId || app.serviceId || '',
+      associatedServiceCodes: [],
+      associatedServiceIds: [],
+    };
+  }, [activeApplicant?.serviceId, app.serviceId, app.serviceName, app.permitTitle, app.serviceCategory, app.category, effectiveVariantName]);
+  const activeCanonicalForm = canonicalForm;
+
+  const effectiveApplicantIdForApi = useMemo(() => {
+    if (activeApplicant?.id && activeApplicant.id !== app.id) {
+      return activeApplicant.id;
+    }
+    if (localApplicants.length > 1 && activeApplicant?.id) {
+      return activeApplicant.id;
+    }
+    return undefined;
+  }, [activeApplicant?.id, app.id, localApplicants.length]);
+
+  const handleDownloadFormPdf = useCallback(async () => {
+    if (isDownloadingFormPdf) return;
+    setIsDownloadingFormPdf(true);
+    const formCode = activeCanonicalForm?.formNumber || 'NTC Application Form';
+    const cleanCode = (activeCanonicalForm?.code || 'NTC_Form').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const rawRef = app.referenceNumber || app.applicationNumber || app.id.slice(0, 8).toUpperCase();
+    const cleanRef = rawRef.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    try {
+      const [blob, err] = await applicationService.downloadApplicationFormPdf(
+        app.id,
+        effectiveApplicantIdForApi
+      );
+      if (
+        blob !== null &&
+        err === null &&
+        Platform.OS === 'web' &&
+        typeof window !== 'undefined' &&
+        typeof document !== 'undefined'
+      ) {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${cleanCode}_${cleanRef}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+        toast.success(`${formCode} downloaded successfully.`);
+        setIsDownloadingFormPdf(false);
+        return;
+      }
+    } catch {
+      // Fallback to direct download URL
+    }
+
+    setIsDownloadingFormPdf(false);
+    const url = applicationService.getApplicationFormDownloadUrl(app.id, effectiveApplicantIdForApi);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    } else {
+      void Linking.openURL(url);
+    }
+  }, [isDownloadingFormPdf, activeCanonicalForm, app.referenceNumber, app.applicationNumber, app.id, effectiveApplicantIdForApi]);
+
   return (
     <View style={{ flex: 1, position: 'relative' }}>
       {toastState !== null && (
@@ -377,6 +463,16 @@ export function ApplicantRecordTab({
       )}
 
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} onScrollBeginDrag={() => setActiveReqMenuId(null)}>
+        {/* Official Application Form Header Card (Above Section 1: Applicant Profile Details) */}
+        <View style={{ paddingHorizontal: SPACING[16], marginTop: SPACING[12], marginBottom: SPACING[4] }}>
+          <EquivalentFormHeaderCard
+            canonicalForm={canonicalForm}
+            onPreviewFormPdf={() => setIsFormPdfPreviewOpen(true)}
+            onDownloadFormPdf={handleDownloadFormPdf}
+            isDownloadingFormPdf={isDownloadingFormPdf}
+          />
+        </View>
+
         {/* 1. Profile */}
         <SectionHeader
           title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "1. APPLICANT PROFILE DETAILS"}
@@ -444,32 +540,34 @@ export function ApplicantRecordTab({
         </View>
 
         {/* 2. Form submissions */}
-        {(hasFormValues || Boolean(activeApplicant?.eSignature) || isLoadingForm) && (
+        {(hasFormValues || Boolean(activeApplicant?.eSignature) || isLoadingForm || Boolean(activeCanonicalForm)) && (
           <>
             <SectionHeader
               title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS"
-              rightAction={isEditable ? (
-                <Pressable
-                  style={[
-                    styles.inspectBtn,
-                    {
-                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
-                      borderColor: isDark ? colors.brand[500] : colors.brand[600],
-                      borderWidth: 1,
-                      paddingHorizontal: 10,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                    },
-                  ]}
-                  onPress={() => setIsEditFormValuesModalOpen(true)}
-                >
-                  <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
-                  <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: "600" }]}>
-                    Edit Form Fields
-                  </Text>
-                </Pressable>
-              ) : null}
+              rightAction={
+                isEditable ? (
+                  <Pressable
+                    style={[
+                      styles.inspectBtn,
+                      {
+                        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                        borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                        borderWidth: 1,
+                        paddingHorizontal: 10,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                      },
+                    ]}
+                    onPress={() => setIsEditFormValuesModalOpen(true)}
+                  >
+                    <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                    <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: "600" }]}>
+                      Edit Form Fields
+                    </Text>
+                  </Pressable>
+                ) : null
+              }
             />
             <View style={{ paddingHorizontal: SPACING[16] }}>
               {isLoadingForm ? (
@@ -477,7 +575,7 @@ export function ApplicantRecordTab({
                   <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
                   <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
                 </View>
-              ) : (cleanFormData && cleanFormData.sections.length > 0) || flatFormValues.length > 0 || Boolean(activeApplicant?.eSignature) ? (
+              ) : (cleanFormData && cleanFormData.sections.length > 0) || flatFormValues.length > 0 || Boolean(activeApplicant?.eSignature) || Boolean(activeCanonicalForm) ? (
                 <BaseApplicationPreview
                   service={{ id: activeApplicant?.serviceId || app.serviceId || '', title: app.serviceName || app.permitTitle, category: app.serviceCategory || app.category }}
                   form={cleanFormData}
@@ -521,6 +619,9 @@ export function ApplicantRecordTab({
                     (app.serviceName || app.permitTitle || '').toLowerCase().includes('exam')
                   )}
                   showEquivalentFormHeader={false}
+                  onPreviewFormPdf={() => setIsFormPdfPreviewOpen(true)}
+                  onDownloadFormPdf={() => void handleDownloadFormPdf()}
+                  isDownloadingFormPdf={isDownloadingFormPdf}
                   showApplicantCard={false}
                   showSignatureCard={true}
                   onPreviewFile={onPreviewFile}
@@ -577,6 +678,14 @@ export function ApplicantRecordTab({
           await mutateApplications(app.id);
           updateApplication(app.id, {});
         }}
+      />
+
+      <ApplicationFormPdfPreviewModal
+        visible={isFormPdfPreviewOpen}
+        app={app}
+        initialApplicantId={activeApplicant?.id}
+        canonicalForm={activeCanonicalForm}
+        onClose={() => setIsFormPdfPreviewOpen(false)}
       />
     </View>
   );

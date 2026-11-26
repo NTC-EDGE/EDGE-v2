@@ -60,6 +60,9 @@ export interface SubmittedFormStructuredViewProps {
   singleApplicant?: SubmittedApplicantData | null;
   showApplicantCard?: boolean;
   isExamService?: boolean;
+  onPreviewFormPdf?: () => void;
+  onDownloadFormPdf?: () => void;
+  isDownloadingFormPdf?: boolean;
 }
 
 export function SubmittedFormStructuredView({
@@ -75,6 +78,9 @@ export function SubmittedFormStructuredView({
   singleApplicant,
   showApplicantCard = false,
   isExamService,
+  onPreviewFormPdf,
+  onDownloadFormPdf,
+  isDownloadingFormPdf = false,
 }: SubmittedFormStructuredViewProps) {
   const api = useApi();
   const { data: allServicesRes } = api.useQuery<{ succeeded?: boolean; data?: Array<{ id: string; name?: string; title?: string }> }>('/api/v2/services?pageSize=9999');
@@ -186,6 +192,9 @@ export function SubmittedFormStructuredView({
           : undefined
       }
       showEquivalentFormHeader={false}
+      onPreviewFormPdf={onPreviewFormPdf}
+      onDownloadFormPdf={onDownloadFormPdf}
+      isDownloadingFormPdf={isDownloadingFormPdf}
       showApplicantCard={showApplicantCard}
       showSignatureCard={true}
       onPreviewFile={onPreviewFile}

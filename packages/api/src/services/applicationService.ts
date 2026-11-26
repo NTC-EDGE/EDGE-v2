@@ -635,31 +635,39 @@ export const applicationService = {
     });
   },
 
-  getApplicationFormPrintUrl(applicationId: string): string {
+  getApplicationFormPrintUrl(applicationId: string, applicantId?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/form/print`;
+    const query = applicantId ? `?applicantId=${encodeURIComponent(applicantId)}` : '';
+    return `${base}/api/v2/applications/${applicationId}/form/print${query}`;
   },
 
-  getApplicationFormDownloadUrl(applicationId: string): string {
+  getApplicationFormDownloadUrl(applicationId: string, applicantId?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/form/print?download=true`;
+    const query = applicantId ? `&applicantId=${encodeURIComponent(applicantId)}` : '';
+    return `${base}/api/v2/applications/${applicationId}/form/print?download=true${query}`;
   },
 
-  async previewApplicationFormPdf(applicationId: string) {
+  async previewApplicationFormPdf(applicationId: string, applicantId?: string) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/form/print`,
-        { responseType: 'blob' }
+        {
+          params: applicantId ? { applicantId } : undefined,
+          responseType: 'blob',
+        }
       );
       return response.data;
     });
   },
 
-  async downloadApplicationFormPdf(applicationId: string) {
+  async downloadApplicationFormPdf(applicationId: string, applicantId?: string) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/form/print?download=true`,
-        { responseType: 'blob' }
+        {
+          params: applicantId ? { applicantId } : undefined,
+          responseType: 'blob',
+        }
       );
       return response.data;
     });

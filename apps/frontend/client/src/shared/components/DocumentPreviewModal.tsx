@@ -9,6 +9,8 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  useWindowDimensions,
+  Linking,
 } from "react-native";
 import { Icon, TYPOGRAPHY, ImageCropRotateModal, EditedImageResult } from "@edge/ui";
 import { storageService } from "@edge/api";
@@ -64,6 +66,8 @@ export function DocumentPreviewModal({
   onSaveEditedImage,
   allowEditImage = false,
 }: DocumentPreviewModalProps) {
+  const { width } = useWindowDimensions();
+  const isMobileScreen = width < 768;
   const [imageError, setImageError] = useState(false);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -88,6 +92,9 @@ export function DocumentPreviewModal({
     const trimmedUri = fileUri.trim();
     const isProtectedStoragePath =
       trimmedUri.startsWith("/api/") ||
+      trimmedUri.includes("/api/v2/") ||
+      trimmedUri.includes("/form/print") ||
+      trimmedUri.includes("/issued-document/print") ||
       trimmedUri.includes("/storage/files/");
 
     if (!isProtectedStoragePath) return;
@@ -200,6 +207,16 @@ export function DocumentPreviewModal({
       } catch (err) {
         console.warn("Direct download failed:", err);
       }
+    }
+  };
+
+  const handleOpenInNewTab = () => {
+    const targetUri = (activeImageUri || fileUri || "").trim();
+    if (!targetUri) return;
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.open(targetUri, "_blank");
+    } else {
+      void Linking.openURL(targetUri);
     }
   };
 
@@ -323,12 +340,94 @@ export function DocumentPreviewModal({
             ) : isPdf && hasValidRenderUri && Platform.OS === "web" ? (
               /* Simple Pure PDF Preview */
               <View style={styles.pdfWrapper}>
+                {isMobileScreen ? (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      backgroundColor: "#EFF6FF",
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#BFDBFE",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 12,
+                        color: "#1E3A8A",
+                        flex: 1,
+                        minWidth: 160,
+                      }}
+                    >
+                      Viewing on a smaller screen? Open or download the PDF directly:
+                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={handleOpenInNewTab}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 5,
+                          backgroundColor: "#FFFFFF",
+                          borderWidth: 1,
+                          borderColor: "#93C5FD",
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 6,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Icon name="external-link" size={13} color="#1D4ED8" />
+                        <Text
+                          style={{
+                            fontFamily: TYPOGRAPHY.fonts.primary,
+                            fontSize: 11.5,
+                            fontWeight: "700",
+                            color: "#1D4ED8",
+                          }}
+                        >
+                          Open PDF in New Tab
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleDownloadAction}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 5,
+                          backgroundColor: "#1D4ED8",
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 6,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Icon name="download" size={13} color="#FFFFFF" />
+                        <Text
+                          style={{
+                            fontFamily: TYPOGRAPHY.fonts.primary,
+                            fontSize: 11.5,
+                            fontWeight: "700",
+                            color: "#FFFFFF",
+                          }}
+                        >
+                          Download PDF
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
                 <iframe
                   src={effectiveUri}
                   title={fileName}
                   style={{
                     width: "100%",
-                    height: 560,
+                    height: isMobileScreen ? 440 : 560,
                     border: "none",
                     borderRadius: 8,
                     backgroundColor: "#FFFFFF",

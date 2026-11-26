@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { TYPOGRAPHY, Icon } from '@edge/ui';
 import { CanonicalFormMetadata } from '../core/canonicalFormDefinitions';
 
@@ -10,6 +10,9 @@ export interface EquivalentFormHeaderCardProps {
   applicationType?: string | null;
   elements?: string | null;
   version?: string | null;
+  onPreviewFormPdf?: () => void;
+  onDownloadFormPdf?: () => void;
+  isDownloadingFormPdf?: boolean;
 }
 
 export function EquivalentFormHeaderCard({
@@ -19,23 +22,55 @@ export function EquivalentFormHeaderCard({
   applicationType: _applicationType,
   elements: _elements,
   version: _version,
+  onPreviewFormPdf,
+  onDownloadFormPdf,
+  isDownloadingFormPdf = false,
 }: EquivalentFormHeaderCardProps) {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 640;
+  const hasActions = onPreviewFormPdf !== undefined || onDownloadFormPdf !== undefined;
+
   return (
     <View style={styles.cardContainer}>
       {/* Top Banner Row */}
       <View style={styles.topRow}>
-        {/* Form Number Seal */}
-        <View style={styles.sealBadge}>
-          <Icon name="file-text" size={16} color="#FFFFFF" />
-          <Text style={styles.sealBadgeText}>{canonicalForm.formNumber}</Text>
+        <View style={styles.badgesGroup}>
+          {/* Form Number Seal */}
+          <View style={styles.sealBadge}>
+            <Icon name="file-text" size={16} color="#FFFFFF" />
+            <Text style={styles.sealBadgeText}>{canonicalForm.formNumber}</Text>
+          </View>
+
+          {/* Category Pill */}
+          {canonicalForm.category ? (
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryPillText}>{canonicalForm.category}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* Category Pill */}
-        {canonicalForm.category ? (
-          <View style={styles.categoryPill}>
-            <Text style={styles.categoryPillText}>{canonicalForm.category}</Text>
+        {hasActions && !isCompact && (
+          <View style={styles.actionsRow}>
+            {onPreviewFormPdf !== undefined && (
+              <Pressable style={styles.previewBtn} onPress={onPreviewFormPdf}>
+                <Icon name="eye" size={14} color="#FFFFFF" />
+                <Text style={styles.previewBtnText}>View Application Form</Text>
+              </Pressable>
+            )}
+            {onDownloadFormPdf !== undefined && (
+              <Pressable
+                style={[styles.downloadBtn, isDownloadingFormPdf && { opacity: 0.6 }]}
+                onPress={onDownloadFormPdf}
+                disabled={isDownloadingFormPdf}
+              >
+                <Icon name="download" size={14} color="#0F2C59" />
+                <Text style={styles.downloadBtnText}>
+                  {isDownloadingFormPdf ? 'Downloading...' : 'Download PDF'}
+                </Text>
+              </Pressable>
+            )}
           </View>
-        ) : null}
+        )}
       </View>
 
       {/* Official Form Title */}
@@ -45,6 +80,34 @@ export function EquivalentFormHeaderCard({
       {canonicalForm.description ? (
         <Text style={styles.formDescriptionText}>{canonicalForm.description}</Text>
       ) : null}
+
+      {/* Mobile / Compact Action Buttons */}
+      {hasActions && isCompact && (
+        <View style={styles.compactActionsRow}>
+          {onPreviewFormPdf !== undefined && (
+            <Pressable style={[styles.previewBtn, styles.compactBtnFlex]} onPress={onPreviewFormPdf}>
+              <Icon name="eye" size={14} color="#FFFFFF" />
+              <Text style={styles.previewBtnText}>View Application Form</Text>
+            </Pressable>
+          )}
+          {onDownloadFormPdf !== undefined && (
+            <Pressable
+              style={[
+                styles.downloadBtn,
+                styles.compactBtnFlex,
+                isDownloadingFormPdf && { opacity: 0.6 },
+              ]}
+              onPress={onDownloadFormPdf}
+              disabled={isDownloadingFormPdf}
+            >
+              <Icon name="download" size={14} color="#0F2C59" />
+              <Text style={styles.downloadBtnText}>
+                {isDownloadingFormPdf ? 'Downloading...' : 'Download PDF'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -66,8 +129,64 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  badgesGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  compactActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  compactBtnFlex: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  previewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0F2C59',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  previewBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  downloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F2C59',
   },
   sealBadge: {
     flexDirection: 'row',

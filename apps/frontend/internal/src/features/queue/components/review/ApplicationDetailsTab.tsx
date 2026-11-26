@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { View, Text, ScrollView, Pressable } from "react-native";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { View, Text, ScrollView, Pressable, Platform, Linking } from "react-native";
 import { useTheme, COLORS, SPACING, Icon as Lucide, toast } from "@edge/ui";
-import { scheduleService, useAdminSchedules } from "@edge/api";
+import { applicationService, scheduleService, useAdminSchedules } from "@edge/api";
 import { ApplicationDetailsTabProps } from "./reviewTypes";
 import { InfoRow } from "./reviewComponents";
 import { FormsAttachmentSection } from "./FormsAttachmentSection";
@@ -12,8 +12,10 @@ import { PrimaryApplicantDetailsSection } from "./PrimaryApplicantDetailsSection
 import { reviewStyles as styles } from "./reviewStyles";
 import { ApplicantVerdictType } from "../modals/ApplicantVerdictModal";
 import { BatchActionType } from "../modals/BatchConfirmationModal";
+import { ApplicationFormPdfPreviewModal } from "../modals/ApplicationFormPdfPreviewModal";
 import { ApplicantItem, ApplicationFormAttachment } from "../../../../types/application";
 import {
+  detectCanonicalForm,
   resolvePreviewVariant,
   resolvePreviewApplicationType,
   resolvePreviewElements,
@@ -304,7 +306,105 @@ export function ApplicationDetailsTab({
   };
 
   const accountableForms = app.forms.filter((f: ApplicationFormAttachment) => f.section === "ACCOUNTABLE FORM");
-  const downloadForms = app.forms.filter((f: ApplicationFormAttachment) => f.section === "DOWNLOAD FORM");
+  const existingDownloadForms = app.forms.filter((f: ApplicationFormAttachment) => f.section === "DOWNLOAD FORM");
+
+  const canonicalForm = useMemo(() => {
+    return detectCanonicalForm(
+      {
+        id: app.serviceId || app.services?.[0]?.serviceId || "",
+        title: app.serviceName || app.permitTitle,
+        category: app.serviceCategory || app.category,
+      },
+      effectiveVariant || app.serviceVariantName
+    );
+  }, [app.serviceId, app.services, app.serviceName, app.permitTitle, app.serviceCategory, app.category, effectiveVariant, app.serviceVariantName]);
+
+  const downloadForms = useMemo<ApplicationFormAttachment[]>(() => {
+    if (existingDownloadForms.length > 0) return existingDownloadForms;
+    if (!canonicalForm) return [];
+    return [
+      {
+        name: `${canonicalForm.formNumber} — ${canonicalForm.title}.pdf`,
+        section: "DOWNLOAD FORM",
+        canView: true,
+        canPrint: true,
+        canDownload: true,
+        canRefresh: false,
+      },
+    ];
+  }, [existingDownloadForms, canonicalForm]);
+
+  const [isFormPdfPreviewOpen, setIsFormPdfPreviewOpen] = useState(false);
+
+  const handlePrintFormAction = useCallback(
+    async (form: ApplicationFormAttachment) => {
+      if (form.section === "ACCOUNTABLE FORM" && onPrintAccountableForm) {
+        onPrintAccountableForm(form);
+        return;
+      }
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        try {
+          const [blob, err] = await applicationService.previewApplicationFormPdf(app.id);
+          if (blob !== null && err === null) {
+            const blobUrl = window.URL.createObjectURL(blob);
+            const win = window.open(blobUrl, "_blank");
+            if (win !== null) {
+              win.focus();
+              return;
+            }
+          }
+        } catch {
+          // Fallback to direct print URL
+        }
+        const url = applicationService.getApplicationFormPrintUrl(app.id);
+        const win = window.open(url, "_blank");
+        if (win !== null) {
+          win.focus();
+        }
+      } else {
+        setIsFormPdfPreviewOpen(true);
+      }
+    },
+    [onPrintAccountableForm, app.id]
+  );
+
+  const handleDownloadFormAction = useCallback(async () => {
+    const formCode = canonicalForm?.formNumber || "NTC Application Form";
+    const cleanCode = (canonicalForm?.code || "NTC_Form").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const rawRef = app.referenceNumber || app.applicationNumber || app.id.slice(0, 8).toUpperCase();
+    const cleanRef = rawRef.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    try {
+      const [blob, err] = await applicationService.downloadApplicationFormPdf(app.id);
+      if (
+        blob !== null &&
+        err === null &&
+        Platform.OS === "web" &&
+        typeof window !== "undefined" &&
+        typeof document !== "undefined"
+      ) {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = `${cleanCode}_${cleanRef}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+        toast.success(`${formCode} downloaded successfully.`);
+        return;
+      }
+    } catch {
+      // Fallback to direct URL
+    }
+
+    const url = applicationService.getApplicationFormDownloadUrl(app.id);
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.open(url, "_blank");
+    } else {
+      void Linking.openURL(url);
+    }
+  }, [canonicalForm, app.referenceNumber, app.applicationNumber, app.id]);
 
   const isIndividual = (app.applicantType || "").toLowerCase() === "individual";
   const isCompanyApplication =
@@ -364,6 +464,14 @@ export function ApplicationDetailsTab({
         <InfoRow label="Application Number:" value={app.applicationNumber} isEditing={isEditingSection} editValue={applicationDraft} onEditChange={setApplicationDraft} />
       </View>
 
+      <FormsAttachmentSection
+        accountableForms={accountableForms}
+        downloadForms={downloadForms}
+        onViewForm={() => setIsFormPdfPreviewOpen(true)}
+        onPrintForm={(form) => void handlePrintFormAction(form)}
+        onDownloadForm={() => void handleDownloadFormAction()}
+      />
+
       {isCompanyApplication && (
         <CompanyDetailsSection
           app={app}
@@ -408,11 +516,11 @@ export function ApplicationDetailsTab({
           onInspectApplicant={onInspectApplicant}
         />
       )}
-
-      <FormsAttachmentSection
-        accountableForms={accountableForms}
-        downloadForms={downloadForms}
-        onPrintForm={onPrintAccountableForm}
+      <ApplicationFormPdfPreviewModal
+        visible={isFormPdfPreviewOpen}
+        app={app}
+        canonicalForm={canonicalForm}
+        onClose={() => setIsFormPdfPreviewOpen(false)}
       />
       <View style={{ height: 40 }} />
     </ScrollView>

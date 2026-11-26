@@ -62,7 +62,7 @@ export function resolveDocumentFileUrl(
     typeof app?.id === 'string' &&
     app.id.trim().length > 0
   ) {
-    return applicationService.getApplicationFormPrintUrl(app.id.trim());
+    return applicationService.getApplicationFormPrintUrl(app.id.trim(), doc.applicantId);
   }
 
   if (typeof doc.url === 'string' && doc.url.trim() !== '' && doc.url.toLowerCase() !== 'none' && doc.url.toLowerCase() !== 'null') {
