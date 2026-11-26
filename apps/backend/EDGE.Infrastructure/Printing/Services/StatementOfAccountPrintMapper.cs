@@ -40,15 +40,63 @@ public static class StatementOfAccountPrintMapper
         model.AgencyName = "NATIONAL TELECOMMUNICATIONS COMMISSION";
         model.Title = "Statement of Account";
 
-        var fallbackApplicantName = app?.ApplicationApplicants
-            .Select(aa => aa.Applicant)
-            .Where(a => a != null)
-            .Select(a => a?.CompanyDetail?.Name ?? (a?.ApplicantDetail != null ? $"{a.ApplicantDetail.FirstName} {a.ApplicantDetail.LastName}".Trim() : null))
-            .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+        var isBulkConsolidatedSoa = (app?.SubmissionMode == SubmissionMode.Bulk || (app?.ApplicationApplicants?.Count ?? 0) > 1)
+                                    && (soa == null || !soa.ApplicantId.HasValue);
+        var isPerApplicantSoa = soa?.ApplicantId.HasValue == true;
 
-        model.PayorName = !string.IsNullOrWhiteSpace(soa?.IssuedToName)
-            ? soa.IssuedToName
-            : (fallbackApplicantName ?? (app?.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : "Applicant"));
+        var companyName = app?.User?.CompanyDetail?.Name
+            ?? app?.ApplicationApplicants
+                .Select(aa => aa.Applicant?.CompanyDetail?.Name ?? aa.Applicant?.ApplicantDetail?.CompanyDetail?.Name)
+                .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+
+        var targetApplicantForSoa = isPerApplicantSoa
+            ? app?.ApplicationApplicants.Select(aa => aa.Applicant).FirstOrDefault(a => a != null && a.Id == soa!.ApplicantId!.Value)
+            : app?.ApplicationApplicants.Select(aa => aa.Applicant).FirstOrDefault(a => a != null);
+
+        var targetApplicantPersonalName = targetApplicantForSoa?.ApplicantDetail != null
+            ? string.Join(" ", new[]
+            {
+                targetApplicantForSoa.ApplicantDetail.FirstName,
+                targetApplicantForSoa.ApplicantDetail.MiddleName,
+                targetApplicantForSoa.ApplicantDetail.LastName,
+                targetApplicantForSoa.ApplicantDetail.Suffix
+            }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()))
+            : null;
+
+        var fallbackApplicantName = isBulkConsolidatedSoa && !string.IsNullOrWhiteSpace(companyName)
+            ? companyName!.Trim()
+            : (isPerApplicantSoa && !string.IsNullOrWhiteSpace(targetApplicantPersonalName)
+                ? targetApplicantPersonalName
+                : (targetApplicantForSoa?.CompanyDetail?.Name ?? targetApplicantPersonalName ?? companyName));
+
+        if (isBulkConsolidatedSoa && !string.IsNullOrWhiteSpace(companyName))
+        {
+            // For Bulk Consolidated SOA, ensure payor is the Company, not an individual applicant or representative
+            var issuedName = soa?.IssuedToName?.Trim();
+            var isPersonalOrRep = string.IsNullOrWhiteSpace(issuedName) ||
+                (app?.ApplicationApplicants.Any(aa =>
+                    aa.Applicant?.ApplicantDetail != null &&
+                    (string.Equals(issuedName, $"{aa.Applicant.ApplicantDetail.FirstName} {aa.Applicant.ApplicantDetail.LastName}".Trim(), StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(issuedName, string.Join(" ", new[] { aa.Applicant.ApplicantDetail.FirstName, aa.Applicant.ApplicantDetail.MiddleName, aa.Applicant.ApplicantDetail.LastName, aa.Applicant.ApplicantDetail.Suffix }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim())), StringComparison.OrdinalIgnoreCase))) == true) ||
+                (app?.User != null && string.Equals(issuedName, $"{app.User.FirstName} {app.User.LastName}".Trim(), StringComparison.OrdinalIgnoreCase) && !string.Equals(issuedName, companyName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            model.PayorName = isPersonalOrRep ? companyName.Trim() : issuedName!;
+        }
+        else if (isPerApplicantSoa && !string.IsNullOrWhiteSpace(targetApplicantPersonalName))
+        {
+            // For By-Applicant SOA, ensure payor is the Individual Applicant, not the Company
+            var issuedName = soa?.IssuedToName?.Trim();
+            var isCompanyName = string.IsNullOrWhiteSpace(issuedName) ||
+                (!string.IsNullOrWhiteSpace(companyName) && string.Equals(issuedName, companyName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            model.PayorName = isCompanyName ? targetApplicantPersonalName : issuedName!;
+        }
+        else
+        {
+            model.PayorName = !string.IsNullOrWhiteSpace(soa?.IssuedToName)
+                ? soa.IssuedToName
+                : (fallbackApplicantName ?? (app?.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : "Applicant"));
+        }
 
         model.AccountNo = !string.IsNullOrWhiteSpace(soa?.SoaNumber)
             ? soa.SoaNumber

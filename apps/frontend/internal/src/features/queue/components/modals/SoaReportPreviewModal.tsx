@@ -6,6 +6,7 @@ import {
   Modal,
   ScrollView,
   Pressable,
+  TextInput,
   Platform,
   Linking,
   Animated,
@@ -18,8 +19,9 @@ import {
   RADIUS,
   SHADOWS,
   TYPOGRAPHY,
+  toast,
 } from '@edge/ui';
-import { applicationService, extractOrNumbers } from '@edge/api';
+import { applicationService, extractOrNumbers, useTenantConfig, mutateApplications } from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
 import {
   generateSoaPrintableHtml,
@@ -97,6 +99,7 @@ interface SoaReportPreviewModalProps {
   onClose: () => void;
   onOpenGenerateSoa?: () => void;
   onApproveOp?: () => void;
+  updateApplication?: (id: string, patch: Partial<ApplicationData>) => void;
 }
 
 export function SoaReportPreviewModal({
@@ -106,8 +109,14 @@ export function SoaReportPreviewModal({
   onClose,
   onOpenGenerateSoa,
   onApproveOp,
+  updateApplication,
 }: SoaReportPreviewModalProps) {
   const { colors, isDark } = useTheme();
+  const { config: tenantConfig } = useTenantConfig(app.tenantId);
+  const allowManualOpNumber = tenantConfig.allowManualOpNumber === true;
+  const [editingOpNumber, setEditingOpNumber] = useState<boolean>(false);
+  const [opNumberDraft, setOpNumberDraft] = useState<string>('');
+  const [isSavingOpNumber, setIsSavingOpNumber] = useState<boolean>(false);
   const [docType, setDocType] = useState<ReportDocumentType>(initialDocType);
   const [viewFormat, setViewFormat] = useState<'pdf' | 'grid'>('pdf');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
@@ -376,11 +385,86 @@ export function SoaReportPreviewModal({
   const soaNumber =
     activePreviewSoa?.soaNumber ||
     app.soaNumber ||
+    app.soasList?.[0]?.soaNumber ||
     `SOA-${app.referenceNumber ?? app.id.slice(0, 8).toUpperCase()}`;
-  const opNumber =
+
+  const isOpApproved =
+    app.status === 'PendingPayment' ||
+    app.status === 'ForIssuance' ||
+    app.status === 'Completed' ||
+    app.status === 'Approved' ||
+    activePreviewSoa?.status === 'Approved' ||
+    app.soaStatus === 'Approved' ||
+    Boolean(app.payment?.orNumber && app.payment.orNumber.trim().length > 0);
+
+  const fallbackManualOpNumber = (() => {
+    const rc = (tenantConfig.rcCodeOp || '61').replace(/^RC-/i, '').trim() || '61';
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    return `${rc}-${yyyy}-${mm}-0001`;
+  })();
+
+  const rawPreviewOpNumber =
     activePreviewOp?.opNumber ||
-    (!isIndividualBillingMode ? app.payment?.opNumber || app.opsList?.[0]?.opNumber : undefined) ||
-    'PENDING APPROVAL';
+    (!isIndividualBillingMode ? app.payment?.opNumber || app.opsList?.[0]?.opNumber : undefined);
+
+  const opNumber = allowManualOpNumber
+    ? (rawPreviewOpNumber || fallbackManualOpNumber)
+    : (isOpApproved && rawPreviewOpNumber ? rawPreviewOpNumber : 'PENDING APPROVAL');
+
+  useEffect(() => {
+    if (!editingOpNumber) {
+      setOpNumberDraft(opNumber !== 'PENDING APPROVAL' ? opNumber : fallbackManualOpNumber);
+    }
+  }, [opNumber, editingOpNumber, fallbackManualOpNumber]);
+
+  const handleSaveManualOpNumber = async () => {
+    const cleanNumber = opNumberDraft.trim();
+    if (!cleanNumber) {
+      toast.error('OP number cannot be empty.');
+      return;
+    }
+    const targetOpId =
+      activePreviewOp?.id ||
+      app.payment?.orderOfPaymentId ||
+      app.opsList?.[0]?.id ||
+      activePreviewSoa?.id ||
+      app.soaId ||
+      app.statementOfAccountId ||
+      app.id;
+    const targetSoaId =
+      activePreviewSoa?.id ||
+      activePreviewOp?.statementOfAccountId ||
+      app.soaId ||
+      app.statementOfAccountId ||
+      app.soasList?.[0]?.id;
+
+    setIsSavingOpNumber(true);
+    const [res, err] = await applicationService.updateOpNumber(
+      targetOpId,
+      cleanNumber,
+      undefined,
+      {
+        applicationId: app.id,
+        statementOfAccountId: targetSoaId,
+      }
+    );
+    setIsSavingOpNumber(false);
+    if (err !== null || !res?.succeeded) {
+      toast.error(err || res?.message || 'Failed to update OP number.');
+      return;
+    }
+    setEditingOpNumber(false);
+    if (updateApplication) {
+      updateApplication(app.id, {
+        payment: { ...app.payment, opNumber: cleanNumber },
+      });
+    }
+    toast.success('Order of Payment number updated.');
+    await mutateApplications(app.id);
+    setReloadKey((prev) => prev + 1);
+  };
   const effectivePayorName =
     activePreviewSoa?.issuedToName || app.soaIssuedToName || app.applicant;
   const applicantAddress =
@@ -1377,6 +1461,8 @@ export function SoaReportPreviewModal({
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
                 paddingHorizontal: SPACING[16],
                 paddingVertical: SPACING[6],
                 backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
@@ -1386,9 +1472,92 @@ export function SoaReportPreviewModal({
                 borderLeftColor: isDark ? colors.brand[400] : colors.brand[600],
               }}
             >
-              <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? colors.neutral[400] : colors.neutral[600] }}>
-                VIEW FORMAT:
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? colors.neutral[400] : colors.neutral[600] }}>
+                  VIEW FORMAT:
+                </Text>
+                {allowManualOpNumber && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {editingOpNumber ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <TextInput
+                          style={{
+                            minWidth: 165,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: RADIUS.xs,
+                            borderWidth: 1,
+                            borderColor: isDark ? colors.brand[400] : colors.brand[600],
+                            backgroundColor: isDark ? colors.neutral[800] : '#ffffff',
+                            color: isDark ? colors.neutral[100] : colors.neutral[900],
+                            fontSize: 11.5,
+                            fontWeight: '700',
+                          }}
+                          value={opNumberDraft}
+                          onChangeText={setOpNumberDraft}
+                          placeholder="Enter OP Number"
+                          placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                          autoFocus
+                        />
+                        <Pressable
+                          disabled={isSavingOpNumber}
+                          onPress={() => void handleSaveManualOpNumber()}
+                          style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: RADIUS.xs,
+                            backgroundColor: isDark ? colors.brand[500] : colors.brand[700],
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff' }}>
+                            {isSavingOpNumber ? 'Saving...' : 'Save OP #'}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          disabled={isSavingOpNumber}
+                          onPress={() => setEditingOpNumber(false)}
+                          style={{
+                            paddingHorizontal: 6,
+                            paddingVertical: 4,
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? colors.neutral[400] : colors.neutral[600] }}>
+                            Cancel
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? colors.brand[300] : colors.brand[700] }}>
+                          OP #: {opNumber}
+                        </Text>
+                        <Pressable
+                          onPress={() => {
+                            setOpNumberDraft(opNumber !== 'PENDING APPROVAL' ? opNumber : fallbackManualOpNumber);
+                            setEditingOpNumber(true);
+                          }}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            paddingHorizontal: 7,
+                            paddingVertical: 3,
+                            borderRadius: RADIUS.xs,
+                            borderWidth: 1,
+                            borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                            backgroundColor: isDark ? colors.neutral[800] : '#eff6ff',
+                          }}
+                        >
+                          <Lucide name="edit-2" size={10} color={isDark ? colors.brand[300] : colors.brand[700]} />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? colors.brand[300] : colors.brand[700] }}>
+                            EDIT OP #
+                          </Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
               <View style={{ flexDirection: 'row', gap: 6 }}>
                 <Pressable
                   style={{
@@ -1799,13 +1968,13 @@ export function SoaReportPreviewModal({
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Payor:</Text>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[900] }}>
-                      {app.applicant}
+                      {effectivePayorName}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Account / Ref No:</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Account / SOA No:</Text>
                     <Text style={{ fontSize: 12, fontWeight: '600', fontFamily: 'monospace', color: isDark ? colors.brand[400] : colors.brand[700] }}>
-                      {app.referenceNumber || app.id}
+                      {soaNumber}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

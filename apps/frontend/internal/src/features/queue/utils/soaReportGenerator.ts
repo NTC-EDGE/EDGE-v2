@@ -237,11 +237,11 @@ export function generateSoaPrintableHtml(
 
   const tenantName = isOptionsObj ? optionsOrTenantName.tenantName : (typeof optionsOrTenantName === 'string' ? optionsOrTenantName : undefined);
   const officeName = safeString(app.office || app.assignedTo || tenantName, 'National Telecommunications Commission');
-  const payorName = safeString(app.applicant, 'Applicant');
-  const payorAddress = formatAddress(app);
+  const payorName = safeString(app.soaIssuedToName || app.applicant, 'Applicant');
+  const payorAddress = safeString(app.soaIssuedToAddress || formatAddress(app), 'N/A');
   const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-SOA');
   const particularNumber = resolveParticularNumber(app);
-  const soaNumber = `SOA-${refNum}`;
+  const soaNumber = safeString(app.soaNumber || app.soasList?.[0]?.soaNumber, `SOA-${refNum}`);
   const totalInWords = numberToWords(totalAmount);
 
   // Compute due date (30 days from created date)
@@ -876,10 +876,11 @@ export function generateOpPrintableHtml(
   });
 
   const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
-  const opNumber = `OP-${refNum}`;
+  const opNumber = safeString(app.payment?.opNumber || app.opsList?.[0]?.opNumber, 'PENDING APPROVAL');
+  const soaRefNumber = safeString(app.soaNumber || app.soasList?.[0]?.soaNumber, `SOA-${refNum}`);
   const totalWords = numberToWords(app.totalAmountDue);
   const officeName = safeString(app.assignedTo || app.office || tenantName, 'National Telecommunications Commission');
-  const applicantName = safeString(app.applicant, 'Applicant');
+  const applicantName = safeString(app.soaIssuedToName || app.applicant, 'Applicant');
   const serviceName = safeString(app.serviceName, 'Application Services');
   const categoryName = safeString(app.category, 'General');
   const filingMode = safeString(app.mode, 'Single');
@@ -951,7 +952,7 @@ export function generateOpPrintableHtml(
         <div class="sub-caption">(Purpose)</div>
 
         <div class="soa-ref-line">
-          per Statement of Account No. <span class="val-underline bold-val">SOA-${refNum}</span>
+          per Statement of Account No. <span class="val-underline bold-val">${soaRefNumber}</span>
           dated <span class="val-underline">${currentDate}</span>
         </div>
       </div>

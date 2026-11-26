@@ -58,36 +58,84 @@ public static class OrderOfPaymentPrintMapper
             return parts.Count > 0 ? string.Join(", ", parts) : string.Empty;
         }
 
-        var fallbackApplicantName = app?.ApplicationApplicants
-            .Select(aa => aa.Applicant)
-            .Where(a => a != null)
-            .Select(a => a?.CompanyDetail?.Name ?? (a?.ApplicantDetail != null ? $"{a.ApplicantDetail.FirstName} {a.ApplicantDetail.LastName}".Trim() : null))
-            .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+        var activeSoaForPayor = soa ?? op.StatementOfAccount ?? app?.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId);
+        var isBulkConsolidatedSoa = (app?.SubmissionMode == SubmissionMode.Bulk || (app?.ApplicationApplicants?.Count ?? 0) > 1)
+                                    && (activeSoaForPayor == null || !activeSoaForPayor.ApplicantId.HasValue);
+        var isPerApplicantSoa = activeSoaForPayor?.ApplicantId.HasValue == true;
 
-        var fallbackAddress = app?.ApplicationApplicants
-            .Select(aa => aa.Applicant)
-            .Where(a => a != null)
-            .Select(a =>
-            {
-                var full = BuildFullAddress(a?.ApplicantDetail, a?.CompanyDetail);
-                if (!string.IsNullOrWhiteSpace(full)) return full;
-                return a?.CompanyDetail?.Address ?? (a?.ApplicantDetail != null ? a.ApplicantDetail.Address : null);
-            })
-            .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
-
-        var fallbackUserAddress = app?.User?.CompanyDetail != null
-            ? (BuildFullAddress(null, app.User.CompanyDetail) is var uAddr && !string.IsNullOrWhiteSpace(uAddr) ? uAddr : app.User.CompanyDetail.Address)
+        var companyDetail = app?.User?.CompanyDetail
+            ?? app?.ApplicationApplicants
+                .Select(aa => aa.Applicant?.CompanyDetail ?? aa.Applicant?.ApplicantDetail?.CompanyDetail)
+                .FirstOrDefault(cd => cd != null && !string.IsNullOrWhiteSpace(cd.Name));
+        var companyName = companyDetail?.Name;
+        var companyFullAddress = companyDetail != null
+            ? (BuildFullAddress(null, companyDetail) is var cAddr && !string.IsNullOrWhiteSpace(cAddr) ? cAddr : companyDetail.Address)
             : null;
 
-        model.PayorName = !string.IsNullOrWhiteSpace(soa?.IssuedToName)
-            ? soa.IssuedToName
-            : (fallbackApplicantName ?? (app?.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : "Applicant"));
+        var targetApplicantForSoa = isPerApplicantSoa
+            ? app?.ApplicationApplicants.Select(aa => aa.Applicant).FirstOrDefault(a => a != null && a.Id == activeSoaForPayor!.ApplicantId!.Value)
+            : app?.ApplicationApplicants.Select(aa => aa.Applicant).FirstOrDefault(a => a != null);
 
-        model.PayorAddress = !string.IsNullOrWhiteSpace(soa?.IssuedToAddress)
-            ? soa.IssuedToAddress
-            : (!string.IsNullOrWhiteSpace(fallbackAddress)
-                ? fallbackAddress
-                : (fallbackUserAddress ?? "N/A"));
+        var targetApplicantPersonalName = targetApplicantForSoa?.ApplicantDetail != null
+            ? string.Join(" ", new[]
+            {
+                targetApplicantForSoa.ApplicantDetail.FirstName,
+                targetApplicantForSoa.ApplicantDetail.MiddleName,
+                targetApplicantForSoa.ApplicantDetail.LastName,
+                targetApplicantForSoa.ApplicantDetail.Suffix
+            }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()))
+            : null;
+
+        var targetApplicantPersonalAddress = targetApplicantForSoa?.ApplicantDetail != null
+            ? (BuildFullAddress(targetApplicantForSoa.ApplicantDetail, null) is var pAddr && !string.IsNullOrWhiteSpace(pAddr)
+                ? pAddr
+                : targetApplicantForSoa.ApplicantDetail.Address)
+            : null;
+
+        if (isBulkConsolidatedSoa && !string.IsNullOrWhiteSpace(companyName))
+        {
+            var issuedName = activeSoaForPayor?.IssuedToName?.Trim();
+            var isPersonalOrRep = string.IsNullOrWhiteSpace(issuedName) ||
+                (app?.ApplicationApplicants.Any(aa =>
+                    aa.Applicant?.ApplicantDetail != null &&
+                    (string.Equals(issuedName, $"{aa.Applicant.ApplicantDetail.FirstName} {aa.Applicant.ApplicantDetail.LastName}".Trim(), StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(issuedName, string.Join(" ", new[] { aa.Applicant.ApplicantDetail.FirstName, aa.Applicant.ApplicantDetail.MiddleName, aa.Applicant.ApplicantDetail.LastName, aa.Applicant.ApplicantDetail.Suffix }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim())), StringComparison.OrdinalIgnoreCase))) == true) ||
+                (app?.User != null && string.Equals(issuedName, $"{app.User.FirstName} {app.User.LastName}".Trim(), StringComparison.OrdinalIgnoreCase) && !string.Equals(issuedName, companyName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            model.PayorName = isPersonalOrRep ? companyName.Trim() : issuedName!;
+            model.PayorAddress = !string.IsNullOrWhiteSpace(companyFullAddress)
+                ? companyFullAddress!
+                : (!string.IsNullOrWhiteSpace(activeSoaForPayor?.IssuedToAddress) ? activeSoaForPayor.IssuedToAddress : (targetApplicantPersonalAddress ?? "N/A"));
+        }
+        else if (isPerApplicantSoa && !string.IsNullOrWhiteSpace(targetApplicantPersonalName))
+        {
+            var issuedName = activeSoaForPayor?.IssuedToName?.Trim();
+            var isCompanyName = string.IsNullOrWhiteSpace(issuedName) ||
+                (!string.IsNullOrWhiteSpace(companyName) && string.Equals(issuedName, companyName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            model.PayorName = isCompanyName ? targetApplicantPersonalName : issuedName!;
+
+            var issuedAddr = activeSoaForPayor?.IssuedToAddress?.Trim();
+            var isCompanyAddr = string.IsNullOrWhiteSpace(issuedAddr) ||
+                (!string.IsNullOrWhiteSpace(companyFullAddress) && string.Equals(issuedAddr, companyFullAddress.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            model.PayorAddress = (!isCompanyAddr && !string.IsNullOrWhiteSpace(issuedAddr))
+                ? issuedAddr!
+                : (!string.IsNullOrWhiteSpace(targetApplicantPersonalAddress) ? targetApplicantPersonalAddress! : (issuedAddr ?? companyFullAddress ?? "N/A"));
+        }
+        else
+        {
+            var fallbackApplicantName = targetApplicantForSoa?.CompanyDetail?.Name ?? targetApplicantPersonalName ?? companyName;
+            var fallbackAddress = !string.IsNullOrWhiteSpace(targetApplicantPersonalAddress) ? targetApplicantPersonalAddress : companyFullAddress;
+
+            model.PayorName = !string.IsNullOrWhiteSpace(activeSoaForPayor?.IssuedToName)
+                ? activeSoaForPayor.IssuedToName
+                : (fallbackApplicantName ?? (app?.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : "Applicant"));
+
+            model.PayorAddress = !string.IsNullOrWhiteSpace(activeSoaForPayor?.IssuedToAddress)
+                ? activeSoaForPayor.IssuedToAddress
+                : (!string.IsNullOrWhiteSpace(fallbackAddress) ? fallbackAddress! : "N/A");
+        }
 
         model.Amount = op.AmountDue;
         model.TotalAmount = op.AmountDue;

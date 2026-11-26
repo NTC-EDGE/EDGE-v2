@@ -76,6 +76,9 @@ public class NumberingSeriesService : INumberingSeriesService
         return $"{prefix}{nextSeries:D4}";
     }
 
+    public Task<string> PreviewNextOpNumberAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
+        GenerateOpNumberAsync(tenantId, cancellationToken);
+
     private static string CleanRcCode(string? configuredCode, string? tenantCode, string fallback)
     {
         var candidate = !string.IsNullOrWhiteSpace(configuredCode) ? configuredCode.Trim() : tenantCode;

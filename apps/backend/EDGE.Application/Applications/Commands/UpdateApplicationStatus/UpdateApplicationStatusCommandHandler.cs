@@ -22,6 +22,7 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
     private readonly INumberingSeriesService? _numberingSeriesService;
     private readonly IApplicationEmailNotificationService? _emailNotificationService;
     private readonly ISystemConfigRepository? _systemConfigRepository;
+    private readonly IRegionalConfigurationService? _regionalConfigService;
 
     public UpdateApplicationStatusCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -30,7 +31,8 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
         ILogger<UpdateApplicationStatusCommandHandler> logger,
         INumberingSeriesService? numberingSeriesService = null,
         IApplicationEmailNotificationService? emailNotificationService = null,
-        ISystemConfigRepository? systemConfigRepository = null)
+        ISystemConfigRepository? systemConfigRepository = null,
+        IRegionalConfigurationService? regionalConfigService = null)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
@@ -39,6 +41,7 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
         _numberingSeriesService = numberingSeriesService;
         _emailNotificationService = emailNotificationService;
         _systemConfigRepository = systemConfigRepository;
+        _regionalConfigService = regionalConfigService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
@@ -200,10 +203,18 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
             }
             // When Evaluator approves official application:
             // SOA status changes to FOR Order of Payment.
-            // Note: Order of Payment (OP) series number is NOT generated here — it is generated ONLY after Accountant approval
-            // so that OP series numbers follow the chronological order of Accountant approvals independently of SOA series numbers.
+            // When Regional Configuration sets AllowManualOpNumber == true, ensure an OrderOfPayment record
+            // with a prefilled OP number value already exists before Accountant approval so the officer can preview and edit it.
+            // When AllowManualOpNumber == false (Auto mode), do NOT create a new OP or allocate an OpNumber before Accountant approval.
             else if (newStatus == ApplicationStatus.ForAccountant)
             {
+                var allowManualOpNumber = false;
+                if (_regionalConfigService != null)
+                {
+                    var regionalConfig = await _regionalConfigService.GetConfigurationAsync(app.TenantId, cancellationToken);
+                    allowManualOpNumber = regionalConfig.AllowManualOpNumber;
+                }
+
                 var activeSoas = app.StatementsOfAccount?
                     .Where(s => !s.IsDeleted)
                     .OrderBy(s => s.CreatedAt)
@@ -228,11 +239,9 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                         Timestamp = DateTime.UtcNow
                     }, cancellationToken);
 
-                    // Only update an existing OP if one already exists from a prior Accountant return cycle.
-                    // Do NOT create a new OP or allocate an OpNumber before Accountant approval.
-                    var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == targetSoa.Id)
+                    var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => !o.IsDeleted && o.StatementOfAccountId == targetSoa.Id)
                                      ?? (activeSoas.Count == 1
-                                         ? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Returned)
+                                         ? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => !o.IsDeleted && (o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Returned))
                                          : null);
 
                     if (existingOp != null)
@@ -249,17 +258,60 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                         existingOp.OfficialReceiptNumber = null;
                         existingOp.Remarks = request.Remarks;
 
+                        if (allowManualOpNumber &&
+                            (string.IsNullOrWhiteSpace(existingOp.OpNumber) ||
+                             existingOp.OpNumber.StartsWith("PENDING", StringComparison.OrdinalIgnoreCase) ||
+                             existingOp.OpNumber.StartsWith("OP-TEMP", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            existingOp.OpNumber = _numberingSeriesService != null
+                                ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId, cancellationToken)
+                                : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+                        }
+
                         await _applicationRepository.AddOpHistoryAsync(new OpHistory
                         {
                             Id = Guid.NewGuid(),
                             OrderOfPaymentId = existingOp.Id,
-                            Action = "Order of Payment re-submitted for Accountant review.",
+                            Action = "Order of Payment submitted for Accountant review.",
                             FromStatus = prevOpStatus,
                             ToStatus = OpStatus.Billed,
                             PerformedByUserId = actingUserId,
                             StaffName = staffName,
                             StaffRole = staffRole,
-                            Remarks = request.Remarks ?? "Re-submitted for Order of Payment review",
+                            Remarks = request.Remarks ?? "Submitted for Order of Payment review",
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
+                    }
+                    else if (allowManualOpNumber)
+                    {
+                        var opNumber = _numberingSeriesService != null
+                            ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId, cancellationToken)
+                            : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+
+                        var draftOp = new OrderOfPayment
+                        {
+                            Id = Guid.NewGuid(),
+                            ApplicationId = app.Id,
+                            StatementOfAccountId = targetSoa.Id,
+                            OpNumber = opNumber,
+                            AmountDue = targetSoa.TotalAmount,
+                            AmountReceived = 0m,
+                            Status = OpStatus.Billed,
+                            Remarks = request.Remarks ?? "Order of Payment pre-assigned for manual editing and Accountant review.",
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _applicationRepository.AddOpAsync(draftOp, cancellationToken);
+
+                        await _applicationRepository.AddOpHistoryAsync(new OpHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderOfPaymentId = draftOp.Id,
+                            Action = "Order of Payment initialized for Accountant review.",
+                            ToStatus = OpStatus.Billed,
+                            PerformedByUserId = actingUserId,
+                            StaffName = staffName,
+                            StaffRole = staffRole,
+                            Remarks = request.Remarks ?? "Order of Payment pre-assigned for manual editing",
                             Timestamp = DateTime.UtcNow
                         }, cancellationToken);
                     }

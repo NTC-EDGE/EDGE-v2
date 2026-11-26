@@ -140,7 +140,10 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
             ServiceFees: serviceFees,
             VariantFees: variantFees,
             ElementFees: elementFees,
-            FormulaExpression: formulaExpression
+            FormulaExpression: formulaExpression,
+            ServiceCode: primaryService?.Code,
+            ServiceName: primaryService?.Name,
+            ServiceVariantName: primaryVariant?.Description ?? primaryVariant?.Type.ToString()
         );
 
         var result = _calculationEngine.Calculate(calculationRequest);

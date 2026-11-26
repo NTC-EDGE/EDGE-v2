@@ -53,7 +53,7 @@ public static class FeeEndpoints
         return group;
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.ReadApplication)]
     public static async Task<IResult> GetFees(
         bool? activeOnly,
         int? pageNumber,

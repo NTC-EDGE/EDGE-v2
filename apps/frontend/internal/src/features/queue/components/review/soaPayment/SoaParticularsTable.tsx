@@ -13,7 +13,14 @@ import {
 import { ApplicationData, SoaItem, SoaRecordSummary } from "../../../../../types/application";
 import { formatAmount, amountToWords, formatDisplayDueDate, formatDisplayDateTime } from "../reviewFormatters";
 import { resolveParticularNumber } from "../../../utils/soaReportGenerator";
-import { normalizeYmd, resolveInitialAddress, resolveInitialName, resolveInitialType } from "../../../utils/soaModalHelpers";
+import {
+  normalizeYmd,
+  resolveInitialAddress,
+  resolveInitialName,
+  resolveInitialType,
+  resolveIndividualApplicantName,
+  resolveIndividualApplicantAddress,
+} from "../../../utils/soaModalHelpers";
 import { reviewStyles as styles } from "../reviewStyles";
 
 interface SoaParticularsTableProps {
@@ -170,12 +177,23 @@ export function SoaParticularsTable({
 
       for (const rec of targetRecords) {
         const recItems = rec.items && rec.items.length > 0 ? rec.items : displayedSoaItems;
+        const matchedApp = app.applicantsList?.find((a) => a.id === rec.applicantId);
+        const companyNameLower = resolveInitialName(app, "BULK").toLowerCase();
+        const rawRecName = (rec.issuedToName || "").trim();
+        const effectiveIndivName =
+          rawRecName.length > 0 && rawRecName.toLowerCase() !== companyNameLower
+            ? rawRecName
+            : (matchedApp ? resolveIndividualApplicantName(matchedApp, app) : resolveInitialName(app, "INDIVIDUAL"));
+        const effectiveIndivAddr =
+          rec.issuedToAddress && rec.issuedToAddress.trim().length > 0
+            ? rec.issuedToAddress.trim()
+            : (matchedApp ? resolveIndividualApplicantAddress(matchedApp, resolveInitialAddress(app, "INDIVIDUAL")) : resolveInitialAddress(app, "INDIVIDUAL"));
         const [, err] = await applicationService.createSoa(app.id, {
           applicantId: rec.applicantId,
           noOfUnits: 1,
-          issuedToType: rec.issuedToType || "Individual",
-          issuedToName: rec.issuedToName || resolveInitialName(app),
-          issuedToAddress: rec.issuedToAddress || resolveInitialAddress(app),
+          issuedToType: "Individual",
+          issuedToName: effectiveIndivName,
+          issuedToAddress: effectiveIndivAddr,
           dueDate: resolvedDue,
           lineItems: recItems.length > 0 ? buildLineItemsPayload(recItems) : undefined,
           remarks: resolvedRemarks.trim() || undefined,
@@ -188,16 +206,20 @@ export function SoaParticularsTable({
       return true;
     }
 
-    const issuedToType: IssuedToTypeDto =
-      app.soaIssuedToType ?? resolveInitialType(app);
-    const issuedToName =
-      (app.soaIssuedToName && app.soaIssuedToName.trim().length > 0
-        ? app.soaIssuedToName.trim()
-        : resolveInitialName(app)) || "Applicant";
-    const issuedToAddress =
-      (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0
-        ? app.soaIssuedToAddress.trim()
-        : resolveInitialAddress(app)) || "N/A";
+    const isBulkApp = app.applicationType === "BULK";
+    const issuedToType: IssuedToTypeDto = isBulkApp
+      ? "Company"
+      : (app.soaIssuedToType ?? resolveInitialType(app, "BULK"));
+    const issuedToName = isBulkApp
+      ? (resolveInitialName(app, "BULK") || "Company")
+      : ((app.soaIssuedToName && app.soaIssuedToName.trim().length > 0
+          ? app.soaIssuedToName.trim()
+          : resolveInitialName(app, "BULK")) || "Applicant");
+    const issuedToAddress = isBulkApp
+      ? (resolveInitialAddress(app, "BULK") || "N/A")
+      : ((app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0
+          ? app.soaIssuedToAddress.trim()
+          : resolveInitialAddress(app, "BULK")) || "N/A");
     const eligibleCount =
       app.applicantsList && app.applicantsList.length > 0
         ? Math.max(

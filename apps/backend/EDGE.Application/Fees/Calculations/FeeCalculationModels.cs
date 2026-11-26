@@ -27,7 +27,12 @@ public record FeeCalculationResultDto(
     decimal TaxAmount,
     decimal TotalAmount,
     List<CalculatedFeeLineItemDto> LineItems,
-    ServiceCategoryType? Category = null
+    ServiceCategoryType? Category = null,
+    Guid? ServiceId = null,
+    string? ServiceCode = null,
+    string? ServiceName = null,
+    Guid? ServiceVariantId = null,
+    string? ServiceVariantName = null
 );
 
 public record FeeCalculationRequest(
@@ -49,5 +54,8 @@ public record FeeCalculationRequest(
     IReadOnlyList<ServiceVariantFee>? VariantFees = null,
     IReadOnlyList<ServiceVariantElementFee>? ElementFees = null,
     string? FormulaExpression = null,
-    bool ApplyLateRenewalSurcharge = false
+    bool ApplyLateRenewalSurcharge = false,
+    string? ServiceCode = null,
+    string? ServiceName = null,
+    string? ServiceVariantName = null
 );

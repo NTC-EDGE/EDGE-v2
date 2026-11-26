@@ -74,49 +74,194 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             await _repository.UpdateAsync(app, cancellationToken);
         }
 
+        var isPerApplicantMode = request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty;
+        var isBulkApplication = app.SubmissionMode == SubmissionMode.Bulk || app.ApplicationApplicants.Count > 1;
+
         var targetApplicant = request.ApplicantId.HasValue
             ? app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId.Value)?.Applicant
             : app.ApplicationApplicants.FirstOrDefault()?.Applicant;
 
-        IssuedToType issuedToType;
-        if (!string.IsNullOrWhiteSpace(request.IssuedToType))
+        static string? BuildFullAddress(ApplicantDetail? detail, CompanyDetail? comp)
         {
-            if (!Enum.TryParse<IssuedToType>(request.IssuedToType, true, out issuedToType))
-            {
-                return ApiResponse<Guid>.Fail("Invalid IssuedToType.");
-            }
-        }
-        else
-        {
-            issuedToType = targetApplicant?.ApplicantType == ApplicantType.Company ? IssuedToType.Company : IssuedToType.Individual;
+            var street = !string.IsNullOrWhiteSpace(detail?.Address) ? detail.Address : comp?.Address;
+            var brgy = detail?.Barangay?.Name ?? comp?.Barangay?.Name;
+            var muni = detail?.Barangay?.Municipality?.Name ?? comp?.Barangay?.Municipality?.Name;
+            var prov = detail?.Barangay?.Municipality?.Province?.Name ?? comp?.Barangay?.Municipality?.Province?.Name;
+            var reg = detail?.Barangay?.Municipality?.Province?.Region?.Name ?? comp?.Barangay?.Municipality?.Province?.Region?.Name;
+            var zip = detail?.ZipCode;
+
+            var parts = new[] { street, brgy, muni, prov, reg, zip }
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p!.Trim())
+                .Distinct()
+                .ToList();
+
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
 
         var applicantFullName = targetApplicant?.ApplicantDetail != null
-            ? $"{targetApplicant.ApplicantDetail.FirstName} {targetApplicant.ApplicantDetail.LastName}".Trim()
+            ? string.Join(" ", new[]
+            {
+                targetApplicant.ApplicantDetail.FirstName,
+                targetApplicant.ApplicantDetail.MiddleName,
+                targetApplicant.ApplicantDetail.LastName,
+                targetApplicant.ApplicantDetail.Suffix
+            }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()))
             : null;
 
         var userFullName = app.User != null
             ? $"{app.User.FirstName} {app.User.LastName}".Trim()
             : null;
 
-        var resolvedIssuedToName = !string.IsNullOrWhiteSpace(request.IssuedToName)
-            ? request.IssuedToName.Trim()
-            : (!string.IsNullOrWhiteSpace(applicantFullName)
-                ? applicantFullName
-                : (!string.IsNullOrWhiteSpace(targetApplicant?.CompanyDetail?.Name)
-                    ? targetApplicant.CompanyDetail.Name.Trim()
-                    : (!string.IsNullOrWhiteSpace(userFullName)
-                        ? userFullName
-                        : (app.ReferenceNumber ?? app.ApplicationNumber ?? "Applicant"))));
+        var companyDetail = app.User?.CompanyDetail
+            ?? targetApplicant?.CompanyDetail
+            ?? targetApplicant?.ApplicantDetail?.CompanyDetail
+            ?? app.ApplicationApplicants
+                .Select(aa => aa.Applicant?.CompanyDetail ?? aa.Applicant?.ApplicantDetail?.CompanyDetail)
+                .FirstOrDefault(cd => cd != null && !string.IsNullOrWhiteSpace(cd.Name));
+
+        string? formCompanyName = null;
+        string? formCompanyAddress = null;
+        if (companyDetail == null || string.IsNullOrWhiteSpace(companyDetail.Name))
+        {
+            var allFvs = (app.FormSubmissions ?? Enumerable.Empty<FormSubmission>())
+                .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<FormFieldValue>())
+                .Where(fv => fv != null && !string.IsNullOrWhiteSpace(fv.Value))
+                .ToList();
+
+            formCompanyName = allFvs.FirstOrDefault(fv =>
+            {
+                var lbl = (fv.Field?.Label ?? fv.CustomLabel ?? string.Empty).ToLowerInvariant();
+                return lbl.Contains("company name") || lbl.Contains("organization name") || lbl.Contains("corporate name") || lbl.Contains("business name") || lbl.Contains("employer");
+            })?.Value?.Trim();
+
+            formCompanyAddress = allFvs.FirstOrDefault(fv =>
+            {
+                var lbl = (fv.Field?.Label ?? fv.CustomLabel ?? string.Empty).ToLowerInvariant();
+                return lbl.Contains("company address") || lbl.Contains("business address") || lbl.Contains("office address");
+            })?.Value?.Trim();
+        }
+
+        var resolvedCompanyName = !string.IsNullOrWhiteSpace(companyDetail?.Name)
+            ? companyDetail!.Name.Trim()
+            : formCompanyName;
+
+        var resolvedCompanyAddress = BuildFullAddress(null, companyDetail)
+            ?? (!string.IsNullOrWhiteSpace(companyDetail?.Address) ? companyDetail!.Address.Trim() : formCompanyAddress);
+
+        var resolvedApplicantAddress = BuildFullAddress(targetApplicant?.ApplicantDetail, null)
+            ?? (!string.IsNullOrWhiteSpace(targetApplicant?.ApplicantDetail?.Address) ? targetApplicant!.ApplicantDetail.Address.Trim() : null);
+
+        IssuedToType issuedToType;
+        string resolvedIssuedToName;
+        string? resolvedIssuedToAddress;
+
+        if (isBulkApplication && !isPerApplicantMode)
+        {
+            // Bulk Consolidated SOA MUST ALWAYS be issued to the Company (not the individual applicant or representative/recipient)
+            issuedToType = IssuedToType.Company;
+
+            var allApplicantPersonalNames = app.ApplicationApplicants
+                .Select(aa => aa.Applicant?.ApplicantDetail)
+                .Where(ad => ad != null)
+                .SelectMany(ad => new[]
+                {
+                    $"{ad!.FirstName} {ad.LastName}".Trim(),
+                    string.Join(" ", new[] { ad.FirstName, ad.MiddleName, ad.LastName, ad.Suffix }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()))
+                })
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var reqName = request.IssuedToName?.Trim();
+            bool reqNameIsPersonalOrRepresentative = string.IsNullOrWhiteSpace(reqName)
+                || (!string.IsNullOrWhiteSpace(resolvedCompanyName) &&
+                    (allApplicantPersonalNames.Contains(reqName) ||
+                     (!string.IsNullOrWhiteSpace(userFullName) && string.Equals(reqName, userFullName, StringComparison.OrdinalIgnoreCase) && !string.Equals(userFullName, resolvedCompanyName, StringComparison.OrdinalIgnoreCase))));
+
+            resolvedIssuedToName = !reqNameIsPersonalOrRepresentative && !string.IsNullOrWhiteSpace(reqName)
+                ? reqName!
+                : (!string.IsNullOrWhiteSpace(resolvedCompanyName)
+                    ? resolvedCompanyName!
+                    : (!string.IsNullOrWhiteSpace(reqName)
+                        ? reqName!
+                        : (!string.IsNullOrWhiteSpace(userFullName)
+                            ? userFullName!
+                            : (app.ReferenceNumber ?? app.ApplicationNumber ?? "Company"))));
+
+            resolvedIssuedToAddress = !string.IsNullOrWhiteSpace(resolvedCompanyAddress)
+                ? resolvedCompanyAddress
+                : (!string.IsNullOrWhiteSpace(request.IssuedToAddress)
+                    ? request.IssuedToAddress.Trim()
+                    : (resolvedApplicantAddress ?? "N/A"));
+        }
+        else if (isPerApplicantMode)
+        {
+            // By-Applicant SOA (even when parent application is Bulk) MUST ALWAYS be issued to the Individual Applicant (not the Company)
+            issuedToType = IssuedToType.Individual;
+
+            var reqName = request.IssuedToName?.Trim();
+            bool reqNameIsCompany = !string.IsNullOrWhiteSpace(reqName) &&
+                !string.IsNullOrWhiteSpace(resolvedCompanyName) &&
+                string.Equals(reqName, resolvedCompanyName, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(applicantFullName);
+
+            resolvedIssuedToName = (!string.IsNullOrWhiteSpace(reqName) && !reqNameIsCompany)
+                ? reqName!
+                : (!string.IsNullOrWhiteSpace(applicantFullName)
+                    ? applicantFullName!
+                    : (!string.IsNullOrWhiteSpace(reqName)
+                        ? reqName!
+                        : (app.ReferenceNumber ?? app.ApplicationNumber ?? "Applicant")));
+
+            var reqAddr = request.IssuedToAddress?.Trim();
+            bool reqAddrIsCompany = !string.IsNullOrWhiteSpace(reqAddr) &&
+                !string.IsNullOrWhiteSpace(resolvedCompanyAddress) &&
+                string.Equals(reqAddr, resolvedCompanyAddress, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(resolvedApplicantAddress);
+
+            resolvedIssuedToAddress = (!string.IsNullOrWhiteSpace(reqAddr) && !reqAddrIsCompany)
+                ? reqAddr
+                : (!string.IsNullOrWhiteSpace(resolvedApplicantAddress)
+                    ? resolvedApplicantAddress
+                    : (reqAddr ?? resolvedCompanyAddress));
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(request.IssuedToType))
+            {
+                if (!Enum.TryParse<IssuedToType>(request.IssuedToType, true, out issuedToType))
+                {
+                    return ApiResponse<Guid>.Fail("Invalid IssuedToType.");
+                }
+            }
+            else
+            {
+                issuedToType = targetApplicant?.ApplicantType == ApplicantType.Company ? IssuedToType.Company : IssuedToType.Individual;
+            }
+
+            resolvedIssuedToName = !string.IsNullOrWhiteSpace(request.IssuedToName)
+                ? request.IssuedToName.Trim()
+                : (issuedToType == IssuedToType.Company && !string.IsNullOrWhiteSpace(resolvedCompanyName)
+                    ? resolvedCompanyName!
+                    : (!string.IsNullOrWhiteSpace(applicantFullName)
+                        ? applicantFullName!
+                        : (!string.IsNullOrWhiteSpace(resolvedCompanyName)
+                            ? resolvedCompanyName!
+                            : (!string.IsNullOrWhiteSpace(userFullName)
+                                ? userFullName!
+                                : (app.ReferenceNumber ?? app.ApplicationNumber ?? "Applicant")))));
+
+            resolvedIssuedToAddress = !string.IsNullOrWhiteSpace(request.IssuedToAddress)
+                ? request.IssuedToAddress.Trim()
+                : (issuedToType == IssuedToType.Company && !string.IsNullOrWhiteSpace(resolvedCompanyAddress)
+                    ? resolvedCompanyAddress
+                    : (resolvedApplicantAddress ?? resolvedCompanyAddress ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.ApplicantDetail?.Address ?? aa.Applicant?.CompanyDetail?.Address).FirstOrDefault(a => !string.IsNullOrEmpty(a))));
+        }
 
         if (string.IsNullOrWhiteSpace(resolvedIssuedToName))
         {
-            resolvedIssuedToName = "Applicant";
+            resolvedIssuedToName = issuedToType == IssuedToType.Company ? "Company" : "Applicant";
         }
-
-        var resolvedIssuedToAddress = !string.IsNullOrWhiteSpace(request.IssuedToAddress)
-            ? request.IssuedToAddress.Trim()
-            : (targetApplicant?.ApplicantDetail?.Address ?? targetApplicant?.CompanyDetail?.Address ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.ApplicantDetail?.Address ?? aa.Applicant?.CompanyDetail?.Address).FirstOrDefault(a => !string.IsNullOrEmpty(a)));
 
         var rawDueDate = request.DueDate != default && request.DueDate > DateTime.MinValue
             ? request.DueDate
@@ -125,9 +270,6 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         var resolvedDueDate = EnsureUtc(rawDueDate);
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Evaluator", cancellationToken);
-
-        var isPerApplicantMode = request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty;
-        var isBulkApplication = app.SubmissionMode == SubmissionMode.Bulk || app.ApplicationApplicants.Count > 1;
 
         StatementOfAccount? existingSoa;
         Guid? resolvedApplicantId;
@@ -493,6 +635,67 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         if (!isExistingSoa)
         {
             await _repository.AddSoaAsync(soa, cancellationToken);
+        }
+
+        // When Regional Configuration allows Manual / Edit OP Number, pre-populate a draft OrderOfPayment
+        // with an actual OP number from the series immediately upon SOA generation / update so the user
+        // can view and edit the OP number even on preview before Accountant approval.
+        if (app.Intent != ApplicationIntent.AssessmentOnly && _regionalConfigService != null)
+        {
+            var regionalConfig = await _regionalConfigService.GetConfigurationAsync(app.TenantId, cancellationToken);
+            if (regionalConfig.AllowManualOpNumber)
+            {
+                if (isPerApplicantMode && app.OrdersOfPayment != null)
+                {
+                    foreach (var staleBulkSoa in app.StatementsOfAccount.Where(s => s.IsDeleted && s.ApplicantId == null))
+                    {
+                        var staleOp = app.OrdersOfPayment.FirstOrDefault(o => o.StatementOfAccountId == staleBulkSoa.Id && o.Status != OpStatus.Paid);
+                        if (staleOp != null) staleOp.IsDeleted = true;
+                    }
+                }
+                else if (isBulkApplication && !isPerApplicantMode && app.OrdersOfPayment != null)
+                {
+                    foreach (var staleIndSoa in app.StatementsOfAccount.Where(s => s.IsDeleted && s.ApplicantId != null))
+                    {
+                        var staleOp = app.OrdersOfPayment.FirstOrDefault(o => o.StatementOfAccountId == staleIndSoa.Id && o.Status != OpStatus.Paid);
+                        if (staleOp != null) staleOp.IsDeleted = true;
+                    }
+                }
+
+                var existingOpForSoa = app.OrdersOfPayment?.FirstOrDefault(o => !o.IsDeleted && o.StatementOfAccountId == soa.Id);
+                if (existingOpForSoa == null)
+                {
+                    var prefilledOpNumber = _numberingSeriesService != null
+                        ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId, cancellationToken)
+                        : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+
+                    var draftOp = new OrderOfPayment
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = app.Id,
+                        StatementOfAccountId = soa.Id,
+                        OpNumber = prefilledOpNumber,
+                        AmountDue = soa.TotalAmount,
+                        AmountReceived = 0m,
+                        Status = OpStatus.Billed,
+                        Remarks = "Order of Payment number pre-assigned for manual editing and preview.",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _repository.AddOpAsync(draftOp, cancellationToken);
+                }
+                else
+                {
+                    existingOpForSoa.AmountDue = soa.TotalAmount;
+                    if (string.IsNullOrWhiteSpace(existingOpForSoa.OpNumber) ||
+                        existingOpForSoa.OpNumber.StartsWith("PENDING", StringComparison.OrdinalIgnoreCase) ||
+                        existingOpForSoa.OpNumber.StartsWith("OP-TEMP", StringComparison.OrdinalIgnoreCase))
+                    {
+                        existingOpForSoa.OpNumber = _numberingSeriesService != null
+                            ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId, cancellationToken)
+                            : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+                    }
+                }
+            }
         }
 
         var actionName = isExistingSoa ? "Statement of Account (SOA) Updated" : "Statement of Account (SOA) Generated";

@@ -35,7 +35,7 @@ public class FeeCalculationEngine : IFeeCalculationEngine
             var dynamicResult = CalculateDynamicFees(request, matchingStrategy);
             if (dynamicResult != null)
             {
-                return NormalizeResultValidityYears(dynamicResult, request.ValidityYears);
+                return AttachServiceMetadata(NormalizeResultValidityYears(dynamicResult, request.ValidityYears), request);
             }
         }
 
@@ -43,7 +43,21 @@ public class FeeCalculationEngine : IFeeCalculationEngine
         var strategy = matchingStrategy ?? _defaultStrategy;
 
         var result = strategy.Calculate(request);
-        return NormalizeResultValidityYears(result, request.ValidityYears);
+        return AttachServiceMetadata(NormalizeResultValidityYears(result, request.ValidityYears), request);
+    }
+
+    private static FeeCalculationResultDto AttachServiceMetadata(
+        FeeCalculationResultDto result,
+        FeeCalculationRequest request)
+    {
+        return result with
+        {
+            ServiceId = result.ServiceId ?? request.ServiceId,
+            ServiceCode = !string.IsNullOrWhiteSpace(result.ServiceCode) ? result.ServiceCode : request.ServiceCode,
+            ServiceName = !string.IsNullOrWhiteSpace(result.ServiceName) ? result.ServiceName : request.ServiceName,
+            ServiceVariantId = result.ServiceVariantId ?? request.ServiceVariantId,
+            ServiceVariantName = !string.IsNullOrWhiteSpace(result.ServiceVariantName) ? result.ServiceVariantName : request.ServiceVariantName
+        };
     }
 
     private static FeeCalculationResultDto NormalizeResultValidityYears(

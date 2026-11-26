@@ -63,7 +63,7 @@ public static class ServiceVariantFeeEndpoints
         return group;
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.ReadApplication)]
     public static async Task<IResult> GetServiceVariantFees(
         Guid? serviceVariantId,
         Guid? serviceId,

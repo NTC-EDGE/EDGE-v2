@@ -30,8 +30,29 @@ export function SoaPaymentSummary({
   const [orDraft, setOrDraft] = useState(app.payment.orNumber);
   const { config: tenantConfig } = useTenantConfig(app.tenantId);
   const allowManualOpNumber = tenantConfig.allowManualOpNumber === true;
+  const isOpApproved =
+    app.status === 'PendingPayment' ||
+    app.status === 'ForIssuance' ||
+    app.status === 'Completed' ||
+    app.status === 'Approved' ||
+    app.soaStatus === 'Approved' ||
+    hasPayment;
+
+  const fallbackManualOpNumber = (() => {
+    const rc = (tenantConfig.rcCodeOp || '61').replace(/^RC-/i, '').trim() || '61';
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    return `${rc}-${yyyy}-${mm}-0001`;
+  })();
+
+  const rawStoredOpNumber = app.payment.opNumber || app.opsList?.[0]?.opNumber || '';
+  const effectiveOpNumber = allowManualOpNumber
+    ? (rawStoredOpNumber || fallbackManualOpNumber)
+    : (isOpApproved ? rawStoredOpNumber : '');
+
   const [editingOpNumber, setEditingOpNumber] = useState(false);
-  const [opNumberDraft, setOpNumberDraft] = useState(app.payment.opNumber || '');
+  const [opNumberDraft, setOpNumberDraft] = useState(effectiveOpNumber);
   const [isSavingOpNumber, setIsSavingOpNumber] = useState(false);
 
   useEffect(() => {
@@ -42,9 +63,9 @@ export function SoaPaymentSummary({
 
   useEffect(() => {
     if (!editingOpNumber) {
-      setOpNumberDraft(app.payment.opNumber || '');
+      setOpNumberDraft(effectiveOpNumber);
     }
-  }, [app.payment.opNumber, editingOpNumber]);
+  }, [effectiveOpNumber, editingOpNumber]);
 
   const excess = app.payment.amountReceived - app.totalAmountDue;
   const preferredBreakdown = parsePaymentBreakdown(app.payment.remarks || app.note || app.payment.checkName || '');
@@ -250,21 +271,27 @@ export function SoaPaymentSummary({
                       <Pressable
                         disabled={isSavingOpNumber}
                         onPress={async () => {
-                          const targetOpId = app.payment.orderOfPaymentId || (app.opsList && app.opsList.length > 0 ? app.opsList[0]?.id : undefined);
+                          const targetOpId =
+                            app.payment.orderOfPaymentId ||
+                            (app.opsList && app.opsList.length > 0 ? app.opsList[0]?.id : undefined) ||
+                            app.soaId ||
+                            app.statementOfAccountId ||
+                            app.id;
                           const cleanNumber = opNumberDraft.trim();
                           if (!cleanNumber) {
                             toast.error("OP number cannot be empty.");
                             return;
                           }
-                          if (!targetOpId) {
-                            setEditingOpNumber(false);
-                            updateApplication(app.id, {
-                              payment: { ...app.payment, opNumber: cleanNumber },
-                            });
-                            return;
-                          }
                           setIsSavingOpNumber(true);
-                          const [res, err] = await applicationService.updateOpNumber(targetOpId, cleanNumber);
+                          const [res, err] = await applicationService.updateOpNumber(
+                            targetOpId,
+                            cleanNumber,
+                            undefined,
+                            {
+                              applicationId: app.id,
+                              statementOfAccountId: app.soaId || app.statementOfAccountId || app.soasList?.[0]?.id,
+                            }
+                          );
                           setIsSavingOpNumber(false);
                           if (err !== null || !res?.succeeded) {
                             toast.error(err || res?.message || "Failed to update OP number.");
@@ -291,13 +318,13 @@ export function SoaPaymentSummary({
                       <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontSize: 12, color: isDark ? '#a5b4fc' : '#4338ca' }}>
                         {isIndividualMode && opsCount > 1
                           ? `${opsCount} Individual OPs`
-                          : (app.payment.opNumber || 'OP Series # generated upon Accountant approval')}{' '}
+                          : (effectiveOpNumber ? `OP #: ${effectiveOpNumber}` : 'OP Series # generated upon Accountant approval')}{' '}
                         • ₱{(app.totalAmountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Text>
-                      {allowManualOpNumber && Boolean(app.payment.orderOfPaymentId || (app.opsList && app.opsList.length > 0)) && (
+                      {allowManualOpNumber && (
                         <Pressable
                           onPress={() => {
-                            setOpNumberDraft(app.payment.opNumber || '');
+                            setOpNumberDraft(effectiveOpNumber);
                             setEditingOpNumber(true);
                           }}
                           style={{
@@ -394,6 +421,94 @@ export function SoaPaymentSummary({
                 ? 'Generating the SOA does not automatically complete the assessment. Click "Approve & Release SOA" in the bottom bar to release it to the client.'
                 : 'Generating the SOA does not forward the application yet. Click "Approve & Forward" in the bottom bar to send the application and SOA to the Accountant for Order of Payment (OP) issuance.'}
             </Text>
+            {!app.isAssessmentOnly && app.intent !== 'AssessmentOnly' && allowManualOpNumber && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                {editingOpNumber ? (
+                  <View style={styles.inlineEditRow}>
+                    <TextInput
+                      style={[styles.inlineEditInput, { minWidth: 160, color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
+                      value={opNumberDraft}
+                      onChangeText={setOpNumberDraft}
+                      autoFocus
+                      placeholder="Enter OP Number"
+                      placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                    />
+                    <Pressable
+                      disabled={isSavingOpNumber}
+                      onPress={async () => {
+                        const targetOpId =
+                          app.payment.orderOfPaymentId ||
+                          (app.opsList && app.opsList.length > 0 ? app.opsList[0]?.id : undefined) ||
+                          app.soaId ||
+                          app.statementOfAccountId ||
+                          app.id;
+                        const cleanNumber = opNumberDraft.trim();
+                        if (!cleanNumber) {
+                          toast.error("OP number cannot be empty.");
+                          return;
+                        }
+                        setIsSavingOpNumber(true);
+                        const [res, err] = await applicationService.updateOpNumber(
+                          targetOpId,
+                          cleanNumber,
+                          undefined,
+                          {
+                            applicationId: app.id,
+                            statementOfAccountId: app.soaId || app.statementOfAccountId || app.soasList?.[0]?.id,
+                          }
+                        );
+                        setIsSavingOpNumber(false);
+                        if (err !== null || !res?.succeeded) {
+                          toast.error(err || res?.message || "Failed to update OP number.");
+                          return;
+                        }
+                        setEditingOpNumber(false);
+                        updateApplication(app.id, {
+                          payment: { ...app.payment, opNumber: cleanNumber },
+                        });
+                        toast.success("Order of Payment number updated.");
+                        void mutateApplications(app.id);
+                      }}
+                    >
+                      <Text style={[styles.inlineEditSave, { color: isDark ? '#93c5fd' : '#1d4ed8' }]}>
+                        {isSavingOpNumber ? "Saving..." : "Save"}
+                      </Text>
+                    </Pressable>
+                    <Pressable onPress={() => setEditingOpNumber(false)}>
+                      <Text style={[styles.inlineEditSave, { color: colors.textMuted, marginLeft: 4 }]}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontSize: 12, fontWeight: '700', color: isDark ? '#93c5fd' : '#1e40af' }}>
+                      OP #: {effectiveOpNumber}
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        setOpNumberDraft(effectiveOpNumber);
+                        setEditingOpNumber(true);
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: RADIUS.xs,
+                        borderWidth: 1,
+                        borderColor: isDark ? '#60a5fa' : '#2563eb',
+                        backgroundColor: isDark ? '#1e3a8a' : '#dbeafe',
+                      }}
+                    >
+                      <Lucide name="edit-2" size={10} color={isDark ? '#bfdbfe' : '#1e40af'} />
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#bfdbfe' : '#1e40af' }}>
+                        EDIT OP #
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            )}
           </View>
         </View>
       ) : (
@@ -447,7 +562,7 @@ export function SoaPaymentSummary({
                 : 'Client has not paid. Cashier cannot issue OR until payment is made.'}
             </Text>
 
-            {Boolean(app.payment.opNumber) && (
+            {Boolean(effectiveOpNumber) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                 {editingOpNumber ? (
                   <View style={styles.inlineEditRow}>
@@ -462,21 +577,27 @@ export function SoaPaymentSummary({
                     <Pressable
                       disabled={isSavingOpNumber}
                       onPress={async () => {
-                        const targetOpId = app.payment.orderOfPaymentId || (app.opsList && app.opsList.length > 0 ? app.opsList[0]?.id : undefined);
+                        const targetOpId =
+                          app.payment.orderOfPaymentId ||
+                          (app.opsList && app.opsList.length > 0 ? app.opsList[0]?.id : undefined) ||
+                          app.soaId ||
+                          app.statementOfAccountId ||
+                          app.id;
                         const cleanNumber = opNumberDraft.trim();
                         if (!cleanNumber) {
                           toast.error("OP number cannot be empty.");
                           return;
                         }
-                        if (!targetOpId) {
-                          setEditingOpNumber(false);
-                          updateApplication(app.id, {
-                            payment: { ...app.payment, opNumber: cleanNumber },
-                          });
-                          return;
-                        }
                         setIsSavingOpNumber(true);
-                        const [res, err] = await applicationService.updateOpNumber(targetOpId, cleanNumber);
+                        const [res, err] = await applicationService.updateOpNumber(
+                          targetOpId,
+                          cleanNumber,
+                          undefined,
+                          {
+                            applicationId: app.id,
+                            statementOfAccountId: app.soaId || app.statementOfAccountId || app.soasList?.[0]?.id,
+                          }
+                        );
                         setIsSavingOpNumber(false);
                         if (err !== null || !res?.succeeded) {
                           toast.error(err || res?.message || "Failed to update OP number.");
@@ -510,12 +631,12 @@ export function SoaPaymentSummary({
                           : (isDark ? '#fde68a' : '#92400e'),
                       }}
                     >
-                      OP #: {app.payment.opNumber}
+                      OP #: {effectiveOpNumber}
                     </Text>
-                    {allowManualOpNumber && Boolean(app.payment.orderOfPaymentId || (app.opsList && app.opsList.length > 0)) && (
+                    {allowManualOpNumber && (
                       <Pressable
                         onPress={() => {
-                          setOpNumberDraft(app.payment.opNumber || '');
+                          setOpNumberDraft(effectiveOpNumber);
                           setEditingOpNumber(true);
                         }}
                         style={{

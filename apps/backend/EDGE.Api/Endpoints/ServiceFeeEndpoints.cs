@@ -52,7 +52,7 @@ public static class ServiceFeeEndpoints
         return group;
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.ReadApplication)]
     public static async Task<IResult> GetServiceFees(
         Guid? serviceId,
         Guid? feeId,

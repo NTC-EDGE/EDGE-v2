@@ -449,7 +449,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
 
                 return applicantDto;
             }).ToList(),
-            StatementsOfAccount = (app.StatementsOfAccount ?? Enumerable.Empty<Domain.Entities.StatementOfAccount>()).Select(s => new StatementOfAccountDto
+            StatementsOfAccount = (app.StatementsOfAccount ?? Enumerable.Empty<Domain.Entities.StatementOfAccount>()).Where(s => !s.IsDeleted).Select(s => new StatementOfAccountDto
             {
                 Id = s.Id,
                 ApplicationId = s.ApplicationId,
@@ -498,7 +498,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     Timestamp = sh.Timestamp
                 }).ToList()
             }).ToList(),
-            OrdersOfPayment = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>()).Select(op =>
+            OrdersOfPayment = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>()).Where(op => !op.IsDeleted).Select(op =>
             {
                 var opOrSources = new[] { op.OfficialReceiptNumber }
                     .Concat((op.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>())

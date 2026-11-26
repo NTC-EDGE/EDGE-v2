@@ -230,11 +230,21 @@ export const applicationService = {
     });
   },
 
-  async updateOpNumber(opId: string, opNumber: string, remarks?: string) {
+  async updateOpNumber(
+    opId: string,
+    opNumber: string,
+    remarks?: string,
+    options?: { applicationId?: string; statementOfAccountId?: string }
+  ) {
     return safeAsync(async () => {
       const response = await apiClient.patch<ApiResponse<string>>(
         `/api/v2/ops/${opId}/number`,
-        { opNumber, remarks }
+        {
+          opNumber,
+          remarks,
+          applicationId: options?.applicationId,
+          statementOfAccountId: options?.statementOfAccountId,
+        }
       );
       return response.data;
     });

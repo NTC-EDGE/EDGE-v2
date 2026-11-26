@@ -29,6 +29,7 @@ import {
   FeeCalculationResultDto,
   useSoaNotes,
   useTenantConfig,
+  useAdminFees,
 } from '@edge/api';
 import { ApplicationData, ApplicantItem, SoaItem, SoaRecordSummary } from '../../../../types/application';
 import {
@@ -37,6 +38,8 @@ import {
   resolveInitialAddress,
   resolveInitialName,
   resolveInitialType,
+  resolveIndividualApplicantName,
+  resolveIndividualApplicantAddress,
   mapCalculatedFeesToEditableItems,
   mapExistingSoaItemsToEditableItems,
   calculateLineItemAmount,
@@ -45,6 +48,7 @@ import {
   SOA_STANDARD_PARTICULARS,
   SoaStandardParticular,
   SoaParticularCategory,
+  buildLinkedParticularCatalog,
   normalizeParticularKey,
   resolveDedupFeeKey,
   isDuplicateParticular,
@@ -128,6 +132,7 @@ export function GenerateSoaModal({
 
   const { notes: tenantSoaNotes } = useSoaNotes({ tenantId: app.tenantId, enabled: visible });
   const { config: tenantConfig } = useTenantConfig(app.tenantId);
+  const { fees: backendFees, serviceFees: backendServiceFees } = useAdminFees();
   const allowManualSoaNumber = tenantConfig.allowManualSoaNumber === true;
 
   // Calculation state from backend calculation engine
@@ -147,17 +152,36 @@ export function GenerateSoaModal({
   const [openParticularDropdownId, setOpenParticularDropdownId] = useState<string | null>(null);
   const [particularSearch, setParticularSearch] = useState('');
 
+  const scopedServiceFees = useMemo(() => {
+    const targetSvcId = calculatedFees?.serviceId || app.serviceId || app.services?.[0]?.serviceId;
+    if (!targetSvcId) return backendServiceFees;
+    const filtered = backendServiceFees.filter((sf) => sf.serviceId === targetSvcId);
+    return filtered.length > 0 ? filtered : backendServiceFees;
+  }, [backendServiceFees, calculatedFees?.serviceId, app.serviceId, app.services]);
+
+  const linkedParticularCatalog = useMemo(
+    () =>
+      buildLinkedParticularCatalog({
+        calculatedFees,
+        backendFees,
+        backendServiceFees: scopedServiceFees,
+        appCategory: calculatedFees?.category || app.serviceCategory || app.category,
+      }),
+    [calculatedFees, backendFees, scopedServiceFees, app.serviceCategory, app.category]
+  );
+
   const filteredParticulars = useMemo(() => {
     const q = particularSearch.trim().toLowerCase();
-    if (!q) return SOA_STANDARD_PARTICULARS;
-    return SOA_STANDARD_PARTICULARS.filter(
+    if (!q) return linkedParticularCatalog;
+    return linkedParticularCatalog.filter(
       (p) =>
         p.particular.toLowerCase().includes(q) ||
         (p.displayName !== undefined && p.displayName.toLowerCase().includes(q)) ||
         p.defaultCode.toLowerCase().includes(q) ||
+        (p.accountCode !== undefined && p.accountCode.toLowerCase().includes(q)) ||
         p.category.toLowerCase().includes(q)
     );
-  }, [particularSearch]);
+  }, [particularSearch, linkedParticularCatalog]);
 
   const categoriesOrder: SoaParticularCategory[] = [
     'FOR LICENSES',
@@ -251,13 +275,12 @@ export function GenerateSoaModal({
 
   const handleSelectBillingScope = (nextScope: 'BULK' | 'INDIVIDUAL') => {
     setBillingScopeMode(nextScope);
-    const fallbackAddress = resolveInitialAddress(app);
 
     if (nextScope === 'BULK') {
       setSelectedApplicantId('ALL');
-      setIssuedToName(resolveInitialName(app));
-      setIssuedToType(resolveInitialType(app));
-      setIssuedToAddress(fallbackAddress);
+      setIssuedToName(resolveInitialName(app, 'BULK'));
+      setIssuedToType(resolveInitialType(app, 'BULK'));
+      setIssuedToAddress(resolveInitialAddress(app, 'BULK'));
       setIsManualMode(false);
       void fetchBackendCalculatedFees('BULK', 'ALL');
     } else {
@@ -266,20 +289,28 @@ export function GenerateSoaModal({
       const matchedSoa = nextApplicantId !== 'ALL'
         ? app.soasList?.find((s) => s.applicantId === nextApplicantId)
         : undefined;
+      const fallbackAddress = resolveInitialAddress(app, 'INDIVIDUAL', matchedApplicant);
 
       if (nextApplicantId === 'ALL') {
+        const indivName = matchedApplicant ? resolveIndividualApplicantName(matchedApplicant, app) : resolveInitialName(app, 'INDIVIDUAL');
         setIssuedToName(
           matchedApplicant
-            ? `${matchedApplicant.name} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
-            : resolveInitialName(app)
+            ? `${indivName} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
+            : indivName
         );
         setIssuedToType('Individual');
-        setIssuedToAddress(matchedApplicant ? resolveApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress);
+        setIssuedToAddress(matchedApplicant ? resolveIndividualApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress);
         setIsManualMode(false);
       } else if (matchedSoa) {
-        setIssuedToName(matchedSoa.issuedToName || matchedApplicant?.name || resolveInitialName(app));
-        setIssuedToType(matchedSoa.issuedToType);
-        setIssuedToAddress(matchedSoa.issuedToAddress || (matchedApplicant ? resolveApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress));
+        const indivName = matchedApplicant ? resolveIndividualApplicantName(matchedApplicant, app) : '';
+        const companyName = resolveInitialName(app, 'BULK').toLowerCase();
+        const soaName = (matchedSoa.issuedToName || '').trim();
+        const effectiveName = (soaName.length > 0 && soaName.toLowerCase() !== companyName)
+          ? soaName
+          : (indivName || soaName || 'Applicant');
+        setIssuedToName(effectiveName);
+        setIssuedToType('Individual');
+        setIssuedToAddress(matchedSoa.issuedToAddress || (matchedApplicant ? resolveIndividualApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress));
         if (matchedSoa.items.length > 0) {
           setCustomLineItems(mapExistingSoaItemsToEditableItems(matchedSoa.items));
           setIsManualMode(true);
@@ -287,9 +318,9 @@ export function GenerateSoaModal({
           setIsManualMode(false);
         }
       } else if (matchedApplicant) {
-        setIssuedToName(matchedApplicant.name);
+        setIssuedToName(resolveIndividualApplicantName(matchedApplicant, app));
         setIssuedToType('Individual');
-        setIssuedToAddress(resolveApplicantAddress(matchedApplicant, fallbackAddress));
+        setIssuedToAddress(resolveIndividualApplicantAddress(matchedApplicant, fallbackAddress));
         setIsManualMode(false);
       }
       void fetchBackendCalculatedFees('INDIVIDUAL', nextApplicantId);
@@ -298,17 +329,18 @@ export function GenerateSoaModal({
 
   const handleSelectApplicantTarget = (nextApplicantId: string) => {
     setSelectedApplicantId(nextApplicantId);
-    const fallbackAddress = resolveInitialAddress(app);
 
     if (nextApplicantId === 'ALL') {
       const firstApplicant = eligibleApplicants[0];
+      const fallbackAddress = resolveInitialAddress(app, 'INDIVIDUAL', firstApplicant);
+      const indivName = firstApplicant ? resolveIndividualApplicantName(firstApplicant, app) : resolveInitialName(app, 'INDIVIDUAL');
       setIssuedToName(
         firstApplicant
-          ? `${firstApplicant.name} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
-          : resolveInitialName(app)
+          ? `${indivName} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
+          : indivName
       );
       setIssuedToType('Individual');
-      setIssuedToAddress(firstApplicant ? resolveApplicantAddress(firstApplicant, fallbackAddress) : fallbackAddress);
+      setIssuedToAddress(firstApplicant ? resolveIndividualApplicantAddress(firstApplicant, fallbackAddress) : fallbackAddress);
       setIsManualMode(false);
       void fetchBackendCalculatedFees('INDIVIDUAL', 'ALL');
       return;
@@ -316,11 +348,18 @@ export function GenerateSoaModal({
 
     const matchedApplicant = eligibleApplicants.find((a) => a.id === nextApplicantId);
     const matchedSoa = app.soasList?.find((s) => s.applicantId === nextApplicantId);
+    const fallbackAddress = resolveInitialAddress(app, 'INDIVIDUAL', matchedApplicant);
 
     if (matchedSoa) {
-      setIssuedToName(matchedSoa.issuedToName || matchedApplicant?.name || resolveInitialName(app));
-      setIssuedToType(matchedSoa.issuedToType);
-      setIssuedToAddress(matchedSoa.issuedToAddress || (matchedApplicant ? resolveApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress));
+      const indivName = matchedApplicant ? resolveIndividualApplicantName(matchedApplicant, app) : '';
+      const companyName = resolveInitialName(app, 'BULK').toLowerCase();
+      const soaName = (matchedSoa.issuedToName || '').trim();
+      const effectiveName = (soaName.length > 0 && soaName.toLowerCase() !== companyName)
+        ? soaName
+        : (indivName || soaName || 'Applicant');
+      setIssuedToName(effectiveName);
+      setIssuedToType('Individual');
+      setIssuedToAddress(matchedSoa.issuedToAddress || (matchedApplicant ? resolveIndividualApplicantAddress(matchedApplicant, fallbackAddress) : fallbackAddress));
       if (matchedSoa.items.length > 0) {
         setCustomLineItems(mapExistingSoaItemsToEditableItems(matchedSoa.items));
         setIsManualMode(true);
@@ -328,9 +367,9 @@ export function GenerateSoaModal({
         setIsManualMode(false);
       }
     } else if (matchedApplicant) {
-      setIssuedToName(matchedApplicant.name);
+      setIssuedToName(resolveIndividualApplicantName(matchedApplicant, app));
       setIssuedToType('Individual');
-      setIssuedToAddress(resolveApplicantAddress(matchedApplicant, fallbackAddress));
+      setIssuedToAddress(resolveIndividualApplicantAddress(matchedApplicant, fallbackAddress));
       setIsManualMode(false);
     }
 
@@ -344,20 +383,21 @@ export function GenerateSoaModal({
       setBillingScopeMode(initialScope);
       setSelectedApplicantId('ALL');
 
-      const fallbackAddress = resolveInitialAddress(app);
       if (initialScope === 'INDIVIDUAL' && eligibleApplicants.length > 0) {
         const firstApplicant = eligibleApplicants[0];
+        const fallbackAddress = resolveInitialAddress(app, 'INDIVIDUAL', firstApplicant);
+        const indivName = firstApplicant ? resolveIndividualApplicantName(firstApplicant, app) : resolveInitialName(app, 'INDIVIDUAL');
         setIssuedToName(
           firstApplicant
-            ? `${firstApplicant.name} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
-            : resolveInitialName(app)
+            ? `${indivName} (+${Math.max(eligibleApplicants.length - 1, 0)} Individual SOA)`
+            : indivName
         );
         setIssuedToType('Individual');
-        setIssuedToAddress(firstApplicant ? resolveApplicantAddress(firstApplicant, fallbackAddress) : fallbackAddress);
+        setIssuedToAddress(firstApplicant ? resolveIndividualApplicantAddress(firstApplicant, fallbackAddress) : fallbackAddress);
       } else {
-        setIssuedToName(resolveInitialName(app));
-        setIssuedToType(resolveInitialType(app));
-        setIssuedToAddress(fallbackAddress);
+        setIssuedToName(resolveInitialName(app, 'BULK'));
+        setIssuedToType(resolveInitialType(app, 'BULK'));
+        setIssuedToAddress(resolveInitialAddress(app, 'BULK'));
       }
 
       const rawDue = normalizeYmd(app.soaDueDate || app.dueDate);
@@ -455,10 +495,11 @@ export function GenerateSoaModal({
           appAsksForYears &&
           doesFeeCodeUseYears(selected.defaultCode, selected.particular, calculatedFees?.formulaApplied, appAsksForYears);
         const nextYears = itemUsesYears ? (item.validityYears > 0 ? item.validityYears : 1) : 0;
+        const nextRate = typeof selected.feeRate === 'number' && selected.feeRate >= 0 ? selected.feeRate : item.feeRate;
         const nextAmount = calculateLineItemAmount(
           nextYears,
           item.noOfUnits,
-          item.feeRate,
+          nextRate,
           selected.defaultCode,
           selected.particular
         );
@@ -468,6 +509,7 @@ export function GenerateSoaModal({
           itemCode: selected.defaultCode,
           description: isOthers ? item.description : undefined,
           validityYears: nextYears,
+          feeRate: nextRate,
           amount: nextAmount,
         };
       })
@@ -496,7 +538,7 @@ export function GenerateSoaModal({
   };
 
   const handleAddItem = () => {
-    const available = getAvailableStandardParticular(customLineItems);
+    const available = getAvailableStandardParticular(customLineItems, linkedParticularCatalog);
     if (available === null) {
       toast.error('Particular already exist.');
       return;
@@ -505,14 +547,16 @@ export function GenerateSoaModal({
     const usesYears =
       appAsksForYears &&
       doesFeeCodeUseYears(available.defaultCode, available.particular, calculatedFees?.formulaApplied, appAsksForYears);
+    const initialRate = typeof available.feeRate === 'number' && available.feeRate >= 0 ? available.feeRate : 100;
+    const initialYears = usesYears ? 1 : 0;
     const newItem: EditableLineItem = {
       id: `item-new-${Date.now()}`,
       particular: available.particular,
       itemCode: available.defaultCode,
-      validityYears: usesYears ? 1 : 0,
+      validityYears: initialYears,
       noOfUnits: 1,
-      feeRate: 100,
-      amount: 100,
+      feeRate: initialRate,
+      amount: calculateLineItemAmount(initialYears, 1, initialRate, available.defaultCode, available.particular),
     };
     setCustomLineItems((prev) => [...prev, newItem]);
   };
@@ -606,16 +650,19 @@ export function GenerateSoaModal({
       }
 
       for (const targetApp of targetApplicants) {
+        const defaultIndivName = resolveIndividualApplicantName(targetApp, app);
+        const companyNameLower = resolveInitialName(app, 'BULK').toLowerCase();
         const indivName =
-          selectedApplicantId !== 'ALL' && issuedToName.trim().length > 0
+          selectedApplicantId !== 'ALL' &&
+          issuedToName.trim().length > 0 &&
+          issuedToName.trim().toLowerCase() !== companyNameLower
             ? issuedToName.trim()
-            : (targetApp.name || resolveInitialName(app));
+            : defaultIndivName;
         const indivAddress =
           selectedApplicantId !== 'ALL' && issuedToAddress.trim().length > 0
             ? issuedToAddress.trim()
-            : resolveApplicantAddress(targetApp, fallbackAddress);
-        const indivType: IssuedToTypeDto =
-          selectedApplicantId !== 'ALL' ? issuedToType : 'Individual';
+            : resolveIndividualApplicantAddress(targetApp, fallbackAddress);
+        const indivType: IssuedToTypeDto = 'Individual';
 
         const [, err] = await applicationService.createSoa(app.id, {
           applicantId: targetApp.id,
@@ -654,12 +701,20 @@ export function GenerateSoaModal({
       return;
     }
 
+    const bulkOrSingleType: IssuedToTypeDto = isBulkApp ? 'Company' : issuedToType;
+    const bulkOrSingleName = isBulkApp
+      ? (issuedToName.trim() || resolveInitialName(app, 'BULK'))
+      : issuedToName.trim();
+    const bulkOrSingleAddr = isBulkApp
+      ? (issuedToAddress.trim() || resolveInitialAddress(app, 'BULK'))
+      : issuedToAddress.trim();
+
     const [, err] = await applicationService.createSoa(app.id, {
       applicantId: undefined,
       noOfUnits: isBulkApp ? Math.max(eligibleApplicants.length, 1) : 1,
-      issuedToType,
-      issuedToName: issuedToName.trim(),
-      issuedToAddress: issuedToAddress.trim(),
+      issuedToType: bulkOrSingleType,
+      issuedToName: bulkOrSingleName,
+      issuedToAddress: bulkOrSingleAddr,
       dueDate: resolvedDue,
       lineItems: lineItemRequests,
       remarks: remarks.trim() || undefined,
@@ -901,8 +956,13 @@ export function GenerateSoaModal({
                   >
                     Service:{' '}
                     <Text style={{ fontWeight: TYPOGRAPHY.weights.bold }}>
-                      {app.serviceCategory || app.serviceName || 'Statutory Regulatory Service'}
+                      {calculatedFees?.serviceName || app.serviceName || app.serviceCategory || 'Statutory Regulatory Service'}
                     </Text>
+                    {Boolean(calculatedFees?.serviceCode) && (
+                      <Text style={{ fontWeight: TYPOGRAPHY.weights.bold, color: isDark ? colors.brand[300] : colors.brand[700] }}>
+                        {' '}({calculatedFees?.serviceCode})
+                      </Text>
+                    )}
                   </Text>
                 </View>
 
@@ -1952,7 +2012,7 @@ export function GenerateSoaModal({
                                             {opt.displayName || opt.particular}
                                           </Text>
                                           <Text style={[styles.particularOptionSub, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                                            Account Code: {opt.defaultCode}
+                                            Service Fee Code: {opt.defaultCode}{opt.accountCode && opt.accountCode !== opt.defaultCode ? ` • Account Code: ${opt.accountCode}` : ''}
                                           </Text>
                                         </View>
                                         {isAlreadyUsed ? (

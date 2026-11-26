@@ -1472,6 +1472,11 @@ export interface FeeCalculationResultDto {
   totalAmount: number;
   lineItems: CalculatedFeeLineItemDto[];
   category?: string | null;
+  serviceId?: string | null;
+  serviceCode?: string | null;
+  serviceName?: string | null;
+  serviceVariantId?: string | null;
+  serviceVariantName?: string | null;
 }
 
 export interface CreateSoaRequest {

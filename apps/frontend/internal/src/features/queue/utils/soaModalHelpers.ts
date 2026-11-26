@@ -1,5 +1,5 @@
-import { IssuedToTypeDto, FeeCalculationResultDto } from '@edge/api';
-import { ApplicationData, SoaItem } from '../../../types/application';
+import { IssuedToTypeDto, FeeCalculationResultDto, Fee, ServiceFee } from '@edge/api';
+import { ApplicationData, ApplicantItem, SoaItem } from '../../../types/application';
 
 export interface EditableLineItem {
   id: string;
@@ -32,8 +32,133 @@ export const normalizeYmd = (dateStr?: string | null): string => {
   return trimmed.substring(0, 10);
 };
 
-export const resolveInitialAddress = (app?: Partial<ApplicationData> | null): string => {
+const isBulkApplication = (app?: Partial<ApplicationData> | null): boolean => {
+  if (!app) return false;
+  return (
+    app.applicationType === 'BULK' ||
+    (app.mode || '').toUpperCase() === 'BULK' ||
+    (Array.isArray(app.applicantsList) && app.applicantsList.length > 1)
+  );
+};
+
+const resolveCompanyNameFromApp = (app?: Partial<ApplicationData> | null): string => {
   if (!app) return '';
+  const candidates = [
+    app.companyDetails?.name,
+    app.filingUser?.company?.name,
+    app.applicantsList?.find((a) => a.companyDetails?.name || a.company?.name)?.companyDetails?.name,
+    app.applicantsList?.find((a) => a.companyDetails?.name || a.company?.name)?.company?.name,
+    app.formFieldValues?.find((fv) => {
+      const lbl = (fv.fieldLabel || '').toLowerCase();
+      return lbl.includes('company name') || lbl.includes('organization name') || lbl.includes('corporate name') || lbl.includes('business name');
+    })?.value,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim().length > 0) {
+      return c.trim();
+    }
+  }
+  return '';
+};
+
+const resolveCompanyAddressFromApp = (app?: Partial<ApplicationData> | null): string => {
+  if (!app) return '';
+  const candidates = [
+    app.companyDetails?.address,
+    app.filingUser?.company?.address,
+    app.applicantsList?.find((a) => a.companyDetails?.address || a.company?.address)?.companyDetails?.address,
+    app.applicantsList?.find((a) => a.companyDetails?.address || a.company?.address)?.company?.address,
+    app.formFieldValues?.find((fv) => {
+      const lbl = (fv.fieldLabel || '').toLowerCase();
+      return lbl.includes('company address') || lbl.includes('business address') || lbl.includes('office address');
+    })?.value,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim().length > 0) {
+      return c.trim();
+    }
+  }
+  return '';
+};
+
+export const resolveIndividualApplicantName = (
+  applicant?: ApplicantItem | null,
+  app?: Partial<ApplicationData> | null
+): string => {
+  if (!applicant) return '';
+  const companyName = resolveCompanyNameFromApp(app).toLowerCase();
+  const personalFromBasic = [
+    applicant.basicInfo?.firstName,
+    applicant.basicInfo?.middleName,
+    applicant.basicInfo?.lastName,
+    applicant.basicInfo?.extensionName,
+  ]
+    .filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+    .map((p) => p.trim())
+    .join(' ');
+
+  if (personalFromBasic.length > 0 && personalFromBasic.toLowerCase() !== companyName) {
+    return personalFromBasic;
+  }
+
+  const rawName = (applicant.name || '').trim();
+  if (rawName.length > 0 && rawName.toLowerCase() !== companyName) {
+    return rawName;
+  }
+
+  const fvFirst = applicant.formFieldValues?.find((f) => (f.fieldLabel || '').toLowerCase().includes('first name'))?.value?.trim();
+  const fvMiddle = applicant.formFieldValues?.find((f) => (f.fieldLabel || '').toLowerCase().includes('middle name'))?.value?.trim();
+  const fvLast = applicant.formFieldValues?.find((f) => (f.fieldLabel || '').toLowerCase().includes('last name') || (f.fieldLabel || '').toLowerCase().includes('surname'))?.value?.trim();
+  const fvCombined = [fvFirst, fvMiddle, fvLast].filter((p): p is string => typeof p === 'string' && p.length > 0).join(' ');
+  if (fvCombined.length > 0) {
+    return fvCombined;
+  }
+
+  return rawName || 'Applicant';
+};
+
+export const resolveIndividualApplicantAddress = (
+  applicant?: ApplicantItem | null,
+  fallbackAddress: string = ''
+): string => {
+  if (!applicant) return fallbackAddress;
+  const rawParts = [
+    applicant.streetAddress || applicant.address,
+    applicant.barangay,
+    applicant.city,
+    applicant.province,
+    applicant.region,
+    applicant.zipCode,
+  ]
+    .map((p) => (p || '').trim())
+    .filter((p) => p.length > 0);
+
+  if (rawParts.length > 0) {
+    return Array.from(new Set(rawParts)).join(', ');
+  }
+  return fallbackAddress;
+};
+
+export const resolveInitialAddress = (
+  app?: Partial<ApplicationData> | null,
+  scopeMode?: 'BULK' | 'INDIVIDUAL',
+  targetApplicant?: ApplicantItem | null
+): string => {
+  if (!app) return '';
+  const isBulk = isBulkApplication(app);
+  const effectiveScope = scopeMode ?? (isBulk && app.soaBillingMode === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'BULK');
+
+  if (isBulk && effectiveScope === 'INDIVIDUAL' && targetApplicant) {
+    return resolveIndividualApplicantAddress(targetApplicant, '');
+  }
+
+  if (isBulk && effectiveScope === 'BULK') {
+    const compAddr = resolveCompanyAddressFromApp(app);
+    if (compAddr.length > 0) {
+      return compAddr;
+    }
+  }
+
   if (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0) {
     return app.soaIssuedToAddress.trim();
   }
@@ -49,19 +174,62 @@ export const resolveInitialAddress = (app?: Partial<ApplicationData> | null): st
   if (parts.length > 0) {
     return parts.join(', ');
   }
-  return app.filingUser?.company?.address || '';
+  return app.filingUser?.company?.address || app.companyDetails?.address || '';
 };
 
-export const resolveInitialName = (app?: Partial<ApplicationData> | null): string => {
+export const resolveInitialName = (
+  app?: Partial<ApplicationData> | null,
+  scopeMode?: 'BULK' | 'INDIVIDUAL',
+  targetApplicant?: ApplicantItem | null
+): string => {
   if (!app) return '';
+  const isBulk = isBulkApplication(app);
+  const effectiveScope = scopeMode ?? (isBulk && app.soaBillingMode === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'BULK');
+
+  if (isBulk && effectiveScope === 'INDIVIDUAL' && targetApplicant) {
+    return resolveIndividualApplicantName(targetApplicant, app);
+  }
+
+  if (isBulk && effectiveScope === 'BULK') {
+    // Bulk Consolidated SOA must strictly resolve to the Company Name (not an applicant or representative)
+    const companyName = resolveCompanyNameFromApp(app);
+    if (companyName.length > 0) {
+      return companyName;
+    }
+  }
+
   if (app.soaIssuedToName && app.soaIssuedToName.trim().length > 0) {
+    if (isBulk && effectiveScope === 'BULK') {
+      const issued = app.soaIssuedToName.trim();
+      const isApplicantOrRep = Boolean(
+        app.applicantsList?.some((a) => a.name.trim().toLowerCase() === issued.toLowerCase()) ||
+        (app.filingUser?.name && app.filingUser.name.trim().toLowerCase() === issued.toLowerCase())
+      );
+      const compName = resolveCompanyNameFromApp(app);
+      if (isApplicantOrRep && compName.length > 0) {
+        return compName;
+      }
+    }
     return app.soaIssuedToName.trim();
   }
-  return app.applicant || app.companyDetails?.name || app.filingUser?.name || '';
+  return (isBulk ? resolveCompanyNameFromApp(app) : '') || app.applicant || app.companyDetails?.name || app.filingUser?.name || '';
 };
 
-export const resolveInitialType = (app?: ApplicationData | null): IssuedToTypeDto => {
+export const resolveInitialType = (
+  app?: ApplicationData | null,
+  scopeMode?: 'BULK' | 'INDIVIDUAL'
+): IssuedToTypeDto => {
   if (!app) return 'Individual';
+  const isBulk = isBulkApplication(app);
+  const effectiveScope = scopeMode ?? (isBulk && app.soaBillingMode === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'BULK');
+
+  if (isBulk && effectiveScope === 'BULK') {
+    return 'Company';
+  }
+  if (isBulk && effectiveScope === 'INDIVIDUAL') {
+    return 'Individual';
+  }
+
   if (app.soaIssuedToType === 'Company') return 'Company';
   if (app.soaIssuedToType === 'Individual') return 'Individual';
   return app.applicantType === 'Company' ? 'Company' : 'Individual';
@@ -438,9 +606,164 @@ export interface SoaStandardParticular {
   particular: string;
   category: SoaParticularCategory;
   defaultCode: string;
+  accountCode?: string;
+  feeRate?: number;
   displayName?: string;
   isOthers?: boolean;
 }
+
+export const resolveParticularCategoryFromCode = (
+  rawCode?: string | null,
+  rawName?: string | null,
+  appCategory?: string | null
+): SoaParticularCategory => {
+  const canonical = normalizeCanonicalFeeCode(rawCode, rawName);
+  const catUpper = (appCategory || '').toUpperCase();
+
+  if (canonical === 'PUR' || canonical === 'POS' || canonical === 'CPF' || canonical === 'LF' || canonical === 'SUF') {
+    return 'FOR LICENSES';
+  }
+  if (canonical === 'PF' || canonical === 'STF' || canonical === 'PTR' || canonical === 'DEMO' || canonical === 'SP') {
+    return 'FOR PERMITS';
+  }
+  if (canonical === 'ROC' || canonical === 'SEM' || canonical === 'AF') {
+    return 'FOR AMATEUR AND ROC';
+  }
+  if (canonical === 'FF' || canonical === 'IF' || canonical === 'SUR') {
+    if (catUpper.includes('PERMIT')) return 'FOR PERMITS';
+    if (catUpper.includes('CERT') || catUpper.includes('AMATEUR') || catUpper.includes('ROC')) return 'FOR AMATEUR AND ROC';
+    return 'FOR LICENSES';
+  }
+  return 'OTHER APPLICATION';
+};
+
+export const resolveOfficialSoaAccountCode = (rawCode?: string | null, rawName?: string | null): string => {
+  const trimmed = (rawCode || '').trim();
+  if (trimmed.includes('-')) return trimmed;
+  const canonical = normalizeCanonicalFeeCode(rawCode, rawName);
+  switch (canonical) {
+    case 'PUR':
+    case 'POS':
+    case 'CPF':
+    case 'PF':
+    case 'STF':
+    case 'PTR':
+    case 'DEMO':
+    case 'SP':
+      return '4-02-01-010';
+    case 'REG':
+    case 'ARF1':
+    case 'ARF2':
+      return '4-02-01-020';
+    case 'EXAM':
+      return '4-02-01-030';
+    case 'FC':
+    case 'SC':
+    case 'DUP':
+    case 'ACCRED':
+    case 'REQ_FEE':
+      return '4-02-01-040';
+    case 'LF':
+    case 'ROC':
+    case 'MOD':
+      return '4-02-01-060';
+    case 'SUF':
+      return '4-02-01-080';
+    case 'IF':
+      return '4-02-01-100';
+    case 'FF':
+    case 'AF':
+      return '4-02-01-130';
+    case 'SUR':
+      return '4-02-01-140';
+    case 'SEM':
+      return '4-02-02-040';
+    case 'DST':
+      return '4-01-04-010';
+    default:
+      return '4-02-01-990';
+  }
+};
+
+export const buildLinkedParticularCatalog = (options: {
+  calculatedFees?: FeeCalculationResultDto | null;
+  backendFees?: Fee[] | null;
+  backendServiceFees?: ServiceFee[] | null;
+  appCategory?: string | null;
+}): SoaStandardParticular[] => {
+  const result: SoaStandardParticular[] = [];
+  const seenKeys = new Set<string>();
+
+  const pushParticular = (item: SoaStandardParticular) => {
+    const key = `${item.category}::${normalizeParticularKey(item.particular)}`;
+    if (seenKeys.has(key)) return;
+    seenKeys.add(key);
+    result.push(item);
+  };
+
+  // 1. Linked directly from Backend Calculated Fees for this Service / Variant
+  if (options.calculatedFees?.lineItems) {
+    for (const li of options.calculatedFees.lineItems) {
+      if (!li.particular) continue;
+      const canonical = normalizeCanonicalFeeCode(li.itemCode, li.particular);
+      const category = resolveParticularCategoryFromCode(canonical, li.particular, options.appCategory);
+      pushParticular({
+        particular: li.particular,
+        category,
+        defaultCode: canonical !== 'FEE' ? canonical : (li.itemCode || 'FEE'),
+        accountCode: resolveOfficialSoaAccountCode(li.itemCode, li.particular),
+        feeRate: typeof li.feeRate === 'number' && li.feeRate >= 0 ? li.feeRate : undefined,
+        displayName: `${li.particular} (${canonical !== 'FEE' ? canonical : li.itemCode})`,
+      });
+    }
+  }
+
+  // 2. Linked from Backend ServiceFees repository
+  if (options.backendServiceFees && options.backendServiceFees.length > 0) {
+    for (const sf of options.backendServiceFees) {
+      const name = sf.feeName || sf.feeCode;
+      if (!name) continue;
+      const canonical = normalizeCanonicalFeeCode(sf.feeCode, name);
+      const category = resolveParticularCategoryFromCode(canonical, name, options.appCategory);
+      pushParticular({
+        particular: name,
+        category,
+        defaultCode: canonical !== 'FEE' ? canonical : (sf.feeCode || 'FEE'),
+        accountCode: resolveOfficialSoaAccountCode(sf.feeCode, name),
+        feeRate: typeof sf.amount === 'number' && sf.amount >= 0 ? sf.amount : undefined,
+        displayName: `${name} (${canonical !== 'FEE' ? canonical : (sf.feeCode || 'FEE')})`,
+      });
+    }
+  }
+
+  // 3. Linked from Backend Master Fees catalog (/api/v2/fees)
+  if (options.backendFees && options.backendFees.length > 0) {
+    for (const f of options.backendFees) {
+      if (!f.name || f.isActive === false) continue;
+      const canonical = normalizeCanonicalFeeCode(f.code, f.name);
+      const category = resolveParticularCategoryFromCode(canonical, f.name, options.appCategory);
+      pushParticular({
+        particular: f.name,
+        category,
+        defaultCode: canonical !== 'FEE' ? canonical : f.code,
+        accountCode: resolveOfficialSoaAccountCode(f.code, f.name),
+        displayName: `${f.name} (${canonical !== 'FEE' ? canonical : f.code})`,
+      });
+    }
+  }
+
+  // 4. Official NTC Accountable Form rows as fallback options
+  for (const std of SOA_STANDARD_PARTICULARS) {
+    const canonical = normalizeCanonicalFeeCode(std.defaultCode, std.particular);
+    pushParticular({
+      ...std,
+      defaultCode: std.isOthers ? std.defaultCode : (canonical !== 'FEE' && !canonical.includes('-') ? canonical : std.defaultCode),
+      accountCode: std.defaultCode,
+    });
+  }
+
+  return result;
+};
 
 export const SOA_STANDARD_PARTICULARS: SoaStandardParticular[] = [
   // 1. FOR LICENSES
@@ -506,9 +829,10 @@ export const isDuplicateParticular = (
 };
 
 export const getAvailableStandardParticular = (
-  existingItems: { particular: string; id?: string }[]
+  existingItems: { particular: string; id?: string }[],
+  catalog: SoaStandardParticular[] = SOA_STANDARD_PARTICULARS
 ): SoaStandardParticular | null => {
-  for (const option of SOA_STANDARD_PARTICULARS) {
+  for (const option of catalog) {
     if (!isDuplicateParticular(option.particular, existingItems)) {
       return option;
     }

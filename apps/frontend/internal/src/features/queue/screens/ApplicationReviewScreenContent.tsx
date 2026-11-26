@@ -796,7 +796,17 @@ export function ApplicationReviewScreenContent({
   const handleAccountantApprove = async () => {
     setShowApprove(false);
     const targetId = app.soaId || app.statementOfAccountId || app.id;
-    const [, soaErr] = await applicationService.approveSoa(targetId, 'Application and SOA approved by Accountant. Order of Payment generated.');
+    const manualOpToPass =
+      app.payment?.opNumber &&
+      app.payment.opNumber.trim().length > 0 &&
+      !app.payment.opNumber.toUpperCase().startsWith('PENDING')
+        ? app.payment.opNumber.trim()
+        : undefined;
+    const [, soaErr] = await applicationService.approveSoa(
+      targetId,
+      'Application and SOA approved by Accountant. Order of Payment generated.',
+      manualOpToPass
+    );
     if (soaErr !== null) {
       const errMsg = typeof soaErr === 'object' && soaErr !== null && Reflect.has(soaErr, 'message')
         ? String(Reflect.get(soaErr, 'message'))
@@ -1597,6 +1607,7 @@ export function ApplicationReviewScreenContent({
         initialDocType={reportPreviewInitialDoc}
         onClose={() => setShowReportPreview(false)}
         onOpenGenerateSoa={() => setShowGenerateSoa(true)}
+        updateApplication={updateApplication}
         onApproveOp={showAccountantBtn ? () => {
           setHasPreviewedOp(true);
           setShowApprove(true);

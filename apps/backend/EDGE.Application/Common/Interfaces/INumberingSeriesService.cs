@@ -8,4 +8,6 @@ public interface INumberingSeriesService
 {
     Task<string> GenerateSoaNumberAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<string> GenerateOpNumberAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    Task<string> PreviewNextOpNumberAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
+        GenerateOpNumberAsync(tenantId, cancellationToken);
 }

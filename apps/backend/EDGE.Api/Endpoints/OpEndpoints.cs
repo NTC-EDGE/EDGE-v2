@@ -67,7 +67,9 @@ public static class OpEndpoints
         var command = new UpdateOpNumberCommand(
             OpId: opId,
             OpNumber: request?.OpNumber ?? string.Empty,
-            Remarks: request?.Remarks);
+            Remarks: request?.Remarks,
+            ApplicationId: request?.ApplicationId,
+            StatementOfAccountId: request?.StatementOfAccountId);
 
         var validationResult = await validator.ValidateAsync(command, cancellationToken);
         if (!validationResult.IsValid)
@@ -103,6 +105,7 @@ public static class OpEndpoints
         IFormPrintingService printingService,
         HttpContext httpContext,
         IRegionalConfigurationService? configService = null,
+        INumberingSeriesService? numberingSeriesService = null,
         IAgencyBankAccountRepository? bankAccountRepository = null,
         IOfficialReceiptRepository? receiptRepository = null,
         string? orNumber = null,
@@ -119,49 +122,69 @@ public static class OpEndpoints
         }
 
         var activeSoas = app.StatementsOfAccount.Where(s => !s.IsDeleted).OrderByDescending(s => s.CreatedAt).ToList();
+        var activeOps = app.OrdersOfPayment.Where(o => !o.IsDeleted).ToList();
         OrderOfPayment? op = null;
         StatementOfAccount? soa = null;
 
         if (opId.HasValue && opId.Value != Guid.Empty)
         {
-            op = app.OrdersOfPayment.FirstOrDefault(o => o.Id == opId.Value);
+            op = activeOps.FirstOrDefault(o => o.Id == opId.Value);
             soa = op != null ? activeSoas.FirstOrDefault(s => s.Id == op.StatementOfAccountId) : null;
         }
         else if (soaId.HasValue && soaId.Value != Guid.Empty)
         {
             soa = activeSoas.FirstOrDefault(s => s.Id == soaId.Value);
-            op = app.OrdersOfPayment.OrderByDescending(o => o.PaidAt ?? o.CreatedAt).FirstOrDefault(o => o.StatementOfAccountId == soaId.Value);
+            op = activeOps.OrderByDescending(o => o.PaidAt ?? o.CreatedAt).FirstOrDefault(o => o.StatementOfAccountId == soaId.Value);
         }
         else if (applicantId.HasValue && applicantId.Value != Guid.Empty)
         {
             soa = activeSoas.FirstOrDefault(s => s.ApplicantId == applicantId.Value);
             if (soa != null)
             {
-                op = app.OrdersOfPayment.OrderByDescending(o => o.PaidAt ?? o.CreatedAt).FirstOrDefault(o => o.StatementOfAccountId == soa.Id);
+                op = activeOps.OrderByDescending(o => o.PaidAt ?? o.CreatedAt).FirstOrDefault(o => o.StatementOfAccountId == soa.Id);
             }
         }
         else
         {
-            var paidOp = app.OrdersOfPayment
+            var paidOp = activeOps
                 .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
                 .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
 
-            op = paidOp ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+            op = paidOp ?? activeOps.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
             soa = op != null
                 ? (activeSoas.FirstOrDefault(s => s.Id == op.StatementOfAccountId) ?? activeSoas.FirstOrDefault())
                 : activeSoas.FirstOrDefault();
         }
 
+        var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app.TenantId, cancellationToken) : null;
+        var allowManualOpNumber = regionalConfig?.AllowManualOpNumber == true;
+        var isOpApproved = app.Status == ApplicationStatus.PendingPayment ||
+                           app.Status == ApplicationStatus.ForIssuance ||
+                           app.Status == ApplicationStatus.Completed ||
+                           app.Status == ApplicationStatus.Approved ||
+                           soa?.Status == SoaStatus.Approved ||
+                           op?.Status == OpStatus.Paid ||
+                           op?.Status == OpStatus.Processing ||
+                           !string.IsNullOrWhiteSpace(op?.OfficialReceiptNumber);
+
         if (op == null)
         {
             if (soa != null || app.Status == ApplicationStatus.ForAccountant)
             {
+                var resolvedPreviewOpNumber = "PENDING APPROVAL";
+                if (allowManualOpNumber)
+                {
+                    resolvedPreviewOpNumber = numberingSeriesService != null
+                        ? await numberingSeriesService.PreviewNextOpNumberAsync(app.TenantId, cancellationToken)
+                        : $"{(regionalConfig?.RcCodeOp ?? "61")}-{DateTime.UtcNow:yyyy-MM}-0001";
+                }
+
                 op = new OrderOfPayment
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
                     StatementOfAccountId = soa?.Id ?? Guid.Empty,
-                    OpNumber = "PENDING APPROVAL",
+                    OpNumber = resolvedPreviewOpNumber,
                     AmountDue = soa?.TotalAmount ?? 0,
                     Status = OpStatus.Billed,
                     CreatedAt = DateTime.UtcNow
@@ -171,6 +194,21 @@ public static class OpEndpoints
             {
                 return Results.NotFound(new { message = $"No Order of Payment found for Application '{id}'." });
             }
+        }
+        else if (!allowManualOpNumber && !isOpApproved)
+        {
+            // When OP numbering is set to Auto in Regional Settings, OP number is only assigned after the OP is approved by the Accountant.
+            op = new OrderOfPayment
+            {
+                Id = op.Id,
+                ApplicationId = op.ApplicationId,
+                StatementOfAccountId = op.StatementOfAccountId,
+                OpNumber = "PENDING APPROVAL",
+                AmountDue = op.AmountDue > 0 ? op.AmountDue : (soa?.TotalAmount ?? 0),
+                AmountReceived = op.AmountReceived,
+                Status = op.Status,
+                CreatedAt = op.CreatedAt
+            };
         }
 
         List<OfficialReceipt> matchingReceipts = new();
@@ -206,7 +244,6 @@ public static class OpEndpoints
             }
         }
 
-        var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app.TenantId, cancellationToken) : null;
         var bankAccounts = bankAccountRepository != null
             ? await bankAccountRepository.GetByTenantAsync(app.TenantId, activeOnly: true, cancellationToken)
             : null;
@@ -319,4 +356,8 @@ public static class OpEndpoints
     }
 }
 
-public record UpdateOpNumberRequest(string OpNumber, string? Remarks = null);
+public record UpdateOpNumberRequest(
+    string OpNumber,
+    string? Remarks = null,
+    Guid? ApplicationId = null,
+    Guid? StatementOfAccountId = null);
