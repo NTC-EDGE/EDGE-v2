@@ -27,8 +27,12 @@ function getEmailSrcDoc(content: string): string {
   if (!content) {
     return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head><body style="margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;text-align:center;color:#94a3b8;background-color:#f1f5f9;"><p style="font-size:13px;margin:0;">No email body content to preview.</p></body></html>`;
   }
-  if (content.includes("<html") || content.includes("<!DOCTYPE")) {
-    return content;
+  const normalized = content
+    .replace(/cid:ntc-official-seal/gi, "/ntc-seal.png")
+    .replace(/\{\{\s*NTC Logo\s*\}\}/gi, "/ntc-seal.png")
+    .replace(/\{\s*NTC Logo\s*\}/gi, "/ntc-seal.png");
+  if (normalized.includes("<html") || normalized.includes("<!DOCTYPE")) {
+    return normalized;
   }
   return `<!DOCTYPE html>
 <html>
@@ -43,7 +47,7 @@ function getEmailSrcDoc(content: string): string {
   </style>
 </head>
 <body>
-  ${content}
+  ${normalized}
 </body>
 </html>`;
 }
@@ -68,8 +72,8 @@ export default function NotificationTemplatesPage() {
   const templates: NotificationTemplate[] = Array.isArray(responseData)
     ? responseData
     : responseData && Array.isArray(responseData.data)
-    ? responseData.data
-    : [];
+      ? responseData.data
+      : [];
 
   const handleEdit = (t: NotificationTemplate) => {
     setSelectedTemplate(t);
@@ -176,11 +180,10 @@ export default function NotificationTemplatesPage() {
                           {t.eventKey}
                         </span>
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-                            t.isActive
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
-                          }`}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${t.isActive
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+                            }`}
                         >
                           <CheckCircle className="h-3 w-3" />
                           {t.isActive ? "Active" : "Disabled"}
@@ -315,22 +318,20 @@ export default function NotificationTemplatesPage() {
                     <button
                       type="button"
                       onClick={() => setPreviewTab("preview")}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                        previewTab === "preview"
-                          ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                      }`}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${previewTab === "preview"
+                        ? "bg-indigo-600 text-white shadow-sm font-semibold"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                        }`}
                     >
                       <Eye className="h-3 w-3" /> Live Email Preview
                     </button>
                     <button
                       type="button"
                       onClick={() => setPreviewTab("code")}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                        previewTab === "code"
-                          ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                      }`}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${previewTab === "code"
+                        ? "bg-indigo-600 text-white shadow-sm font-semibold"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                        }`}
                     >
                       <FileCode className="h-3 w-3" /> HTML Code
                     </button>
@@ -369,11 +370,10 @@ export default function NotificationTemplatesPage() {
                         <button
                           type="button"
                           onClick={() => setPreviewDevice("desktop")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-all ${
-                            previewDevice === "desktop"
-                              ? "bg-indigo-600 text-white shadow-sm"
-                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                          }`}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-all ${previewDevice === "desktop"
+                            ? "bg-indigo-600 text-white shadow-sm"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            }`}
                           title="Preview on Desktop Email Client (Full Width)"
                         >
                           <Monitor className="w-3.5 h-3.5" /> Desktop
@@ -381,11 +381,10 @@ export default function NotificationTemplatesPage() {
                         <button
                           type="button"
                           onClick={() => setPreviewDevice("mobile")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-all ${
-                            previewDevice === "mobile"
-                              ? "bg-indigo-600 text-white shadow-sm"
-                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                          }`}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-all ${previewDevice === "mobile"
+                            ? "bg-indigo-600 text-white shadow-sm"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            }`}
                           title="Preview on Mobile Phone (375px Viewport)"
                         >
                           <Smartphone className="w-3.5 h-3.5" /> Mobile (375px)
@@ -396,11 +395,10 @@ export default function NotificationTemplatesPage() {
                     {/* Email Preview Body with Isolated Sandboxed Iframe */}
                     <div className="p-3 sm:p-5 bg-slate-200/60 dark:bg-slate-950 flex justify-center items-start min-h-[460px] overflow-x-auto">
                       <div
-                        className={`transition-all duration-300 bg-white rounded-2xl overflow-hidden shadow-md flex flex-col ${
-                          previewDevice === "mobile"
-                            ? "w-[375px] max-w-full border-4 border-slate-800 dark:border-slate-700 shadow-2xl"
-                            : "w-full max-w-[650px] border border-slate-200 dark:border-slate-800"
-                        }`}
+                        className={`transition-all duration-300 bg-white rounded-2xl overflow-hidden shadow-md flex flex-col ${previewDevice === "mobile"
+                          ? "w-[375px] max-w-full border-4 border-slate-800 dark:border-slate-700 shadow-2xl"
+                          : "w-full max-w-[650px] border border-slate-200 dark:border-slate-800"
+                          }`}
                       >
                         {previewDevice === "mobile" && (
                           <div className="bg-slate-800 dark:bg-slate-700 py-1.5 px-4 flex items-center justify-between text-[10px] text-slate-300 font-mono select-none">

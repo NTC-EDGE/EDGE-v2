@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Mail;
+using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -12,6 +14,7 @@ namespace EDGE.Infrastructure.Services;
 
 public class SmtpEmailService : IEmailService
 {
+    public const string NtcLogoContentId = "ntc-official-seal";
     private readonly EmailOptions _options;
     private readonly ISystemConfigRepository _systemConfigRepository;
     private readonly ILogger<SmtpEmailService> _logger;
@@ -135,13 +138,31 @@ public class SmtpEmailService : IEmailService
 
         try
         {
+            var bodyContent = htmlBody ?? string.Empty;
+            var logoFilePath = ResolveNtcLogoPath();
+
             using var message = new MailMessage
             {
                 From = new MailAddress(fromAddress, string.IsNullOrWhiteSpace(fromName) ? "NTC EDGE Portal" : fromName),
                 Subject = subject,
-                Body = htmlBody ?? string.Empty,
+                Body = bodyContent,
                 IsBodyHtml = true
             };
+
+            if (!string.IsNullOrWhiteSpace(logoFilePath) &&
+                File.Exists(logoFilePath) &&
+                bodyContent.Contains($"cid:{NtcLogoContentId}", StringComparison.OrdinalIgnoreCase))
+            {
+                var htmlView = AlternateView.CreateAlternateViewFromString(bodyContent, System.Text.Encoding.UTF8, MediaTypeNames.Text.Html);
+                var logoResource = new LinkedResource(logoFilePath, "image/png")
+                {
+                    ContentId = NtcLogoContentId,
+                    TransferEncoding = TransferEncoding.Base64
+                };
+                logoResource.ContentType.Name = "ntc-seal.png";
+                htmlView.LinkedResources.Add(logoResource);
+                message.AlternateViews.Add(htmlView);
+            }
 
             message.To.Add(string.IsNullOrWhiteSpace(toName)
                 ? new MailAddress(toEmail.Trim())
@@ -169,5 +190,18 @@ public class SmtpEmailService : IEmailService
             _logger.LogError(ex, "Failed to send SMTP email to '{ToEmail}' with Subject '{Subject}'.", toEmail, subject);
             return false;
         }
+    }
+
+    private static string? ResolveNtcLogoPath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var candidate = Path.Combine(baseDir, "Printing", "Assets", "Logos", "ntc-Logo.png");
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+
+        var currentDirCandidate = Path.Combine(Directory.GetCurrentDirectory(), "Printing", "Assets", "Logos", "ntc-Logo.png");
+        return File.Exists(currentDirCandidate) ? currentDirCandidate : null;
     }
 }

@@ -24,7 +24,7 @@ public static class NotificationTemplateDataSeeder
                 EventKey = "External_ApplicationSubmitted",
                 Name = "Applicant - Application Submitted",
                 Subject = "Application Received – {Service Name} ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{Submission Date},{Application Link}",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{Submission Date},{Tenant Email},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -49,6 +49,7 @@ public static class NotificationTemplateDataSeeder
     <!-- Header -->
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""58"" height=""58"" style=""display: block; width: 58px; height: 58px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
         <div style=""font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: -0.2px;"">National Telecommunications Commission</div>
         <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
@@ -110,7 +111,7 @@ public static class NotificationTemplateDataSeeder
         </div>
 
         <p style=""font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;"">
-          For inquiries, email us at <a href=""mailto:edge@ntc.gov.ph"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">edge@ntc.gov.ph</a>.
+          For inquiries, email us at <a href=""mailto:{Tenant Email}"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">{Tenant Email}</a>.
         </p>
       </td>
     </tr>
@@ -137,7 +138,7 @@ public static class NotificationTemplateDataSeeder
                 EventKey = "External_ApplicationReturnedForCompliance",
                 Name = "Applicant - Application Returned for Compliance",
                 Subject = "Action Required: Compliance Requested – {Service Name} ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{Reasons / Remarks},{Application Link}",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{Reasons / Remarks},{Tenant Email},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -161,6 +162,7 @@ public static class NotificationTemplateDataSeeder
   <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""58"" height=""58"" style=""display: block; width: 58px; height: 58px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
         <div style=""font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: -0.2px;"">National Telecommunications Commission</div>
         <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
@@ -213,7 +215,7 @@ public static class NotificationTemplateDataSeeder
         </table>
 
         <p style=""font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;"">
-          Need help? Contact the support desk at <a href=""mailto:edge@ntc.gov.ph"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">edge@ntc.gov.ph</a>.
+          Need help? Contact the support desk at <a href=""mailto:{Tenant Email}"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">{Tenant Email}</a>.
         </p>
       </td>
     </tr>
@@ -236,7 +238,7 @@ public static class NotificationTemplateDataSeeder
                 EventKey = "External_ApplicationApprovedReadyForPayment",
                 Name = "Applicant - Application Approved and Ready for Payment",
                 Subject = "Approved & Ready for Payment – {Service Name} ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{OP Number},{Due Date},{Fee Breakdown Rows},{Total},{Application Link}",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{OP Number},{Due Date},{Fee Breakdown Rows},{Total},{Tenant Email},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -260,6 +262,7 @@ public static class NotificationTemplateDataSeeder
   <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""58"" height=""58"" style=""display: block; width: 58px; height: 58px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
         <div style=""font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: -0.2px;"">National Telecommunications Commission</div>
         <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
@@ -335,7 +338,7 @@ public static class NotificationTemplateDataSeeder
         </div>
 
         <p style=""font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;"">
-          Inquiries: <a href=""mailto:edge@ntc.gov.ph"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">edge@ntc.gov.ph</a>.
+          Inquiries: <a href=""mailto:{Tenant Email}"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">{Tenant Email}</a>.
         </p>
       </td>
     </tr>
@@ -358,7 +361,7 @@ public static class NotificationTemplateDataSeeder
                 EventKey = "External_ApplicationComplete",
                 Name = "Applicant - Application Complete",
                 Subject = "Application Completed – Official Documents Ready ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{License / Permit / Certificate},{Application Link}",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{License / Permit / Certificate},{Tenant Email},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -382,6 +385,7 @@ public static class NotificationTemplateDataSeeder
   <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""58"" height=""58"" style=""display: block; width: 58px; height: 58px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
         <div style=""font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: -0.2px;"">National Telecommunications Commission</div>
         <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
@@ -430,8 +434,11 @@ public static class NotificationTemplateDataSeeder
           </tr>
         </table>
 
-        <p style=""font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;"">
+        <p style=""font-size: 13px; color: #64748b; margin: 0 0 8px 0; line-height: 1.5;"">
           Thank you for keeping Philippine telecommunications compliant and secure.
+        </p>
+        <p style=""font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;"">
+          For inquiries, email us at <a href=""mailto:{Tenant Email}"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">{Tenant Email}</a>.
         </p>
       </td>
     </tr>
@@ -454,7 +461,7 @@ public static class NotificationTemplateDataSeeder
                 EventKey = "External_PaymentConfirmedForIssuance",
                 Name = "Applicant - Payment Verified & Official Receipt Issued",
                 Subject = "Payment Confirmed (OR #{OR Number}) – Processing Official Document ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{OP Number},{OR Number},{Fee Breakdown Rows},{Total},{Application Link}",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{OP Number},{OR Number},{Fee Breakdown Rows},{Total},{Tenant Email},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -478,6 +485,7 @@ public static class NotificationTemplateDataSeeder
   <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""58"" height=""58"" style=""display: block; width: 58px; height: 58px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
         <div style=""font-size: 18px; font-weight: 800; color: #ffffff;"">National Telecommunications Commission</div>
         <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
@@ -539,6 +547,10 @@ public static class NotificationTemplateDataSeeder
             </td>
           </tr>
         </table>
+
+        <p style=""font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;"">
+          For inquiries, email us at <a href=""mailto:{Tenant Email}"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">{Tenant Email}</a>.
+        </p>
       </td>
     </tr>
   </table>
@@ -580,6 +592,7 @@ public static class NotificationTemplateDataSeeder
   <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""52"" height=""52"" style=""display: block; width: 52px; height: 52px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px;"">NTC EDGE Internal Notification</div>
         <div style=""font-size: 16px; font-weight: 700; color: #ffffff;"">Evaluation Queue Assignment</div>
       </td>
@@ -662,6 +675,7 @@ public static class NotificationTemplateDataSeeder
   <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""52"" height=""52"" style=""display: block; width: 52px; height: 52px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px;"">NTC EDGE Internal Notification</div>
         <div style=""font-size: 16px; font-weight: 700; color: #ffffff;"">Billing &amp; Order of Payment Queue</div>
       </td>
@@ -752,6 +766,7 @@ public static class NotificationTemplateDataSeeder
   <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""52"" height=""52"" style=""display: block; width: 52px; height: 52px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #f59e0b; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px;"">NTC EDGE Internal Notification</div>
         <div style=""font-size: 16px; font-weight: 700; color: #ffffff;"">Cashier Payment Verification</div>
       </td>
@@ -818,7 +833,7 @@ public static class NotificationTemplateDataSeeder
                 EventKey = "External_ApplicationUnderAccountingReview",
                 Name = "Applicant - Technical Evaluation Approved (Statement of Account & Fee Breakdown)",
                 Subject = "Technical Evaluation Approved – Fee Assessment ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{Due Date},{Fee Breakdown Rows},{Total},{Next Step Notice},{Application Link}",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{Due Date},{Fee Breakdown Rows},{Total},{Next Step Notice},{Tenant Email},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -842,6 +857,7 @@ public static class NotificationTemplateDataSeeder
   <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+        <img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""58"" height=""58"" style=""display: block; width: 58px; height: 58px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" />
         <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
         <div style=""font-size: 18px; font-weight: 800; color: #ffffff;"">National Telecommunications Commission</div>
         <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
@@ -895,6 +911,10 @@ public static class NotificationTemplateDataSeeder
             </td>
           </tr>
         </table>
+
+        <p style=""font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;"">
+          For inquiries, email us at <a href=""mailto:{Tenant Email}"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">{Tenant Email}</a>.
+        </p>
       </td>
     </tr>
   </table>
@@ -939,12 +959,19 @@ public static class NotificationTemplateDataSeeder
                     existing.BodyHtml.IndexOf("₱{Amount}", StringComparison.OrdinalIgnoreCase) !=
                     existing.BodyHtml.LastIndexOf("₱{Amount}", StringComparison.OrdinalIgnoreCase);
 
+                bool missingNtcLogo = !existing.BodyHtml.Contains("ntc-official-seal", StringComparison.OrdinalIgnoreCase) &&
+                                      !existing.BodyHtml.Contains("ntc-seal.png", StringComparison.OrdinalIgnoreCase);
+
+                bool hasHardcodedGlobalInquiryEmail = existing.BodyHtml.Contains("edge@ntc.gov.ph", StringComparison.OrdinalIgnoreCase);
+
                 bool isUnmodifiedByAdmin = !existing.LastModifiedAt.HasValue;
 
                 if (existing.IsDeleted ||
                     existing.Name != template.Name ||
                     existing.AvailablePlaceholders != template.AvailablePlaceholders ||
                     hasLegacyBrokenFees ||
+                    missingNtcLogo ||
+                    hasHardcodedGlobalInquiryEmail ||
                     (isUnmodifiedByAdmin && (existing.Subject != template.Subject || existing.BodyHtml != template.BodyHtml)))
                 {
                     existing.IsDeleted = false;
@@ -955,6 +982,21 @@ public static class NotificationTemplateDataSeeder
                     {
                         existing.Subject = template.Subject;
                         existing.BodyHtml = template.BodyHtml;
+                    }
+                    else
+                    {
+                        if (missingNtcLogo)
+                        {
+                            existing.BodyHtml = existing.BodyHtml.Replace(
+                                @"<div style=""font-size: 10px; font-weight: 700;",
+                                @"<img src=""cid:ntc-official-seal"" alt=""NTC Official Seal"" width=""56"" height=""56"" style=""display: block; width: 56px; height: 56px; margin: 0 auto 10px auto; border-radius: 50%; background-color: #ffffff; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);"" /><div style=""font-size: 10px; font-weight: 700;");
+                        }
+                        if (hasHardcodedGlobalInquiryEmail)
+                        {
+                            existing.BodyHtml = existing.BodyHtml
+                                .Replace("mailto:edge@ntc.gov.ph", "mailto:{Tenant Email}", StringComparison.OrdinalIgnoreCase)
+                                .Replace(">edge@ntc.gov.ph<", ">{Tenant Email}<", StringComparison.OrdinalIgnoreCase);
+                        }
                     }
                     anyChange = true;
                 }

@@ -290,12 +290,20 @@ public class ApplicationEmailNotificationServiceTests
         _mockAppRepo.Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(app);
 
+        _mockRegionalConfigService.Setup(c => c.GetConfigurationAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RegionalConfigurationDto
+            {
+                TenantId = tenantId,
+                SupportEmail = "region7@ntc.gov.ph",
+                EnableInternalEmailNotifications = true
+            });
+
         _mockTemplateRepo.Setup(t => t.GetByEventKeyAsync("External_ApplicationApprovedReadyForPayment", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new NotificationTemplate
             {
                 EventKey = "External_ApplicationApprovedReadyForPayment",
                 Subject = "Approved & Ready for Payment – {Service Name} ({Reference Number})",
-                BodyHtml = "<table>{Fee Breakdown Rows}</table> | SOA: {SOA Number} | OP: {OP Number} | Total Due: ₱{Total} | Link: {Application Link}",
+                BodyHtml = "<table>{Fee Breakdown Rows}</table> | SOA: {SOA Number} | OP: {OP Number} | Total Due: ₱{Total} | Inquiries: {Tenant Email} | Link: {Application Link}",
                 IsActive = true
             });
 
@@ -304,7 +312,7 @@ public class ApplicationEmailNotificationServiceTests
         // Act
         await sut.SendApplicationReadyForPaymentAsync(appId, opId, CancellationToken.None);
 
-        // Assert: All 4 fee line items from the Client UI SOA are rendered with their respective amounts
+        // Assert: All 4 fee line items from the Client UI SOA and the Regional Tenant Email are rendered accurately
         _mockEmailService.Verify(e => e.SendEmailAsync(
             "clara.reyes@client.ph",
             "Clara Reyes",
@@ -321,6 +329,7 @@ public class ApplicationEmailNotificationServiceTests
                 body.Contains("SOA: SOA-2026-0099") &&
                 body.Contains("OP: OP-2026-0012") &&
                 body.Contains("Total Due: ₱1,380.00") &&
+                body.Contains("Inquiries: region7@ntc.gov.ph") &&
                 body.Contains("https://client.edge.ntc.gov.ph/my-applications?applicationId=")),
             It.IsAny<CancellationToken>()), Times.Once);
     }

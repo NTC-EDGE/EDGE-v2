@@ -447,12 +447,16 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
 
     public static string RenderPlaceholders(string templateText, Dictionary<string, string> placeholders)
     {
-        if (string.IsNullOrEmpty(templateText) || placeholders.Count == 0)
+        if (string.IsNullOrEmpty(templateText))
         {
             return templateText;
         }
 
-        var result = templateText;
+        var result = templateText.Replace("/ntc-seal.png", $"cid:{SmtpEmailService.NtcLogoContentId}", StringComparison.OrdinalIgnoreCase);
+        if (placeholders.Count == 0)
+        {
+            return result;
+        }
 
         // If a template uses a table row with a placeholder whose actual value is empty (e.g. {Fee 2}, {OP Number}, {SOA Number}, {Due Date}),
         // remove that table row so we never display fields that are not present in the actual SOA/OP data.
@@ -529,8 +533,14 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
             ["ApplicationLink"] = clientLink,
             ["System Name"] = ctx.SystemName,
             ["SystemName"] = ctx.SystemName,
-            ["Support Email"] = ctx.SupportEmail,
-            ["SupportEmail"] = ctx.SupportEmail
+            ["Tenant Name"] = ctx.TenantName,
+            ["TenantName"] = ctx.TenantName,
+            ["Tenant Email"] = ctx.TenantEmail,
+            ["TenantEmail"] = ctx.TenantEmail,
+            ["Support Email"] = ctx.TenantEmail,
+            ["SupportEmail"] = ctx.TenantEmail,
+            ["NTC Logo"] = $"cid:{SmtpEmailService.NtcLogoContentId}",
+            ["NtcLogo"] = $"cid:{SmtpEmailService.NtcLogoContentId}"
         };
     }
 
@@ -698,6 +708,26 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
         var internalPortalBaseUrl = _emailOptions.InternalPortalBaseUrl;
         var systemName = "NTC EDGE Portal";
         var supportEmail = "support@ntc.gov.ph";
+        var tenantName = !string.IsNullOrWhiteSpace(app.Tenant?.Name)
+            ? app.Tenant!.Name.Trim()
+            : (!string.IsNullOrWhiteSpace(app.Office) ? app.Office.Trim() : "NTC Regional Office");
+        var tenantEmail = string.Empty;
+
+        if (app.TenantId != Guid.Empty)
+        {
+            var regionalConfig = await _regionalConfigService.GetConfigurationAsync(app.TenantId, cancellationToken);
+            if (regionalConfig != null)
+            {
+                if (!string.IsNullOrWhiteSpace(regionalConfig.SupportEmail))
+                {
+                    tenantEmail = regionalConfig.SupportEmail.Trim();
+                }
+                if (string.IsNullOrWhiteSpace(app.Tenant?.Name) && !string.IsNullOrWhiteSpace(regionalConfig.TenantName))
+                {
+                    tenantName = regionalConfig.TenantName.Trim();
+                }
+            }
+        }
 
         if (_systemConfigRepository != null)
         {
@@ -726,6 +756,11 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
             }
         }
 
+        if (string.IsNullOrWhiteSpace(tenantEmail))
+        {
+            tenantEmail = supportEmail;
+        }
+
         return new ResolvedApplicationContext
         {
             ClientEmail = clientEmail?.Trim() ?? string.Empty,
@@ -750,6 +785,8 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
             ClientPortalBaseUrl = clientPortalBaseUrl,
             InternalPortalBaseUrl = internalPortalBaseUrl,
             SystemName = systemName,
+            TenantName = tenantName,
+            TenantEmail = tenantEmail,
             SupportEmail = supportEmail
         };
     }
@@ -878,6 +915,8 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
         public string ClientPortalBaseUrl { get; init; } = "http://localhost:8081";
         public string InternalPortalBaseUrl { get; init; } = "http://localhost:8082";
         public string SystemName { get; init; } = "NTC EDGE Portal";
+        public string TenantName { get; init; } = "NTC Regional Office";
+        public string TenantEmail { get; init; } = "region10@ntc.gov.ph";
         public string SupportEmail { get; init; } = "support@ntc.gov.ph";
     }
 }

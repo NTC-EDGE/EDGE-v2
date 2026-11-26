@@ -88,6 +88,36 @@ public class RegionalConfigurationService : IRegionalConfigurationService
             || !bool.TryParse(enableInternalEmailConfig.Value, out var parsedInternalEmail)
             || parsedInternalEmail;
 
+        string? mainFieldOfficeEmail = null;
+        string? mainFieldOfficePhone = null;
+        if (resolvedTenantId != Guid.Empty && (string.IsNullOrWhiteSpace(emailConfig?.Value) || string.IsNullOrWhiteSpace(phoneConfig?.Value)))
+        {
+            var mainOffice = await _context.FieldOffices
+                .AsNoTracking()
+                .Where(f => f.TenantId == resolvedTenantId && !f.IsDeleted && f.IsActive)
+                .OrderBy(f => f.Category == EDGE.Domain.Enums.FieldOfficeCategory.Main ? 0 : 1)
+                .ThenBy(f => f.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            mainFieldOfficeEmail = mainOffice?.ContactEmail?.Trim();
+            mainFieldOfficePhone = mainOffice?.ContactPhone?.Trim();
+        }
+
+        var defaultEmailSlug = (tenantCode ?? "region10")
+            .ToLowerInvariant()
+            .Replace("ntc-", "")
+            .Replace("ntc", "")
+            .Replace(" ", "")
+            .Trim('-');
+        if (string.IsNullOrWhiteSpace(defaultEmailSlug))
+        {
+            defaultEmailSlug = "region10";
+        }
+        else if (int.TryParse(defaultEmailSlug, out var numCode))
+        {
+            defaultEmailSlug = $"region{numCode}";
+        }
+
         return new RegionalConfigurationDto
         {
             TenantId = resolvedTenantId,
@@ -98,8 +128,16 @@ public class RegionalConfigurationService : IRegionalConfigurationService
             RcCodeOp = !string.IsNullOrWhiteSpace(opConfig?.Value) ? opConfig.Value : cleanCode,
             FundCluster = !string.IsNullOrWhiteSpace(fundConfig?.Value) ? fundConfig.Value : "01",
             RequestAndComplaintRouting = !string.IsNullOrWhiteSpace(routingConfig?.Value) ? routingConfig.Value : "DirectToLegal",
-            SupportEmail = !string.IsNullOrWhiteSpace(emailConfig?.Value) ? emailConfig.Value : "region10@ntc.gov.ph",
-            SupportPhone = !string.IsNullOrWhiteSpace(phoneConfig?.Value) ? phoneConfig.Value : "(088) 856-1234 / (02) 8924-4008",
+            SupportEmail = !string.IsNullOrWhiteSpace(emailConfig?.Value)
+                ? emailConfig.Value.Trim()
+                : (!string.IsNullOrWhiteSpace(mainFieldOfficeEmail)
+                    ? mainFieldOfficeEmail
+                    : $"{defaultEmailSlug}@ntc.gov.ph"),
+            SupportPhone = !string.IsNullOrWhiteSpace(phoneConfig?.Value)
+                ? phoneConfig.Value.Trim()
+                : (!string.IsNullOrWhiteSpace(mainFieldOfficePhone)
+                    ? mainFieldOfficePhone
+                    : "(088) 856-1234 / (02) 8924-4008"),
             AllowManualSoaNumber = allowManualSoa,
             AllowManualOpNumber = allowManualOp,
             EnableInternalEmailNotifications = enableInternalEmail
