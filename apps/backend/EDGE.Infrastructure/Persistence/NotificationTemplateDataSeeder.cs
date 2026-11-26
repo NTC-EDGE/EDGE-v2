@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using EDGE.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -235,7 +236,7 @@ public static class NotificationTemplateDataSeeder
                 EventKey = "External_ApplicationApprovedReadyForPayment",
                 Name = "Applicant - Application Approved and Ready for Payment",
                 Subject = "Approved & Ready for Payment – {Service Name} ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{Exam Date},{Fee 1},{Amount},{Fee 2},{Total},{Application Link}",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{OP Number},{Due Date},{Fee Breakdown Rows},{Total},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -272,14 +273,14 @@ public static class NotificationTemplateDataSeeder
         </div>
         <h2 style=""font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Congratulations {Applicant Name}!</h2>
         <p style=""font-size: 14px; color: #334155; margin: 0 0 18px 0; line-height: 1.6;"">
-          Your application has been reviewed and approved. To complete processing and release your official document, please proceed with payment.
+          Your application has been reviewed and approved. Your Statement of Account (SOA) and Order of Payment (OP) have been issued. To complete processing and release your official document, please proceed with payment.
         </p>
 
-        <!-- Order of Payment Table -->
-        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; width: 100%; box-sizing: border-box;"">
+        <!-- Order of Payment & Assessment Summary Table -->
+        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px; overflow: hidden; width: 100%; box-sizing: border-box;"">
           <tr>
             <td colspan=""2"" style=""background-color: #f1f5f9; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;"">
-              Order of Payment (OP) Details
+              Order of Payment (OP) &amp; Billing Summary
             </td>
           </tr>
           <tr>
@@ -287,20 +288,34 @@ public static class NotificationTemplateDataSeeder
             <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; font-family: monospace; word-break: break-all; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
           </tr>
           <tr>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Statement of Account No.</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 700; color: #0284c7; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{SOA Number}</td>
+          </tr>
+          <tr>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Order of Payment No.</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 700; color: #059669; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{OP Number}</td>
+          </tr>
+          <tr>
             <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Service</td>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #f1f5f9;"">{Service Name}</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #f1f5f9;"">{Service Name} ({Service Variant})</td>
           </tr>
           <tr>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">{Fee 1}</td>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 600; color: #334155; border-bottom: 1px solid #f1f5f9;"">₱{Amount}</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b;"">Payment Due Date</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 700; color: #b45309;"">{Due Date}</td>
           </tr>
+        </table>
+
+        <!-- Assessment Fee Breakdown Table (Matches Client Portal UI) -->
+        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; width: 100%; box-sizing: border-box;"">
           <tr>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #e2e8f0;"">{Fee 2}</td>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 600; color: #334155; border-bottom: 1px solid #e2e8f0;"">₱{Amount}</td>
+            <td colspan=""2"" style=""background-color: #f0f9ff; padding: 10px 14px; border-bottom: 1px solid #bae6fd; font-size: 11px; font-weight: 700; color: #0369a1; text-transform: uppercase; letter-spacing: 0.4px;"">
+              Assessment Fee Breakdown
+            </td>
           </tr>
+          {Fee Breakdown Rows}
           <tr style=""background-color: #eff6ff;"">
-            <td class=""ntc-table-cell"" style=""padding: 12px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a;"">Total Amount Due</td>
-            <td class=""ntc-table-cell"" style=""padding: 12px 14px; font-size: 16px; font-weight: 800; color: #1e3a8a;"">₱{Total}</td>
+            <td class=""ntc-table-cell"" style=""padding: 12px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; border-top: 1px solid #cbd5e1;"">Total Amount Payable</td>
+            <td class=""ntc-table-cell"" style=""padding: 12px 14px; font-size: 16px; font-weight: 800; color: #1e3a8a; text-align: right; border-top: 1px solid #cbd5e1;"">₱{Total}</td>
           </tr>
         </table>
 
@@ -316,7 +331,7 @@ public static class NotificationTemplateDataSeeder
         </table>
 
         <div style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #475569; margin-bottom: 20px; line-height: 1.6;"">
-          <strong>Payment Channels Available:</strong> Online Banking, E-Wallets, Over-the-Counter, and Commercial Check deposit.
+          <strong>Payment Modes in Portal:</strong> Online / E-Payment (LandBank Link.BizPortal, GCash, Maya, Bank Transfer), Check Payment (Manager&rsquo;s / Corporate Check), Cashier Over-the-Counter (Walk-In Cash), or Combination / Split Payment.
         </div>
 
         <p style=""font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;"">
@@ -435,11 +450,11 @@ public static class NotificationTemplateDataSeeder
             },
             new()
             {
-                Id = Guid.Parse("80000000-0000-0000-0000-000000000005"),
-                EventKey = "External_ResetPassword",
-                Name = "Applicant - Reset Password",
-                Subject = "Reset Your NTC EDGE Password",
-                AvailablePlaceholders = "{User Name},{Reset Password Link},{Expiration Time}",
+                Id = Guid.Parse("80000000-0000-0000-0000-000000000012"),
+                EventKey = "External_PaymentConfirmedForIssuance",
+                Name = "Applicant - Payment Verified & Official Receipt Issued",
+                Subject = "Payment Confirmed (OR #{OR Number}) – Processing Official Document ({Reference Number})",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{OP Number},{OR Number},{Fee Breakdown Rows},{Total},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -454,53 +469,76 @@ public static class NotificationTemplateDataSeeder
     .ntc-header { padding: 20px 16px !important; }
     .ntc-body { padding: 20px 16px !important; }
     .ntc-btn { display: block !important; width: 100% !important; text-align: center !important; box-sizing: border-box !important; padding: 14px 16px !important; }
+    .ntc-table-cell { padding: 10px 12px !important; font-size: 12px !important; }
   }
 </style>
 </head>
-<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;"">
+<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;"">
 <div class=""ntc-wrap"" style=""background-color: #f1f5f9; padding: 28px 12px; width: 100%; box-sizing: border-box;"">
-  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
+  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;"">
     <tr>
       <td class=""ntc-header"" style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
         <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
-        <div style=""font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: -0.2px;"">National Telecommunications Commission</div>
-        <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal Account Security</div>
+        <div style=""font-size: 18px; font-weight: 800; color: #ffffff;"">National Telecommunications Commission</div>
+        <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
       </td>
     </tr>
-    <tr><td height=""4"" style=""background: linear-gradient(90deg, #1e3a8a, #3b82f6, #1e3a8a);""></td></tr>
+    <tr><td height=""4"" style=""background: linear-gradient(90deg, #059669, #10b981, #059669);""></td></tr>
     <tr>
       <td class=""ntc-body"" style=""padding: 28px 32px;"">
-        <h2 style=""font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {User Name},</h2>
+        <div style=""display: inline-block; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; color: #065f46; margin-bottom: 16px;"">
+          ✓ Payment Verified • Official Receipt Issued
+        </div>
+        <h2 style=""font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {Applicant Name},</h2>
         <p style=""font-size: 14px; color: #334155; margin: 0 0 18px 0; line-height: 1.6;"">
-          A password reset was requested for your NTC EDGE Portal account. Click the button below to set a new password:
+          Your payment has been verified by the NTC Cashier and your Official Receipt (OR) has been generated. No further payment is required. Your application has been forwarded for final official document and license release.
         </p>
+        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px;"">
+          <tr>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; color: #64748b; width: 42%; border-bottom: 1px solid #f1f5f9;"">Reference No.</td>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
+          </tr>
+          <tr>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Official Receipt (OR)</td>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #059669; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">OR #{OR Number}</td>
+          </tr>
+          <tr>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Statement of Account No.</td>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; font-weight: 600; color: #334155; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{SOA Number}</td>
+          </tr>
+          <tr>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Order of Payment No.</td>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; font-weight: 600; color: #334155; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{OP Number}</td>
+          </tr>
+          <tr>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; color: #64748b;"">Next Step</td>
+            <td class=""ntc-table-cell"" style=""padding: 11px 14px; font-size: 13px; color: #334155;"">Awaiting Final Permit / Certificate / License Release</td>
+          </tr>
+        </table>
 
-        <!-- CTA Button -->
+        <!-- Paid Fee Particulars Table -->
+        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden;"">
+          <tr>
+            <td colspan=""2"" style=""background-color: #ecfdf5; padding: 10px 14px; border-bottom: 1px solid #a7f3d0; font-size: 11px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.4px;"">
+              Official Receipt Fee Particulars
+            </td>
+          </tr>
+          {Fee Breakdown Rows}
+          <tr style=""background-color: #ecfdf5;"">
+            <td class=""ntc-table-cell"" style=""padding: 12px 14px; font-size: 13px; font-weight: 700; color: #065f46; border-top: 1px solid #a7f3d0;"">Total Amount Paid</td>
+            <td class=""ntc-table-cell"" style=""padding: 12px 14px; font-size: 16px; font-weight: 800; color: #047857; text-align: right; border-top: 1px solid #a7f3d0;"">₱{Total}</td>
+          </tr>
+        </table>
+
         <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""margin: 22px 0;"">
           <tr>
             <td align=""center"">
-              <a href=""{Reset Password Link}"" target=""_blank"" class=""ntc-btn"" style=""display: inline-block; padding: 13px 34px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #1e3a8a; text-decoration: none; border-radius: 8px; box-shadow: 0 2px 4px rgba(30, 58, 138, 0.2);"">
-                Reset Password &rarr;
+              <a href=""{Application Link}"" target=""_blank"" class=""ntc-btn"" style=""display: inline-block; padding: 13px 32px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #059669; text-decoration: none; border-radius: 8px;"">
+                View Official Receipt &amp; Application &rarr;
               </a>
             </td>
           </tr>
         </table>
-
-        <div style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #64748b; margin-bottom: 20px; line-height: 1.5;"">
-          ⏱ <strong>Notice:</strong> This link will expire in <strong>{Expiration Time}</strong>. If you did not request a password reset, you can safely ignore this email.
-        </div>
-
-        <p style=""font-size: 13px; color: #64748b; margin: 0;"">
-          Support: <a href=""mailto:edge@ntc.gov.ph"" style=""color: #2563eb; text-decoration: none; font-weight: 600;"">edge@ntc.gov.ph</a>
-        </p>
-      </td>
-    </tr>
-    <!-- Footer -->
-    <tr>
-      <td style=""background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center;"">
-        <p style=""font-size: 11px; color: #cbd5e1; margin: 0;"">
-          &copy; 2026 National Telecommunications Commission • Republic of the Philippines.
-        </p>
       </td>
     </tr>
   </table>
@@ -596,97 +634,11 @@ public static class NotificationTemplateDataSeeder
             },
             new()
             {
-                Id = Guid.Parse("80000000-0000-0000-0000-000000000007"),
-                EventKey = "Internal_ApplicationEndorsed",
-                Name = "NTC Personnel - Application Endorsed (Approving Personnel)",
-                Subject = "Endorsed for Approval – {Reference Number} ({Applicant Name})",
-                AvailablePlaceholders = "{Approving Personnel Name},{Reference Number},{Applicant Name},{Service Name},{Service Variant},{Evaluator Name},{Date Endorsed},{Application Link}",
-                IsActive = true,
-                CreatedAt = staticDate,
-                BodyHtml = @"<!DOCTYPE html>
-<html>
-<head>
-<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
-<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"" />
-<style>
-  @media only screen and (max-width: 620px) {
-    .ntc-wrap { padding: 12px 8px !important; }
-    .ntc-card { width: 100% !important; border-radius: 12px !important; }
-    .ntc-header { padding: 20px 16px !important; }
-    .ntc-body { padding: 20px 16px !important; }
-    .ntc-btn { display: block !important; width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
-    .ntc-table-cell { padding: 10px 12px !important; font-size: 12px !important; }
-  }
-</style>
-</head>
-<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;"">
-<div class=""ntc-wrap"" style=""background-color: #f1f5f9; padding: 28px 12px; width: 100%; box-sizing: border-box;"">
-  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
-    <tr>
-      <td class=""ntc-header"" style=""background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px; text-align: center;"">
-        <div style=""font-size: 10px; font-weight: 700; color: #a855f7; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px;"">NTC EDGE Internal Notification</div>
-        <div style=""font-size: 16px; font-weight: 700; color: #ffffff;"">Application Endorsed for Approval</div>
-      </td>
-    </tr>
-    <tr><td height=""3"" style=""background: #9333ea;""></td></tr>
-    <tr>
-      <td class=""ntc-body"" style=""padding: 26px 32px;"">
-        <h3 style=""font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {Approving Personnel Name},</h3>
-        <p style=""font-size: 13px; color: #334155; margin: 0 0 16px 0; line-height: 1.5;"">
-          The following application has completed evaluator review with all compliance requirements verified and is endorsed for your executive action.
-        </p>
-
-        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 20px; width: 100%; box-sizing: border-box;"">
-          <tr>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; width: 36%; border-bottom: 1px solid #f1f5f9;"">Ref Number</td>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; font-weight: 700; color: #9333ea; font-family: monospace; word-break: break-all; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
-          </tr>
-          <tr>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Applicant</td>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #f1f5f9;"">{Applicant Name}</td>
-          </tr>
-          <tr>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Service</td>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #334155; border-bottom: 1px solid #f1f5f9;"">{Service Name} ({Service Variant})</td>
-          </tr>
-          <tr>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Endorsed By</td>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; font-weight: 600; color: #334155; border-bottom: 1px solid #f1f5f9;"">{Evaluator Name}</td>
-          </tr>
-          <tr>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b;"">Date Endorsed</td>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #334155;"">{Date Endorsed}</td>
-          </tr>
-        </table>
-
-        <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""margin: 20px 0;"">
-          <tr>
-            <td align=""center"">
-              <a href=""{Application Link}"" target=""_blank"" class=""ntc-btn"" style=""display: inline-block; padding: 12px 28px; font-size: 13px; font-weight: 600; color: #ffffff; background-color: #9333ea; text-decoration: none; border-radius: 6px;"">
-                Review &amp; Approve &rarr;
-              </a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td style=""background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 14px; text-align: center; font-size: 11px; color: #94a3b8;"">
-        NTC Internal Operations Workflow • Automated Notification
-      </td>
-    </tr>
-  </table>
-</div>
-</body>
-</html>"
-            },
-            new()
-            {
                 Id = Guid.Parse("80000000-0000-0000-0000-000000000008"),
                 EventKey = "Internal_ApplicationApproved",
                 Name = "NTC Personnel - Application Approved (Accountant)",
                 Subject = "Action Required: Generate SOA & OP – {Reference Number}",
-                AvailablePlaceholders = "{Accountant Name},{Reference Number},{Applicant Name},{Service Name},{Service Variant},{Approving Personnel Name},{Approval Date},{Application Link}",
+                AvailablePlaceholders = "{Accountant Name},{Reference Number},{Applicant Name},{Service Name},{Service Variant},{SOA Number},{Total},{Approving Personnel Name},{Approval Date},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -719,7 +671,7 @@ public static class NotificationTemplateDataSeeder
       <td class=""ntc-body"" style=""padding: 26px 32px;"">
         <h3 style=""font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {Accountant Name},</h3>
         <p style=""font-size: 13px; color: #334155; margin: 0 0 16px 0; line-height: 1.5;"">
-          An application has received executive approval. Please assess fees and generate the Statement of Account (SOA) and Order of Payment (OP).
+          An application has passed technical evaluation. Please review the Statement of Account (SOA) and approve/issue the Order of Payment (OP).
         </p>
 
         <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 20px; width: 100%; box-sizing: border-box;"">
@@ -736,7 +688,11 @@ public static class NotificationTemplateDataSeeder
             <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #334155; border-bottom: 1px solid #f1f5f9;"">{Service Name} ({Service Variant})</td>
           </tr>
           <tr>
-            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Approved By</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">SOA Number / Total</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;"">{SOA Number} (₱{Total})</td>
+          </tr>
+          <tr>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Evaluated By</td>
             <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #334155; border-bottom: 1px solid #f1f5f9;"">{Approving Personnel Name}</td>
           </tr>
           <tr>
@@ -749,7 +705,7 @@ public static class NotificationTemplateDataSeeder
           <tr>
             <td align=""center"">
               <a href=""{Application Link}"" target=""_blank"" class=""ntc-btn"" style=""display: inline-block; padding: 12px 28px; font-size: 13px; font-weight: 600; color: #ffffff; background-color: #059669; text-decoration: none; border-radius: 6px;"">
-                Generate SOA &amp; OP &rarr;
+                Review SOA &amp; Issue OP &rarr;
               </a>
             </td>
           </tr>
@@ -772,7 +728,7 @@ public static class NotificationTemplateDataSeeder
                 EventKey = "Internal_ApplicationProceededToPayment",
                 Name = "NTC Personnel - Application Proceeded to Payment (Cashier)",
                 Subject = "Payment Verification Queue – {Reference Number}",
-                AvailablePlaceholders = "{Cashier Name},{Reference Number},{Applicant Name},{Service Name},{Service Variant},{Payment Method},{Payment Submission Date},{Application Link}",
+                AvailablePlaceholders = "{Cashier Name},{Reference Number},{Applicant Name},{Service Name},{Service Variant},{OP Number},{Total},{Payment Method},{Payment Submission Date},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -812,6 +768,10 @@ public static class NotificationTemplateDataSeeder
           <tr>
             <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; width: 36%; border-bottom: 1px solid #f1f5f9;"">Ref Number</td>
             <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; font-weight: 700; color: #d97706; font-family: monospace; word-break: break-all; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
+          </tr>
+          <tr>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Order of Payment</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; font-weight: 700; color: #059669; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{OP Number} (₱{Total})</td>
           </tr>
           <tr>
             <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Applicant</td>
@@ -854,11 +814,11 @@ public static class NotificationTemplateDataSeeder
             },
             new()
             {
-                Id = Guid.Parse("80000000-0000-0000-0000-000000000010"),
-                EventKey = "Internal_ResetPassword",
-                Name = "NTC Personnel - Reset Password",
-                Subject = "Security Alert: Reset Your NTC Staff Password",
-                AvailablePlaceholders = "{User Name},{Reset Password Link},{Expiration Time}",
+                Id = Guid.Parse("80000000-0000-0000-0000-000000000011"),
+                EventKey = "External_ApplicationUnderAccountingReview",
+                Name = "Applicant - Technical Evaluation Approved (Statement of Account & Fee Breakdown)",
+                Subject = "Technical Evaluation Approved – Fee Assessment ({Reference Number})",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{SOA Number},{Due Date},{Fee Breakdown Rows},{Total},{Next Step Notice},{Application Link}",
                 IsActive = true,
                 CreatedAt = staticDate,
                 BodyHtml = @"<!DOCTYPE html>
@@ -872,72 +832,16 @@ public static class NotificationTemplateDataSeeder
     .ntc-card { width: 100% !important; border-radius: 12px !important; }
     .ntc-header { padding: 20px 16px !important; }
     .ntc-body { padding: 20px 16px !important; }
-    .ntc-btn { display: block !important; width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+    .ntc-btn { display: block !important; width: 100% !important; text-align: center !important; box-sizing: border-box !important; padding: 14px 16px !important; }
+    .ntc-table-cell { padding: 10px 12px !important; font-size: 12px !important; }
   }
 </style>
 </head>
-<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;"">
-<div class=""ntc-wrap"" style=""background-color: #f1f5f9; padding: 28px 12px; width: 100%; box-sizing: border-box;"">
-  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);"">
-    <tr>
-      <td class=""ntc-header"" style=""background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px; text-align: center;"">
-        <div style=""font-size: 10px; font-weight: 700; color: #ef4444; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px;"">NTC Information Technology Department</div>
-        <div style=""font-size: 16px; font-weight: 700; color: #ffffff;"">Staff Password Reset Request</div>
-      </td>
-    </tr>
-    <tr><td height=""3"" style=""background: #dc2626;""></td></tr>
-    <tr>
-      <td class=""ntc-body"" style=""padding: 26px 32px;"">
-        <h3 style=""font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {User Name},</h3>
-        <p style=""font-size: 13px; color: #334155; margin: 0 0 16px 0; line-height: 1.5;"">
-          A password reset was requested for your internal NTC staff account. To configure your new password, click the button below:
-        </p>
-
-        <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""margin: 20px 0;"">
-          <tr>
-            <td align=""center"">
-              <a href=""{Reset Password Link}"" target=""_blank"" class=""ntc-btn"" style=""display: inline-block; padding: 12px 30px; font-size: 13px; font-weight: 600; color: #ffffff; background-color: #0f172a; text-decoration: none; border-radius: 6px;"">
-                Reset Staff Password &rarr;
-              </a>
-            </td>
-          </tr>
-        </table>
-
-        <div style=""background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #991b1b; margin-bottom: 16px; line-height: 1.4;"">
-          ⚠️ This link expires in <strong>{Expiration Time}</strong>. If you did not make this request, notify IT Security immediately.
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td style=""background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 14px; text-align: center; font-size: 11px; color: #94a3b8;"">
-        NTC Cybersecurity &amp; Infrastructure Division • Confidential
-      </td>
-    </tr>
-  </table>
-</div>
-</body>
-</html>"
-            },
-            new()
-            {
-                Id = Guid.Parse("80000000-0000-0000-0000-000000000011"),
-                EventKey = "External_ApplicationUnderAccountingReview",
-                Name = "Applicant - Technical Evaluation Approved (Fee Assessment in Progress)",
-                Subject = "Technical Evaluation Approved – Fee Assessment in Progress ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{Next Step Notice},{Application Link}",
-                IsActive = true,
-                CreatedAt = staticDate,
-                BodyHtml = @"<!DOCTYPE html>
-<html>
-<head>
-<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
-<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"" />
-</head>
 <body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;"">
-<div style=""background-color: #f1f5f9; padding: 28px 12px; width: 100%; box-sizing: border-box;"">
-  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;"">
+<div class=""ntc-wrap"" style=""background-color: #f1f5f9; padding: 28px 12px; width: 100%; box-sizing: border-box;"">
+  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" class=""ntc-card"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;"">
     <tr>
-      <td style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+      <td class=""ntc-header"" style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
         <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
         <div style=""font-size: 18px; font-weight: 800; color: #ffffff;"">National Telecommunications Commission</div>
         <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
@@ -945,102 +849,48 @@ public static class NotificationTemplateDataSeeder
     </tr>
     <tr><td height=""4"" style=""background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);""></td></tr>
     <tr>
-      <td style=""padding: 28px 32px;"">
+      <td class=""ntc-body"" style=""padding: 28px 32px;"">
         <div style=""display: inline-block; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; color: #1d4ed8; margin-bottom: 16px;"">
-          ✓ Technical Evaluation Approved • Accounting Review
+          ✓ Technical Evaluation Approved • Statement of Account (SOA)
         </div>
         <h2 style=""font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {Applicant Name},</h2>
         <p style=""font-size: 14px; color: #334155; margin: 0 0 18px 0; line-height: 1.6;"">
           {Next Step Notice}
         </p>
-        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px;"">
+        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px;"">
           <tr>
-            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; width: 38%; border-bottom: 1px solid #f1f5f9;"">Reference No.</td>
-            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b; width: 42%; border-bottom: 1px solid #f1f5f9;"">Reference No.</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
           </tr>
           <tr>
-            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Service</td>
-            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #f1f5f9;"">{Service Name}</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Statement of Account No.</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 700; color: #0284c7; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{SOA Number}</td>
           </tr>
           <tr>
-            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b;"">Payment Status</td>
-            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #2563eb;"">No Payment Required Yet (Awaiting Order of Payment)</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #64748b;"">Service</td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1e293b;"">{Service Name} ({Service Variant})</td>
           </tr>
         </table>
-        <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""margin: 22px 0;"">
+
+        <!-- Assessment Fee Breakdown Table -->
+        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden;"">
           <tr>
-            <td align=""center"">
-              <a href=""{Application Link}"" target=""_blank"" style=""display: inline-block; padding: 13px 32px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #1e3a8a; text-decoration: none; border-radius: 8px;"">
-                Track Application Status &rarr;
-              </a>
+            <td colspan=""2"" style=""background-color: #f0f9ff; padding: 10px 14px; border-bottom: 1px solid #bae6fd; font-size: 11px; font-weight: 700; color: #0369a1; text-transform: uppercase; letter-spacing: 0.4px;"">
+              Statement of Account Fee Breakdown
             </td>
           </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</div>
-</body>
-</html>"
-            },
-            new()
-            {
-                Id = Guid.Parse("80000000-0000-0000-0000-000000000012"),
-                EventKey = "External_PaymentConfirmedForIssuance",
-                Name = "Applicant - Payment Verified & Official Receipt Issued",
-                Subject = "Payment Confirmed (OR #{OR Number}) – Processing Official Document ({Reference Number})",
-                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{OR Number},{Total},{Application Link}",
-                IsActive = true,
-                CreatedAt = staticDate,
-                BodyHtml = @"<!DOCTYPE html>
-<html>
-<head>
-<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
-<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"" />
-</head>
-<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;"">
-<div style=""background-color: #f1f5f9; padding: 28px 12px; width: 100%; box-sizing: border-box;"">
-  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;"">
-    <tr>
-      <td style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
-        <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
-        <div style=""font-size: 18px; font-weight: 800; color: #ffffff;"">National Telecommunications Commission</div>
-        <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
-      </td>
-    </tr>
-    <tr><td height=""4"" style=""background: linear-gradient(90deg, #059669, #10b981, #059669);""></td></tr>
-    <tr>
-      <td style=""padding: 28px 32px;"">
-        <div style=""display: inline-block; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; color: #065f46; margin-bottom: 16px;"">
-          ✓ Payment Verified • Official Receipt Issued
-        </div>
-        <h2 style=""font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {Applicant Name},</h2>
-        <p style=""font-size: 14px; color: #334155; margin: 0 0 18px 0; line-height: 1.6;"">
-          Your payment has been verified by the NTC Cashier and your Official Receipt (OR) has been generated. No further payment is required. Your application has been forwarded for final official document and license release.
-        </p>
-        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px;"">
-          <tr>
-            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; width: 42%; border-bottom: 1px solid #f1f5f9;"">Reference No.</td>
-            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
-          </tr>
-          <tr>
-            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Official Receipt (OR)</td>
-            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #059669; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">OR #{OR Number}</td>
-          </tr>
-          <tr>
-            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Amount Paid</td>
-            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;"">₱{Total}</td>
-          </tr>
-          <tr>
-            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b;"">Next Step</td>
-            <td style=""padding: 11px 14px; font-size: 13px; color: #334155;"">Awaiting Final Permit / Certificate / License Release</td>
+          {Fee Breakdown Rows}
+          <tr style=""background-color: #eff6ff;"">
+            <td class=""ntc-table-cell"" style=""padding: 12px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; border-top: 1px solid #cbd5e1;"">Total Assessment Amount</td>
+            <td class=""ntc-table-cell"" style=""padding: 12px 14px; font-size: 16px; font-weight: 800; color: #1e3a8a; text-align: right; border-top: 1px solid #cbd5e1;"">₱{Total}</td>
           </tr>
         </table>
+
         <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""margin: 22px 0;"">
           <tr>
             <td align=""center"">
-              <a href=""{Application Link}"" target=""_blank"" style=""display: inline-block; padding: 13px 32px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #059669; text-decoration: none; border-radius: 8px;"">
-                View Official Receipt &amp; Application &rarr;
+              <a href=""{Application Link}"" target=""_blank"" class=""ntc-btn"" style=""display: inline-block; padding: 13px 32px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #1e3a8a; text-decoration: none; border-radius: 8px;"">
+                View Statement of Account &amp; Application &rarr;
               </a>
             </td>
           </tr>
@@ -1055,6 +905,25 @@ public static class NotificationTemplateDataSeeder
         };
 
         bool anyChange = false;
+        var obsoleteEventKeys = new[]
+        {
+            "External_ResetPassword",
+            "Internal_ResetPassword",
+            "Internal_ApplicationEndorsed"
+        };
+
+        var obsoleteTemplates = await context.NotificationTemplates
+            .IgnoreQueryFilters()
+            .Where(t => obsoleteEventKeys.Contains(t.EventKey) && !t.IsDeleted)
+            .ToListAsync();
+
+        foreach (var obsolete in obsoleteTemplates)
+        {
+            obsolete.IsDeleted = true;
+            obsolete.IsActive = false;
+            anyChange = true;
+        }
+
         foreach (var template in templates)
         {
             var existing = await context.NotificationTemplates.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.EventKey == template.EventKey || t.Id == template.Id);
@@ -1063,21 +932,32 @@ public static class NotificationTemplateDataSeeder
                 await context.NotificationTemplates.AddAsync(template);
                 anyChange = true;
             }
-            else if (existing.IsDeleted ||
-                     existing.Name != template.Name ||
-                     existing.Subject != template.Subject ||
-                     existing.BodyHtml != template.BodyHtml ||
-                     existing.AvailablePlaceholders != template.AvailablePlaceholders ||
-                     existing.IsActive != template.IsActive)
+            else
             {
-                existing.IsDeleted = false;
-                existing.IsDeletedBy = string.Empty;
-                existing.Name = template.Name;
-                existing.Subject = template.Subject;
-                existing.BodyHtml = template.BodyHtml;
-                existing.AvailablePlaceholders = template.AvailablePlaceholders;
-                existing.IsActive = template.IsActive;
-                anyChange = true;
+                bool hasLegacyBrokenFees =
+                    existing.BodyHtml.Contains("{Fee 2}", StringComparison.OrdinalIgnoreCase) &&
+                    existing.BodyHtml.IndexOf("₱{Amount}", StringComparison.OrdinalIgnoreCase) !=
+                    existing.BodyHtml.LastIndexOf("₱{Amount}", StringComparison.OrdinalIgnoreCase);
+
+                bool isUnmodifiedByAdmin = !existing.LastModifiedAt.HasValue;
+
+                if (existing.IsDeleted ||
+                    existing.Name != template.Name ||
+                    existing.AvailablePlaceholders != template.AvailablePlaceholders ||
+                    hasLegacyBrokenFees ||
+                    (isUnmodifiedByAdmin && (existing.Subject != template.Subject || existing.BodyHtml != template.BodyHtml)))
+                {
+                    existing.IsDeleted = false;
+                    existing.IsDeletedBy = string.Empty;
+                    existing.Name = template.Name;
+                    existing.AvailablePlaceholders = template.AvailablePlaceholders;
+                    if (hasLegacyBrokenFees || isUnmodifiedByAdmin)
+                    {
+                        existing.Subject = template.Subject;
+                        existing.BodyHtml = template.BodyHtml;
+                    }
+                    anyChange = true;
+                }
             }
         }
 

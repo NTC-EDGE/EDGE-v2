@@ -220,15 +220,18 @@ export default function NotificationTemplatesPage() {
                   <div>
                     <p className="text-[10px] font-semibold uppercase text-slate-600 dark:text-slate-400 tracking-wider mb-2">Available Placeholders</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {t.availablePlaceholders.split(",").map((p) => (
-                        <span
-                          key={p}
-                          className="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-0.5 bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-300 rounded-md border border-slate-200 dark:border-slate-800"
-                        >
-                          <Tag className="h-2.5 w-2.5 text-indigo-600 dark:text-indigo-400" />
-                          {p.trim()}
-                        </span>
-                      ))}
+                      {t.availablePlaceholders.split(",").map((p) => {
+                        const cleanName = p.trim().replace(/^\{+|\}+$/g, "").trim();
+                        return (
+                          <span
+                            key={cleanName}
+                            className="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-0.5 bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-300 rounded-md border border-slate-200 dark:border-slate-800"
+                          >
+                            <Tag className="h-2.5 w-2.5 text-indigo-600 dark:text-indigo-400" />
+                            {`{${cleanName}}`}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -280,20 +283,21 @@ export default function NotificationTemplatesPage() {
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedTemplate.availablePlaceholders.split(",").map((p) => {
-                      const trimmed = p.trim();
+                      const cleanName = p.trim().replace(/^\{+|\}+$/g, "").trim();
+                      const tagText = `{${cleanName}}`;
                       return (
                         <button
-                          key={trimmed}
+                          key={cleanName}
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(`{{${trimmed}}}`);
-                            setToast({ message: `Copied {{${trimmed}}} to clipboard!`, type: "info" });
+                            navigator.clipboard.writeText(tagText);
+                            setToast({ message: `Copied ${tagText} to clipboard!`, type: "info" });
                           }}
                           className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 rounded-md border border-slate-200 dark:border-slate-800 hover:border-indigo-300 transition-colors"
                           title="Click to copy variable tag"
                         >
                           <Tag className="h-2.5 w-2.5" />
-                          <span>{`{{${trimmed}}}`}</span>
+                          <span>{tagText}</span>
                         </button>
                       );
                     })}

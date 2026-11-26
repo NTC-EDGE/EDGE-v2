@@ -453,6 +453,23 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
         }
 
         var result = templateText;
+
+        // If a template uses a table row with a placeholder whose actual value is empty (e.g. {Fee 2}, {OP Number}, {SOA Number}, {Due Date}),
+        // remove that table row so we never display fields that are not present in the actual SOA/OP data.
+        var optionalRowKeys = new[] { "Fee 1", "Fee 2", "SOA Number", "SoaNumber", "OP Number", "OpNumber", "Due Date", "DueDate", "Exam Date" };
+        foreach (var optKey in optionalRowKeys)
+        {
+            if (placeholders.TryGetValue(optKey, out var optVal) && string.IsNullOrWhiteSpace(optVal))
+            {
+                var escapedOpt = Regex.Escape(optKey);
+                result = Regex.Replace(
+                    result,
+                    @"<tr[^>]*>(?:(?!</tr)[\s\S])*?\{\{?\s*" + escapedOpt + @"\s*\}?\}(?:(?!</tr)[\s\S])*?</tr>",
+                    string.Empty,
+                    RegexOptions.IgnoreCase);
+            }
+        }
+
         foreach (var kvp in placeholders)
         {
             var key = Regex.Escape(kvp.Key);
@@ -487,12 +504,26 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
             ["Submission Date"] = submissionDate,
             ["SubmissionDate"] = submissionDate,
             ["Exam Date"] = ctx.ExamDateFormatted,
+            ["SOA Number"] = ctx.SoaNumber,
+            ["SoaNumber"] = ctx.SoaNumber,
+            ["OP Number"] = ctx.OpNumber,
+            ["OpNumber"] = ctx.OpNumber,
+            ["Due Date"] = ctx.DueDateFormatted,
+            ["DueDate"] = ctx.DueDateFormatted,
+            ["Fee Breakdown Rows"] = ctx.FeeBreakdownRowsHtml,
+            ["FeeBreakdownRows"] = ctx.FeeBreakdownRowsHtml,
+            ["Fee Breakdown"] = ctx.FeeBreakdownRowsHtml,
+            ["FeeBreakdown"] = ctx.FeeBreakdownRowsHtml,
             ["Fee 1"] = ctx.Fee1Name,
+            ["Fee 1 Amount"] = ctx.Fee1AmountFormatted,
             ["Fee 2"] = ctx.Fee2Name,
+            ["Fee 2 Amount"] = ctx.Fee2AmountFormatted,
             ["Amount"] = ctx.Fee1AmountFormatted,
             ["Total"] = ctx.TotalAmountFormatted,
             ["OR Number"] = ctx.OrNumber,
+            ["Official Receipt Number"] = ctx.OrNumber,
             ["License / Permit / Certificate"] = ctx.IssuedDocSummary,
+            ["Issued Document"] = ctx.IssuedDocSummary,
             ["Reasons / Remarks"] = app.Remarks ?? "Please check the portal for details.",
             ["Application Link"] = clientLink,
             ["ApplicationLink"] = clientLink,
@@ -562,25 +593,103 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
                            serviceName.Contains("Spam", StringComparison.OrdinalIgnoreCase) ||
                            serviceName.Contains("Scam", StringComparison.OrdinalIgnoreCase);
 
-        var latestSoa = app.StatementsOfAccount?
-            .Where(s => !s.IsDeleted)
-            .OrderByDescending(s => s.CreatedAt)
-            .FirstOrDefault();
+        var activeSoas = app.StatementsOfAccount?
+            .Where(s => !s.IsDeleted && s.Status != SoaStatus.Returned)
+            .OrderBy(s => s.CreatedAt)
+            .ToList() ?? new List<StatementOfAccount>();
 
-        var latestOp = app.OrdersOfPayment?
-            .Where(o => o.Status != OpStatus.Returned)
-            .OrderByDescending(o => o.CreatedAt)
-            .FirstOrDefault();
+        var latestSoa = activeSoas.LastOrDefault()
+            ?? app.StatementsOfAccount?
+                .Where(s => !s.IsDeleted)
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefault();
 
-        var lineItems = latestSoa?.LineItems?.OrderBy(li => li.Description).ToList() ?? new List<SoaLineItem>();
-        var fee1Name = lineItems.Count > 0 ? lineItems[0].Description : "Regulatory Filing & Processing Fee";
-        var fee1Amount = lineItems.Count > 0 ? lineItems[0].Amount : (latestOp?.AmountDue ?? latestSoa?.TotalAmount ?? 0m);
-        var fee2Name = lineItems.Count > 1 ? lineItems[1].Description : "Documentary Stamp Tax (DST) & Surcharges";
-        var totalAmount = latestOp?.AmountDue ?? latestSoa?.TotalAmount ?? fee1Amount;
+        var activeOps = app.OrdersOfPayment?
+            .Where(o => !o.IsDeleted && o.Status != OpStatus.Returned)
+            .OrderBy(o => o.CreatedAt)
+            .ToList() ?? new List<OrderOfPayment>();
+
+        var latestOp = activeOps.LastOrDefault();
+
+        // Collect only actual line items from the saved SOA(s) with positive amount
+        var rawLineItems = (activeSoas.Count > 1
+                ? activeSoas.SelectMany(s => s.LineItems ?? Enumerable.Empty<SoaLineItem>())
+                : (latestSoa?.LineItems ?? Enumerable.Empty<SoaLineItem>()))
+            .Where(li => (!string.IsNullOrWhiteSpace(li.Particular) || !string.IsNullOrWhiteSpace(li.Description)) && li.Amount > 0m)
+            .ToList();
+
+        var totalAmount = activeOps.Count > 1
+            ? activeOps.Sum(o => o.AmountDue)
+            : (latestOp?.AmountDue ?? (activeSoas.Count > 1
+                ? activeSoas.Sum(s => s.TotalAmount)
+                : (latestSoa?.TotalAmount ?? rawLineItems.Sum(li => li.Amount))));
+
+        static string ResolveLineItemTitle(SoaLineItem li)
+        {
+            if (!string.IsNullOrWhiteSpace(li.Particular)) return li.Particular.Trim();
+            if (!string.IsNullOrWhiteSpace(li.Description)) return li.Description.Trim();
+            return string.Empty;
+        }
+
+        var fee1Name = rawLineItems.Count > 0 ? ResolveLineItemTitle(rawLineItems[0]) : string.Empty;
+        var fee1Amount = rawLineItems.Count > 0 ? rawLineItems[0].Amount : 0m;
+        var fee2Name = rawLineItems.Count > 1 ? ResolveLineItemTitle(rawLineItems[1]) : string.Empty;
+        var fee2Amount = rawLineItems.Count > 1 ? rawLineItems[1].Amount : 0m;
+
+        var soaNumber = activeSoas.Count > 1
+            ? string.Join(", ", activeSoas.Select(s => s.SoaNumber).Where(n => !string.IsNullOrWhiteSpace(n)))
+            : (latestSoa?.SoaNumber?.Trim() ?? string.Empty);
+
+        var opNumber = activeOps.Count > 1
+            ? string.Join(", ", activeOps.Select(o => o.OpNumber).Where(n => !string.IsNullOrWhiteSpace(n)))
+            : (latestOp?.OpNumber?.Trim() ?? string.Empty);
+
+        var dueDateFormatted = latestSoa != null && latestSoa.DueDate != default
+            ? latestSoa.DueDate.ToString("MMM dd, yyyy", CultureInfo.InvariantCulture)
+            : string.Empty;
+
+        var feeRowsBuilder = new System.Text.StringBuilder();
+        for (var i = 0; i < rawLineItems.Count; i++)
+        {
+            var item = rawLineItems[i];
+            var itemTitle = System.Net.WebUtility.HtmlEncode(ResolveLineItemTitle(item));
+            var amount = item.Amount;
+            var rowBg = i % 2 == 1 ? "#f8fafc" : "#ffffff";
+
+            var metaParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(item.ItemCode))
+            {
+                metaParts.Add($"Code: {System.Net.WebUtility.HtmlEncode(item.ItemCode.Trim())}");
+            }
+            if (item.NoOfUnits > 0)
+            {
+                metaParts.Add($"Units: {item.NoOfUnits}");
+            }
+            if (item.ValidityYears > 0)
+            {
+                metaParts.Add($"Validity: {item.ValidityYears} yr(s)");
+            }
+            if (item.FeeRate > 0m)
+            {
+                metaParts.Add($"Rate: &#8369;{item.FeeRate.ToString("N2", CultureInfo.InvariantCulture)}");
+            }
+
+            var metaHtml = metaParts.Count > 0
+                ? $@"<div style=""font-size: 11px; color: #64748b; margin-top: 2px;"">{string.Join(" &bull; ", metaParts)}</div>"
+                : string.Empty;
+
+            feeRowsBuilder.Append($@"
+          <tr style=""background-color: {rowBg};"">
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"">
+              <div style=""font-weight: 700; color: #0f172a;"">{itemTitle}</div>{metaHtml}
+            </td>
+            <td class=""ntc-table-cell"" style=""padding: 10px 14px; font-size: 13px; font-weight: 700; color: #0f172a; text-align: right; white-space: nowrap; border-bottom: 1px solid #f1f5f9;"">&#8369;{amount.ToString("N2", CultureInfo.InvariantCulture)}</td>
+          </tr>");
+        }
 
         var examDateStr = app.Schedule != null
             ? app.Schedule.StartDate.ToString("MMMM dd, yyyy", CultureInfo.InvariantCulture)
-            : "N/A";
+            : string.Empty;
 
         var latestHistory = app.Histories?.OrderByDescending(h => h.Timestamp).FirstOrDefault();
         var latestDoc = app.IssuedDocumentDetails?.OrderByDescending(d => d.CreatedAt).FirstOrDefault();
@@ -625,9 +734,14 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
             ServiceName = serviceName,
             ServiceVariantName = variantName,
             IsRequestOrComplaint = isComplaint,
+            SoaNumber = soaNumber,
+            OpNumber = opNumber,
+            DueDateFormatted = dueDateFormatted,
+            FeeBreakdownRowsHtml = feeRowsBuilder.ToString().Trim(),
             Fee1Name = fee1Name,
             Fee1AmountFormatted = fee1Amount.ToString("N2", CultureInfo.InvariantCulture),
             Fee2Name = fee2Name,
+            Fee2AmountFormatted = fee2Amount > 0m ? fee2Amount.ToString("N2", CultureInfo.InvariantCulture) : string.Empty,
             TotalAmountFormatted = totalAmount.ToString("N2", CultureInfo.InvariantCulture),
             ExamDateFormatted = examDateStr,
             OrNumber = latestOp?.OfficialReceiptNumber ?? latestDoc?.OfficialReceiptNumber ?? "Pending",
@@ -748,9 +862,14 @@ public class ApplicationEmailNotificationService : IApplicationEmailNotification
         public string ServiceName { get; init; } = string.Empty;
         public string ServiceVariantName { get; init; } = string.Empty;
         public bool IsRequestOrComplaint { get; init; }
+        public string SoaNumber { get; init; } = string.Empty;
+        public string OpNumber { get; init; } = string.Empty;
+        public string DueDateFormatted { get; init; } = "30 days from issuance";
+        public string FeeBreakdownRowsHtml { get; init; } = string.Empty;
         public string Fee1Name { get; init; } = string.Empty;
         public string Fee1AmountFormatted { get; init; } = "0.00";
         public string Fee2Name { get; init; } = string.Empty;
+        public string Fee2AmountFormatted { get; init; } = string.Empty;
         public string TotalAmountFormatted { get; init; } = "0.00";
         public string ExamDateFormatted { get; init; } = "N/A";
         public string OrNumber { get; init; } = string.Empty;
