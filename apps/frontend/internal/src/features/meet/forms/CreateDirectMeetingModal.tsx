@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FormFieldInput, ModalDialog, Icon, useTheme } from '@edge/ui';
-import { useUsers, useRegions, ApiUser } from '@edge/api';
+import { useUsers, useRegions, ApiUser, resolveEffectiveTenantId } from '@edge/api';
 import { createDirectMeetingSchema, CreateDirectMeetingFormValues } from '../schemas/meetSchemas';
 
 interface CreateDirectMeetingModalProps {
@@ -20,7 +20,8 @@ export const CreateDirectMeetingModal: React.FC<CreateDirectMeetingModalProps> =
   isSubmitting,
 }) => {
   const { colors, isDark } = useTheme();
-  const { users } = useUsers();
+  const activeTenantId = resolveEffectiveTenantId() ?? undefined;
+  const { users } = useUsers({ tenantId: activeTenantId });
   const { regions } = useRegions();
 
   const {

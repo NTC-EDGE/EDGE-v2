@@ -45,7 +45,7 @@ import {
   ModalInitialData,
 } from '../components/AdminSettingsModal';
 import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
-
+import { useAuthContext } from '../../auth/context/AuthContext';
 import { useTabQueryParam } from '../../../hooks/useTabQueryParam';
 
 export type AdminTabType = 'regional-details' | 'branch-directory' | 'services-studio' | 'soa-notes' | 'print-settings';
@@ -135,11 +135,13 @@ export function AdminSettingsScreen(): React.ReactElement {
   };
 
   // Live API Hooks
+  const { user } = useAuthContext();
   const { regions } = useRegions();
   const { tenants } = useTenants();
-  const activeTenant = tenants.length > 0 ? tenants[0] : null;
-  const { config: tenantConfig, refetch: refetchTenantConfig } = useTenantConfig(activeTenant?.id);
-  const { fieldOffices, refetch } = useAdminFieldOffices();
+  const activeTenant = (user?.tenantId ? tenants.find((t) => t.id === user.tenantId) : undefined) ?? (tenants.length > 0 ? tenants[0] : null);
+  const effectiveTenantId = user?.tenantId ?? activeTenant?.id;
+  const { config: tenantConfig, refetch: refetchTenantConfig } = useTenantConfig(effectiveTenantId);
+  const { fieldOffices, refetch } = useAdminFieldOffices(effectiveTenantId);
 
   // Edit Modal State
   const [modalType, setModalType] = useState<ModalType>('none');
@@ -180,7 +182,8 @@ export function AdminSettingsScreen(): React.ReactElement {
     fieldOffice: branchOffices.filter((b) => b.type === 'Field Office').length,
   };
 
-  const activeRegion = regions.length > 0 ? regions[0] : null;
+  const targetRegionId = activeTenant?.regionId ?? user?.region;
+  const activeRegion = (targetRegionId ? regions.find((r) => r.id === targetRegionId || r.name === targetRegionId || r.code === targetRegionId) : undefined) ?? (regions.length > 0 ? regions[0] : null);
   const regionalConfigs: RegionalConfigCard[] = [
     {
       id: activeRegion ? activeRegion.id : 'commissioner',
@@ -357,6 +360,23 @@ export function AdminSettingsScreen(): React.ReactElement {
               configs={regionalConfigs}
               branchOffices={branchOffices}
               stats={stats}
+              enableInternalEmailNotifications={tenantConfig.enableInternalEmailNotifications !== false}
+              onToggleInternalEmailNotifications={async (enabled) => {
+                const targetTenantId = effectiveTenantId || '00000000-0000-0000-0000-000000000001';
+                const [res, err] = await safeAsync(
+                  updateTenantConfig({
+                    ...tenantConfig,
+                    tenantId: targetTenantId,
+                    enableInternalEmailNotifications: enabled,
+                  })
+                );
+                if (err || !res) {
+                  showToast(err || 'Failed to update internal email alerts status.', 'error');
+                  return;
+                }
+                showToast(`Internal officer email alerts ${enabled ? 'enabled' : 'disabled'}.`, 'success');
+                void refetchTenantConfig();
+              }}
               onEditConfig={handleEditConfig}
               onDeleteConfig={handleDeleteConfig}
               onAddBranchOffice={handleAddBranchOffice}
@@ -390,7 +410,7 @@ export function AdminSettingsScreen(): React.ReactElement {
 
         {activeTab === 'soa-notes' && (
           <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
-            <SoaNotesTab tenantId={activeTenant?.id} tenantName={activeTenant?.name} />
+            <SoaNotesTab tenantId={effectiveTenantId} tenantName={user?.tenantName ?? activeTenant?.name} />
           </AnimatedCard>
         )}
 
@@ -408,7 +428,7 @@ export function AdminSettingsScreen(): React.ReactElement {
         onClose={() => setModalType('none')}
         onSave={async (savedData) => {
           if (modalType === 'edit-config') {
-            const targetTenantId = activeTenant?.id || selectedItem?.id || '00000000-0000-0000-0000-000000000000';
+            const targetTenantId = effectiveTenantId || selectedItem?.id || '00000000-0000-0000-0000-000000000000';
             const [res, err] = await safeAsync(
               updateTenantConfig({
                 tenantId: targetTenantId,
@@ -420,6 +440,7 @@ export function AdminSettingsScreen(): React.ReactElement {
                 requestAndComplaintRouting: savedData.requestAndComplaintRouting,
                 allowManualSoaNumber: savedData.allowManualSoaNumber,
                 allowManualOpNumber: savedData.allowManualOpNumber,
+                enableInternalEmailNotifications: tenantConfig.enableInternalEmailNotifications !== false,
                 supportEmail: savedData.contactEmail,
                 supportPhone: savedData.contactPhone,
               })
@@ -434,11 +455,12 @@ export function AdminSettingsScreen(): React.ReactElement {
           }
 
           if (modalType === 'add-branch') {
-            const selectedRegionId = regions.length > 0 ? regions[0].id : '00000000-0000-0000-0000-000000000000';
+            const selectedRegionId = activeRegion?.id || (regions.length > 0 ? regions[0].id : '00000000-0000-0000-0000-000000000000');
             if (selectedItem?.id) {
               const [res, err] = await safeAsync(
                 updateFieldOffice(selectedItem.id, {
                   id: selectedItem.id,
+                  tenantId: effectiveTenantId,
                   name: savedData.name || savedData.title,
                   code: savedData.code,
                   category: savedData.branchCategory || (savedData.branchType === 'Field Office' ? 'Extension' : 'Main'),
@@ -458,6 +480,7 @@ export function AdminSettingsScreen(): React.ReactElement {
             } else {
               const [res, err] = await safeAsync(
                 createFieldOffice({
+                  tenantId: effectiveTenantId,
                   name: savedData.name || savedData.title,
                   code: savedData.code,
                   category: savedData.branchCategory || (savedData.branchType === 'Field Office' ? 'Extension' : 'Main'),

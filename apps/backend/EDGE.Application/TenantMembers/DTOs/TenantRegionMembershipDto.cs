@@ -7,5 +7,6 @@ public record TenantRegionMembershipDto(
     string TenantName,
     Guid RegionId,
     string RegionCode,
-    string RegionName
+    string RegionName,
+    bool IsActive = true
 );

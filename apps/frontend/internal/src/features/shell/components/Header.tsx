@@ -284,6 +284,7 @@ export function Header({
   // Applications and Announcements
   const { applications } = useApplicationActivities(
     {
+      tenantId: user?.tenantId,
       queueTab: (currentRole === 'Chief of EOD' || currentRole === 'Regional Director') ? 'issuance' : 'pending',
       scope: 'queue',
       role: currentRole,

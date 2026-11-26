@@ -1,6 +1,7 @@
 import useSWR from "swr";
 import { apiClient } from "../apiClient";
 import { AuditLogDto } from "../types";
+import { resolveEffectiveTenantId } from "../utils/tenantUtils";
 
 export interface UseAdminAuditLogsReturn {
   logs: AuditLogDto[];
@@ -11,11 +12,12 @@ export interface UseAdminAuditLogsReturn {
 }
 
 export function useAdminAuditLogs(pageNumber = 1, pageSize = 20, searchTerm = "", tenantId?: string): UseAdminAuditLogsReturn {
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
   const queryParams = new URLSearchParams();
   queryParams.set('pageNumber', String(pageNumber));
   queryParams.set('pageSize', String(pageSize));
   if (searchTerm) queryParams.set('searchTerm', searchTerm);
-  if (tenantId) queryParams.set('tenantId', tenantId);
+  if (effectiveTenantId) queryParams.set('tenantId', effectiveTenantId);
 
   const queryUrl = `/api/v2/audit-logs?${queryParams.toString()}`;
 

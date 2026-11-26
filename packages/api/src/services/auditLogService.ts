@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 export interface AuditLogItem {
   id: string;
@@ -20,6 +21,7 @@ export interface GetAuditLogsParams {
   pageNumber?: number;
   pageSize?: number;
   searchTerm?: string;
+  tenantId?: string;
 }
 
 export interface GetAuditLogsResponse {
@@ -36,11 +38,13 @@ export const auditLogService = {
    */
   async getAuditLogs(params?: GetAuditLogsParams) {
     return safeAsync(async () => {
+      const effectiveTenantId = resolveEffectiveTenantId(params?.tenantId);
       const response = await apiClient.get<GetAuditLogsResponse>('/api/v2/audit-logs', {
         params: {
           pageNumber: params?.pageNumber ?? 1,
           pageSize: params?.pageSize ?? 50,
           searchTerm: params?.searchTerm,
+          ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}),
         },
       });
       return response.data;

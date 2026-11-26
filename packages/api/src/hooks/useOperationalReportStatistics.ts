@@ -5,6 +5,7 @@ import {
   OperationalReportStatisticsDto,
   GetOperationalReportStatisticsParams,
 } from '../services/reportService';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 export interface UseOperationalReportStatisticsReturn {
   data: OperationalReportStatisticsDto | null;
@@ -18,7 +19,8 @@ export function useOperationalReportStatistics(
   params?: GetOperationalReportStatisticsParams
 ): UseOperationalReportStatisticsReturn {
   const searchParams = new URLSearchParams();
-  if (params?.tenantId) searchParams.set('tenantId', params.tenantId);
+  const effectiveTenantId = resolveEffectiveTenantId(params?.tenantId);
+  if (effectiveTenantId) searchParams.set('tenantId', effectiveTenantId);
   if (params?.periodMode) searchParams.set('periodMode', params.periodMode);
   if (params?.startDate) searchParams.set('startDate', params.startDate);
   if (params?.endDate) searchParams.set('endDate', params.endDate);

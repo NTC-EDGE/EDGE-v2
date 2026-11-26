@@ -19,17 +19,20 @@ public class ReprocessAssessmentCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<ReprocessAssessmentCommandHandler> _logger;
+    private readonly ITenantRepository? _tenantRepository;
 
     public ReprocessAssessmentCommandHandler(
         IApplicationFullRepository applicationRepository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        ILogger<ReprocessAssessmentCommandHandler> logger)
+        ILogger<ReprocessAssessmentCommandHandler> logger,
+        ITenantRepository? tenantRepository = null)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _logger = logger;
+        _tenantRepository = tenantRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -40,6 +43,16 @@ public class ReprocessAssessmentCommandHandler
         if (app == null)
         {
             return ApiResponse<Guid>.Fail($"Application with ID '{request.ApplicationId}' was not found.");
+        }
+
+        if (_tenantRepository != null && app.TenantId != Guid.Empty)
+        {
+            var targetTenant = await _tenantRepository.GetByIdAsync(app.TenantId, cancellationToken);
+            if (targetTenant != null && (!targetTenant.IsActive || targetTenant.IsDeleted))
+            {
+                return ApiResponse<Guid>.Fail(
+                    $"Validation Error: The Regional Office '{targetTenant.Name}' is currently inactive and cannot accept re-assessment requests.");
+            }
         }
 
         if (app.Intent != ApplicationIntent.AssessmentOnly)

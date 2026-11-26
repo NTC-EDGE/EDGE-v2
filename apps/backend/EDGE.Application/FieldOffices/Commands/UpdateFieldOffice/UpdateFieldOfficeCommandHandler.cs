@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Enums;
 using EDGE.Application.FieldOffices.DTOs;
@@ -14,23 +15,29 @@ public class UpdateFieldOfficeCommandHandler : IRequestHandler<UpdateFieldOffice
     private readonly IGeographicRepository _geographicRepository;
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ITenantContextService? _tenantContextService;
 
     public UpdateFieldOfficeCommandHandler(
         IFieldOfficeRepository repository,
         IGeographicRepository geographicRepository,
         ITenantMemberRepository tenantMemberRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ITenantContextService? tenantContextService = null)
     {
         _repository = repository;
         _geographicRepository = geographicRepository;
         _tenantMemberRepository = tenantMemberRepository;
         _unitOfWork = unitOfWork;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<FieldOfficeDto?> Handle(UpdateFieldOfficeCommand request, CancellationToken cancellationToken)
     {
         var fieldOffice = await _repository.GetByIdAsync(request.Id, cancellationToken);
-        if (fieldOffice == null)
+        var effectiveTenantId = (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+            ? request.TenantId.Value
+            : (_tenantContextService?.TenantId ?? Guid.Empty);
+        if (fieldOffice == null || (effectiveTenantId != Guid.Empty && fieldOffice.TenantId != effectiveTenantId))
         {
             return null;
         }

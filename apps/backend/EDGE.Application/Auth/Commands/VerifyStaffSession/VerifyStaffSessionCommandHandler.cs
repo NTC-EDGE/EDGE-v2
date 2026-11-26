@@ -86,10 +86,17 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         Tenant? resolvedTenant = null;
         TenantMember? matchingMembership = null;
 
+        var isSuperAdmin = user.IsSuperAdmin ||
+                           _currentUserService.IsSuperAdminClaim ||
+                           AdministrativeIdentityPolicy.IsSuperAdminEmail(user.Email) ||
+                           AdministrativeIdentityPolicy.IsSuperAdminEmail(_currentUserService.Email);
+
         if (user != null)
         {
-            var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(user.Id, cancellationToken) ?? new List<TenantMember>();
-            if (userMemberships.Count == 0 && !user.IsSuperAdmin)
+            var rawUserMemberships = await _tenantMemberRepository.GetMembersByUserAsync(user.Id, cancellationToken) ?? new List<TenantMember>();
+            var userMemberships = rawUserMemberships.Where(m => !m.IsDeleted).ToList();
+
+            if (userMemberships.Count == 0 && !isSuperAdmin)
             {
                 return ApiResponse<VerifyStaffSessionDto>.Fail(
                     "The selected account is not yet assigned to any Regional Office. Please make sure to sign in with an authorized account or contact your administrator."
@@ -98,20 +105,69 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
 
             if (userMemberships.Count > 0)
             {
-                // Find membership matching the selected region or tenant code/name
-                matchingMembership = userMemberships.FirstOrDefault(m =>
-                {
-                    var t = allTenants.FirstOrDefault(tenant => tenant.Id == m.TenantId);
-                    if (t == null) return false;
-                    if (targetRegion != null && t.RegionId != Guid.Empty && t.RegionId == targetRegion.Id) return true;
-                    return string.Equals(t.Code, selectedRegionInput, StringComparison.OrdinalIgnoreCase) ||
-                           string.Equals(t.Name, selectedRegionInput, StringComparison.OrdinalIgnoreCase);
-                });
+                var isAutoSelectRequest = string.IsNullOrWhiteSpace(selectedRegionInput) ||
+                                          string.Equals(selectedRegionInput, "AUTO", StringComparison.OrdinalIgnoreCase);
 
-                if (matchingMembership == null && !user.IsSuperAdmin)
+                var activeMemberships = userMemberships
+                    .Where(m =>
+                    {
+                        var t = allTenants.FirstOrDefault(tenant => tenant.Id == m.TenantId);
+                        return t != null && t.IsActive && !t.IsDeleted;
+                    })
+                    .ToList();
+
+                if (!isSuperAdmin && activeMemberships.Count == 0)
                 {
-                    // User has assigned region(s) but selected an unassigned region
-                    var firstAssignedTenant = allTenants.FirstOrDefault(t => t.Id == userMemberships[0].TenantId);
+                    var inactiveTenant = allTenants.FirstOrDefault(t => userMemberships.Any(m => m.TenantId == t.Id));
+                    var inactiveTenantName = inactiveTenant?.Name ?? "your assigned Regional Office";
+                    return ApiResponse<VerifyStaffSessionDto>.Fail(
+                        $"Access Denied: Your assigned Regional Office '{inactiveTenantName}' is currently inactive. Please contact your system administrator."
+                    );
+                }
+
+                // If non-SuperAdmin staff only belongs to a single active tenant and requested AUTO (or matching region), auto-select it
+                if (!isSuperAdmin && activeMemberships.Count == 1 && isAutoSelectRequest)
+                {
+                    matchingMembership = activeMemberships[0];
+                }
+                else
+                {
+                    // Find active membership matching the selected region or tenant code/name
+                    matchingMembership = activeMemberships.FirstOrDefault(m =>
+                    {
+                        var t = allTenants.FirstOrDefault(tenant => tenant.Id == m.TenantId);
+                        if (t == null) return false;
+                        if (targetRegion != null && t.RegionId != Guid.Empty && t.RegionId == targetRegion.Id) return true;
+                        return string.Equals(t.Code, selectedRegionInput, StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(t.Name, selectedRegionInput, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                    // Check if they explicitly selected an assigned membership whose tenant is inactive
+                    if (matchingMembership == null)
+                    {
+                        var inactiveMatchingMembership = userMemberships.FirstOrDefault(m =>
+                        {
+                            var t = allTenants.FirstOrDefault(tenant => tenant.Id == m.TenantId);
+                            if (t == null || (t.IsActive && !t.IsDeleted)) return false;
+                            if (targetRegion != null && t.RegionId != Guid.Empty && t.RegionId == targetRegion.Id) return true;
+                            return string.Equals(t.Code, selectedRegionInput, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(t.Name, selectedRegionInput, StringComparison.OrdinalIgnoreCase);
+                        });
+
+                        if (inactiveMatchingMembership != null && !isSuperAdmin)
+                        {
+                            var inactiveT = allTenants.FirstOrDefault(t => t.Id == inactiveMatchingMembership.TenantId);
+                            return ApiResponse<VerifyStaffSessionDto>.Fail(
+                                $"Access Denied: Your assigned Regional Office '{inactiveT?.Name ?? request.SelectedRegion}' is currently inactive. Please contact your system administrator."
+                            );
+                        }
+                    }
+                }
+
+                if (matchingMembership == null && !isSuperAdmin)
+                {
+                    // User has assigned active region(s) but selected an unassigned region
+                    var firstAssignedTenant = allTenants.FirstOrDefault(t => t.Id == activeMemberships[0].TenantId);
                     var firstAssignedRegion = firstAssignedTenant != null && firstAssignedTenant.RegionId != Guid.Empty
                         ? allRegions.FirstOrDefault(r => r.Id == firstAssignedTenant.RegionId)
                         : null;
@@ -127,23 +183,48 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
 
                 if (matchingMembership != null)
                 {
-                    resolvedTenant = allTenants.FirstOrDefault(t => t.Id == matchingMembership.TenantId);
+                    resolvedTenant = allTenants.FirstOrDefault(t => t.Id == matchingMembership.TenantId && t.IsActive && !t.IsDeleted);
+                    if (resolvedTenant != null && resolvedTenant.RegionId != Guid.Empty)
+                    {
+                        var resolvedRegion = allRegions.FirstOrDefault(r => r.Id == resolvedTenant.RegionId);
+                        if (resolvedRegion != null)
+                        {
+                            targetRegion = resolvedRegion;
+                            regionCode = resolvedRegion.Code;
+                            regionName = resolvedRegion.Name;
+                        }
+                    }
                 }
             }
         }
 
         if (resolvedTenant == null && targetRegion != null)
         {
-            resolvedTenant = allTenants.FirstOrDefault(t => t.RegionId == targetRegion.Id && t.IsActive)
-                          ?? allTenants.FirstOrDefault(t => t.RegionId == targetRegion.Id);
+            resolvedTenant = allTenants.FirstOrDefault(t => t.RegionId == targetRegion.Id && t.IsActive && !t.IsDeleted);
+            if (resolvedTenant == null)
+            {
+                var inactiveRegionTenant = allTenants.FirstOrDefault(t => t.RegionId == targetRegion.Id && (!t.IsActive || t.IsDeleted));
+                if (inactiveRegionTenant != null)
+                {
+                    return ApiResponse<VerifyStaffSessionDto>.Fail(
+                        $"Access Denied: The selected Regional Office '{inactiveRegionTenant.Name}' is currently inactive."
+                    );
+                }
+            }
         }
 
         if (resolvedTenant == null)
         {
             var defaultTenantId = SeedConstants.DefaultTenantId;
-            resolvedTenant = allTenants.FirstOrDefault(t => t.Id == defaultTenantId)
-                          ?? allTenants.FirstOrDefault(t => t.IsActive)
-                          ?? allTenants.FirstOrDefault();
+            resolvedTenant = allTenants.FirstOrDefault(t => t.Id == defaultTenantId && t.IsActive && !t.IsDeleted)
+                          ?? allTenants.FirstOrDefault(t => t.IsActive && !t.IsDeleted);
+        }
+
+        if (resolvedTenant != null && (!resolvedTenant.IsActive || resolvedTenant.IsDeleted))
+        {
+            return ApiResponse<VerifyStaffSessionDto>.Fail(
+                $"Access Denied: The selected Regional Office '{resolvedTenant.Name}' is currently inactive."
+            );
         }
 
         var finalTenantId = resolvedTenant?.Id ?? SeedConstants.DefaultTenantId;

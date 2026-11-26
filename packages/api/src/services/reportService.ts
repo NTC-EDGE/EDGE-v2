@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
 import { ApiResponse } from '../types';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 export interface KpiSummaryDto {
   totalApps: number;
@@ -90,7 +91,8 @@ export const reportService = {
     params?: GetOperationalReportStatisticsParams
   ): Promise<ApiResponse<OperationalReportStatisticsDto>> => {
     const queryParams: Record<string, string> = {};
-    if (params?.tenantId) queryParams.tenantId = params.tenantId;
+    const effectiveTenantId = resolveEffectiveTenantId(params?.tenantId);
+    if (effectiveTenantId) queryParams.tenantId = effectiveTenantId;
     if (params?.periodMode) queryParams.periodMode = params.periodMode;
     if (params?.startDate) queryParams.startDate = params.startDate;
     if (params?.endDate) queryParams.endDate = params.endDate;
@@ -112,7 +114,8 @@ export const reportService = {
       const queryParams: Record<string, string> = {
         code: params.code,
       };
-      if (params.tenantId) queryParams.tenantId = params.tenantId;
+      const effectivePreviewTenantId = resolveEffectiveTenantId(params.tenantId);
+      if (effectivePreviewTenantId) queryParams.tenantId = effectivePreviewTenantId;
       if (params.period) queryParams.period = params.period;
       if (params.startDate) queryParams.startDate = params.startDate;
       if (params.endDate) queryParams.endDate = params.endDate;
@@ -133,7 +136,8 @@ export const reportService = {
         code: params.code,
         download: 'true',
       };
-      if (params.tenantId) queryParams.tenantId = params.tenantId;
+      const effectiveDownloadTenantId = resolveEffectiveTenantId(params.tenantId);
+      if (effectiveDownloadTenantId) queryParams.tenantId = effectiveDownloadTenantId;
       if (params.period) queryParams.period = params.period;
       if (params.startDate) queryParams.startDate = params.startDate;
       if (params.endDate) queryParams.endDate = params.endDate;

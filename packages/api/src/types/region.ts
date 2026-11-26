@@ -29,4 +29,5 @@ export interface RegionalConfigDto {
   supportPhone?: string;
   allowManualSoaNumber?: boolean;
   allowManualOpNumber?: boolean;
+  enableInternalEmailNotifications?: boolean;
 }

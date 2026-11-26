@@ -173,11 +173,15 @@ public static class ReceiptEndpoints
         return app;
     }
 
-    private static Guid ParseTenantId(string? tenantId)
+    private static Guid ParseTenantId(string? tenantId, ITenantContextService? tenantContextService = null)
     {
-        if (!string.IsNullOrWhiteSpace(tenantId) && Guid.TryParse(tenantId, out var g))
+        if (!string.IsNullOrWhiteSpace(tenantId) && Guid.TryParse(tenantId, out var g) && g != Guid.Empty)
         {
             return g;
+        }
+        if (tenantContextService?.TenantId.HasValue == true && tenantContextService.TenantId.Value != Guid.Empty)
+        {
+            return tenantContextService.TenantId.Value;
         }
         return Guid.Empty;
     }
@@ -186,9 +190,10 @@ public static class ReceiptEndpoints
     public static async Task<IResult> GetOrBooklets(
         [FromQuery] string? tenantId,
         [FromQuery] BookletStatus? status,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         var result = await mediator.Send(new GetOrBookletsQuery(resolvedTenantId, status));
         return Results.Ok(result);
     }
@@ -244,9 +249,10 @@ public static class ReceiptEndpoints
     public static async Task<IResult> GetNextAvailableOrNumber(
         [FromQuery] string? tenantId,
         [FromQuery] string? cashierUserId,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         var result = await mediator.Send(new GetNextAvailableOrNumberQuery(resolvedTenantId, cashierUserId));
         return Results.Ok(result);
     }
@@ -260,9 +266,10 @@ public static class ReceiptEndpoints
         [FromQuery] DateTime? toDate,
         [FromQuery] string? cashierUserId,
         [FromQuery] string? search,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         var result = await mediator.Send(new GetOfficialReceiptsQuery(resolvedTenantId, status, paymentMethod, fromDate, toDate, cashierUserId, search));
         return Results.Ok(result);
     }
@@ -270,9 +277,10 @@ public static class ReceiptEndpoints
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetUndepositedReceipts(
         [FromQuery] string? tenantId,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         var result = await mediator.Send(new GetUndepositedReceiptsQuery(resolvedTenantId));
         return Results.Ok(result);
     }
@@ -466,9 +474,10 @@ public static class ReceiptEndpoints
     public static async Task<IResult> GetAgencyBankAccounts(
         [FromQuery] string? tenantId,
         [FromQuery] bool? activeOnly,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         var result = await mediator.Send(new GetAgencyBankAccountsQuery(resolvedTenantId, activeOnly));
         return Results.Ok(result);
     }
@@ -505,9 +514,10 @@ public static class ReceiptEndpoints
         [FromQuery] DepositStatus? status,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         Guid? resolvedBankAccountId = (!string.IsNullOrWhiteSpace(bankAccountId) && Guid.TryParse(bankAccountId, out var bId)) ? bId : null;
         var result = await mediator.Send(new GetBankDepositsQuery(resolvedTenantId, resolvedBankAccountId, status, fromDate, toDate));
         return Results.Ok(result);
@@ -539,9 +549,10 @@ public static class ReceiptEndpoints
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         [FromQuery] string? cashierUserId,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         var result = await mediator.Send(new GetCashierRcdReportQuery(resolvedTenantId, fromDate, toDate, cashierUserId));
         return Results.Ok(result);
     }
@@ -551,9 +562,10 @@ public static class ReceiptEndpoints
         [FromQuery] string? tenantId,
         [FromQuery] string? search,
         [FromQuery] string? fieldOffice,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         var result = await mediator.Send(new GetPendingPaymentsQuery(resolvedTenantId, search, fieldOffice));
         return Results.Ok(result);
     }
@@ -563,9 +575,10 @@ public static class ReceiptEndpoints
         [FromQuery] string? tenantId,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
-        IMediator mediator)
+        IMediator mediator,
+        ITenantContextService? tenantContextService = null)
     {
-        var resolvedTenantId = ParseTenantId(tenantId);
+        var resolvedTenantId = ParseTenantId(tenantId, tenantContextService);
         var result = await mediator.Send(new GetCancelledOrReportQuery(resolvedTenantId, fromDate, toDate));
         return Results.Ok(result);
     }

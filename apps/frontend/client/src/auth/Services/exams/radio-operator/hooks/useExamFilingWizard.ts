@@ -211,6 +211,18 @@ export function useExamFilingWizard({
         ? selectedScheduleId
         : null;
 
+    if (!selectedRegionId || !isGuid(selectedRegionId)) {
+      throw new Error(
+        "Please select an active NTC Regional Office before submitting your application."
+      );
+    }
+
+    if (queries.tenants.length > 0 && !queries.tenants.some((t) => t.id === selectedRegionId)) {
+      throw new Error(
+        "The selected NTC Regional Office is currently inactive and cannot accept applications. Please select an active Regional Office."
+      );
+    }
+
     if (!isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
       throw new Error(
         "Examination Schedule is required. Please select an open Examination Schedule & Venue before submitting."

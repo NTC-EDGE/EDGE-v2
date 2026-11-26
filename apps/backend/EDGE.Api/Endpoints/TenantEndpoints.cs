@@ -88,7 +88,8 @@ public static class TenantEndpoints
             .WithSummary("Delete tenant organization")
             .WithDescription("Deletes a Tenant organization by its unique ID.")
             .Produces(StatusCodes.Status204NoContent)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
 
         tenants.MapPost("/{id:guid}/toggle-active", ToggleTenantActive)
             .WithName("ToggleTenantActive")
@@ -96,7 +97,8 @@ public static class TenantEndpoints
             .WithSummary("Toggle tenant active status")
             .WithDescription("Toggles the IsActive status (active/deactivate) of a tenant organization.")
             .Produces<TenantDto>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
 
         tenants.MapGet("/{id:guid}/clients", GetTenantClients)
             .WithName("GetTenantClients")
@@ -301,6 +303,10 @@ public static class TenantEndpoints
         {
             return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(new { message = ex.Message });
+        }
     }
 
     [HasPermission(Permissions.UpdateTenants)]
@@ -314,6 +320,10 @@ public static class TenantEndpoints
         catch (KeyNotFoundException)
         {
             return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(new { message = ex.Message });
         }
     }
 

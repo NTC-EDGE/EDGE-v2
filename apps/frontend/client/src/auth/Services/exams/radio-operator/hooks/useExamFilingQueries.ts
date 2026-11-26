@@ -141,8 +141,8 @@ export function useExamFilingQueries({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>('/api/v2/tenants?pageSize=100&isActive=true');
-        let list: Array<{ id: string; name: string }> = [];
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string; isActive?: boolean }>> | Array<{ id: string; name: string; isActive?: boolean }>>('/api/v2/tenants?pageSize=100&isActive=true');
+        let list: Array<{ id: string; name: string; isActive?: boolean }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
           list = res.data;
         } else if (Array.isArray(res)) {
@@ -150,9 +150,15 @@ export function useExamFilingQueries({
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
           list = res.items;
         }
-        setTenants(list);
-        if (list.length > 0 && !selectedRegionId) {
-          setSelectedRegionId(list[0].id);
+        const activeList = list.filter((t) => t.isActive !== false);
+        setTenants(activeList);
+        if (activeList.length > 0) {
+          const isCurrentActive = activeList.some((t) => t.id === selectedRegionId);
+          if (!selectedRegionId || !isCurrentActive) {
+            setSelectedRegionId(activeList[0].id);
+          }
+        } else if (selectedRegionId) {
+          setSelectedRegionId("");
         }
         hasFetchedExamTenantsRef.current = true;
       } catch (err) {

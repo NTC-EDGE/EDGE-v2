@@ -23,6 +23,9 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUserAuthorizationService _userAuthorizationService;
     private readonly ILogger<FinalizeApplicationSubmissionCommandHandler> _logger;
+    private readonly ITenantRepository? _tenantRepository;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public FinalizeApplicationSubmissionCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -32,7 +35,10 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         ITenantContextService tenantContextService,
         IUnitOfWork unitOfWork,
         IUserAuthorizationService userAuthorizationService,
-        ILogger<FinalizeApplicationSubmissionCommandHandler> logger)
+        ILogger<FinalizeApplicationSubmissionCommandHandler> logger,
+        ITenantRepository? tenantRepository = null,
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _applicationRepository = applicationRepository;
         _requirementRepository = requirementRepository;
@@ -42,10 +48,25 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         _unitOfWork = unitOfWork;
         _userAuthorizationService = userAuthorizationService;
         _logger = logger;
+        _tenantRepository = tenantRepository;
+        _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(FinalizeApplicationSubmissionCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var clientMaintCfg = await _systemConfigRepository.GetByKeyAsync("CLIENT_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (clientMaintCfg != null && string.Equals(clientMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Client Portal is currently under scheduled maintenance. All application submissions and client account interactions are temporarily disabled.");
+            }
+        }
+
         if (!await _userAuthorizationService.CanSubmitApplicationAsync(cancellationToken))
         {
             return ApiResponse<Guid>.Fail(
@@ -61,6 +82,16 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         if (app.Status != ApplicationStatus.Draft && app.Status != ApplicationStatus.Returned)
         {
             return ApiResponse<Guid>.Fail("Application has already been submitted or is not in Draft state.");
+        }
+
+        if (_tenantRepository != null && app.TenantId != Guid.Empty)
+        {
+            var targetTenant = await _tenantRepository.GetByIdAsync(app.TenantId, cancellationToken);
+            if (targetTenant != null && (!targetTenant.IsActive || targetTenant.IsDeleted))
+            {
+                return ApiResponse<Guid>.Fail(
+                    $"Validation Error: The selected Regional Office '{targetTenant.Name}' is currently inactive and cannot accept application submissions.");
+            }
         }
 
         // Verify authorization: caller must be an active tenant member, superadmin, or the creator/applicant
@@ -310,6 +341,11 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (_emailNotificationService != null)
+            {
+                await _emailNotificationService.SendApplicationSubmittedAsync(trackedApp.Id, cancellationToken);
+            }
 
             return ApiResponse<Guid>.Success(trackedApp.Id, "Application finalized and submitted successfully.");
         }

@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient';
 import { ApiResponse } from '../types';
 import { RegionalConfigDto } from '../types/region';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 export const DEFAULT_TENANT_CONFIG: RegionalConfigDto = {
   tenantCode: '10',
@@ -11,6 +12,7 @@ export const DEFAULT_TENANT_CONFIG: RegionalConfigDto = {
   requestAndComplaintRouting: 'DirectToLegal',
   allowManualSoaNumber: false,
   allowManualOpNumber: false,
+  enableInternalEmailNotifications: true,
 };
 
 function isRegionalConfigDto(data: unknown): data is RegionalConfigDto {
@@ -27,8 +29,9 @@ function isRegionalConfigDto(data: unknown): data is RegionalConfigDto {
 
 export const fetchTenantConfig = async (tenantId?: string): Promise<RegionalConfigDto> => {
   try {
-    const url = tenantId !== undefined && tenantId !== null && tenantId.length > 0
-      ? `/api/v2/tenants/${tenantId}/config`
+    const effectiveTenantId = resolveEffectiveTenantId(tenantId);
+    const url = effectiveTenantId !== null && effectiveTenantId.length > 0
+      ? `/api/v2/tenants/${effectiveTenantId}/config`
       : '/api/v2/tenants/config';
 
     const response = await apiClient.get<ApiResponse<RegionalConfigDto> | RegionalConfigDto>(url);
@@ -75,6 +78,8 @@ export const updateTenantConfig = async (
     requestAndComplaintRouting: config.requestAndComplaintRouting ?? DEFAULT_TENANT_CONFIG.requestAndComplaintRouting,
     allowManualSoaNumber: config.allowManualSoaNumber ?? DEFAULT_TENANT_CONFIG.allowManualSoaNumber,
     allowManualOpNumber: config.allowManualOpNumber ?? DEFAULT_TENANT_CONFIG.allowManualOpNumber,
+    enableInternalEmailNotifications:
+      config.enableInternalEmailNotifications ?? DEFAULT_TENANT_CONFIG.enableInternalEmailNotifications,
   };
 };
 

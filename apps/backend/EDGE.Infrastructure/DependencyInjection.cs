@@ -57,6 +57,9 @@ public static class DependencyInjection
         services.AddOptions<EDGE.Infrastructure.Options.StorageEncryptionOptions>()
             .BindConfiguration(EDGE.Infrastructure.Options.StorageEncryptionOptions.SectionName);
 
+        services.AddOptions<EDGE.Infrastructure.Options.EmailOptions>()
+            .BindConfiguration(EDGE.Infrastructure.Options.EmailOptions.SectionName);
+
         // Register Clerk Options
         services.AddOptions<EDGE.Infrastructure.Options.ClerkOptions>()
             .BindConfiguration(EDGE.Infrastructure.Options.ClerkOptions.SectionName)
@@ -130,6 +133,8 @@ public static class DependencyInjection
         services.AddScoped<IUserActivityService, UserActivityService>();
         services.AddScoped<IRegionalConfigurationService, RegionalConfigurationService>();
         services.AddScoped<INumberingSeriesService, NumberingSeriesService>();
+        services.AddScoped<IEmailService, SmtpEmailService>();
+        services.AddScoped<IApplicationEmailNotificationService, ApplicationEmailNotificationService>();
 
         // Register Printing & PDF Rendering Services
         services.AddSingleton<IPdfTemplateProvider, CloudflareR2PdfTemplateProvider>();

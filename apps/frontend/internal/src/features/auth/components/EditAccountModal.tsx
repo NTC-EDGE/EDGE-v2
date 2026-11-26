@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
+import { userService } from '@edge/api';
 import { useAuthContext } from '../context/AuthContext';
 
 interface EditAccountModalProps {
@@ -57,7 +58,10 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
   
   // Profile inputs
   const [firstName, setFirstName] = useState('');
+  const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [suffix, setSuffix] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   
@@ -98,6 +102,20 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
       setVerificationPending(false);
       setPendingEmailResource(null);
       setVerificationCode('');
+
+      let active = true;
+      (async () => {
+        const [dbProfile] = await userService.getMyProfile();
+        if (!active || !dbProfile) return;
+        if (dbProfile.firstName) setFirstName((prev) => prev || dbProfile.firstName);
+        if (dbProfile.lastName) setLastName((prev) => prev || dbProfile.lastName);
+        if (dbProfile.middleName) setMiddleName(dbProfile.middleName);
+        if (dbProfile.suffix) setSuffix(dbProfile.suffix);
+        if (dbProfile.contactNumber) setContactNumber(dbProfile.contactNumber);
+      })();
+      return () => {
+        active = false;
+      };
     }
   }, [visible, clerkUser]);
 
@@ -107,44 +125,44 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
       return;
     }
 
+    if (!firstName.trim() || !lastName.trim()) {
+      setErrorMsg('First Name and Last Name are required.');
+      return;
+    }
+
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
-      // 1. Update basic profile info if changed
+      // 1. Update basic profile info in Clerk if changed
       const profileChanged =
-        firstName !== (clerkUser.firstName ?? '') ||
-        lastName !== (clerkUser.lastName ?? '') ||
-        username !== (clerkUser.username ?? '');
+        firstName.trim() !== (clerkUser.firstName ?? '') ||
+        lastName.trim() !== (clerkUser.lastName ?? '') ||
+        username.trim() !== (clerkUser.username ?? '');
 
       if (profileChanged) {
         await clerkUser.update({
-          firstName,
-          lastName,
-          username: username || undefined,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          username: username.trim() || undefined,
         });
       }
 
-      // 2. Update email if changed
-      const currentEmail = clerkUser.primaryEmailAddress?.emailAddress ?? '';
-      if (email !== currentEmail) {
-        const emailRes = await clerkUser.createEmailAddress({ email });
-        await emailRes.prepareVerification({ strategy: 'email_code' });
-        setPendingEmailResource(emailRes);
-        setVerificationPending(true);
-        setLoading(false);
-        return;
-      }
+      // 2. Sync personal profile details to Backend Database
+      await userService.updateMyProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        middleName: middleName.trim(),
+        suffix: suffix.trim(),
+        contactNumber: contactNumber.trim(),
+      });
 
       setSuccessMsg('Account profile details updated successfully.');
     } catch (err: unknown) {
       setErrorMsg(getErrorMessage(err));
     } finally {
-      // Keep loading indicator off if we're waiting for email verification
-      if (email === (clerkUser?.primaryEmailAddress?.emailAddress ?? '')) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
@@ -298,7 +316,7 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
                     </View>
 
                     <View style={styles.fieldGroup}>
-                      <Text style={styles.fieldLabelSmall}>First Name</Text>
+                      <Text style={styles.fieldLabelSmall}>First Name *</Text>
                       <TextInput
                         value={firstName}
                         onChangeText={setFirstName}
@@ -308,7 +326,17 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
                     </View>
 
                     <View style={styles.fieldGroup}>
-                      <Text style={styles.fieldLabelSmall}>Last Name</Text>
+                      <Text style={styles.fieldLabelSmall}>Middle Name</Text>
+                      <TextInput
+                        value={middleName}
+                        onChangeText={setMiddleName}
+                        placeholder="Middle Name"
+                        style={styles.greyInput}
+                      />
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabelSmall}>Last Name *</Text>
                       <TextInput
                         value={lastName}
                         onChangeText={setLastName}
@@ -318,15 +346,32 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
                     </View>
 
                     <View style={styles.fieldGroup}>
-                      <Text style={styles.fieldLabelSmall}>Email Address</Text>
+                      <Text style={styles.fieldLabelSmall}>Suffix / Extension</Text>
+                      <TextInput
+                        value={suffix}
+                        onChangeText={setSuffix}
+                        placeholder="e.g. Jr., III"
+                        style={styles.greyInput}
+                      />
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabelSmall}>Contact / Mobile Number</Text>
+                      <TextInput
+                        value={contactNumber}
+                        onChangeText={setContactNumber}
+                        placeholder="e.g. 09171234567"
+                        style={styles.greyInput}
+                        keyboardType="phone-pad"
+                      />
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabelSmall}>Official Email Address (Read-only)</Text>
                       <TextInput
                         value={email}
-                        onChangeText={setEmail}
-                        placeholder="email@example.com"
-                        style={styles.greyInput}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
+                        editable={false}
+                        style={[styles.greyInput, { color: COLORS.neutral[500] }]}
                       />
                     </View>
 

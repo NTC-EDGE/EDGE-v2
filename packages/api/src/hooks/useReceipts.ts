@@ -15,6 +15,7 @@ import {
   PaymentMethod,
   DepositStatus,
 } from '../services/receiptService';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 const fetcher = <T>(url: string, params?: Record<string, unknown>): Promise<T> =>
   apiClient.get<{ data: T }>(url, { params }).then((res) => res.data.data);
@@ -43,14 +44,15 @@ export function useReceiptFeeCatalog(search?: string, enabled = true) {
 
 export function usePendingPayments(tenantId?: string | null, search?: string) {
   const shouldFetch = tenantId !== null;
-  const key = shouldFetch ? ['/api/v2/receipts/pending-payments', tenantId ?? '', search ?? ''] : null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(tenantId) ?? '') : '';
+  const key = shouldFetch ? ['/api/v2/receipts/pending-payments', effectiveTenantId, search ?? ''] : null;
 
   const { data, error, isLoading, mutate } = useSWR<PendingPaymentDto[]>(
     key,
     () => {
       const params: Record<string, string> = {};
-      if (tenantId && tenantId.trim().length > 0) {
-        params.tenantId = tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        params.tenantId = effectiveTenantId;
       }
       if (search) params.search = search;
       return fetcher<PendingPaymentDto[]>('/api/v2/receipts/pending-payments', params);
@@ -69,14 +71,15 @@ export function usePendingPayments(tenantId?: string | null, search?: string) {
 
 export function useOrBooklets(tenantId?: string | null, status?: BookletStatus) {
   const shouldFetch = tenantId !== null;
-  const key = shouldFetch ? ['/api/v2/receipts/booklets', tenantId ?? '', status ?? 'all'] : null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(tenantId) ?? '') : '';
+  const key = shouldFetch ? ['/api/v2/receipts/booklets', effectiveTenantId, status ?? 'all'] : null;
 
   const { data, error, isLoading, mutate } = useSWR<OrBookletDto[]>(
     key,
     () => {
       const params: Record<string, string> = {};
-      if (tenantId && tenantId.trim().length > 0) {
-        params.tenantId = tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        params.tenantId = effectiveTenantId;
       }
       if (status) params.status = status;
       return fetcher<OrBookletDto[]>('/api/v2/receipts/booklets', params);
@@ -95,14 +98,15 @@ export function useOrBooklets(tenantId?: string | null, status?: BookletStatus) 
 
 export function useNextAvailableOrNumber(tenantId?: string | null, cashierUserId?: string | null) {
   const shouldFetch = tenantId !== null;
-  const key = shouldFetch ? ['/api/v2/receipts/booklets/next-available', tenantId ?? '', cashierUserId ?? 'current'] : null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(tenantId) ?? '') : '';
+  const key = shouldFetch ? ['/api/v2/receipts/booklets/next-available', effectiveTenantId, cashierUserId ?? 'current'] : null;
 
   const { data, error, isLoading, mutate } = useSWR<NextAvailableOrDto>(
     key,
     () => {
       const params: Record<string, string> = {};
-      if (tenantId && tenantId.trim().length > 0) {
-        params.tenantId = tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        params.tenantId = effectiveTenantId;
       }
       if (cashierUserId) params.cashierUserId = cashierUserId;
       return fetcher<NextAvailableOrDto>('/api/v2/receipts/booklets/next-available', params);
@@ -128,23 +132,27 @@ export function useOfficialReceipts(params: {
   cashierUserId?: string;
   search?: string;
 }) {
-  const key = [
-    '/api/v2/receipts',
-    params.tenantId ?? '',
-    params.status ?? 'all',
-    params.paymentMethod ?? 'all',
-    params.fromDate ?? '',
-    params.toDate ?? '',
-    params.cashierUserId ?? '',
-    params.search ?? '',
-  ];
+  const shouldFetch = params.tenantId !== null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(params.tenantId) ?? '') : '';
+  const key = shouldFetch
+    ? [
+        '/api/v2/receipts',
+        effectiveTenantId,
+        params.status ?? 'all',
+        params.paymentMethod ?? 'all',
+        params.fromDate ?? '',
+        params.toDate ?? '',
+        params.cashierUserId ?? '',
+        params.search ?? '',
+      ]
+    : null;
 
   const { data, error, isLoading, mutate } = useSWR<OfficialReceiptDto[]>(
     key,
     () => {
       const queryParams: Record<string, string> = {};
-      if (params.tenantId && params.tenantId.trim().length > 0) {
-        queryParams.tenantId = params.tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        queryParams.tenantId = effectiveTenantId;
       }
       if (params.status) queryParams.status = params.status;
       if (params.paymentMethod) queryParams.paymentMethod = params.paymentMethod;
@@ -168,14 +176,15 @@ export function useOfficialReceipts(params: {
 
 export function useUndepositedReceipts(tenantId?: string | null) {
   const shouldFetch = tenantId !== null;
-  const key = shouldFetch ? ['/api/v2/receipts/undeposited', tenantId ?? ''] : null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(tenantId) ?? '') : '';
+  const key = shouldFetch ? ['/api/v2/receipts/undeposited', effectiveTenantId] : null;
 
   const { data, error, isLoading, mutate } = useSWR<OfficialReceiptDto[]>(
     key,
     () => {
       const queryParams: Record<string, string> = {};
-      if (tenantId && tenantId.trim().length > 0) {
-        queryParams.tenantId = tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        queryParams.tenantId = effectiveTenantId;
       }
       return fetcher<OfficialReceiptDto[]>('/api/v2/receipts/undeposited', queryParams);
     },
@@ -193,14 +202,15 @@ export function useUndepositedReceipts(tenantId?: string | null) {
 
 export function useAgencyBankAccounts(tenantId?: string | null, activeOnly?: boolean) {
   const shouldFetch = tenantId !== null;
-  const key = shouldFetch ? ['/api/v2/receipts/bank-accounts', tenantId ?? '', activeOnly ? 'active' : 'all'] : null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(tenantId) ?? '') : '';
+  const key = shouldFetch ? ['/api/v2/receipts/bank-accounts', effectiveTenantId, activeOnly ? 'active' : 'all'] : null;
 
   const { data, error, isLoading, mutate } = useSWR<AgencyBankAccountDto[]>(
     key,
     () => {
       const queryParams: Record<string, string | boolean> = {};
-      if (tenantId && tenantId.trim().length > 0) {
-        queryParams.tenantId = tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        queryParams.tenantId = effectiveTenantId;
       }
       if (typeof activeOnly === 'boolean') queryParams.activeOnly = activeOnly;
       return fetcher<AgencyBankAccountDto[]>('/api/v2/receipts/bank-accounts', queryParams);
@@ -224,21 +234,25 @@ export function useBankDeposits(params: {
   fromDate?: string;
   toDate?: string;
 }) {
-  const key = [
-    '/api/v2/receipts/deposits',
-    params.tenantId ?? '',
-    params.bankAccountId ?? 'all',
-    params.status ?? 'all',
-    params.fromDate ?? '',
-    params.toDate ?? '',
-  ];
+  const shouldFetch = params.tenantId !== null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(params.tenantId) ?? '') : '';
+  const key = shouldFetch
+    ? [
+        '/api/v2/receipts/deposits',
+        effectiveTenantId,
+        params.bankAccountId ?? 'all',
+        params.status ?? 'all',
+        params.fromDate ?? '',
+        params.toDate ?? '',
+      ]
+    : null;
 
   const { data, error, isLoading, mutate } = useSWR<BankDepositDto[]>(
     key,
     () => {
       const queryParams: Record<string, string> = {};
-      if (params.tenantId && params.tenantId.trim().length > 0) {
-        queryParams.tenantId = params.tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        queryParams.tenantId = effectiveTenantId;
       }
       if (params.bankAccountId) queryParams.bankAccountId = params.bankAccountId;
       if (params.status) queryParams.status = params.status;
@@ -265,10 +279,11 @@ export function useCashierRcdReport(params: {
   cashierUserId?: string;
 }) {
   const shouldFetch = params.tenantId !== null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(params.tenantId) ?? '') : '';
   const key = shouldFetch
     ? [
         '/api/v2/receipts/reports/rcd',
-        params.tenantId ?? '',
+        effectiveTenantId,
         params.fromDate ?? '',
         params.toDate ?? '',
         params.cashierUserId ?? '',
@@ -279,8 +294,8 @@ export function useCashierRcdReport(params: {
     key,
     () => {
       const queryParams: Record<string, string> = {};
-      if (params.tenantId && params.tenantId.trim().length > 0) {
-        queryParams.tenantId = params.tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        queryParams.tenantId = effectiveTenantId;
       }
       if (params.fromDate) queryParams.fromDate = params.fromDate;
       if (params.toDate) queryParams.toDate = params.toDate;
@@ -301,16 +316,17 @@ export function useCashierRcdReport(params: {
 
 export function useCancelledOrReport(params: { tenantId?: string | null; fromDate?: string; toDate?: string }) {
   const shouldFetch = params.tenantId !== null;
+  const effectiveTenantId = shouldFetch ? (resolveEffectiveTenantId(params.tenantId) ?? '') : '';
   const key = shouldFetch
-    ? ['/api/v2/receipts/reports/cancelled', params.tenantId ?? '', params.fromDate ?? '', params.toDate ?? '']
+    ? ['/api/v2/receipts/reports/cancelled', effectiveTenantId, params.fromDate ?? '', params.toDate ?? '']
     : null;
 
   const { data, error, isLoading, mutate } = useSWR<CancelledOrReportDto>(
     key,
     () => {
       const queryParams: Record<string, string> = {};
-      if (params.tenantId && params.tenantId.trim().length > 0) {
-        queryParams.tenantId = params.tenantId.trim();
+      if (effectiveTenantId.length > 0) {
+        queryParams.tenantId = effectiveTenantId;
       }
       if (params.fromDate) queryParams.fromDate = params.fromDate;
       if (params.toDate) queryParams.toDate = params.toDate;

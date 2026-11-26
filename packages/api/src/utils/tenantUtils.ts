@@ -1,3 +1,5 @@
+import { getTenantId } from '../services/tokenManager';
+
 /**
  * Standard GUID / UUID regex validator (v1-v5 or general 8-4-4-4-12 hex format).
  */
@@ -70,6 +72,10 @@ export function resolveEffectiveTenantId(
   }
   if (isGuid(fallbackCandidate)) {
     return fallbackCandidate.trim();
+  }
+  const activeSessionTenantId = getTenantId();
+  if (isGuid(activeSessionTenantId)) {
+    return activeSessionTenantId.trim();
   }
   return getEnvironmentTenantId();
 }

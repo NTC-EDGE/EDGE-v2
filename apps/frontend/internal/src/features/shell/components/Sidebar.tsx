@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Icon as Lucide, TYPOGRAPHY, useTheme } from '@edge/ui';
 import { useAdminApplications } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 import { useChatConversations } from '../../chat/hooks/useChatConversations';
 import {
   NAV_GROUP_ORDER,
@@ -89,6 +90,7 @@ export function Sidebar({
   onRoleSelect: _onRoleSelect,
 }: SidebarProps) {
   const { colors, isDark } = useTheme();
+  const { user } = useAuthContext();
 
   // Collapse state — only relevant on non-mobile
   const [isCollapsed, setIsCollapsed] = useState<boolean>(
@@ -130,6 +132,7 @@ export function Sidebar({
   // Unevaluated applications count for Activities badge
   const { applications, pagination, statistics } = useAdminApplications(
     {
+      tenantId: user?.tenantId,
       queueTab: 'pending',
       scope: 'queue',
       role: currentRole,
@@ -145,7 +148,7 @@ export function Sidebar({
     pagination?.totalCount ??
     (Array.isArray(applications) ? applications.length : 0);
 
-  const { totalUnreadCount: unreadChatCount } = useChatConversations();
+  const { totalUnreadCount: unreadChatCount } = useChatConversations(user?.tenantId, user?.id);
 
   const enrichedLinks = links.map((link) => {
     if (link.screen === 'Activities' || link.name === 'Activities') {

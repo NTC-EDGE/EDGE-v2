@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.AuditLogs.DTOs;
 using EDGE.Domain.Entities;
@@ -13,15 +14,22 @@ namespace EDGE.Application.AuditLogs.Queries.GetAuditLogs;
 public class GetAuditLogsQueryHandler : IRequestHandler<GetAuditLogsQuery, (List<AuditLogDto> Items, int TotalCount)>
 {
     private readonly IAuditLogRepository _repository;
+    private readonly ITenantContextService? _tenantContextService;
 
-    public GetAuditLogsQueryHandler(IAuditLogRepository repository)
+    public GetAuditLogsQueryHandler(
+        IAuditLogRepository repository,
+        ITenantContextService? tenantContextService = null)
     {
         _repository = repository;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<(List<AuditLogDto> Items, int TotalCount)> Handle(GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _repository.GetPagedAuditLogsAsync(request.PageNumber, request.PageSize, request.SearchTerm, request.TenantId, cancellationToken);
+        var effectiveTenantId = (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+            ? request.TenantId
+            : _tenantContextService?.TenantId;
+        var (items, totalCount) = await _repository.GetPagedAuditLogsAsync(request.PageNumber, request.PageSize, request.SearchTerm, effectiveTenantId, cancellationToken);
         var dtos = items.Select(a =>
         {
             var (evt, type, resource) = FormatAuditDetails(a);

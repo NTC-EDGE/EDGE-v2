@@ -917,6 +917,140 @@ public static class NotificationTemplateDataSeeder
 </div>
 </body>
 </html>"
+            },
+            new()
+            {
+                Id = Guid.Parse("80000000-0000-0000-0000-000000000011"),
+                EventKey = "External_ApplicationUnderAccountingReview",
+                Name = "Applicant - Technical Evaluation Approved (Fee Assessment in Progress)",
+                Subject = "Technical Evaluation Approved – Fee Assessment in Progress ({Reference Number})",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{Next Step Notice},{Application Link}",
+                IsActive = true,
+                CreatedAt = staticDate,
+                BodyHtml = @"<!DOCTYPE html>
+<html>
+<head>
+<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"" />
+</head>
+<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;"">
+<div style=""background-color: #f1f5f9; padding: 28px 12px; width: 100%; box-sizing: border-box;"">
+  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;"">
+    <tr>
+      <td style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+        <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
+        <div style=""font-size: 18px; font-weight: 800; color: #ffffff;"">National Telecommunications Commission</div>
+        <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
+      </td>
+    </tr>
+    <tr><td height=""4"" style=""background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);""></td></tr>
+    <tr>
+      <td style=""padding: 28px 32px;"">
+        <div style=""display: inline-block; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; color: #1d4ed8; margin-bottom: 16px;"">
+          ✓ Technical Evaluation Approved • Accounting Review
+        </div>
+        <h2 style=""font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {Applicant Name},</h2>
+        <p style=""font-size: 14px; color: #334155; margin: 0 0 18px 0; line-height: 1.6;"">
+          {Next Step Notice}
+        </p>
+        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px;"">
+          <tr>
+            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; width: 38%; border-bottom: 1px solid #f1f5f9;"">Reference No.</td>
+            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
+          </tr>
+          <tr>
+            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Service</td>
+            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #f1f5f9;"">{Service Name}</td>
+          </tr>
+          <tr>
+            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b;"">Payment Status</td>
+            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #2563eb;"">No Payment Required Yet (Awaiting Order of Payment)</td>
+          </tr>
+        </table>
+        <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""margin: 22px 0;"">
+          <tr>
+            <td align=""center"">
+              <a href=""{Application Link}"" target=""_blank"" style=""display: inline-block; padding: 13px 32px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #1e3a8a; text-decoration: none; border-radius: 8px;"">
+                Track Application Status &rarr;
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>
+</body>
+</html>"
+            },
+            new()
+            {
+                Id = Guid.Parse("80000000-0000-0000-0000-000000000012"),
+                EventKey = "External_PaymentConfirmedForIssuance",
+                Name = "Applicant - Payment Verified & Official Receipt Issued",
+                Subject = "Payment Confirmed (OR #{OR Number}) – Processing Official Document ({Reference Number})",
+                AvailablePlaceholders = "{Applicant Name},{Reference Number},{Service Name},{Service Variant},{OR Number},{Total},{Application Link}",
+                IsActive = true,
+                CreatedAt = staticDate,
+                BodyHtml = @"<!DOCTYPE html>
+<html>
+<head>
+<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"" />
+</head>
+<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;"">
+<div style=""background-color: #f1f5f9; padding: 28px 12px; width: 100%; box-sizing: border-box;"">
+  <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;"">
+    <tr>
+      <td style=""background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 32px; text-align: center;"">
+        <div style=""font-size: 10px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;"">Republic of the Philippines</div>
+        <div style=""font-size: 18px; font-weight: 800; color: #ffffff;"">National Telecommunications Commission</div>
+        <div style=""font-size: 12px; font-weight: 500; color: #93c5fd; margin-top: 2px;"">EDGE Portal • Electronic Document &amp; Government Enterprise</div>
+      </td>
+    </tr>
+    <tr><td height=""4"" style=""background: linear-gradient(90deg, #059669, #10b981, #059669);""></td></tr>
+    <tr>
+      <td style=""padding: 28px 32px;"">
+        <div style=""display: inline-block; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; color: #065f46; margin-bottom: 16px;"">
+          ✓ Payment Verified • Official Receipt Issued
+        </div>
+        <h2 style=""font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;"">Hello {Applicant Name},</h2>
+        <p style=""font-size: 14px; color: #334155; margin: 0 0 18px 0; line-height: 1.6;"">
+          Your payment has been verified by the NTC Cashier and your Official Receipt (OR) has been generated. No further payment is required. Your application has been forwarded for final official document and license release.
+        </p>
+        <table border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px;"">
+          <tr>
+            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; width: 42%; border-bottom: 1px solid #f1f5f9;"">Reference No.</td>
+            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #1e3a8a; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">{Reference Number}</td>
+          </tr>
+          <tr>
+            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Official Receipt (OR)</td>
+            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #059669; font-family: monospace; border-bottom: 1px solid #f1f5f9;"">OR #{OR Number}</td>
+          </tr>
+          <tr>
+            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;"">Amount Paid</td>
+            <td style=""padding: 11px 14px; font-size: 13px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;"">₱{Total}</td>
+          </tr>
+          <tr>
+            <td style=""padding: 11px 14px; font-size: 13px; color: #64748b;"">Next Step</td>
+            <td style=""padding: 11px 14px; font-size: 13px; color: #334155;"">Awaiting Final Permit / Certificate / License Release</td>
+          </tr>
+        </table>
+        <table align=""center"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""margin: 22px 0;"">
+          <tr>
+            <td align=""center"">
+              <a href=""{Application Link}"" target=""_blank"" style=""display: inline-block; padding: 13px 32px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #059669; text-decoration: none; border-radius: 8px;"">
+                View Official Receipt &amp; Application &rarr;
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>
+</body>
+</html>"
             }
         };
 

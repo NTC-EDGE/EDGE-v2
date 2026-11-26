@@ -13,7 +13,7 @@ export function useEmployeesData() {
 
   // Live tenant members dataset from API
   const { members, isLoading, refetch } = useTenantMembers(currentTenantId);
-  const { roles: liveRoles } = useAdminRoles();
+  const { roles: liveRoles } = useAdminRoles(currentTenantId);
   const { fieldOffices: liveFieldOffices } = useAdminFieldOffices(currentTenantId);
 
   const employees = useMemo<Employee[]>(() => {

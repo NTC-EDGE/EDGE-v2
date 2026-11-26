@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { SoaNote, PaginatedApiResponse } from '../types';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 export interface CreateSoaNoteDto {
   notes: string;
@@ -43,8 +44,9 @@ export const soaNoteService = {
     if (params?.searchTerm !== undefined && params.searchTerm.trim().length > 0) {
       q.append('searchTerm', params.searchTerm.trim());
     }
-    if (params?.tenantId !== undefined && params.tenantId.trim().length > 0) {
-      q.append('tenantId', params.tenantId.trim());
+    const effectiveTenantId = resolveEffectiveTenantId(params?.tenantId);
+    if (effectiveTenantId !== null) {
+      q.append('tenantId', effectiveTenantId);
     }
 
     const res = await apiClient.get<unknown>(`/api/v2/soa-notes?${q.toString()}`);
@@ -58,8 +60,10 @@ export const soaNoteService = {
   },
 
   async createNote(dto: CreateSoaNoteDto): Promise<SoaNote | null> {
-    const q = dto.tenantId ? `?tenantId=${encodeURIComponent(dto.tenantId)}` : '';
-    const res = await apiClient.post<unknown>(`/api/v2/soa-notes${q}`, dto);
+    const effectiveTenantId = resolveEffectiveTenantId(dto.tenantId);
+    const q = effectiveTenantId ? `?tenantId=${encodeURIComponent(effectiveTenantId)}` : '';
+    const body = effectiveTenantId ? { ...dto, tenantId: effectiveTenantId } : dto;
+    const res = await apiClient.post<unknown>(`/api/v2/soa-notes${q}`, body);
     if (isRecord(res.data) && 'data' in res.data && isSoaNote(res.data.data)) {
       return res.data.data;
     }

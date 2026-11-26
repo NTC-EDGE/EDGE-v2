@@ -208,7 +208,7 @@ export function useReportsState() {
     feedback,
     isLoading: loadingFeedback,
     refetch: refetchFeedback,
-  } = useAdminFeedback();
+  } = useAdminFeedback(user?.tenantId);
 
   const isLoading =
     (loadingServerStats && applications.length === 0) ||

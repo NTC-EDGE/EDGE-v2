@@ -64,11 +64,102 @@ export interface UpdateUserApiRequest {
   isSuperAdmin?: boolean;
 }
 
+export interface CurrentUserDetailedProfileDto {
+  id: string;
+  authUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  suffix?: string;
+  contactNumber?: string;
+  dateOfBirth?: string;
+  sex?: string;
+  nationality?: string;
+  height?: number;
+  weight?: number;
+  schoolAttended?: string;
+  courseTaken?: string;
+  profilePicture?: string;
+  eSignature?: string;
+  isSuperAdmin: boolean;
+  isInternalUser?: boolean;
+  canSubmitApplication?: boolean;
+  staffAssignment?: {
+    tenantId?: string;
+    roleName?: string;
+    division?: string;
+    position?: string;
+    designation?: string;
+    jobTitle?: string;
+    level?: string;
+  } | null;
+  address?: {
+    street?: string;
+    unit?: string;
+    zipCode?: string;
+    barangayId?: string;
+  };
+  company?: {
+    id?: string;
+    name?: string;
+    registrationNumber?: string;
+    address?: string;
+    contactNumber?: string;
+    email?: string;
+    entityType?: string;
+  } | null;
+}
+
+export interface UpdateMyProfileApiRequest {
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  suffix?: string;
+  contactNumber?: string;
+  dateOfBirth?: string | null;
+  sex?: string;
+  nationality?: string;
+  height?: number | null;
+  weight?: number | null;
+  schoolAttended?: string;
+  courseTaken?: string;
+  street?: string;
+  unit?: string;
+  zipCode?: string;
+  barangayId?: string | null;
+  eSignature?: string;
+  companyName?: string;
+  companyRegistrationNumber?: string;
+  companyAddress?: string;
+  companyContactNumber?: string;
+  companyEmail?: string;
+}
+
 function isCreateUserApiResponse(item: unknown): item is CreateUserApiResponse {
   return typeof item === 'object' && item !== null && 'id' in item;
 }
 
 export const userService = {
+  /**
+   * Fetch the currently authenticated user's own detailed profile
+   */
+  async getMyProfile() {
+    return safeAsync(async () => {
+      const response = await apiClient.get<CurrentUserDetailedProfileDto>('/api/v2/users/me/profile');
+      return response.data;
+    }, 'Failed to fetch current user profile');
+  },
+
+  /**
+   * Update the currently authenticated user's own personal profile details
+   */
+  async updateMyProfile(data: UpdateMyProfileApiRequest) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<CreateUserApiResponse>('/api/v2/users/me/profile', data);
+      return response.data;
+    }, 'Failed to update profile details');
+  },
   /**
    * Create a new employee / staff user via Clerk and sync database records
    */

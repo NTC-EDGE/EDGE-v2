@@ -387,6 +387,11 @@ export function useClientSettings() {
         }
 
         // 3. Persist to Backend Database via Minimal API Endpoints
+        const parsedHeight = targetProfile.height ? parseFloat(targetProfile.height) : NaN;
+        const parsedWeight = targetProfile.weight ? parseFloat(targetProfile.weight) : NaN;
+        const isGuidVal = (v?: string): boolean =>
+          typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.trim());
+
         await api.patch<any>("/api/v2/users/me/profile", {
           firstName: targetProfile.firstName,
           lastName: targetProfile.lastName,
@@ -396,9 +401,20 @@ export function useClientSettings() {
           dateOfBirth: targetProfile.dob ? new Date(targetProfile.dob).toISOString() : null,
           sex: targetProfile.sex,
           nationality: targetProfile.nationality,
+          height: !Number.isNaN(parsedHeight) ? parsedHeight : null,
+          weight: !Number.isNaN(parsedWeight) ? parsedWeight : null,
+          schoolAttended: targetProfile.schoolAttended,
+          courseTaken: targetProfile.courseTaken,
           street: targetProfile.address.street,
+          unit: targetProfile.address.unit,
           zipCode: targetProfile.address.zipCode,
+          barangayId: isGuidVal(targetProfile.address.barangayId) ? targetProfile.address.barangayId : null,
           eSignature: targetSignature,
+          companyName: targetProfile.company.name,
+          companyRegistrationNumber: targetProfile.company.registrationNumber,
+          companyAddress: targetProfile.company.address,
+          companyContactNumber: targetProfile.company.contactNumber,
+          companyEmail: targetProfile.company.email,
         }).catch((err) => {
           console.warn("Backend profile sync notice:", err);
         });

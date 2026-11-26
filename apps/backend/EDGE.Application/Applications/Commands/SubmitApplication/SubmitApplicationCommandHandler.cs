@@ -26,6 +26,8 @@ public class SubmitApplicationCommandHandler
     private readonly IUserRepository _userRepository;
     private readonly IUserAuthorizationService _userAuthorizationService;
     private readonly ILogger<SubmitApplicationCommandHandler> _logger;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public SubmitApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -40,7 +42,9 @@ public class SubmitApplicationCommandHandler
         IServiceVariantElementRepository elementRepository,
         IUserRepository userRepository,
         IUserAuthorizationService userAuthorizationService,
-        ILogger<SubmitApplicationCommandHandler> logger)
+        ILogger<SubmitApplicationCommandHandler> logger,
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _applicationRepository = applicationRepository;
         _applicantRepository = applicantRepository;
@@ -55,11 +59,25 @@ public class SubmitApplicationCommandHandler
         _userRepository = userRepository;
         _userAuthorizationService = userAuthorizationService;
         _logger = logger;
+        _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
         SubmitApplicationCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var clientMaintCfg = await _systemConfigRepository.GetByKeyAsync("CLIENT_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (clientMaintCfg != null && string.Equals(clientMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Client Portal is currently under scheduled maintenance. All application submissions and client account interactions are temporarily disabled.");
+            }
+        }
+
         // 0. Verify Application Submission Permissions
         if (!await _userAuthorizationService.CanSubmitApplicationAsync(cancellationToken))
         {
@@ -114,13 +132,13 @@ public class SubmitApplicationCommandHandler
             if (request.IsDraft)
             {
                 var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-                tenant = allTenants.FirstOrDefault();
+                tenant = allTenants.FirstOrDefault(t => t.IsActive && !t.IsDeleted);
 
                 if (tenant != null)
                 {
                     _logger.LogWarning(
                         "TenantId '{RequestedTenantId}' was not found. " +
-                        "Falling back to first available tenant '{FallbackTenantId}' (Name: '{FallbackTenantName}') " +
+                        "Falling back to first available active tenant '{FallbackTenantId}' (Name: '{FallbackTenantName}') " +
                         "for draft application save. Verify tenant seed data and configuration.",
                         request.TenantId,
                         tenant.Id,
@@ -133,6 +151,12 @@ public class SubmitApplicationCommandHandler
                 return ApiResponse<Guid>.Fail(
                     "Validation Error: The specified tenant does not exist.");
             }
+        }
+
+        if (!tenant.IsActive || tenant.IsDeleted)
+        {
+            return ApiResponse<Guid>.Fail(
+                $"Validation Error: The selected Regional Office '{tenant.Name}' is currently inactive and cannot accept applications.");
         }
 
         string? officeName = null;
@@ -802,6 +826,11 @@ public class SubmitApplicationCommandHandler
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (!request.IsDraft && _emailNotificationService != null)
+            {
+                await _emailNotificationService.SendApplicationSubmittedAsync(application.Id, cancellationToken);
+            }
 
             string successMessage = status == ApplicationStatus.Draft
                 ? "Application draft saved successfully."

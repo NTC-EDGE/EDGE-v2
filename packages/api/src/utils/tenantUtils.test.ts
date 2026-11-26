@@ -5,17 +5,20 @@ import {
   resolveEffectiveTenantId,
   requireTenantId,
 } from "./tenantUtils";
+import { setTenantId } from "../services/tokenManager";
 
 describe("tenantUtils - Multi-Tenant Resolution & Safety Net", () => {
   const originalEnv = process.env.EXPO_PUBLIC_DEFAULT_TENANT_ID;
 
   beforeEach(() => {
+    setTenantId(null);
     delete process.env.EXPO_PUBLIC_DEFAULT_TENANT_ID;
     delete process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID;
     delete process.env.EXPO_PUBLIC_TENANT_ID;
   });
 
   afterEach(() => {
+    setTenantId(null);
     if (originalEnv !== undefined) {
       process.env.EXPO_PUBLIC_DEFAULT_TENANT_ID = originalEnv;
     } else {

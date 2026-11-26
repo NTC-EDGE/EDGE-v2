@@ -22,6 +22,7 @@ export interface TenantRegionMembershipDto {
   regionId: string;
   regionCode: string;
   regionName: string;
+  isActive?: boolean;
 }
 
 export type VerifyStaffSessionResponse = ApiResponse<VerifyStaffSessionDto>;

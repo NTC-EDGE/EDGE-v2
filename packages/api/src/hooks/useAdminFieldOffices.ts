@@ -1,6 +1,7 @@
 import useSWR from "swr";
 import { apiClient } from "../apiClient";
 import { ApiResponse } from "../types";
+import { resolveEffectiveTenantId } from "../utils/tenantUtils";
 
 export interface FieldOfficeDto {
   id: string;
@@ -33,7 +34,10 @@ export interface UseAdminFieldOfficesReturn {
 }
 
 export function useAdminFieldOffices(tenantId?: string): UseAdminFieldOfficesReturn {
-  const url = tenantId ? `/api/v2/field-offices?tenantId=${tenantId}` : "/api/v2/field-offices";
+  const effectiveTenantId = resolveEffectiveTenantId(tenantId);
+  const url = effectiveTenantId
+    ? `/api/v2/field-offices?tenantId=${encodeURIComponent(effectiveTenantId)}`
+    : "/api/v2/field-offices";
   const { data, error, isLoading, mutate } = useSWR<unknown>(
     url,
     async (endpoint: string) => {

@@ -22,19 +22,25 @@ public class ConvertAssessmentToRealApplicationCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<ConvertAssessmentToRealApplicationCommandHandler> _logger;
+    private readonly ITenantRepository? _tenantRepository;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
 
     public ConvertAssessmentToRealApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         ILogger<ConvertAssessmentToRealApplicationCommandHandler> logger,
-        IApplicantRepository? applicantRepository = null)
+        IApplicantRepository? applicantRepository = null,
+        ITenantRepository? tenantRepository = null,
+        IApplicationEmailNotificationService? emailNotificationService = null)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _logger = logger;
         _applicantRepository = applicantRepository;
+        _tenantRepository = tenantRepository;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -46,6 +52,16 @@ public class ConvertAssessmentToRealApplicationCommandHandler
         if (sourceApp == null)
         {
             return ApiResponse<Guid>.Fail($"Application with ID '{request.ApplicationId}' was not found.");
+        }
+
+        if (_tenantRepository != null && sourceApp.TenantId != Guid.Empty)
+        {
+            var targetTenant = await _tenantRepository.GetByIdAsync(sourceApp.TenantId, cancellationToken);
+            if (targetTenant != null && (!targetTenant.IsActive || targetTenant.IsDeleted))
+            {
+                return ApiResponse<Guid>.Fail(
+                    $"Validation Error: The Regional Office '{targetTenant.Name}' is currently inactive and cannot accept applications.");
+            }
         }
 
         if (sourceApp.Intent == ApplicationIntent.Regular)
@@ -388,6 +404,11 @@ public class ConvertAssessmentToRealApplicationCommandHandler
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (_emailNotificationService != null)
+            {
+                await _emailNotificationService.SendApplicationSubmittedAsync(newApp.Id, cancellationToken);
+            }
 
             return ApiResponse<Guid>.Success(
                 newApp.Id,

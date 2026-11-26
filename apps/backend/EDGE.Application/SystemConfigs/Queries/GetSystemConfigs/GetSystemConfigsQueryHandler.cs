@@ -40,7 +40,7 @@ public class GetSystemConfigsQueryHandler : IRequestHandler<GetSystemConfigsQuer
 
         var totalCount = queryable.Count();
         var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
-        var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+        var pageSize = request.PageSize <= 0 ? 100 : request.PageSize;
 
         var paginated = queryable
             .OrderBy(c => c.Category).ThenBy(c => c.Key)

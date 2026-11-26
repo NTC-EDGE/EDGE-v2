@@ -1,6 +1,7 @@
 import useSWR, { mutate as globalMutate } from 'swr';
 import { apiClient } from '../apiClient';
 import { ApiResponse, ApplicationSummaryDto, PagedApplicationListDto, ApplicationActivityDto, PagedApplicationActivitiesDto } from '../types';
+import { resolveEffectiveTenantId } from '../utils/tenantUtils';
 
 /**
  * Revalidates all SWR caches matching the applications API (/api/v2/applications),
@@ -49,7 +50,8 @@ export function useAdminApplications(
   if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString());
   if (params?.searchTerm) searchParams.set('searchTerm', params.searchTerm);
   if (params?.mode) searchParams.set('mode', params.mode);
-  if (params?.tenantId) searchParams.set('tenantId', params.tenantId);
+  const effectiveTenantId = resolveEffectiveTenantId(params?.tenantId);
+  if (effectiveTenantId) searchParams.set('tenantId', effectiveTenantId);
   if (params?.role) searchParams.set('role', params.role);
   if (params?.assignedTo) searchParams.set('assignedTo', params.assignedTo);
   if (params?.fieldOffice) searchParams.set('fieldOffice', params.fieldOffice);
@@ -126,7 +128,8 @@ export function useApplicationActivities(
   if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString());
   if (params?.searchTerm) searchParams.set('searchTerm', params.searchTerm);
   if (params?.mode) searchParams.set('mode', params.mode);
-  if (params?.tenantId) searchParams.set('tenantId', params.tenantId);
+  const effectiveTenantId = resolveEffectiveTenantId(params?.tenantId);
+  if (effectiveTenantId) searchParams.set('tenantId', effectiveTenantId);
   if (params?.role) searchParams.set('role', params.role);
   if (params?.assignedTo) searchParams.set('assignedTo', params.assignedTo);
   if (params?.fieldOffice) searchParams.set('fieldOffice', params.fieldOffice);

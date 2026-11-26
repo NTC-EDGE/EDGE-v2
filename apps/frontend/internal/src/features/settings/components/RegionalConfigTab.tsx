@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -18,6 +18,8 @@ interface RegionalConfigTabProps {
   branchOffices: BranchOffice[];
   stats: BranchOfficeStats;
   mode?: 'details' | 'branches' | 'all';
+  enableInternalEmailNotifications?: boolean;
+  onToggleInternalEmailNotifications?: (enabled: boolean) => Promise<void> | void;
   onEditConfig: (config: RegionalConfigCard) => void;
   onDeleteConfig: (id: string, name: string) => void;
   onAddBranchOffice: () => void;
@@ -38,6 +40,8 @@ export function RegionalConfigTab({
   branchOffices,
   stats,
   mode = 'all',
+  enableInternalEmailNotifications = true,
+  onToggleInternalEmailNotifications,
   onEditConfig,
   onDeleteConfig,
   onAddBranchOffice,
@@ -48,7 +52,13 @@ export function RegionalConfigTab({
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
-  const [isEmailNotificationActive, setIsEmailNotificationActive] = useState(false);
+  const [isEmailNotificationActive, setIsEmailNotificationActive] = useState(
+    enableInternalEmailNotifications !== false
+  );
+
+  useEffect(() => {
+    setIsEmailNotificationActive(enableInternalEmailNotifications !== false);
+  }, [enableInternalEmailNotifications]);
   const [toggleConfirmModal, setToggleConfirmModal] = useState<{ visible: boolean; nextState: boolean }>({
     visible: false,
     nextState: false,
@@ -103,10 +113,10 @@ export function RegionalConfigTab({
               </View>
               <View style={styles.bannerTextWrapper}>
                 <Text style={[styles.bannerTitle, { color: colors.text }]}>
-                  Email Alerts System
+                  Internal Officers Email Alerts System
                 </Text>
                 <Text style={[styles.bannerDescription, { color: colors.textMuted }]}>
-                  Instant region notifications for application cycles.
+                  Automated email notifications for regional internal officers (Evaluators, Legal, Accountants, Cashiers). Client notifications are always sent.
                 </Text>
               </View>
             </View>
@@ -586,12 +596,16 @@ export function RegionalConfigTab({
       {/* Confirmation Modal for Email Notification Toggle */}
       <DeleteAdminItemModal
         visible={toggleConfirmModal.visible}
-        itemTitle={`Regional Email Notification System (${toggleConfirmModal.nextState ? 'ENABLE' : 'DISABLE'})`}
+        itemTitle={`Internal Officers Email Alerts (${toggleConfirmModal.nextState ? 'ENABLE' : 'DISABLE'})`}
         itemType="System Notification Status"
         onClose={() => setToggleConfirmModal((prev) => ({ ...prev, visible: false }))}
-        onConfirm={() => {
-          setIsEmailNotificationActive(toggleConfirmModal.nextState);
+        onConfirm={async () => {
+          const nextState = toggleConfirmModal.nextState;
+          setIsEmailNotificationActive(nextState);
           setToggleConfirmModal((prev) => ({ ...prev, visible: false }));
+          if (onToggleInternalEmailNotifications) {
+            await onToggleInternalEmailNotifications(nextState);
+          }
         }}
       />
     </View>

@@ -27,5 +27,9 @@ public interface ITenantRepository
         Guid clientId,
         CancellationToken cancellationToken = default);
 
+    Task<Dictionary<EDGE.Domain.Enums.ApplicationStatus, int>> GetInFlightApplicationCountsByStatusAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken = default);
+
     void Delete(Tenant tenant);
 }

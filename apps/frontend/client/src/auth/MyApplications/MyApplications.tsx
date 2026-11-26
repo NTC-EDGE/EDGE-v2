@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Icon } from "@edge/ui";
 import { useApi } from "../../shared/hooks/useApi";
+import { extractApiErrorMessage } from "../../shared/components/Toast";
 import {
   Application,
   ModeFilterOption,
@@ -327,8 +328,9 @@ export function MyApplications() {
       await fetchApplications(true);
     } catch (err: unknown) {
       console.error('Failed to initiate renewal:', err);
-      setToastMessage('Could not initiate renewal draft. Please try again.');
-      setTimeout(() => setToastMessage(null), 4000);
+      const errMsg = extractApiErrorMessage(err) || 'Could not initiate renewal draft. Please try again.';
+      setToastMessage(errMsg);
+      setTimeout(() => setToastMessage(null), 5000);
     } finally {
       setIsRenewing(false);
     }

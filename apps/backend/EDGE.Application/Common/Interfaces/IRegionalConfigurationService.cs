@@ -18,6 +18,7 @@ public class RegionalConfigurationDto
     public string SupportPhone { get; set; } = "(088) 856-1234";
     public bool AllowManualSoaNumber { get; set; }
     public bool AllowManualOpNumber { get; set; }
+    public bool EnableInternalEmailNotifications { get; set; } = true;
 }
 
 public interface IRegionalConfigurationService

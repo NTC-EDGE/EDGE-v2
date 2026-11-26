@@ -16,6 +16,7 @@ import {
   ApplicationSummaryDto,
   StatementOfAccountDto,
   useAdminAnnouncements,
+  usePublicSystemConfig,
   SystemAnnouncementDto,
 } from "@edge/api";
 import { useUser, useAuth } from "@clerk/expo";
@@ -23,6 +24,7 @@ import { useApi } from "../hooks/useApi";
 import { useAppNavigation } from "../../navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openApplicationDetail } from "../helpers/applicationNavigationHelper";
+import { setConfiguredRenewalWindowDays } from "../../auth/MyApplications/data/applicationsData";
 import { ClientFooter } from "./ClientFooter";
 import { ConfirmationDialog } from "./ConfirmationDialog";
 import { ClientAnnouncementBanner } from "./ClientAnnouncementBanner";
@@ -112,6 +114,56 @@ export function ClientAppLayout({
     revalidateOnFocus: true,
     refreshInterval: 60000,
   });
+
+  // Public System Configuration (General, Renewal, Security, Upload, Maintenance)
+  const { config: publicConfig } = usePublicSystemConfig({
+    revalidateOnFocus: true,
+    refreshInterval: 60000,
+  });
+
+  useEffect(() => {
+    setConfiguredRenewalWindowDays(publicConfig.renewalMaxDaysBeforeExpiration);
+  }, [publicConfig.renewalMaxDaysBeforeExpiration]);
+
+  // Enforce configured SESSION_TIMEOUT_MINS idle session timeout on web
+  useEffect(() => {
+    if (
+      Platform.OS !== "web" ||
+      typeof window === "undefined" ||
+      clerkUser === null ||
+      clerkUser === undefined ||
+      publicConfig.sessionTimeoutMins <= 0
+    ) {
+      return;
+    }
+
+    const timeoutMs = publicConfig.sessionTimeoutMins * 60 * 1000;
+    let idleTimerId: ReturnType<typeof setTimeout> | null = null;
+
+    const resetIdleTimer = () => {
+      if (idleTimerId !== null) {
+        clearTimeout(idleTimerId);
+      }
+      idleTimerId = setTimeout(() => {
+        void signOut();
+      }, timeoutMs);
+    };
+
+    const activityEvents = ["mousemove", "keydown", "click", "touchstart", "scroll"];
+    for (const evt of activityEvents) {
+      window.addEventListener(evt, resetIdleTimer, { passive: true });
+    }
+    resetIdleTimer();
+
+    return () => {
+      if (idleTimerId !== null) {
+        clearTimeout(idleTimerId);
+      }
+      for (const evt of activityEvents) {
+        window.removeEventListener(evt, resetIdleTimer);
+      }
+    };
+  }, [clerkUser, publicConfig.sessionTimeoutMins, signOut]);
 
   const [selectedModalAnnouncement, setSelectedModalAnnouncement] = useState<SystemAnnouncementDto | null>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -227,7 +279,7 @@ export function ClientAppLayout({
           const expiry = new Date(doc.expiryDate);
           const now = new Date();
           const daysRemaining = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysRemaining <= 60) {
+          if (daysRemaining <= publicConfig.renewalMaxDaysBeforeExpiration) {
             const isExpired = daysRemaining <= 0;
             const isOnDay = daysRemaining === 0;
             const expiryFormatted = expiry.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -534,7 +586,42 @@ export function ClientAppLayout({
         )}
       </View>
 
-      {/* ── 2. Active Published Announcement Banner (from API) ───────────── */}
+      {/* ── 2. Portal Maintenance Mode Banner (from System Configuration) ─ */}
+      {publicConfig.clientMaintenanceMode && (
+        <View
+          style={{
+            backgroundColor: "#FEF2F2",
+            borderBottomWidth: 1,
+            borderBottomColor: "#FECACA",
+            paddingVertical: 10,
+            paddingHorizontal: isMobile ? 12 : 20,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
+            <Icon name="alert-triangle" size={16} color="#DC2626" />
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 12,
+                color: "#991B1B",
+                lineHeight: 17,
+                flex: 1,
+              }}
+            >
+              <Text style={{ fontWeight: "700", color: "#7F1D1D" }}>
+                {publicConfig.systemName} – Scheduled Maintenance Mode Active:{" "}
+              </Text>
+              The portal is currently undergoing scheduled system maintenance. New application submissions or status updates may experience temporary delays. For urgent inquiries, contact{" "}
+              <Text style={{ fontWeight: "700" }}>{publicConfig.supportEmail}</Text>.
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* ── 2b. Active Published Announcement Banner (from API) ──────────── */}
       <ClientAnnouncementBanner userId={clerkUser?.id} isMobile={isMobile} />
 
       {/* ── 3. Dismissable Processing Hours Notice ────────────────────────── */}
@@ -635,12 +722,65 @@ export function ClientAppLayout({
           </View>
         )}
 
-        {/* Dynamic Content Body */}
-        <View style={{ flex: 1 }}>{children}</View>
+        {/* Dynamic Content Body (Blocked during Maintenance Mode) */}
+        <View style={{ flex: 1 }}>
+          {publicConfig.clientMaintenanceMode ? (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 24,
+                backgroundColor: "#F8FAFC",
+              }}
+            >
+              <View
+                style={{
+                  width: "100%",
+                  maxWidth: 440,
+                  alignSelf: "center",
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 16,
+                  padding: 24,
+                  borderWidth: 1,
+                  borderColor: "#FECACA",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <Icon name="lock" size={28} color="#DC2626" />
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 18,
+                    fontWeight: "800",
+                    color: "#0F172A",
+                    textAlign: "center",
+                  }}
+                >
+                  Account Interaction Disabled During Maintenance
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 13,
+                    lineHeight: 19,
+                    color: "#475569",
+                    textAlign: "center",
+                  }}
+                >
+                  {publicConfig.systemName} is currently under scheduled maintenance. All account actions, application filings, and payment submissions are locked until maintenance is completed.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            children
+          )}
+        </View>
       </View>
 
       {/* ── 4. Bottom Navigation Bar (Mobile & Portrait iPad <1024px) ────────────── */}
-      {showBottomNav && (
+      {showBottomNav && !publicConfig.clientMaintenanceMode && (
         <View style={[
           styles.mobileBottomNav,
           {

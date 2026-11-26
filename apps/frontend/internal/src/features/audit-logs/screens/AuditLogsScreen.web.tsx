@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Icon as Lucide, SPACING, useTheme, SkeletonLoader } from '@edge/ui';
 import { useAdminAuditLogs, AuditLogDto } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -45,11 +46,12 @@ function safeParseJson(jsonString?: string | null): Record<string, unknown> | nu
 
 export function AuditLogsScreen() {
   const { colors, isDark } = useTheme();
+  const { user } = useAuthContext();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LogStatus | 'All'>('All');
   const [selectedLog, setSelectedLog] = useState<AuditLogDto | null>(null);
 
-  const { logs, totalCount, isLoading, isError } = useAdminAuditLogs(1, 100, search);
+  const { logs, totalCount, isLoading, isError } = useAdminAuditLogs(1, 100, search, user?.tenantId);
 
   const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
   const cardBg = isDark ? colors.neutral[800] : '#FFFFFF';

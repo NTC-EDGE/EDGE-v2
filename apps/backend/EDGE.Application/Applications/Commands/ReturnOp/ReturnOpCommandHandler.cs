@@ -15,21 +15,39 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
+    private readonly IApplicationEmailNotificationService? _emailNotificationService;
+    private readonly ISystemConfigRepository? _systemConfigRepository;
 
     public ReturnOpCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IApplicationEmailNotificationService? emailNotificationService = null,
+        ISystemConfigRepository? systemConfigRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
+        _emailNotificationService = emailNotificationService;
+        _systemConfigRepository = systemConfigRepository;
     }
 
     public async Task<ApiResponse<bool>> Handle(ReturnOpCommand request, CancellationToken cancellationToken)
     {
+        if (_systemConfigRepository != null)
+        {
+            var maintCfg = await _systemConfigRepository.GetByKeyAsync("MAINTENANCE_MODE", cancellationToken);
+            var internalMaintCfg = await _systemConfigRepository.GetByKeyAsync("INTERNAL_MAINTENANCE_MODE", cancellationToken);
+            if ((maintCfg != null && string.Equals(maintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) ||
+                (internalMaintCfg != null && string.Equals(internalMaintCfg.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiResponse<bool>.Fail(
+                    "Internal Officer Portal is currently under scheduled maintenance. Cashier actions and officer interactions are temporarily disabled.");
+            }
+        }
+
         var op = await _repository.GetOpByIdAsync(request.OpId, cancellationToken);
 
         if (op == null) return ApiResponse<bool>.Fail("Order of Payment not found.");
@@ -135,6 +153,12 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_emailNotificationService != null && app != null && app.Status == ApplicationStatus.Returned)
+        {
+            await _emailNotificationService.SendApplicationReturnedForComplianceAsync(app.Id, request.Remarks, cancellationToken);
+        }
+
         return ApiResponse<bool>.Success(true);
     }
 }

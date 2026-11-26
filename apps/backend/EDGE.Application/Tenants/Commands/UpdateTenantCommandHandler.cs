@@ -1,5 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using MediatR;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Tenants.DTOs;
 
@@ -31,6 +37,21 @@ public class UpdateTenantCommandHandler : IRequestHandler<UpdateTenantCommand, T
         if (existingTenantWithCode != null && existingTenantWithCode.Id != request.Id)
         {
             throw new InvalidOperationException($"Tenant with code '{request.Code}' is already in use by another tenant.");
+        }
+
+        // Prevent deactivating a Regional Office while applications are actively in-flight
+        if (tenant.IsActive && !request.IsActive)
+        {
+            var inFlightCounts = await _tenantRepository.GetInFlightApplicationCountsByStatusAsync(tenant.Id, cancellationToken)
+                                 ?? new Dictionary<ApplicationStatus, int>();
+            var totalInFlight = inFlightCounts.Values.Where(c => c > 0).Sum();
+            if (totalInFlight > 0)
+            {
+                var breakdown = ToggleTenantActiveCommandHandler.FormatInFlightBreakdown(inFlightCounts);
+                throw new InvalidOperationException(
+                    $"Cannot deactivate Regional Office '{tenant.Name}' while {totalInFlight} application(s) are actively in-flight ({breakdown}). " +
+                    "All pending evaluations, accounting assessments, cashier collections, and document issuances must be completed before deactivating this tenant.");
+            }
         }
 
         tenant.Name = request.Name;
