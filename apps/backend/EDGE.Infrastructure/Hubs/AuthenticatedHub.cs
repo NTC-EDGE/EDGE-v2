@@ -45,7 +45,8 @@ public abstract class AuthenticatedHub<TClient> : Hub<TClient> where TClient : c
         }
 
         var email = Context.User?.FindFirst(ClaimTypes.Email)?.Value
-                 ?? Context.User?.FindFirst("email")?.Value;
+                 ?? Context.User?.FindFirst("email")?.Value
+                 ?? Context.User?.FindFirst("email_address")?.Value;
 
         if (!string.IsNullOrWhiteSpace(email))
         {
@@ -88,7 +89,8 @@ public abstract class AuthenticatedHub<TClient> : Hub<TClient> where TClient : c
         }
 
         var email = Context.User?.FindFirst(ClaimTypes.Email)?.Value
-                 ?? Context.User?.FindFirst("email")?.Value;
+                 ?? Context.User?.FindFirst("email")?.Value
+                 ?? Context.User?.FindFirst("email_address")?.Value;
 
         if (!string.IsNullOrWhiteSpace(email))
         {

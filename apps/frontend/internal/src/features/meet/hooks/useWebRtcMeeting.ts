@@ -75,6 +75,7 @@ export function useWebRtcMeeting({
   const makingOfferRef = useRef<Map<string, boolean>>(new Map());
   const ignoreOfferRef = useRef<Map<string, boolean>>(new Map());
   const isSettingRemoteAnswerPendingRef = useRef<Map<string, boolean>>(new Map());
+  const pendingNegotiationRef = useRef<Map<string, boolean>>(new Map());
   const disconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -161,14 +162,29 @@ export function useWebRtcMeeting({
         chosenScreen = streamsMap.get(expectedScreenStreamId) ?? null;
       }
 
-      for (const s of streamEntries) {
-        if (chosenScreen !== null && s.id === chosenScreen.id) {
-          continue;
+      const candidates = streamEntries.filter((s) => chosenScreen === null || s.id !== chosenScreen.id);
+      const videoCandidates = candidates.filter((s) =>
+        s.getVideoTracks().some((t) => t.readyState !== 'ended')
+      );
+
+      if (videoCandidates.length > 0) {
+        chosenCamera = videoCandidates[0] ?? null;
+        if (videoCandidates.length > 1 && chosenScreen === null && peerState?.isScreenSharing) {
+          chosenScreen = videoCandidates[1] ?? null;
         }
-        if (chosenCamera === null) {
-          chosenCamera = s;
-        } else if (chosenScreen === null && peerState?.isScreenSharing) {
-          chosenScreen = s;
+      } else if (candidates.length > 0) {
+        chosenCamera = candidates[0] ?? null;
+      }
+
+      // Merge any separate live audio track from fallback/other streams onto chosenCamera so audio & video play together
+      if (chosenCamera !== null && chosenCamera.getAudioTracks().length === 0) {
+        for (const s of candidates) {
+          if (s.id === chosenCamera.id) continue;
+          const liveAudio = s.getAudioTracks().find((t) => t.readyState !== 'ended');
+          if (liveAudio) {
+            chosenCamera.addTrack(liveAudio);
+            break;
+          }
         }
       }
 
@@ -451,18 +467,19 @@ export function useWebRtcMeeting({
   }, []);
 
   const negotiateWithPeer = useCallback(async (targetConnectionId: string, pc: RTCPeerConnection) => {
-    if (makingOfferRef.current.get(targetConnectionId) === true) return;
-    if (pc.signalingState !== 'stable') return;
+    if (makingOfferRef.current.get(targetConnectionId) === true || pc.signalingState !== 'stable') {
+      pendingNegotiationRef.current.set(targetConnectionId, true);
+      return;
+    }
 
     try {
       makingOfferRef.current.set(targetConnectionId, true);
-      const hasAudioSender = pc.getSenders().some((s) => s.track?.kind === 'audio');
-      const hasVideoSender = pc.getSenders().some((s) => s.track?.kind === 'video');
-      const offer = await pc.createOffer({
-        offerToReceiveAudio: !hasAudioSender ? true : undefined,
-        offerToReceiveVideo: !hasVideoSender ? true : undefined,
-      });
-      if (pc.signalingState !== 'stable') return;
+      pendingNegotiationRef.current.set(targetConnectionId, false);
+      const offer = await pc.createOffer();
+      if (pc.signalingState !== 'stable') {
+        pendingNegotiationRef.current.set(targetConnectionId, true);
+        return;
+      }
       await pc.setLocalDescription(offer);
       const localDesc = pc.localDescription;
       if (localDesc && localDesc.sdp) {
@@ -479,68 +496,110 @@ export function useWebRtcMeeting({
     let needsNegotiation = false;
     const stream = localStreamRef.current;
 
+    // Ensure bidirectional audio + camera video transceivers exist from initial PeerConnection creation
+    // so early offers (before getUserMedia finishes) still negotiate m=audio and m=video lines!
+    let audioSender = audioSenderMapRef.current.get(targetConnectionId);
+    if (!audioSender || !pc.getSenders().includes(audioSender)) {
+      const existingAudioTransceiver = pc
+        .getTransceivers()
+        .find(
+          (t) =>
+            t.currentDirection !== 'stopped' &&
+            t.direction !== 'stopped' &&
+            (t.receiver.track.kind === 'audio' || t.sender.track?.kind === 'audio')
+        );
+      if (existingAudioTransceiver) {
+        if (existingAudioTransceiver.direction === 'recvonly' || existingAudioTransceiver.direction === 'inactive') {
+          existingAudioTransceiver.direction = 'sendrecv';
+          needsNegotiation = true;
+        }
+        audioSender = existingAudioTransceiver.sender;
+        audioSenderMapRef.current.set(targetConnectionId, audioSender);
+      } else if (typeof pc.addTransceiver === 'function') {
+        try {
+          const tr = pc.addTransceiver('audio', {
+            direction: 'sendrecv',
+            streams: stream ? [stream] : [],
+          });
+          audioSender = tr.sender;
+          audioSenderMapRef.current.set(targetConnectionId, audioSender);
+          needsNegotiation = true;
+        } catch {
+          // Fallback to addTrack below
+        }
+      }
+    }
+
+    const screenSenders = screenSendersMapRef.current.get(targetConnectionId) ?? [];
+    let camSender = cameraSenderMapRef.current.get(targetConnectionId);
+    if (!camSender || !pc.getSenders().includes(camSender)) {
+      const existingVideoTransceiver = pc
+        .getTransceivers()
+        .find(
+          (t) =>
+            t.currentDirection !== 'stopped' &&
+            t.direction !== 'stopped' &&
+            (t.receiver.track.kind === 'video' || t.sender.track?.kind === 'video') &&
+            !screenSenders.includes(t.sender)
+        );
+      if (existingVideoTransceiver) {
+        if (existingVideoTransceiver.direction === 'recvonly' || existingVideoTransceiver.direction === 'inactive') {
+          existingVideoTransceiver.direction = 'sendrecv';
+          needsNegotiation = true;
+        }
+        camSender = existingVideoTransceiver.sender;
+        cameraSenderMapRef.current.set(targetConnectionId, camSender);
+      } else if (typeof pc.addTransceiver === 'function') {
+        try {
+          const tr = pc.addTransceiver('video', {
+            direction: 'sendrecv',
+            streams: stream ? [stream] : [],
+          });
+          camSender = tr.sender;
+          cameraSenderMapRef.current.set(targetConnectionId, camSender);
+          needsNegotiation = true;
+        } catch {
+          // Fallback to addTrack below
+        }
+      }
+    }
+
     if (stream !== null) {
       const audioTrack = stream.getAudioTracks()[0] ?? null;
       const videoTrack = stream.getVideoTracks()[0] ?? null;
 
       if (audioTrack !== null) {
-        const existingAudioSender = audioSenderMapRef.current.get(targetConnectionId);
-        if (existingAudioSender && pc.getSenders().includes(existingAudioSender)) {
-          if (existingAudioSender.track !== audioTrack) {
-            void existingAudioSender.replaceTrack(audioTrack);
+        if (audioSender && pc.getSenders().includes(audioSender)) {
+          if (audioSender.track !== audioTrack) {
+            const hadNoTrack = audioSender.track === null;
+            void audioSender.replaceTrack(audioTrack);
+            if (hadNoTrack) needsNegotiation = true;
           }
         } else {
-          const recvOnlyAudio = pc
-            .getTransceivers()
-            .find((t) => t.currentDirection !== 'stopped' && t.direction !== 'stopped' && t.receiver.track.kind === 'audio' && t.sender.track === null);
-          if (recvOnlyAudio) {
-            recvOnlyAudio.direction = 'sendrecv';
-            void recvOnlyAudio.sender.replaceTrack(audioTrack);
-            audioSenderMapRef.current.set(targetConnectionId, recvOnlyAudio.sender);
+          try {
+            const sender = pc.addTrack(audioTrack, stream);
+            audioSenderMapRef.current.set(targetConnectionId, sender);
             needsNegotiation = true;
-          } else {
-            try {
-              const sender = pc.addTrack(audioTrack, stream);
-              audioSenderMapRef.current.set(targetConnectionId, sender);
-              needsNegotiation = true;
-            } catch {
-              // Track already added
-            }
+          } catch {
+            // Track already added
           }
         }
       }
 
       if (videoTrack !== null) {
-        const existingCamSender = cameraSenderMapRef.current.get(targetConnectionId);
-        if (existingCamSender && pc.getSenders().includes(existingCamSender)) {
-          if (existingCamSender.track !== videoTrack) {
-            void existingCamSender.replaceTrack(videoTrack);
+        if (camSender && pc.getSenders().includes(camSender)) {
+          if (camSender.track !== videoTrack) {
+            const hadNoTrack = camSender.track === null;
+            void camSender.replaceTrack(videoTrack);
+            if (hadNoTrack) needsNegotiation = true;
           }
         } else {
-          const screenSenders = screenSendersMapRef.current.get(targetConnectionId) ?? [];
-          const recvOnlyVideo = pc
-            .getTransceivers()
-            .find(
-              (t) =>
-                t.currentDirection !== 'stopped' &&
-                t.direction !== 'stopped' &&
-                t.receiver.track.kind === 'video' &&
-                t.sender.track === null &&
-                !screenSenders.includes(t.sender)
-            );
-          if (recvOnlyVideo) {
-            recvOnlyVideo.direction = 'sendrecv';
-            void recvOnlyVideo.sender.replaceTrack(videoTrack);
-            cameraSenderMapRef.current.set(targetConnectionId, recvOnlyVideo.sender);
+          try {
+            const sender = pc.addTrack(videoTrack, stream);
+            cameraSenderMapRef.current.set(targetConnectionId, sender);
             needsNegotiation = true;
-          } else {
-            try {
-              const sender = pc.addTrack(videoTrack, stream);
-              cameraSenderMapRef.current.set(targetConnectionId, sender);
-              needsNegotiation = true;
-            } catch {
-              // Track already added
-            }
+          } catch {
+            // Track already added
           }
         }
       }
@@ -588,6 +647,7 @@ export function useWebRtcMeeting({
 
     pendingIceCandidatesRef.current.delete(targetConnectionId);
     makingOfferRef.current.delete(targetConnectionId);
+    pendingNegotiationRef.current.delete(targetConnectionId);
     ignoreOfferRef.current.delete(targetConnectionId);
     isSettingRemoteAnswerPendingRef.current.delete(targetConnectionId);
     cameraSenderMapRef.current.delete(targetConnectionId);
@@ -627,7 +687,7 @@ export function useWebRtcMeeting({
       const connStreams = peerReceivedStreamsRef.current.get(targetConnectionId) ?? new Map<string, MediaStream>();
 
       if (targetStream === null) {
-        const fallbackId = `fallback_${targetConnectionId}_${event.track.kind}`;
+        const fallbackId = `fallback_${targetConnectionId}`;
         const existingFallback = connStreams.get(fallbackId);
         if (existingFallback) {
           if (!existingFallback.getTracks().some((t) => t.id === event.track.id)) {
@@ -639,8 +699,15 @@ export function useWebRtcMeeting({
           connStreams.set(fallbackId, targetStream);
         }
       } else {
+        if (!targetStream.getTracks().some((t) => t.id === event.track.id)) {
+          targetStream.addTrack(event.track);
+        }
         connStreams.set(targetStream.id, targetStream);
       }
+
+      event.track.onunmute = () => {
+        rebuildRemoteStreamMaps();
+      };
 
       event.track.onended = () => {
         rebuildRemoteStreamMaps();
@@ -725,6 +792,13 @@ export function useWebRtcMeeting({
     const registerPeerState = (peer: ActiveRoomPeerSnapshot) => {
       if (!peer.connectionId) return;
       if (peer.userId) {
+        // Clean up any stale connectionId mapped to this same userId so old closed connections don't shadow the new one
+        connectionToUserRef.current.forEach((uId, oldConnId) => {
+          if (uId === peer.userId && oldConnId !== peer.connectionId) {
+            cleanupPeerConnection(oldConnId);
+            connectionToUserRef.current.delete(oldConnId);
+          }
+        });
         connectionToUserRef.current.set(peer.connectionId, peer.userId);
         setConnectedUserIds((prev) => (prev.includes(peer.userId) ? prev : [...prev, peer.userId]));
       }
@@ -756,8 +830,7 @@ export function useWebRtcMeeting({
           registerPeerState(peer);
           if (Platform.OS === 'web' && peer.connectionId) {
             const pc = getOrCreatePeerConnection(peer.connectionId);
-            // Impolite peer initiates offer from snapshot; existing peers also offer on OnParticipantJoined,
-            // and Perfect Negotiation gracefully resolves any glare!
+            // Only the impolite peer initiates the initial offer so simultaneous joiners never trigger double-offer glare
             if (!isPolitePeer(peer.connectionId)) {
               void negotiateWithPeer(peer.connectionId, pc);
             }
@@ -778,23 +851,16 @@ export function useWebRtcMeeting({
       const connectionId = payload.connectionId;
       if (!connectionId) return;
 
-      // If this user reconnected with a new connectionId, clean up stale peer connections for that user
-      if (payload.userId) {
-        connectionToUserRef.current.forEach((uId, oldConnId) => {
-          if (uId === payload.userId && oldConnId !== connectionId) {
-            cleanupPeerConnection(oldConnId);
-            connectionToUserRef.current.delete(oldConnId);
-          }
-        });
-      }
-
       registerPeerState(payload);
       onPeerJoinedRef.current?.(payload);
 
       if (Platform.OS !== 'web') return;
 
       const pc = getOrCreatePeerConnection(connectionId);
-      await negotiateWithPeer(connectionId, pc);
+      // Only the impolite peer initiates the initial offer; if selfConnectionId isn't set yet, fall back to offering
+      if (!selfConnectionIdRef.current || !isPolitePeer(connectionId)) {
+        await negotiateWithPeer(connectionId, pc);
+      }
     });
 
     const unsubMediaState = realTimeService.onParticipantMediaStateChanged((payload: ParticipantMediaStatePayload) => {
@@ -863,8 +929,12 @@ export function useWebRtcMeeting({
 
         rebuildRemoteStreamMaps();
 
-        // If additional tracks (e.g. second stream or newly promoted sendrecv transceiver) require follow-up offer
-        if (tracksNeededRenegotiation && pc.signalingState === 'stable') {
+        // If additional tracks (e.g. second stream or newly promoted sendrecv transceiver) or queued changes require follow-up offer
+        if (
+          (tracksNeededRenegotiation || pendingNegotiationRef.current.get(senderConnectionId) === true) &&
+          pc.signalingState === 'stable'
+        ) {
+          pendingNegotiationRef.current.set(senderConnectionId, false);
           await negotiateWithPeer(senderConnectionId, pc);
         }
       } catch (err) {
@@ -890,6 +960,12 @@ export function useWebRtcMeeting({
         isSettingRemoteAnswerPendingRef.current.set(senderConnectionId, false);
         await flushPendingIceCandidates(senderConnectionId, pc);
         rebuildRemoteStreamMaps();
+
+        // If local tracks were attached while we were waiting for this answer, renegotiate now that state is stable
+        if (pendingNegotiationRef.current.get(senderConnectionId) === true) {
+          pendingNegotiationRef.current.set(senderConnectionId, false);
+          await negotiateWithPeer(senderConnectionId, pc);
+        }
       } catch (err) {
         isSettingRemoteAnswerPendingRef.current.set(senderConnectionId, false);
         console.warn('[WebRTC] Failed to apply remote answer:', err);

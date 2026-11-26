@@ -10,6 +10,7 @@ public interface IMeetingRepository
     Task<List<Meeting>> GetUpcomingMeetingsAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default);
     Task<List<Meeting>> GetMeetingsAsync(Guid userId, Guid? tenantId, string? filter = null, CancellationToken cancellationToken = default);
     Task<Meeting> AddMeetingAsync(Meeting meeting, CancellationToken cancellationToken = default);
+    Task<MeetingParticipant> AddMeetingParticipantAsync(MeetingParticipant participant, CancellationToken cancellationToken = default);
     Task<MeetingAction> AddMeetingActionAsync(MeetingAction action, CancellationToken cancellationToken = default);
     Task<MeetingPoll> AddMeetingPollAsync(MeetingPoll poll, CancellationToken cancellationToken = default);
     Task<MeetingPollVote> AddMeetingPollVoteAsync(MeetingPollVote vote, CancellationToken cancellationToken = default);

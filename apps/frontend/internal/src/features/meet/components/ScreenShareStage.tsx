@@ -6,6 +6,9 @@ interface ScreenShareStageProps {
   screenStream: MediaStream | null;
   presenterName?: string;
   isSelfPresenter?: boolean;
+  isFilmstripCollapsed?: boolean;
+  participantCount?: number;
+  onToggleFilmstrip?: () => void;
   onStopSharing?: () => void;
 }
 
@@ -13,6 +16,9 @@ export const ScreenShareStage: React.FC<ScreenShareStageProps> = ({
   screenStream,
   presenterName,
   isSelfPresenter = true,
+  isFilmstripCollapsed = false,
+  participantCount = 0,
+  onToggleFilmstrip,
   onStopSharing,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -81,6 +87,27 @@ export const ScreenShareStage: React.FC<ScreenShareStageProps> = ({
         </View>
 
         <View style={styles.headerActions}>
+          {onToggleFilmstrip && (
+            <Pressable
+              style={styles.actionBtn}
+              onPress={onToggleFilmstrip}
+              accessibilityLabel={
+                isFilmstripCollapsed ? 'Show participant video strip' : 'Hide participant video strip'
+              }
+            >
+              <Icon
+                name={isFilmstripCollapsed ? 'eye' : 'eye-off'}
+                size={13}
+                color="#FFFFFF"
+              />
+              <Text style={styles.actionBtnText}>
+                {isFilmstripCollapsed
+                  ? `Show Tiles (${participantCount})`
+                  : 'Full Stage'}
+              </Text>
+            </Pressable>
+          )}
+
           <Pressable
             style={styles.actionBtn}
             onPress={toggleFitMode}

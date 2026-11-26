@@ -24,8 +24,8 @@ public static class DependencyInjection
     {
         services.AddSignalR(hubOptions =>
         {
-            hubOptions.MaximumReceiveMessageSize = 64 * 1024; // 64 KB max WebSocket frame payload
-            hubOptions.MaximumParallelInvocationsPerClient = 2;
+            hubOptions.MaximumReceiveMessageSize = 128 * 1024; // 128 KB max WebSocket frame payload for multi-track SDP
+            hubOptions.MaximumParallelInvocationsPerClient = 10;
             hubOptions.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
             hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(15);
         });

@@ -103,6 +103,12 @@ public class MeetingRepository : IMeetingRepository
         return meeting;
     }
 
+    public async Task<MeetingParticipant> AddMeetingParticipantAsync(MeetingParticipant participant, CancellationToken cancellationToken = default)
+    {
+        await _context.MeetingParticipants.AddAsync(participant, cancellationToken);
+        return participant;
+    }
+
     public async Task<MeetingAction> AddMeetingActionAsync(MeetingAction action, CancellationToken cancellationToken = default)
     {
         await _context.MeetingActions.AddAsync(action, cancellationToken);

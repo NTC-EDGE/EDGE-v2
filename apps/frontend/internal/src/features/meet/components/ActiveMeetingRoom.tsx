@@ -63,6 +63,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
   const [isPeopleOpen, setIsPeopleOpen] = useState<boolean>(false);
   const [isPollsOpen, setIsPollsOpen] = useState<boolean>(false);
   const [useEqualPairGrid, setUseEqualPairGrid] = useState<boolean>(false);
+  const [isFilmstripCollapsed, setIsFilmstripCollapsed] = useState<boolean>(false);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [localToast, setLocalToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
@@ -395,23 +396,36 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
                 screenStream={room.activeScreenShare.stream}
                 presenterName={room.activeScreenShare.presenterName}
                 isSelfPresenter={room.activeScreenShare.isSelf}
+                isFilmstripCollapsed={isFilmstripCollapsed}
+                participantCount={currentParticipants.length}
+                onToggleFilmstrip={() => setIsFilmstripCollapsed((prev) => !prev)}
                 onStopSharing={room.activeScreenShare.isSelf ? room.toggleScreenShare : undefined}
               />
             </View>
 
-            <ScrollView
-              horizontal={!isLargeScreen}
-              style={isLargeScreen ? styles.cameraStripVertical : styles.cameraStripHorizontal}
-              contentContainerStyle={
-                isLargeScreen
-                  ? styles.cameraStripContentVertical
-                  : styles.cameraStripContentHorizontal
-              }
-              showsVerticalScrollIndicator={false}
-              showsHorizontalScrollIndicator={false}
-            >
-              {currentParticipants.map((p) => renderTileForParticipant(p, 'strip'))}
-            </ScrollView>
+            {!isFilmstripCollapsed && currentParticipants.length > 0 && (
+              <View
+                style={
+                  isLargeScreen
+                    ? styles.cameraStripContainerVertical
+                    : styles.cameraStripContainerHorizontal
+                }
+              >
+                <ScrollView
+                  horizontal={!isLargeScreen}
+                  style={isLargeScreen ? styles.cameraStripVertical : styles.cameraStripHorizontal}
+                  contentContainerStyle={
+                    isLargeScreen
+                      ? styles.cameraStripContentVertical
+                      : styles.cameraStripContentHorizontal
+                  }
+                  showsVerticalScrollIndicator={false}
+                  showsHorizontalScrollIndicator={false}
+                >
+                  {currentParticipants.map((p) => renderTileForParticipant(p, 'strip'))}
+                </ScrollView>
+              </View>
+            )}
           </View>
         ) : featuredParticipant !== null && currentParticipants.length > 1 ? (
           <View
@@ -423,19 +437,29 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
             <View style={styles.screenShareMainStage}>
               {renderTileForParticipant(featuredParticipant, 'solo')}
             </View>
-            <ScrollView
-              horizontal={!isLargeScreen}
-              style={isLargeScreen ? styles.cameraStripVertical : styles.cameraStripHorizontal}
-              contentContainerStyle={
+            <View
+              style={
                 isLargeScreen
-                  ? styles.cameraStripContentVertical
-                  : styles.cameraStripContentHorizontal
+                  ? styles.cameraStripContainerVertical
+                  : styles.cameraStripContainerHorizontal
               }
             >
-              {currentParticipants
-                .filter((p) => p.userId !== featuredParticipant.userId)
-                .map((p) => renderTileForParticipant(p, 'strip'))}
-            </ScrollView>
+              <ScrollView
+                horizontal={!isLargeScreen}
+                style={isLargeScreen ? styles.cameraStripVertical : styles.cameraStripHorizontal}
+                contentContainerStyle={
+                  isLargeScreen
+                    ? styles.cameraStripContentVertical
+                    : styles.cameraStripContentHorizontal
+                }
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+              >
+                {currentParticipants
+                  .filter((p) => p.userId !== featuredParticipant.userId)
+                  .map((p) => renderTileForParticipant(p, 'strip'))}
+              </ScrollView>
+            </View>
           </View>
         ) : isTwoPersonFloatingView && remoteInPair !== null && selfInPair !== null ? (
           <View style={styles.pairStage}>
@@ -874,34 +898,56 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     gap: 12,
+    overflow: 'hidden',
   },
   screenShareLayoutRow: {
     flexDirection: 'row',
+    alignItems: 'stretch',
   },
   screenShareLayoutColumn: {
     flexDirection: 'column',
   },
   screenShareMainStage: {
     flex: 1,
-    minHeight: 260,
+    minWidth: 0,
+    minHeight: 240,
     justifyContent: 'center',
   },
+  cameraStripContainerVertical: {
+    width: 204,
+    flexGrow: 0,
+    flexShrink: 0,
+    maxHeight: '100%',
+    justifyContent: 'center',
+  },
+  cameraStripContainerHorizontal: {
+    height: 118,
+    width: '100%',
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   cameraStripVertical: {
-    width: 240,
+    width: 204,
+    flexGrow: 0,
     maxHeight: '100%',
   },
   cameraStripContentVertical: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 10,
-    paddingRight: 4,
   },
   cameraStripHorizontal: {
-    height: 135,
+    height: 118,
     width: '100%',
+    flexGrow: 0,
   },
   cameraStripContentHorizontal: {
+    flexGrow: 1,
     flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 10,
-    paddingBottom: 4,
   },
   dockedSidebar: {
     width: 320,

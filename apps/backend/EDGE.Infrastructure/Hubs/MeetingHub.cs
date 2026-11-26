@@ -68,6 +68,8 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, string>> MeetingActiveUserConnections = new();
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ActiveRoomPeerState>> RoomActivePeers = new();
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, WaitingRoomEntry>> RoomWaitingQueues = new();
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> AdmittedConnections = new();
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>> AdmittedUsers = new();
     private static readonly ConcurrentDictionary<string, RoomRecordingInfo> RoomRecordings = new();
     private static readonly ConcurrentDictionary<string, List<RoomChatMessageEntry>> RoomChatHistories = new();
 
@@ -90,6 +92,8 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
         MeetingActiveUserConnections.TryRemove(meetingCode, out _);
         RoomActivePeers.TryRemove(meetingCode, out _);
         RoomWaitingQueues.TryRemove(meetingCode, out _);
+        AdmittedConnections.TryRemove(meetingCode, out _);
+        AdmittedUsers.TryRemove(meetingCode, out _);
         RoomRecordings.TryRemove(meetingCode, out _);
         RoomChatHistories.TryRemove(meetingCode, out _);
     }
@@ -188,13 +192,23 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
         var resolvedUserId = await ResolveUserIdAsync();
         var userId = resolvedUserId ?? Guid.Empty;
 
+        var allDbParticipants = await _meetingRepository.GetAllParticipantsAsync(meeting.Id);
         var dbParticipant = resolvedUserId.HasValue
-            ? meeting.Participants.FirstOrDefault(p => p.UserId == userId && !p.IsDeleted)
+            ? allDbParticipants.FirstOrDefault(p => p.UserId == userId)
             : null;
+
+        var isAdmittedConnection = AdmittedConnections.TryGetValue(meetingCode, out var admittedConns) &&
+                                   admittedConns.ContainsKey(Context.ConnectionId);
+        var isAdmittedUser = resolvedUserId.HasValue &&
+                             resolvedUserId.Value != Guid.Empty &&
+                             AdmittedUsers.TryGetValue(meetingCode, out var admittedUsers) &&
+                             admittedUsers.ContainsKey(resolvedUserId.Value);
 
         var isAuthorized = meeting.Scope == ConversationScope.InterRegional ||
                            meeting.AllowExternalGuests ||
-                           (resolvedUserId.HasValue && (meeting.HostUserId == userId || dbParticipant != null));
+                           isAdmittedConnection ||
+                           isAdmittedUser ||
+                           (resolvedUserId.HasValue && (meeting.HostUserId == userId || (dbParticipant != null && !dbParticipant.IsDeleted)));
 
         if (!isAuthorized)
         {
@@ -224,13 +238,18 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
             needsSave = true;
         }
 
-        if (dbParticipant != null && dbParticipant.JoinedAt == null)
+        if (dbParticipant != null)
         {
-            dbParticipant.JoinedAt = DateTimeOffset.UtcNow;
-            dbParticipant.LeftAt = null;
-            needsSave = true;
+            if (dbParticipant.IsDeleted || dbParticipant.JoinedAt == null || dbParticipant.LeftAt != null)
+            {
+                dbParticipant.IsDeleted = false;
+                dbParticipant.IsDeletedBy = string.Empty;
+                dbParticipant.JoinedAt ??= DateTimeOffset.UtcNow;
+                dbParticipant.LeftAt = null;
+                needsSave = true;
+            }
         }
-        else if (dbParticipant == null && resolvedUserId.HasValue && resolvedUserId.Value != Guid.Empty)
+        else if (resolvedUserId.HasValue && resolvedUserId.Value != Guid.Empty)
         {
             dbParticipant = new Domain.Entities.MeetingParticipant
             {
@@ -242,13 +261,20 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
                 IsDeleted = false,
                 IsDeletedBy = string.Empty
             };
-            meeting.Participants.Add(dbParticipant);
+            await _meetingRepository.AddMeetingParticipantAsync(dbParticipant);
             needsSave = true;
         }
 
         if (needsSave)
         {
-            await _unitOfWork.SaveChangesAsync();
+            try
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+            catch
+            {
+                // Ignore duplicate/concurrency save exception so WebRTC room entry never fails
+            }
         }
 
         await CompleteRoomJoinAsync(meeting, userId, dbParticipant);
@@ -469,10 +495,17 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
             throw new HubException("Meeting not found.");
         }
 
-        var resolvedUserId = await ResolveUserIdAsync();
-        var currentUserId = resolvedUserId ?? Guid.Empty;
+        var currentUser = await ResolveCurrentUserAsync();
+        var currentUserId = currentUser?.Id ?? (await ResolveUserIdAsync() ?? Guid.Empty);
 
-        var isHostOrAdmin = meeting.HostUserId == currentUserId ||
+        var hasActiveHostRoomRole = RoomActivePeers.TryGetValue(meetingCode, out var activeRoomPeers) &&
+                                    activeRoomPeers.TryGetValue(Context.ConnectionId, out var callerPeer) &&
+                                    (string.Equals(callerPeer.Role, ParticipantRole.Owner.ToString(), StringComparison.OrdinalIgnoreCase) ||
+                                     string.Equals(callerPeer.Role, ParticipantRole.Admin.ToString(), StringComparison.OrdinalIgnoreCase));
+
+        var isHostOrAdmin = (currentUser?.IsSuperAdmin ?? false) ||
+                            hasActiveHostRoomRole ||
+                            meeting.HostUserId == currentUserId ||
                             meeting.Participants.Any(p => p.UserId == currentUserId && !p.IsDeleted && (p.Role == ParticipantRole.Owner || p.Role == ParticipantRole.Admin));
 
         if (!isHostOrAdmin)
@@ -489,50 +522,83 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
         WaitingRoomEntry? waitingEntry = null;
         if (RoomWaitingQueues.TryGetValue(meetingCode, out var queue))
         {
-            queue.TryRemove(targetConnectionId, out waitingEntry);
+            if (!queue.TryRemove(targetConnectionId, out waitingEntry) && parsedTargetUserId != Guid.Empty)
+            {
+                var matchByUser = queue.Values.FirstOrDefault(w => w.UserId == parsedTargetUserId);
+                if (matchByUser != null)
+                {
+                    queue.TryRemove(matchByUser.ConnectionId, out waitingEntry);
+                }
+            }
         }
+
+        var effectiveTargetConnectionId = waitingEntry?.ConnectionId ?? targetConnectionId;
 
         if (parsedTargetUserId == Guid.Empty && waitingEntry != null)
         {
             parsedTargetUserId = waitingEntry.UserId;
         }
 
+        var admittedConns = AdmittedConnections.GetOrAdd(meetingCode, _ => new ConcurrentDictionary<string, byte>());
+        admittedConns[targetConnectionId] = 1;
+        admittedConns[effectiveTargetConnectionId] = 1;
+
         if (parsedTargetUserId != Guid.Empty)
         {
-            var existing = meeting.Participants.FirstOrDefault(p => p.UserId == parsedTargetUserId);
-            if (existing != null)
+            var admittedUsers = AdmittedUsers.GetOrAdd(meetingCode, _ => new ConcurrentDictionary<Guid, byte>());
+            admittedUsers[parsedTargetUserId] = 1;
+
+            try
             {
-                existing.IsDeleted = false;
-                existing.LeftAt = null;
-            }
-            else
-            {
-                meeting.Participants.Add(new Domain.Entities.MeetingParticipant
+                var allParticipants = await _meetingRepository.GetAllParticipantsAsync(meeting.Id);
+                var existing = allParticipants.FirstOrDefault(p => p.UserId == parsedTargetUserId);
+                if (existing != null)
                 {
-                    MeetingId = meeting.Id,
-                    UserId = parsedTargetUserId,
-                    TenantId = meeting.TenantId,
-                    Role = ParticipantRole.Member,
-                    IsDeleted = false,
-                    IsDeletedBy = string.Empty
-                });
+                    existing.IsDeleted = false;
+                    existing.IsDeletedBy = string.Empty;
+                    existing.LeftAt = null;
+                }
+                else
+                {
+                    await _meetingRepository.AddMeetingParticipantAsync(new Domain.Entities.MeetingParticipant
+                    {
+                        MeetingId = meeting.Id,
+                        UserId = parsedTargetUserId,
+                        TenantId = meeting.TenantId,
+                        Role = ParticipantRole.Member,
+                        IsDeleted = false,
+                        IsDeletedBy = string.Empty
+                    });
+                }
+                await _unitOfWork.SaveChangesAsync();
             }
-            await _unitOfWork.SaveChangesAsync();
+            catch
+            {
+                // Ignore persistence conflict so admission still succeeds via AdmittedUsers/AdmittedConnections
+            }
 
             var userConns = MeetingActiveUserConnections.GetOrAdd(meetingCode, _ => new ConcurrentDictionary<Guid, string>());
-            userConns[parsedTargetUserId] = targetConnectionId;
+            userConns[parsedTargetUserId] = effectiveTargetConnectionId;
         }
 
         var waitingGroupName = $"meet_waiting_{meetingCode}";
         var roomGroupName = $"meet_{meetingCode}";
 
-        await Groups.RemoveFromGroupAsync(targetConnectionId, waitingGroupName);
+        await Groups.RemoveFromGroupAsync(effectiveTargetConnectionId, waitingGroupName);
 
         var updatedQueue = queue != null ? queue.Values.OrderBy(w => w.RequestedAt).ToList() : new List<WaitingRoomEntry>();
         await Clients.Group(roomGroupName).OnWaitingQueueUpdated(updatedQueue);
 
-        // Notify admitted client so they invoke JoinMeeting (receiving full room snapshot + broadcasting their full profile)
-        await Clients.Client(targetConnectionId).OnJoinRequestAdmitted(meetingCode);
+        // Notify admitted client (both by connectionId and user group in case they reconnected while waiting)
+        await Clients.Client(effectiveTargetConnectionId).OnJoinRequestAdmitted(meetingCode);
+        if (effectiveTargetConnectionId != targetConnectionId)
+        {
+            await Clients.Client(targetConnectionId).OnJoinRequestAdmitted(meetingCode);
+        }
+        if (parsedTargetUserId != Guid.Empty)
+        {
+            await Clients.Group($"user_{parsedTargetUserId}").OnJoinRequestAdmitted(meetingCode);
+        }
     }
 
     public async Task DenyParticipant(string meetingCode, string targetConnectionId, string? targetUserId)
@@ -548,10 +614,17 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
             throw new HubException("Meeting not found.");
         }
 
-        var resolvedUserId = await ResolveUserIdAsync();
-        var currentUserId = resolvedUserId ?? Guid.Empty;
+        var currentUser = await ResolveCurrentUserAsync();
+        var currentUserId = currentUser?.Id ?? (await ResolveUserIdAsync() ?? Guid.Empty);
 
-        var isHostOrAdmin = meeting.HostUserId == currentUserId ||
+        var hasActiveHostRoomRole = RoomActivePeers.TryGetValue(meetingCode, out var activeRoomPeers) &&
+                                    activeRoomPeers.TryGetValue(Context.ConnectionId, out var callerPeer) &&
+                                    (string.Equals(callerPeer.Role, ParticipantRole.Owner.ToString(), StringComparison.OrdinalIgnoreCase) ||
+                                     string.Equals(callerPeer.Role, ParticipantRole.Admin.ToString(), StringComparison.OrdinalIgnoreCase));
+
+        var isHostOrAdmin = (currentUser?.IsSuperAdmin ?? false) ||
+                            hasActiveHostRoomRole ||
+                            meeting.HostUserId == currentUserId ||
                             meeting.Participants.Any(p => p.UserId == currentUserId && !p.IsDeleted && (p.Role == ParticipantRole.Owner || p.Role == ParticipantRole.Admin));
 
         if (!isHostOrAdmin)

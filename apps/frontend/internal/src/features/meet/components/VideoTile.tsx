@@ -43,6 +43,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [fitMode, setFitMode] = useState<'cover' | 'contain'>('cover');
+  const [, setTrackRevision] = useState<number>(0);
 
   const liveVideoTracks =
     stream !== null
@@ -50,6 +51,38 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       : [];
   const hasVideoTrack = liveVideoTracks.length > 0 && !isVideoMuted;
   const isParticipantHandRaised = isSelf ? isHandRaised : participant.isHandRaised;
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !stream) return;
+
+    const bumpRevision = () => {
+      setTrackRevision((r) => r + 1);
+      if (videoRef.current) {
+        videoRef.current.play().catch(() => {
+          // Autoplay policy handled
+        });
+      }
+    };
+
+    stream.addEventListener('addtrack', bumpRevision);
+    stream.addEventListener('removetrack', bumpRevision);
+    const tracks = stream.getTracks();
+    tracks.forEach((t) => {
+      t.addEventListener('unmute', bumpRevision);
+      t.addEventListener('mute', bumpRevision);
+      t.addEventListener('ended', bumpRevision);
+    });
+
+    return () => {
+      stream.removeEventListener('addtrack', bumpRevision);
+      stream.removeEventListener('removetrack', bumpRevision);
+      tracks.forEach((t) => {
+        t.removeEventListener('unmute', bumpRevision);
+        t.removeEventListener('mute', bumpRevision);
+        t.removeEventListener('ended', bumpRevision);
+      });
+    };
+  }, [stream]);
 
   useEffect(() => {
     if (Platform.OS === 'web' && videoRef.current && stream) {
@@ -149,8 +182,11 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       {/* Avatar Fallback View when Camera is Off */}
       {(!hasVideoTrack || stream === null) && (
         <View style={[styles.centerAvatar, { zIndex: 2 }]}>
-          <Avatar name={participant.fullName} size={layoutMode === 'floating' ? 'md' : 'lg'} />
-          {layoutMode !== 'floating' && (
+          <Avatar
+            name={participant.fullName}
+            size={layoutMode === 'floating' || layoutMode === 'strip' ? 'md' : 'lg'}
+          />
+          {layoutMode !== 'floating' && layoutMode !== 'strip' && (
             <View style={styles.camOffBadge}>
               <Icon name="video-off" size={12} color="#94A3B8" />
               <Text style={styles.camOffText}>Camera off</Text>
@@ -296,14 +332,15 @@ const styles = StyleSheet.create({
     maxWidth: 460,
   },
   containerStrip: {
-    width: '100%',
-    minWidth: 160,
-    maxWidth: 260,
-    aspectRatio: 16 / 9,
+    width: 196,
+    height: 110,
+    flexShrink: 0,
+    borderRadius: 12,
   },
   containerFloating: {
     width: 210,
-    aspectRatio: 16 / 9,
+    height: 118,
+    flexShrink: 0,
     borderRadius: 12,
   },
   centerAvatar: {

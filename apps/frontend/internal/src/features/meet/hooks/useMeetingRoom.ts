@@ -682,7 +682,6 @@ export function useMeetingRoom(
     meetingCode,
     currentUserId,
     currentUserName,
-    isLocalRecording,
     pushNotice,
     stopLocalRecording,
     stopAllMediaTracks,
@@ -908,8 +907,9 @@ export function useMeetingRoom(
         await realTimeService.admitParticipant(meeting.meetingCode, req.connectionId, sanitizedId);
         setWaitingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
         pushNotice(`Admitted ${req.userName}.`, 'success');
-      } catch {
-        pushNotice(`Failed to admit ${req.userName}.`, 'error');
+      } catch (err) {
+        const detail = err instanceof Error && err.message ? ` (${err.message})` : '';
+        pushNotice(`Failed to admit ${req.userName}${detail}.`, 'error');
       }
     },
     [meeting, pushNotice]
