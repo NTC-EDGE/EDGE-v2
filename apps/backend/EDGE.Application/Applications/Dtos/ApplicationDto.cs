@@ -42,6 +42,7 @@ public class ApplicationDto
     public string? ServiceCategory { get; set; }
     public string? ServiceCategoryName { get; set; }
     public string? ServiceCategoryCode { get; set; }
+    public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
     public string? ServiceVariantType { get; set; }
     public string? Element { get; set; }

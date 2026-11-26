@@ -12,6 +12,8 @@ import {
 } from '../../../../shared/formPreview';
 
 export interface SubmittedApplicantData {
+  id?: string;
+  serviceId?: string;
   applicantName?: string;
   name?: string;
   applicantType?: string | null;
@@ -91,8 +93,8 @@ export function SubmittedFormStructuredView({
     return matched?.id;
   }, [serviceId, app.serviceId, app.serviceName, allServicesRes]);
 
-  const effectiveServiceId = resolvedServiceId || serviceId || app.serviceId;
-  const effectiveVariantId = serviceVariantId || app.serviceVariantId;
+  const effectiveServiceId = resolvedServiceId || serviceId || singleApplicant?.serviceId || app.serviceId || app.applicants?.[0]?.serviceId;
+  const effectiveVariantId = serviceVariantId || singleApplicant?.serviceVariantId || app.serviceVariantId || app.applicants?.[0]?.serviceVariantId;
   const effectiveVariantName = resolvePreviewVariant({
     variantName: variantLabel,
     serviceVariantName: singleApplicant?.serviceVariantName || app.serviceVariantName,

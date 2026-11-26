@@ -212,6 +212,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             ServiceCategory = primaryService?.ServiceCategory?.Name,
             ServiceCategoryName = primaryService?.ServiceCategory?.Name,
             ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
+            ServiceVariantId = primaryVariant?.Id,
             ServiceVariantName = primaryVariant?.Description ?? FormatServiceVariantType(primaryVariant?.Type),
             ServiceVariantType = FormatServiceVariantType(primaryVariant?.Type),
             OfficialReceiptNumber = hasUnpaidOp ? null : resolvedOrNumber,

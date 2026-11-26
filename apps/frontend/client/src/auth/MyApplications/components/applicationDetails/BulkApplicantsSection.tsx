@@ -309,6 +309,10 @@ export function BulkApplicantsSection({
               <SingleApplicantSection
                 app={app}
                 singleApplicant={{
+                  id: activeApplicant.id,
+                  serviceId: activeApplicant.serviceId || app.serviceId,
+                  serviceVariantId: activeApplicant.serviceVariantId || app.serviceVariantId,
+                  serviceVariantName: activeApplicant.serviceVariantName || app.serviceVariantName,
                   applicantName: extractApplicantFullName(app, activeApplicant.details, activeApplicant),
                   applicantType: resolvedApplicantType,
                   sex: activeApplicant.sex || activeApplicant.details?.sex || findSelectedField((l) => l === 'sex' || l === 'gender' || l.includes('sex / gender')) || 'Male',

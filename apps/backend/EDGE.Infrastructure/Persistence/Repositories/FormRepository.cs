@@ -405,12 +405,20 @@ public class FormRepository : IFormRepository
             if (!string.IsNullOrEmpty(normTitle)) sectionsByNormTitle[normTitle] = sec;
         }
 
+        var seenFieldIdsAcrossForm = new HashSet<Guid>();
+        var nonEmptySections = new List<FormSection>();
+
         for (int sIdx = 0; sIdx < uniqueSections.Count; sIdx++)
         {
             var sec = uniqueSections[sIdx];
-            sec.OrderIndex = sIdx;
-            if (sec.SectionFields == null || sec.SectionFields.Count <= 1) continue;
+            if (sec.SectionFields == null || sec.SectionFields.Count == 0)
+            {
+                sec.OrderIndex = nonEmptySections.Count;
+                nonEmptySections.Add(sec);
+                continue;
+            }
 
+            int rawFieldCount = sec.SectionFields.Count;
             var seenFieldIds = new HashSet<Guid>();
             var seenLabelTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var cleanFields = new List<SectionField>();
@@ -435,8 +443,9 @@ public class FormRepository : IFormRepository
             foreach (var rawSf in sec.SectionFields.OrderBy(x => x.OrderIndex))
             {
                 var sf = rawSf;
+                bool isDivider = sf.Field != null && string.Equals(sf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase);
                 bool isCanonicalFieldId = sf.FieldId.ToString().StartsWith("fd000000-", StringComparison.OrdinalIgnoreCase);
-                if (sf.Field != null && !string.Equals(sf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase))
+                if (sf.Field != null && !isDivider)
                 {
                     var normLbl = NormalizeAlphaNum(sf.Field.Label);
                     var normType = (sf.Field.FieldType ?? "text").Trim().ToLowerInvariant();
@@ -463,14 +472,29 @@ public class FormRepository : IFormRepository
                     continue;
                 }
 
+                if (!isDivider && sf.FieldId != Guid.Empty && !seenFieldIdsAcrossForm.Add(sf.FieldId))
+                {
+                    continue;
+                }
+
                 sf.OrderIndex = fIdx++;
                 cleanFields.Add(sf);
             }
 
             sec.SectionFields = cleanFields;
+
+            // If a section originally had fields and all of its non-divider fields were duplicates already present in an earlier section, omit it
+            bool hasNonDivider = cleanFields.Any(cf => cf.Field == null || !string.Equals(cf.Field.FieldType, "divider", StringComparison.OrdinalIgnoreCase));
+            if (rawFieldCount > 0 && (cleanFields.Count == 0 || !hasNonDivider))
+            {
+                continue;
+            }
+
+            sec.OrderIndex = nonEmptySections.Count;
+            nonEmptySections.Add(sec);
         }
 
-        form.Sections = uniqueSections;
+        form.Sections = nonEmptySections;
     }
 
     private static void ApplyVariantProjectionInMemory(Form form, ServiceVariant variant)

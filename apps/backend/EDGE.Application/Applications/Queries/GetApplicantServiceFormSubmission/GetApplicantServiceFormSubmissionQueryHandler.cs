@@ -100,15 +100,21 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
 
         // 3. Resolve Form layout schema (prefer variant-specific form when available)
         var effectiveVariantId = request.ServiceVariantId ?? applicant.ServiceVariantId;
-        Form? form = null;
-        if (submission != null && submission.FormId != Guid.Empty)
+        var targetVariant = applicant.ServiceVariant;
+        if (targetVariant == null && effectiveVariantId.HasValue && effectiveVariantId.Value != Guid.Empty)
         {
-            form = await _formRepository.GetByIdAsync(submission.FormId, cancellationToken);
+            targetVariant = await _serviceRepository.GetVariantByIdAsync(effectiveVariantId.Value, cancellationToken);
         }
 
-        if (form == null && effectiveVariantId.HasValue && effectiveVariantId.Value != Guid.Empty)
+        Form? form = null;
+        if (effectiveVariantId.HasValue && effectiveVariantId.Value != Guid.Empty)
         {
             form = await _formRepository.GetFormByServiceIdAsync(serviceId.Value, effectiveVariantId.Value, null, cancellationToken);
+        }
+
+        if (form == null && submission != null && submission.FormId != Guid.Empty)
+        {
+            form = await _formRepository.GetByIdAsync(submission.FormId, cancellationToken);
         }
 
         form ??= await _formRepository.GetFormByServiceIdAsync(serviceId.Value, cancellationToken);
@@ -129,40 +135,183 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
             ? _contractValidator.GetRequiredSectionKeys(service.Contract)
             : new HashSet<string>();
 
+        bool isCustomized = form.ServiceVariantId.HasValue && (!effectiveVariantId.HasValue || form.ServiceVariantId.Value == effectiveVariantId.Value);
+        var projectedSections = new List<ApplicationFormSectionDto>();
+        var seenFieldIdsAcrossForm = new HashSet<Guid>();
+
+        foreach (var fs in form.Sections.Where(s => !s.IsDeleted).OrderBy(s => s.OrderIndex))
+        {
+            var secVis = FormSectionDto.ExtractSectionVisibilityCondition(fs.SectionFields);
+            if (!isCustomized && targetVariant != null && !IsVariantConditionApplicable(secVis, targetVariant))
+            {
+                continue;
+            }
+
+            var rawSfs = (fs.SectionFields ?? Enumerable.Empty<SectionField>())
+                .OrderBy(sf => sf.OrderIndex)
+                .ToList();
+
+            var filteredSfs = (!isCustomized && targetVariant != null)
+                ? rawSfs.Where(sf => IsVariantConditionApplicable(ExtractEffectiveFieldCondition(sf), targetVariant)).ToList()
+                : rawSfs;
+
+            var uniqueSfs = new List<SectionField>();
+            foreach (var sf in filteredSfs)
+            {
+                bool isDivider = string.Equals(sf.Field?.FieldType, "divider", StringComparison.OrdinalIgnoreCase);
+                if (!isDivider && sf.FieldId != Guid.Empty && !seenFieldIdsAcrossForm.Add(sf.FieldId))
+                {
+                    continue;
+                }
+                uniqueSfs.Add(sf);
+            }
+
+            if (rawSfs.Count > 0 && uniqueSfs.Count == 0)
+            {
+                continue;
+            }
+
+            projectedSections.Add(new ApplicationFormSectionDto
+            {
+                Key = fs.Key,
+                Title = FormSectionDto.ResolveTitle(fs, targetVariant),
+                Required = requiredSectionKeys.Contains(fs.Key),
+                OrderIndex = projectedSections.Count,
+                VisibilityCondition = isCustomized ? secVis : null,
+                Fields = uniqueSfs
+                    .Select((sf, idx) =>
+                    {
+                        var projectedField = FormFieldDto.FromSectionField(sf, targetVariant, isCustomized ? form.Id : null);
+                        return new ApplicationFormFieldValueDto
+                        {
+                            FieldId = projectedField.FieldId,
+                            Label = projectedField.Label,
+                            Type = projectedField.Type,
+                            IsRequired = projectedField.IsRequired,
+                            OrderIndex = idx,
+                            ValidationRules = projectedField.ValidationRules,
+                            VisibilityCondition = projectedField.VisibilityCondition,
+                            Options = projectedField.Options,
+                            Value = valueMap.TryGetValue(sf.FieldId, out var val) ? val : null
+                        };
+                    }).ToList()
+            });
+        }
+
         var dto = new ApplicationFormSubmissionDto
         {
             SubmissionId = submission?.Id,
             FormId = form.Id,
             ServiceId = form.ServiceId,
+            ServiceCode = form.Service?.Code ?? service?.Code,
+            ServiceVariantId = effectiveVariantId ?? form.ServiceVariantId,
+            ServiceVariantName = targetVariant?.Description,
             ApplicationId = app.Id,
             ApplicantId = request.ApplicantId,
             Version = form.Version,
-            Sections = form.Sections
-                .Where(s => !s.IsDeleted)
-                .OrderBy(s => s.OrderIndex)
-                .Select(fs => new ApplicationFormSectionDto
-                {
-                    Key = fs.Key,
-                    Title = fs.Title,
-                    Required = requiredSectionKeys.Contains(fs.Key),
-                    OrderIndex = fs.OrderIndex,
-                    Fields = fs.SectionFields
-                        .OrderBy(sf => sf.OrderIndex)
-                        .Select(sf => new ApplicationFormFieldValueDto
-                        {
-                            FieldId = sf.FieldId,
-                            Label = sf.Field?.Label ?? string.Empty,
-                            Type = sf.Field?.FieldType ?? string.Empty,
-                            IsRequired = sf.IsRequired,
-                            OrderIndex = sf.OrderIndex,
-                            ValidationRules = sf.Field?.ValidationRules,
-                            VisibilityCondition = sf.VisibilityCondition,
-                            Options = FormFieldDto.ExtractOptions(sf.Field?.ValidationRules),
-                            Value = valueMap.TryGetValue(sf.FieldId, out var val) ? val : null
-                        }).ToList()
-                }).ToList()
+            Sections = projectedSections
         };
 
         return ApiResponse<ApplicationFormSubmissionDto>.Success(dto);
+    }
+
+    private static string? ExtractEffectiveFieldCondition(SectionField sf)
+    {
+        if (!string.IsNullOrWhiteSpace(sf.VisibilityCondition))
+        {
+            return sf.VisibilityCondition;
+        }
+
+        var rules = sf.Field?.ValidationRules;
+        if (!string.IsNullOrWhiteSpace(rules) && rules.Trim().StartsWith("{", StringComparison.Ordinal))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(rules.Trim());
+                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                    doc.RootElement.TryGetProperty("condition", out var condEl))
+                {
+                    if (condEl.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    {
+                        return condEl.GetRawText();
+                    }
+                    if (condEl.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        return condEl.GetString();
+                    }
+                }
+            }
+            catch
+            {
+                // ignore malformed JSON
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsVariantConditionApplicable(string? visibilityCondition, ServiceVariant variant)
+    {
+        if (string.IsNullOrWhiteSpace(visibilityCondition)) return true;
+        var trimmed = visibilityCondition.Trim();
+        if (!trimmed.StartsWith("{", StringComparison.Ordinal)) return true;
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+            var root = doc.RootElement;
+            if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return true;
+
+            var excluded = ReadStringArray(root, "excludedVariants");
+            if (excluded.Any(tok => string.Equals(tok, "ALL", StringComparison.OrdinalIgnoreCase) || FormFieldDto.MatchesServiceVariant(tok, variant)))
+            {
+                return false;
+            }
+
+            var variants = ReadStringArray(root, "variants");
+            variants.AddRange(ReadStringArray(root, "variantType"));
+            var appTypes = ReadStringArray(root, "applicationTypes");
+            appTypes.AddRange(ReadStringArray(root, "variantDescription"));
+
+            if (variants.Count == 0 && appTypes.Count == 0) return true;
+            if (variants.Count > 0 && variants.All(v => string.Equals(v, "__NONE__", StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            bool matchesVar = variants.Count == 0 || variants.Any(tok => FormFieldDto.MatchesServiceVariant(tok, variant));
+            bool matchesApp = appTypes.Count == 0 || appTypes.Any(tok => FormFieldDto.MatchesServiceVariant(tok, variant));
+
+            return variants.Count > 0 && appTypes.Count > 0
+                ? (matchesVar || matchesApp)
+                : (variants.Count > 0 ? matchesVar : matchesApp);
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static List<string> ReadStringArray(System.Text.Json.JsonElement obj, string propName)
+    {
+        var list = new List<string>();
+        if (!obj.TryGetProperty(propName, out var el)) return list;
+        if (el.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            var s = el.GetString()?.Trim();
+            if (!string.IsNullOrEmpty(s)) list.Add(s);
+        }
+        else if (el.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var item in el.EnumerateArray())
+            {
+                if (item.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var s = item.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(s)) list.Add(s);
+                }
+            }
+        }
+        return list;
     }
 }

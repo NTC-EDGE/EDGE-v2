@@ -104,12 +104,58 @@ export function serializeCertificateApplicant(
     }
   });
 
-  // Always include all canonical seeded FIELD_GUID_MAP IDs (such as Civil Status, Sex, Nationality,
-  // Date of Birth, and granular address fields from ApplicantInformationFormSection) so standard
-  // applicant fields are never stripped out when a service also has dynamic Form Builder sections.
-  Object.values(FIELD_GUID_MAP).forEach((guid) => {
-    validFieldIdSet.add(guid.toLowerCase().trim());
-  });
+  if (formFields.length > 0) {
+    // When an active variant form schema is loaded, only allow fields from that schema
+    // PLUS core applicant profile, address, contact, education, signature, variant, and element metadata GUIDs.
+    // This prevents stale or hidden service-specific fields from other variants/sections from being saved.
+    const coreApplicantMetadataGuids = [
+      'fd000000-0000-0000-0000-000000000001', // fullName
+      'fd000000-0000-0000-0000-000000000002', // birthDate
+      'fd000000-0000-0000-0000-000000000003', // address
+      'fd000000-0000-0000-0000-000000000004', // contactNo
+      'fd000000-0000-0000-0000-000000000005', // email
+      'fd000000-0000-0000-0000-000000000006', // education
+      'fd000000-0000-0000-0000-000000000007', // examCategory
+      'fd000000-0000-0000-0000-000000000008', // examineeType
+      'fd000000-0000-0000-0000-000000000009', // elements
+      'fd000000-0000-0000-0000-000000000010', // specialNeeds
+      'fd000000-0000-0000-0000-000000000011', // admissionNumber
+      'fd000000-0000-0000-0000-000000000012', // signatureField
+      'fd000000-0000-0000-0000-000000000013', // declarationCheckbox
+      'fd000000-0000-0000-0000-000000000014', // typeOfCertificate
+      'fd000000-0000-0000-0000-000000000024', // permitType
+      'fd000000-0000-0000-0000-000000000025', // classOfStation
+      'fd000000-0000-0000-0000-000000000041', // sex
+      'fd000000-0000-0000-0000-000000000042', // civilStatus
+      'fd000000-0000-0000-0000-000000000043', // nationality
+      'fd000000-0000-0000-0000-000000000051', // region
+      'fd000000-0000-0000-0000-000000000052', // province
+      'fd000000-0000-0000-0000-000000000053', // city
+      'fd000000-0000-0000-0000-000000000054', // barangay
+      'fd000000-0000-0000-0000-000000000055', // street
+      'fd000000-0000-0000-0000-000000000056', // zipCode
+      'fd000000-0000-0000-0000-000000000061', // schoolName
+      'fd000000-0000-0000-0000-000000000062', // courseDegree
+      'fd000000-0000-0000-0000-000000000063', // yearGraduated
+      'fd000000-0000-0000-0000-000000000071', // emergencyContactPerson
+      'fd000000-0000-0000-0000-000000000072', // emergencyContactNo
+      'fd000000-0000-0000-0000-000000000081', // companyName
+      'fd000000-0000-0000-0000-000000000082', // representativeName
+      'fd000000-0000-0000-0000-000000000083', // representativePosition
+      'fd000000-0000-0000-0000-000000000086', // dtiSecRegistration
+      'fd000000-0000-0000-0000-000000000088', // applicantName
+      'fd000000-0000-0000-0000-000000000210', // middleName
+      'fd000000-0000-0000-0000-000000000211', // suffix
+    ];
+    coreApplicantMetadataGuids.forEach((guid) => {
+      validFieldIdSet.add(guid.toLowerCase().trim());
+    });
+  } else {
+    // Fallback when no DB schema fields were loaded
+    Object.values(FIELD_GUID_MAP).forEach((guid) => {
+      validFieldIdSet.add(guid.toLowerCase().trim());
+    });
+  }
 
   const finalFieldValues: FormFieldValuePayload[] = [];
   const processedFieldIds = new Set<string>();

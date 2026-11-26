@@ -16,6 +16,10 @@ import { DocumentPreviewFile } from '../../../../shared/components/DocumentPrevi
 interface SingleApplicantSectionProps {
   app: Application;
   singleApplicant: {
+    id?: string;
+    serviceId?: string;
+    serviceVariantId?: string;
+    serviceVariantName?: string;
     applicantName: string;
     applicantType?: string | null;
     sex: string;
@@ -233,8 +237,8 @@ export function SingleApplicantSection({
         primaryName={primaryName}
         formFieldValues={formFieldValues}
         onPreviewFile={onPreviewFile}
-        serviceId={app.serviceId}
-        serviceVariantId={app.serviceVariantId}
+        serviceId={singleApplicant?.serviceId || app.serviceId}
+        serviceVariantId={singleApplicant?.serviceVariantId || app.serviceVariantId || app.applicants?.[0]?.serviceVariantId}
         singleApplicant={singleApplicant}
         variantLabel={variantLabel}
         applicationType={effectiveAppType}

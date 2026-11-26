@@ -21,6 +21,12 @@ import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
 import { uploadRequirementsAfterSubmit } from "../helpers/requirementUploadHelper";
 import { isScheduleOpenForFiling } from "../components/ExamScheduleCard";
 import { useServiceForm } from "./useServiceForm";
+import {
+  evaluateVisibilityCondition,
+  isFieldRowVisible,
+  resolveFieldForContext,
+  FormEvaluationContext,
+} from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 const isGuid = (val?: string | null): boolean => {
   if (!val || typeof val !== "string") return false;
@@ -716,7 +722,6 @@ export function useGeneralServiceWizard(
       }
     }
 
-    const flatFormFields = form?.sections?.flatMap((s) => s.fields || []) || [];
     const cohortElementId =
       activeApplicant.selectedElementId ||
       applicants.find((a) => Boolean(a.selectedElementId))?.selectedElementId;
@@ -725,10 +730,71 @@ export function useGeneralServiceWizard(
       selectedVariantId: app.selectedVariantId || effectiveVariantId || undefined,
       selectedElementId: app.selectedElementId || cohortElementId || undefined,
     }));
+
+    const getVisibleFormFieldsForApplicant = (app: GeneralApplicantData) => {
+      if (!form?.sections || form.sections.length === 0) return [];
+      const matchedVariantItem = variants.find((v) => String(v.id) === String(app.selectedVariantId));
+      const matchedElementItem = variantElements.find((e) => String(e.id) === String(app.selectedElementId));
+      const effectiveVarName =
+        matchedVariantItem?.name ||
+        (matchedVariantItem?.description && matchedVariantItem?.type
+          ? `${matchedVariantItem.description} (${matchedVariantItem.type})`
+          : matchedVariantItem?.description || matchedVariantItem?.type || app.selectedVariantName);
+
+      const valMap: Record<string, string> = {};
+      (app.formFieldValues || []).forEach((fv) => {
+        if (fv.fieldId && fv.value !== undefined && fv.value !== null) {
+          valMap[fv.fieldId] = fv.value;
+          valMap[fv.fieldId.toLowerCase().trim()] = fv.value;
+        }
+        if (fv.fieldLabel && fv.value !== undefined && fv.value !== null) {
+          valMap[fv.fieldLabel] = fv.value;
+          valMap[fv.fieldLabel.toLowerCase().trim()] = fv.value;
+        }
+      });
+
+      const evalCtx: FormEvaluationContext = {
+        serviceCategory: service.category,
+        serviceTitle: service.title,
+        serviceName: form.serviceName || service.title,
+        serviceCode: form.serviceCode || service.code,
+        applicationType: matchedVariantItem?.type ? String(matchedVariantItem.type) : effectiveVarName,
+        variantType: matchedVariantItem?.type ? String(matchedVariantItem.type) : undefined,
+        variantId: app.selectedVariantId,
+        variantName: effectiveVarName,
+        variantDescription: matchedVariantItem?.description || effectiveVarName,
+        elementCodes: matchedElementItem?.code
+          ? [matchedElementItem.code]
+          : variantElements
+              .map((e) => (typeof e.code === "string" ? e.code : undefined))
+              .filter((c): c is string => Boolean(c)),
+        elementNames: matchedElementItem?.description
+          ? [matchedElementItem.description]
+          : variantElements
+              .map((e) => (typeof e.description === "string" ? e.description : undefined))
+              .filter((d): d is string => Boolean(d)),
+        applicantType: app.applicantType,
+        formValues: valMap,
+      };
+
+      const visibleFields: Array<{ id?: string; fieldId?: string; label?: string }> = [];
+      form.sections.forEach((sec) => {
+        if (!sec) return;
+        if (!evaluateVisibilityCondition(sec.visibilityCondition, evalCtx)) return;
+        (sec.fields || []).forEach((rawField) => {
+          if (!rawField) return;
+          const resolvedField = resolveFieldForContext(rawField, evalCtx);
+          if (!isFieldRowVisible(resolvedField, sec, evalCtx)) return;
+          visibleFields.push(resolvedField);
+        });
+      });
+      return visibleFields;
+    };
+
     let mappedApplicants: ReturnType<typeof serializeCertificateApplicant>[] = [];
     try {
       mappedApplicants = normalizedApplicants.map((app) =>
-        serializeCertificateApplicant(app, service, flatFormFields)
+        serializeCertificateApplicant(app, service, getVisibleFormFieldsForApplicant(app))
       );
     } catch (serializationErr: unknown) {
       const serializationMsg =

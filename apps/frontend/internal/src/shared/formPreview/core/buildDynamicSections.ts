@@ -382,6 +382,11 @@ export function buildDynamicSections(
         const idLower = fieldId.toLowerCase().trim();
         const labelLower = fieldLabel.toLowerCase().trim();
 
+        // Prevent a field already rendered in an earlier section from rendering a second time
+        if (idLower.length > 0 && renderedIds.has(idLower)) {
+          return;
+        }
+
         // Check field-level conditional visibility for the selected variant
         if (!evaluateConditionForPreview(field.visibilityCondition, effectiveOptions)) {
           renderedIds.add(fieldId);

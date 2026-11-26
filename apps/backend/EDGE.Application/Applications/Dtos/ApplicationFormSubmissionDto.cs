@@ -12,6 +12,9 @@ public class ApplicationFormSubmissionDto
     public Guid? SubmissionId { get; set; }
     public Guid FormId { get; set; }
     public Guid ServiceId { get; set; }
+    public string? ServiceCode { get; set; }
+    public Guid? ServiceVariantId { get; set; }
+    public string? ServiceVariantName { get; set; }
     public Guid ApplicationId { get; set; }
     public Guid? ApplicantId { get; set; }
     public string Version { get; set; } = string.Empty;
@@ -24,6 +27,7 @@ public class ApplicationFormSectionDto
     public string Title { get; set; } = string.Empty;
     public bool Required { get; set; }
     public int OrderIndex { get; set; }
+    public string? VisibilityCondition { get; set; }
     public List<ApplicationFormFieldValueDto> Fields { get; set; } = new();
 }
 

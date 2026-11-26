@@ -225,10 +225,16 @@ public class SubmitApplicationCommandHandler
         }
 
         // 5. Validate all submitted FieldIds exist in the form (only for final submissions)
+        var initialRequestedVariantId = (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+            ? request.ServiceVariantId
+            : request.Applicants
+                .Select(a => a.ServiceVariantId)
+                .FirstOrDefault(id => id.HasValue && id.Value != Guid.Empty);
+
         Form? form = null;
         if (service != null)
         {
-            form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
+            form = await _formRepository.GetFormByServiceIdAsync(service.Id, initialRequestedVariantId, null, cancellationToken);
 
             // Ensure explicit biographical DTO properties (such as CivilStatus, Sex, Nationality)
             // that are stored via FormFieldValues are always synthesized into FormFieldValues before validation.
@@ -716,9 +722,9 @@ public class SubmitApplicationCommandHandler
                 Form? applicantForm = null;
                 if (applicantServiceId.HasValue && applicantServiceId.Value != Guid.Empty)
                 {
-                    applicantForm = (service != null && applicantServiceId.Value == service.Id)
+                    applicantForm = (service != null && applicantServiceId.Value == service.Id && applicantVariantId == initialRequestedVariantId && form != null)
                         ? form
-                        : await _formRepository.GetFormByServiceIdAsync(applicantServiceId.Value, cancellationToken);
+                        : await _formRepository.GetFormByServiceIdAsync(applicantServiceId.Value, applicantVariantId, null, cancellationToken);
                 }
 
                 if (applicantForm != null)
@@ -740,8 +746,65 @@ public class SubmitApplicationCommandHandler
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
                     }
 
+                    var allowedApplicantFieldIds = new HashSet<Guid>
+                    {
+                        Guid.Parse("fd000000-0000-0000-0000-000000000001"), // fullName
+                        Guid.Parse("fd000000-0000-0000-0000-000000000002"), // birthDate
+                        Guid.Parse("fd000000-0000-0000-0000-000000000003"), // address
+                        Guid.Parse("fd000000-0000-0000-0000-000000000004"), // contactNo
+                        Guid.Parse("fd000000-0000-0000-0000-000000000005"), // email
+                        Guid.Parse("fd000000-0000-0000-0000-000000000006"), // education
+                        Guid.Parse("fd000000-0000-0000-0000-000000000007"), // examCategory
+                        Guid.Parse("fd000000-0000-0000-0000-000000000008"), // examineeType
+                        Guid.Parse("fd000000-0000-0000-0000-000000000009"), // elements
+                        Guid.Parse("fd000000-0000-0000-0000-000000000010"), // specialNeeds
+                        Guid.Parse("fd000000-0000-0000-0000-000000000011"), // admissionNumber
+                        Guid.Parse("fd000000-0000-0000-0000-000000000012"), // signatureField
+                        Guid.Parse("fd000000-0000-0000-0000-000000000013"), // declarationCheckbox
+                        Guid.Parse("fd000000-0000-0000-0000-000000000014"), // typeOfCertificate
+                        Guid.Parse("fd000000-0000-0000-0000-000000000024"), // permitType
+                        Guid.Parse("fd000000-0000-0000-0000-000000000025"), // classOfStation
+                        Guid.Parse("fd000000-0000-0000-0000-000000000041"), // sex
+                        Guid.Parse("fd000000-0000-0000-0000-000000000042"), // civilStatus
+                        Guid.Parse("fd000000-0000-0000-0000-000000000043"), // nationality
+                        Guid.Parse("fd000000-0000-0000-0000-000000000051"), // region
+                        Guid.Parse("fd000000-0000-0000-0000-000000000052"), // province
+                        Guid.Parse("fd000000-0000-0000-0000-000000000053"), // city
+                        Guid.Parse("fd000000-0000-0000-0000-000000000054"), // barangay
+                        Guid.Parse("fd000000-0000-0000-0000-000000000055"), // street
+                        Guid.Parse("fd000000-0000-0000-0000-000000000056"), // zipCode
+                        Guid.Parse("fd000000-0000-0000-0000-000000000061"), // schoolName
+                        Guid.Parse("fd000000-0000-0000-0000-000000000062"), // courseDegree
+                        Guid.Parse("fd000000-0000-0000-0000-000000000063"), // yearGraduated
+                        Guid.Parse("fd000000-0000-0000-0000-000000000071"), // emergencyContactPerson
+                        Guid.Parse("fd000000-0000-0000-0000-000000000072"), // emergencyContactNo
+                        Guid.Parse("fd000000-0000-0000-0000-000000000081"), // companyName
+                        Guid.Parse("fd000000-0000-0000-0000-000000000082"), // representativeName
+                        Guid.Parse("fd000000-0000-0000-0000-000000000083"), // representativePosition
+                        Guid.Parse("fd000000-0000-0000-0000-000000000086"), // dtiSecRegistration
+                        Guid.Parse("fd000000-0000-0000-0000-000000000088"), // applicantName
+                        Guid.Parse("fd000000-0000-0000-0000-000000000210"), // middleName
+                        Guid.Parse("fd000000-0000-0000-0000-000000000211"), // suffix
+                    };
+
+                    var activeSections = (applicantForm.Sections ?? Enumerable.Empty<FormSection>())
+                        .Where(s => !s.IsDeleted)
+                        .ToList();
+
+                    bool restrictToApplicantFormSchema = activeSections.Any(s => s.SectionFields != null && s.SectionFields.Count > 0);
+                    if (restrictToApplicantFormSchema)
+                    {
+                        foreach (var sf in activeSections.SelectMany(s => s.SectionFields ?? Enumerable.Empty<SectionField>()))
+                        {
+                            if (sf.FieldId != Guid.Empty)
+                            {
+                                allowedApplicantFieldIds.Add(sf.FieldId);
+                            }
+                        }
+                    }
+
                     var distinctFieldValues = dto.FormFieldValues
-                        .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty)
+                        .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && (!restrictToApplicantFormSchema || allowedApplicantFieldIds.Contains(fv.FieldId.Value)))
                         .GroupBy(fv => fv.FieldId!.Value)
                         .Select(g => g.Last())
                         .ToList();
