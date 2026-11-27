@@ -90,17 +90,14 @@ public class PdfFieldRendererTests
     [InlineData("ntc-1-02.pdf", "ntc102")]
     [InlineData("ntc-1-03.pdf", "ntc103")]
     [InlineData("ntc-1-04.pdf", "ntc104")]
-    [InlineData("ntc-1-05.pdf", "ntc105")]
     [InlineData("ntc-1-09.pdf", "ntc109")]
-    [InlineData("ntc-1-10.pdf", "ntc110")]
     [InlineData("ntc-1-11.pdf", "ntc111")]
-    [InlineData("ntc-1-14.pdf", "ntc114")]
     [InlineData("ntc-1-18.pdf", "ntc118")]
     [InlineData("ntc-1-19.pdf", "ntc119")]
     [InlineData("ntc-1-20.pdf", "ntc120")]
     [InlineData("ntc-1-21.pdf", "ntc121")]
     [InlineData("ntc-1-22.pdf", "ntc122")]
-    [InlineData("ntc-1-24.pdf", "ntc124")]
+    [InlineData("NTC1-24.pdf", "ntc124")]
     public void GenerateSamplePdfs_ForAllApplications(string templateName, string formKey)
     {
         // Arrange

@@ -452,16 +452,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
                  nameWithoutExt.Equals("orlandscape", StringComparison.OrdinalIgnoreCase) ||
                  nameWithoutExt.Equals("OfficialReciept", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames = new List<string> { "or-landscape-template.pdf", "OfficialReciept.pdf" };
-        }
-        else if (nameWithoutExt.Equals("or-landscape", StringComparison.OrdinalIgnoreCase) ||
-                 nameWithoutExt.Equals("or_landscape", StringComparison.OrdinalIgnoreCase) ||
-                 nameWithoutExt.Equals("or-landscape-template", StringComparison.OrdinalIgnoreCase) ||
-                 nameWithoutExt.Equals("or_landscape-template", StringComparison.OrdinalIgnoreCase) ||
-                 nameWithoutExt.Equals("orlandscape", StringComparison.OrdinalIgnoreCase) ||
-                 nameWithoutExt.Equals("OfficialReciept", StringComparison.OrdinalIgnoreCase))
-        {
-            fileNames = new List<string> { "or-landscape-template.pdf", "OfficialReciept.pdf" };
+            fileNames = new List<string> { "or-landscape-template.pdf" };
         }
         else if (nameWithoutExt.Equals("ntc-1-24", StringComparison.OrdinalIgnoreCase) ||
                  nameWithoutExt.Equals("ntc1-24", StringComparison.OrdinalIgnoreCase) ||
@@ -469,7 +460,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
                  nameWithoutExt.Equals("NTC1-24", StringComparison.OrdinalIgnoreCase) ||
                  nameWithoutExt.Equals("NTC24", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames = new List<string> { "NTC1-24.pdf", "ntc-1-24.pdf" };
+            fileNames = new List<string> { "NTC1-24.pdf" };
         }
         else if (nameWithoutExt.Equals("ntc-1-25", StringComparison.OrdinalIgnoreCase) ||
                  nameWithoutExt.Equals("ntc1-25", StringComparison.OrdinalIgnoreCase) ||
@@ -477,7 +468,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
                  nameWithoutExt.Equals("NTC1-25", StringComparison.OrdinalIgnoreCase) ||
                  nameWithoutExt.Equals("NTC25", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames = new List<string> { "NTC1-25.pdf", "ntc-1-25.pdf" };
+            fileNames = new List<string> { "NTC1-25.pdf" };
         }
         else
         {

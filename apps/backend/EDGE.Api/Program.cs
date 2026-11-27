@@ -22,6 +22,15 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
+    // Standalone CLI utility mode: upload local Printing/Templates/*.pdf to Cloudflare R2 using configured User Secrets / env vars
+    if (args.Any(a => string.Equals(a, "--sync-templates", StringComparison.OrdinalIgnoreCase)))
+    {
+        builder.Configuration.AddUserSecrets(typeof(Program).Assembly, optional: true);
+        var exitCode = await EDGE.Infrastructure.Printing.Services.Templates.R2TemplateSyncRunner.RunAsync(builder.Configuration, args);
+        Environment.ExitCode = exitCode;
+        return;
+    }
+
     // Use Serilog for application logging
     builder.Host.UseSerilog();
 

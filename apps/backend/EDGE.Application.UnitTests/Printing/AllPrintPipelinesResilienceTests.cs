@@ -48,22 +48,25 @@ public class AllPrintPipelinesResilienceTests
     {
         var service = CreateServiceWithFailingFiller();
 
-        AssertOfficialNtcTemplatePdf(service.PrintConstructionPermit(MockDataFactory.GetConstructionPermitApplication()));
-        AssertOfficialNtcTemplatePdf(service.PrintPurchasePossessSellTransfer(MockDataFactory.GetPurchasePossessSellTransferApplication()));
-        AssertOfficialNtcTemplatePdf(service.PrintCertificateOfRegistration(MockDataFactory.GetCertificateOfRegistrationApplication()));
+        // All 13 active official NTC application forms must render their real official NTC PDF template
         AssertOfficialNtcTemplatePdf(service.PrintNtc101(MockDataFactory.GetNtc101Application()));
         AssertOfficialNtcTemplatePdf(service.PrintNtc102(MockDataFactory.GetNtc102Application()));
         AssertOfficialNtcTemplatePdf(service.PrintNtc103(MockDataFactory.GetNtc103Application()));
         AssertOfficialNtcTemplatePdf(service.PrintNtc104(MockDataFactory.GetNtc104Application()));
-        AssertOfficialNtcTemplatePdf(service.PrintNtc105(MockDataFactory.GetNtc105Application()));
-        AssertOfficialNtcTemplatePdf(service.PrintNtc110(MockDataFactory.GetNtc110Application()));
-        AssertOfficialNtcTemplatePdf(service.PrintNtc114(MockDataFactory.GetNtc114Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintPurchasePossessSellTransfer(MockDataFactory.GetPurchasePossessSellTransferApplication()));
+        AssertOfficialNtcTemplatePdf(service.PrintConstructionPermit(MockDataFactory.GetConstructionPermitApplication()));
         AssertOfficialNtcTemplatePdf(service.PrintNtc118(MockDataFactory.GetNtc118Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintCertificateOfRegistration(MockDataFactory.GetCertificateOfRegistrationApplication()));
         AssertOfficialNtcTemplatePdf(service.PrintNtc120(MockDataFactory.GetNtc120Application()));
         AssertOfficialNtcTemplatePdf(service.PrintNtc121(new Ntc121Application { ApplicationId = Guid.NewGuid() }));
         AssertOfficialNtcTemplatePdf(service.PrintNtc122(new Ntc122Application { ApplicationId = Guid.NewGuid() }));
         AssertOfficialNtcTemplatePdf(service.PrintNtc124(new Ntc124Application { ApplicationId = Guid.NewGuid(), AffiantName = "TEST AFFIANT" }));
         AssertOfficialNtcTemplatePdf(service.PrintNtc125(new Ntc125Application { ApplicationId = Guid.NewGuid(), StateBrieflyDetails = "Test complaint" }));
+
+        // Legacy demo-only forms still produce valid fallback PDFs cleanly without throwing
+        AssertValidPdf(service.PrintNtc105(MockDataFactory.GetNtc105Application()));
+        AssertValidPdf(service.PrintNtc110(MockDataFactory.GetNtc110Application()));
+        AssertValidPdf(service.PrintNtc114(MockDataFactory.GetNtc114Application()));
     }
 
     [Fact]
