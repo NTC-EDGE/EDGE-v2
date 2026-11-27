@@ -9,8 +9,10 @@ import {
   Linking,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Icon, TYPOGRAPHY, ImageCropRotateModal, EditedImageResult } from "@edge/ui";
+import { storageService } from "@edge/api";
 
 export interface DocumentPreviewFile {
   name: string;
@@ -45,8 +47,6 @@ export function DocumentPreviewModal({
   onSaveEditedImage,
   allowEditImage = false,
 }: DocumentPreviewModalProps) {
-  if (!file) return null;
-
   const isObj = isDocumentPreviewFile(file);
   const fileName = typeof file === "string" ? file : isObj ? file.name : "Attachment Document";
   const fileUri = isObj && typeof file.uri === "string" ? file.uri : "";
@@ -54,21 +54,108 @@ export function DocumentPreviewModal({
   const fileSize = isObj && typeof file.size === "string" ? file.size : undefined;
   const fileType = isObj && typeof file.type === "string" ? file.type : undefined;
 
-  const [activeImageUri, setActiveImageUri] = React.useState<string>(fileUri);
+  const trimmedSourceUri = fileUri.trim();
+  const isProtectedSourceUri =
+    trimmedSourceUri.startsWith("/api/") ||
+    trimmedSourceUri.includes("/api/v2/") ||
+    trimmedSourceUri.includes("/form/print") ||
+    trimmedSourceUri.includes("/issued-document/print") ||
+    trimmedSourceUri.includes("/soa/print") ||
+    trimmedSourceUri.includes("/op/print") ||
+    trimmedSourceUri.includes("/receipts/") ||
+    trimmedSourceUri.includes("/storage/files/");
+
+  const [activeImageUri, setActiveImageUri] = React.useState<string>(isProtectedSourceUri ? "" : trimmedSourceUri);
+  const [resolvedMimeType, setResolvedMimeType] = React.useState<string>("");
+  const [isLoadingRemoteBlob, setIsLoadingRemoteBlob] = React.useState<boolean>(false);
   const [isCropModalOpen, setIsCropModalOpen] = React.useState<boolean>(false);
+  const [scale, setScale] = React.useState(1);
+  const [rotation, setRotation] = React.useState(0);
 
   React.useEffect(() => {
-    setActiveImageUri(fileUri);
-  }, [fileUri, file]);
+    setResolvedMimeType("");
+    if (!visible || !trimmedSourceUri) {
+      setActiveImageUri(trimmedSourceUri);
+      setIsLoadingRemoteBlob(false);
+      return;
+    }
+
+    if (!isProtectedSourceUri) {
+      setActiveImageUri(trimmedSourceUri);
+      setIsLoadingRemoteBlob(false);
+      return;
+    }
+
+    // Never pass raw protected API URLs into <iframe> (violates CSP frame-src and lacks Bearer auth)
+    setActiveImageUri("");
+    let active = true;
+    let createdBlobUrl: string | null = null;
+    setIsLoadingRemoteBlob(true);
+
+    (async () => {
+      try {
+        const [blobData, blobErr] = await storageService.downloadFileByUrl(trimmedSourceUri);
+        if (!active) return;
+        if (blobErr === null && blobData instanceof Blob && blobData.size > 0) {
+          let mime = blobData.type || "";
+          if (!mime || mime === "application/octet-stream") {
+            const lowerN = (fileName || "").toLowerCase();
+            const lowerT = (fileType || "").toLowerCase();
+            if (lowerN.endsWith(".pdf") || lowerT.includes("pdf") || trimmedSourceUri.includes("/print")) mime = "application/pdf";
+            else if (lowerN.endsWith(".png") || lowerT.includes("png")) mime = "image/png";
+            else if (lowerN.endsWith(".jpg") || lowerN.endsWith(".jpeg") || lowerT.includes("jpeg") || lowerT.includes("jpg")) mime = "image/jpeg";
+            else if (lowerN.endsWith(".webp") || lowerT.includes("webp")) mime = "image/webp";
+            else if (lowerT.startsWith("image")) mime = "image/png";
+          }
+          const typedBlob = mime ? new Blob([blobData], { type: mime }) : blobData;
+          if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+            createdBlobUrl = URL.createObjectURL(typedBlob);
+            setActiveImageUri(createdBlobUrl);
+            if (mime) setResolvedMimeType(mime);
+          }
+        }
+      } catch {
+        // Leave activeImageUri empty so raw protected URL is never framed
+      } finally {
+        if (active) setIsLoadingRemoteBlob(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+      if (createdBlobUrl !== null && typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(createdBlobUrl);
+      }
+    };
+  }, [trimmedSourceUri, isProtectedSourceUri, file, visible, fileName, fileType]);
+
+  React.useEffect(() => {
+    if (!visible) {
+      setScale(1);
+      setRotation(0);
+    }
+  }, [visible]);
+
+  if (!file) return null;
+
+  const effectiveUri = isProtectedSourceUri
+    ? activeImageUri.trim()
+    : (activeImageUri || trimmedSourceUri).trim();
+  const canRenderInline =
+    effectiveUri.length > 0 &&
+    (!isProtectedSourceUri || effectiveUri.startsWith("blob:") || effectiveUri.startsWith("data:"));
 
   const fileNameLower = (fileName || "").toLowerCase();
-  const uriLower = (fileUri || "").toLowerCase();
+  const uriLower = (effectiveUri || trimmedSourceUri).toLowerCase();
+  const typeLower = (resolvedMimeType || fileType || "").toLowerCase();
 
   const isPdf =
     fileNameLower.endsWith(".pdf") ||
     uriLower.endsWith(".pdf") ||
     uriLower.includes("application/pdf") ||
-    (isObj && fileType === "PDF");
+    typeLower === "pdf" ||
+    typeLower.includes("application/pdf") ||
+    trimmedSourceUri.includes("/print");
 
   const isImage =
     !isPdf &&
@@ -79,18 +166,9 @@ export function DocumentPreviewModal({
       fileNameLower.endsWith(".gif") ||
       fileNameLower.endsWith(".svg") ||
       uriLower.startsWith("data:image") ||
-      (isObj && fileType === "IMAGE") ||
+      typeLower === "image" ||
+      typeLower.startsWith("image/") ||
       (uriLower.startsWith("blob:") && !isPdf));
-
-  const [scale, setScale] = React.useState(1);
-  const [rotation, setRotation] = React.useState(0);
-
-  React.useEffect(() => {
-    if (!visible) {
-      setScale(1);
-      setRotation(0);
-    }
-  }, [visible]);
 
   const handleZoomIn = () => setScale((s) => Math.min(s + 0.25, 3));
   const handleZoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
@@ -111,16 +189,17 @@ export function DocumentPreviewModal({
   };
 
   const handleOpenExternal = async () => {
-    if (!fileUri) return;
+    const targetUri = effectiveUri || trimmedSourceUri;
+    if (!targetUri) return;
     try {
       if (Platform.OS === "web" && typeof window !== "undefined") {
-        window.open(fileUri, "_blank");
+        window.open(targetUri, "_blank");
       } else {
-        const supported = await Linking.canOpenURL(fileUri);
+        const supported = await Linking.canOpenURL(targetUri);
         if (supported) {
-          await Linking.openURL(fileUri);
+          await Linking.openURL(targetUri);
         } else {
-          window.open(fileUri, "_blank");
+          window.open(targetUri, "_blank");
         }
       }
     } catch {
@@ -231,10 +310,17 @@ export function DocumentPreviewModal({
 
           {/* Modal Content Body: Pure attachment display */}
           <ScrollView contentContainerStyle={styles.bodyContent}>
-            {isPdf && fileUri && Platform.OS === "web" ? (
+            {isLoadingRemoteBlob ? (
+              <View style={[styles.pdfWrapper, { alignItems: "center", justifyContent: "center", padding: 32 }]}>
+                <ActivityIndicator size="large" color="#0F2C59" />
+                <Text style={[styles.headerSubtitle, { marginTop: 12, fontSize: 13 }]}>
+                  Loading document preview...
+                </Text>
+              </View>
+            ) : isPdf && canRenderInline && Platform.OS === "web" ? (
               <View style={styles.pdfWrapper}>
                 <iframe
-                  src={fileUri}
+                  src={effectiveUri}
                   title={fileName}
                   style={{
                     width: "100%",
@@ -244,10 +330,10 @@ export function DocumentPreviewModal({
                   }}
                 />
               </View>
-            ) : isImage && (activeImageUri || fileUri) ? (
+            ) : isImage && canRenderInline ? (
               <View style={styles.imageWrapper}>
                 <Image
-                  source={{ uri: activeImageUri || fileUri }}
+                  source={{ uri: effectiveUri }}
                   style={[
                     styles.previewImage,
                     {

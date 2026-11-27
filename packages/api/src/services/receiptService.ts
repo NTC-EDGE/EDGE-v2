@@ -432,13 +432,13 @@ export const receiptService = {
   },
 
   getReceiptPrintUrl: (id: string, template?: 'portrait' | 'landscape') => {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const tmplParam = template ? `template=${encodeURIComponent(template)}` : '';
     return `${base}/api/v2/receipts/${id}/print${tmplParam ? `?${tmplParam}` : ''}`;
   },
 
   getReceiptDownloadUrl: (id: string, template?: 'portrait' | 'landscape') => {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const tmplParam = template ? `&template=${encodeURIComponent(template)}` : '';
     return `${base}/api/v2/receipts/${id}/print?download=true${tmplParam}`;
   },

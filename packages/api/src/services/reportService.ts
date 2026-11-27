@@ -132,13 +132,13 @@ export const reportService = {
   },
 
   getStatutoryReportPrintUrl: (params: PrintStatutoryReportParams): string => {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const qs = new URLSearchParams(buildStatutoryPrintQueryParams(params, false)).toString();
     return `${base}/api/v2/reports/statutory/print?${qs}`;
   },
 
   getStatutoryReportDownloadUrl: (params: PrintStatutoryReportParams): string => {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const qs = new URLSearchParams(buildStatutoryPrintQueryParams(params, true)).toString();
     return `${base}/api/v2/reports/statutory/print?${qs}`;
   },

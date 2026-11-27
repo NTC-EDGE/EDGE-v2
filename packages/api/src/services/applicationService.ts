@@ -376,7 +376,7 @@ export const applicationService = {
     orNumber?: string,
     options?: { soaId?: string; applicantId?: string }
   ): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const params = new URLSearchParams();
     if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
     if (options?.soaId) params.set('soaId', options.soaId);
@@ -390,7 +390,7 @@ export const applicationService = {
     orNumber?: string,
     options?: { soaId?: string; applicantId?: string }
   ): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const params = new URLSearchParams();
     params.set('download', 'true');
     if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
@@ -404,7 +404,7 @@ export const applicationService = {
     orNumber?: string,
     options?: { opId?: string; soaId?: string; applicantId?: string }
   ): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const params = new URLSearchParams();
     if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
     if (options?.opId) params.set('opId', options.opId);
@@ -419,7 +419,7 @@ export const applicationService = {
     orNumber?: string,
     options?: { opId?: string; soaId?: string; applicantId?: string }
   ): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const params = new URLSearchParams();
     params.set('download', 'true');
     if (typeof orNumber === 'string' && orNumber.trim().length > 0) params.set('orNumber', orNumber.trim());
@@ -514,7 +514,7 @@ export const applicationService = {
     payorName?: string,
     issueDate?: string
   ): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const params = new URLSearchParams();
     if (orNumber) params.append('orNumber', orNumber);
     if (template) params.append('template', template);
@@ -531,7 +531,7 @@ export const applicationService = {
     payorName?: string,
     issueDate?: string
   ): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const params = new URLSearchParams();
     params.append('download', 'true');
     if (orNumber) params.append('orNumber', orNumber);
@@ -585,13 +585,13 @@ export const applicationService = {
   },
 
   getIssuedDocumentPrintUrl(applicationId: string, applicantId?: string): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const query = applicantId ? `?applicantId=${encodeURIComponent(applicantId)}` : '';
     return `${base}/api/v2/applications/${applicationId}/issued-document/print${query}`;
   },
 
   getIssuedDocumentDownloadUrl(applicationId: string, applicantId?: string): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const query = applicantId ? `&applicantId=${encodeURIComponent(applicantId)}` : '';
     return `${base}/api/v2/applications/${applicationId}/issued-document/print?download=true${query}`;
   },
@@ -645,13 +645,13 @@ export const applicationService = {
   },
 
   getApplicationFormPrintUrl(applicationId: string, applicantId?: string): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const query = applicantId ? `?applicantId=${encodeURIComponent(applicantId)}` : '';
     return `${base}/api/v2/applications/${applicationId}/form/print${query}`;
   },
 
   getApplicationFormDownloadUrl(applicationId: string, applicantId?: string): string {
-    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL.trim().replace(/\/+$/, '') : '';
     const query = applicantId ? `&applicantId=${encodeURIComponent(applicantId)}` : '';
     return `${base}/api/v2/applications/${applicationId}/form/print?download=true${query}`;
   },

@@ -5,9 +5,14 @@ import { attachTokenInterceptor } from './services/tokenManager';
 const getApiUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL;
   if (typeof envUrl === 'string' && envUrl.trim().length > 0) {
-    return envUrl.trim();
+    return envUrl.trim().replace(/\/+$/, '');
   }
   return 'http://localhost:5000';
+};
+
+export const getNormalizedApiBaseUrl = (): string => {
+  const raw = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+  return raw.trim().replace(/\/+$/, '');
 };
 
 export const DEFAULT_API_TIMEOUT_MS = 30000;

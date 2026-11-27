@@ -81,37 +81,52 @@ export function DocumentPreviewModal({
   const [activeImageUri, setActiveImageUri] = useState<string>(fileUri);
   const [resolvedMimeType, setResolvedMimeType] = useState<string>("");
   const [isLoadingRemoteBlob, setIsLoadingRemoteBlob] = useState<boolean>(false);
+  const [remoteLoadError, setRemoteLoadError] = useState<string | null>(null);
+
+  const trimmedSourceUri = fileUri.trim();
+  const isProtectedSourceUri =
+    trimmedSourceUri.startsWith("/api/") ||
+    trimmedSourceUri.includes("/api/v2/") ||
+    trimmedSourceUri.includes("/form/print") ||
+    trimmedSourceUri.includes("/issued-document/print") ||
+    trimmedSourceUri.includes("/soa/print") ||
+    trimmedSourceUri.includes("/op/print") ||
+    trimmedSourceUri.includes("/receipts/") ||
+    trimmedSourceUri.includes("/storage/files/");
 
   useEffect(() => {
-    setActiveImageUri(fileUri);
     setResolvedMimeType("");
     setImageError(false);
+    setRemoteLoadError(null);
 
-    if (!visible || !fileUri) return;
+    if (!visible || !trimmedSourceUri) {
+      setActiveImageUri(trimmedSourceUri);
+      setIsLoadingRemoteBlob(false);
+      return;
+    }
 
-    const trimmedUri = fileUri.trim();
-    const isProtectedStoragePath =
-      trimmedUri.startsWith("/api/") ||
-      trimmedUri.includes("/api/v2/") ||
-      trimmedUri.includes("/form/print") ||
-      trimmedUri.includes("/issued-document/print") ||
-      trimmedUri.includes("/storage/files/");
+    if (!isProtectedSourceUri) {
+      setActiveImageUri(trimmedSourceUri);
+      setIsLoadingRemoteBlob(false);
+      return;
+    }
 
-    if (!isProtectedStoragePath) return;
-
+    // Never expose a raw protected API URL directly to <iframe> (violates CSP frame-src and lacks Bearer auth)
+    setActiveImageUri("");
     let active = true;
+    let createdBlobUrl: string | null = null;
     setIsLoadingRemoteBlob(true);
 
     (async () => {
       try {
-        const [blobData, blobErr] = await storageService.downloadFileByUrl(trimmedUri);
+        const [blobData, blobErr] = await storageService.downloadFileByUrl(trimmedSourceUri);
         if (!active) return;
         if (blobErr === null && blobData instanceof Blob && blobData.size > 0) {
           let mime = blobData.type || "";
           if (!mime || mime === "application/octet-stream") {
             const lowerN = (fileName || "").toLowerCase();
             const lowerT = (fileType || "").toLowerCase();
-            if (lowerN.endsWith(".pdf") || lowerT.includes("pdf")) mime = "application/pdf";
+            if (lowerN.endsWith(".pdf") || lowerT.includes("pdf") || trimmedSourceUri.includes("/print")) mime = "application/pdf";
             else if (lowerN.endsWith(".png") || lowerT.includes("png")) mime = "image/png";
             else if (lowerN.endsWith(".jpg") || lowerN.endsWith(".jpeg") || lowerT.includes("jpeg") || lowerT.includes("jpg")) mime = "image/jpeg";
             else if (lowerN.endsWith(".webp") || lowerT.includes("webp")) mime = "image/webp";
@@ -119,14 +134,26 @@ export function DocumentPreviewModal({
           }
           const typedBlob = mime ? new Blob([blobData], { type: mime }) : blobData;
           if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
-            const objUrl = URL.createObjectURL(typedBlob);
-            setActiveImageUri(objUrl);
+            createdBlobUrl = URL.createObjectURL(typedBlob);
+            setActiveImageUri(createdBlobUrl);
             if (mime) setResolvedMimeType(mime);
             setImageError(false);
+            setRemoteLoadError(null);
           }
+        } else {
+          setRemoteLoadError(
+            typeof blobErr === "string" && blobErr.trim().length > 0
+              ? blobErr
+              : "Unable to load document preview from server."
+          );
         }
-      } catch {
-        // fallback to existing URI
+      } catch (err: unknown) {
+        if (!active) return;
+        setRemoteLoadError(
+          err instanceof Error && err.message.trim().length > 0
+            ? err.message
+            : "Unable to load document preview from server."
+        );
       } finally {
         if (active) setIsLoadingRemoteBlob(false);
       }
@@ -134,8 +161,11 @@ export function DocumentPreviewModal({
 
     return () => {
       active = false;
+      if (createdBlobUrl !== null && typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(createdBlobUrl);
+      }
     };
-  }, [fileUri, file, visible, fileName, fileType]);
+  }, [trimmedSourceUri, isProtectedSourceUri, file, visible, fileName, fileType]);
 
   useEffect(() => {
     if (!visible) {
@@ -220,12 +250,15 @@ export function DocumentPreviewModal({
     }
   };
 
-  const effectiveUri = (activeImageUri || fileUri || "").trim();
+  const effectiveUri = isProtectedSourceUri
+    ? activeImageUri.trim()
+    : (activeImageUri || fileUri || "").trim();
   const hasValidRenderUri =
     typeof effectiveUri === "string" &&
     effectiveUri.trim() !== "" &&
     effectiveUri.toLowerCase() !== "null" &&
-    effectiveUri.toLowerCase() !== "undefined";
+    effectiveUri.toLowerCase() !== "undefined" &&
+    (!isProtectedSourceUri || effectiveUri.startsWith("blob:") || effectiveUri.startsWith("data:"));
 
   return (
     <>
@@ -442,7 +475,9 @@ export function DocumentPreviewModal({
                 </View>
                 <Text style={styles.noPreviewTitle}>{fileName}</Text>
                 <Text style={styles.noPreviewText}>
-                  A direct inline preview is not available for this document format. You can download the file directly to view it on your device.
+                  {remoteLoadError !== null
+                    ? remoteLoadError
+                    : "A direct inline preview is not available for this document format. You can download the file directly to view it on your device."}
                 </Text>
                 <TouchableOpacity
                   onPress={handleDownloadAction}

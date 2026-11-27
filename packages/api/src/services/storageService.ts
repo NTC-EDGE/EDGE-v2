@@ -1,6 +1,12 @@
-import { apiClient } from '../apiClient';
+import { apiClient, HEAVY_API_TIMEOUT_MS } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
 import { ApiResponse, StoredFileDto } from '../types';
+
+function normalizeDownloadUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  // Collapse accidental duplicate slashes in the path (e.g. https://host//api/v2/... -> https://host/api/v2/...)
+  return trimmed.replace(/([^:]\/)\/+/g, '$1').replace(/^\/\/+/, '/');
+}
 
 export const storageService = {
   async uploadFile(file: Blob | File, fileName: string, category: string, tenantId: string) {
@@ -36,8 +42,10 @@ export const storageService = {
 
   async downloadFileByUrl(url: string) {
     return safeAsync(async () => {
-      const response = await apiClient.get<Blob>(url, {
+      const normalizedUrl = normalizeDownloadUrl(url);
+      const response = await apiClient.get<Blob>(normalizedUrl, {
         responseType: 'blob',
+        timeout: HEAVY_API_TIMEOUT_MS,
       });
       return response.data;
     });
