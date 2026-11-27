@@ -29,6 +29,36 @@ public class CurrentUserService : ICurrentUserService
                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email")
                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_address");
 
+    public string? FullName
+    {
+        get
+        {
+            var principal = _httpContextAccessor.HttpContext?.User;
+            if (principal == null) return null;
+
+            var first = principal.FindFirstValue(ClaimTypes.GivenName)
+                     ?? principal.FindFirstValue("given_name")
+                     ?? principal.FindFirstValue("first_name");
+            var middle = principal.FindFirstValue("middle_name");
+            var last = principal.FindFirstValue(ClaimTypes.Surname)
+                    ?? principal.FindFirstValue("family_name")
+                    ?? principal.FindFirstValue("last_name");
+
+            var combined = string.Join(" ", new[] { first, middle, last }
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim()));
+            if (!string.IsNullOrWhiteSpace(combined))
+            {
+                return combined;
+            }
+
+            var full = principal.FindFirstValue("full_name")
+                    ?? principal.FindFirstValue("name")
+                    ?? principal.FindFirstValue(ClaimTypes.Name);
+            return string.IsNullOrWhiteSpace(full) ? null : full.Trim();
+        }
+    }
+
     public bool IsEmailVerified
     {
         get

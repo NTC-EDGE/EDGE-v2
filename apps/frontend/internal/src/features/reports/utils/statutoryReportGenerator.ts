@@ -476,17 +476,58 @@ export function classifyVolumeStream(app: ApplicationSummaryDto): 'Accreditation
   return 'Permits';
 }
 
-export function resolveEvaluatorName(app: ApplicationSummaryDto, fallbackUserName?: string | null): string {
-  const evalOfficer = (app.evaluatingOfficer ?? '').trim();
-  if (evalOfficer.length > 0) return evalOfficer;
-  const origEval = (app.issuedDocumentDetails?.[0]?.originalEvaluatorName ?? '').trim();
-  if (origEval.length > 0) return origEval;
-  const assigned = (app.assignedOfficerName ?? '').trim();
-  if (assigned.length > 0) return assigned;
-  const issuer = (app.issuingOfficer ?? app.issuedDocumentDetails?.[0]?.issuedByStaffName ?? '').trim();
-  if (issuer.length > 0) return issuer;
-  if (fallbackUserName && fallbackUserName.trim().length > 0) return fallbackUserName.trim();
-  return 'Regional Evaluator';
+const PLACEHOLDER_STAFF_NAMES = new Set<string>([
+  'superadmin',
+  'super admin',
+  'super administrator',
+  'administrator',
+  'system admin',
+  'system administrator',
+  'system staff',
+  'regional admin',
+  'user account',
+  'clerk user',
+  'ntc agency staff',
+]);
+
+export function isPlaceholderStaffName(name?: string | null): boolean {
+  if (name === null || name === undefined) return true;
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return true;
+  if (PLACEHOLDER_STAFF_NAMES.has(trimmed.toLowerCase())) return true;
+  if (trimmed.includes('@')) return true;
+  if (trimmed.toLowerCase().startsWith('user_')) return true;
+  return false;
+}
+
+export function resolveEvaluatorName(app: ApplicationSummaryDto, _fallbackUserName?: string | null): string {
+  const candidates: Array<string | null | undefined> = [
+    app.evaluatingOfficer,
+    app.issuedDocumentDetails?.[0]?.originalEvaluatorName,
+    app.assignedOfficerName,
+    app.issuingOfficer,
+    app.issuedDocumentDetails?.[0]?.issuedByStaffName,
+    app.accountingOfficer,
+    app.cashierOfficer,
+  ];
+
+  for (const candidate of candidates) {
+    if (!isPlaceholderStaffName(candidate) && candidate !== null && candidate !== undefined) {
+      return candidate.trim();
+    }
+  }
+
+  if (Array.isArray(app.histories)) {
+    for (const h of app.histories) {
+      const role = (h.staffRole ?? '').trim().toLowerCase();
+      if (role === 'applicant' || role === 'client') continue;
+      if (!isPlaceholderStaffName(h.staffName) && h.staffName !== null && h.staffName !== undefined) {
+        return h.staffName.trim();
+      }
+    }
+  }
+
+  return '—';
 }
 
 export function resolveEntityName(app: ApplicationSummaryDto): string {

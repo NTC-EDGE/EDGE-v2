@@ -2,6 +2,7 @@ import {
   STATUTORY_REPORTS_LIST,
   generateStatutoryCsv,
   generateStatutoryPrintableHtml,
+  resolveEvaluatorName,
 } from './statutoryReportGenerator';
 import { ApplicationSummaryDto, TenantTransactionDto, FeedbackDto } from '@edge/api';
 
@@ -262,6 +263,21 @@ describe('statutoryReportGenerator', () => {
       for (const report of STATUTORY_REPORTS_LIST) {
         expect(report.formatOptions?.map((o) => o.id)).toEqual(['standard', 'ntc-sheet']);
       }
+    });
+
+    it('should never stamp SuperAdmin or viewer fallback name into unassigned application evaluator', () => {
+      const unassignedApp: ApplicationSummaryDto = {
+        ...sampleApps[0],
+        evaluatingOfficer: 'SuperAdmin',
+        assignedOfficerName: undefined,
+      };
+      expect(resolveEvaluatorName(unassignedApp, 'SuperAdmin')).toBe('—');
+
+      const realEvalApp: ApplicationSummaryDto = {
+        ...sampleApps[0],
+        evaluatingOfficer: 'Juan Reyes Dela Cruz',
+      };
+      expect(resolveEvaluatorName(realEvalApp, 'SuperAdmin')).toBe('Juan Reyes Dela Cruz');
     });
   });
 

@@ -31,6 +31,7 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly IRegionalConfigurationService _regionalConfigurationService;
     private readonly IStatutoryReportPdfGenerator _pdfGenerator;
+    private readonly IClerkUserService? _clerkUserService;
 
     public GenerateStatutoryReportPdfQueryHandler(
         IApplicationFullRepository applicationRepository,
@@ -44,7 +45,8 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
         IUserRepository userRepository,
         ITenantMemberRepository tenantMemberRepository,
         IRegionalConfigurationService regionalConfigurationService,
-        IStatutoryReportPdfGenerator pdfGenerator)
+        IStatutoryReportPdfGenerator pdfGenerator,
+        IClerkUserService? clerkUserService = null)
     {
         _applicationRepository = applicationRepository;
         _tenantRepository = tenantRepository;
@@ -58,6 +60,7 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
         _tenantMemberRepository = tenantMemberRepository;
         _regionalConfigurationService = regionalConfigurationService;
         _pdfGenerator = pdfGenerator;
+        _clerkUserService = clerkUserService;
     }
 
     public async Task<ApiResponse<StatutoryReportPdfResult>> Handle(
@@ -195,10 +198,55 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
         }
 
         var currentUser = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
-        string fullName = currentUser != null ? $"{currentUser.FirstName} {currentUser.LastName}".Trim() : string.Empty;
-        string generatedBy = !string.IsNullOrWhiteSpace(fullName)
-            ? fullName
-            : (currentUser?.Email ?? "Authorized Officer");
+        string dbFullName = currentUser?.GetFullName() ?? string.Empty;
+        string generatedBy = !User.IsPlaceholderDisplayName(dbFullName) ? dbFullName : string.Empty;
+
+        // If the DB record still has a seeded placeholder name (e.g. "Super Administrator" / "SuperAdmin"),
+        // prefer the real name from JWT claims or Clerk profile instead of printing "SuperAdmin".
+        if (string.IsNullOrWhiteSpace(generatedBy) && !User.IsPlaceholderDisplayName(_currentUserService.FullName))
+        {
+            generatedBy = _currentUserService.FullName!.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(generatedBy) && _clerkUserService != null)
+        {
+            var authLookupId = !string.IsNullOrWhiteSpace(currentUser?.AuthUserId)
+                ? currentUser.AuthUserId
+                : _currentUserService.UserId;
+            if (!string.IsNullOrWhiteSpace(authLookupId))
+            {
+                try
+                {
+                    var clerkProfile = await _clerkUserService.GetUserByIdAsync(authLookupId);
+                    if (clerkProfile != null)
+                    {
+                        var clerkCombined = string.Join(" ", new[]
+                        {
+                            clerkProfile.FirstName,
+                            currentUser?.MiddleName,
+                            clerkProfile.LastName,
+                            currentUser?.Suffix
+                        }
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Select(s => s!.Trim()));
+
+                        if (!User.IsPlaceholderDisplayName(clerkCombined))
+                        {
+                            generatedBy = clerkCombined;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Non-fatal: continue with safe fallback if Clerk lookup is unavailable
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(generatedBy))
+        {
+            generatedBy = "Authorized Officer";
+        }
 
         string generatedByTitle = string.Empty;
         if (currentUser != null && targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
@@ -208,11 +256,17 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
                 var member = await _tenantMemberRepository.GetByTenantAndUserAsync(targetTenantId.Value, currentUser.Id, cancellationToken);
                 if (member != null)
                 {
-                    generatedByTitle = !string.IsNullOrWhiteSpace(member.Designation)
+                    var candidateTitle = !string.IsNullOrWhiteSpace(member.Designation)
                         ? member.Designation.Trim()
                         : (!string.IsNullOrWhiteSpace(member.Position)
                             ? member.Position.Trim()
                             : (member.JobTitle?.Trim() ?? string.Empty));
+
+                    // Never print "SuperAdmin" / "Super Administrator" as a formal report signatory designation
+                    if (!User.IsPlaceholderDisplayName(candidateTitle))
+                    {
+                        generatedByTitle = candidateTitle;
+                    }
                 }
             }
             catch
@@ -416,6 +470,11 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
             }
         }
 
+        // Hydrate real staff full names (FirstName MiddleName LastName Suffix) onto applications
+        // so historical placeholder snapshots ("SuperAdmin", "Super Administrator", emails, Clerk IDs)
+        // never leak into evaluator / officer columns when the user has a real profile name.
+        await HydrateRealStaffNamesAsync(filteredApps, currentUser, generatedBy, cancellationToken);
+
         // Apply report-specific secondary filtering
         if (normalizedCode == "NTC-EXAM-MST-01")
         {
@@ -441,7 +500,8 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
                 string evalName = a.EvaluatingOfficer
                     ?? a.IssuedDocumentDetails?.FirstOrDefault()?.OriginalEvaluatorName
                     ?? a.AssignedOfficerName
-                    ?? generatedBy;
+                    ?? a.IssuingOfficer
+                    ?? string.Empty;
                 return string.Equals(evalName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
             }).ToList();
         }
@@ -729,5 +789,154 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
         string safeFileName = $"{documentData.Code}{formatSuffix}_{documentData.StartDate}_to_{documentData.EndDate}.pdf".Replace(" ", "_");
 
         return ApiResponse<StatutoryReportPdfResult>.Success(new StatutoryReportPdfResult(pdfBytes, safeFileName));
+    }
+
+    private async Task HydrateRealStaffNamesAsync(
+        List<ApplicationSummaryDto> apps,
+        User? currentUser,
+        string resolvedCurrentUserName,
+        CancellationToken cancellationToken)
+    {
+        if (apps.Count == 0) return;
+
+        var realNameByUserId = new Dictionary<Guid, string>();
+        if (currentUser != null && !User.IsPlaceholderDisplayName(resolvedCurrentUserName) && !string.Equals(resolvedCurrentUserName, "Authorized Officer", StringComparison.OrdinalIgnoreCase))
+        {
+            realNameByUserId[currentUser.Id] = resolvedCurrentUserName;
+        }
+
+        var referencedUserIds = new HashSet<Guid>();
+        foreach (var app in apps)
+        {
+            if (app.Histories != null)
+            {
+                foreach (var h in app.Histories)
+                {
+                    if (h.PerformedByUserId.HasValue && h.PerformedByUserId.Value != Guid.Empty)
+                    {
+                        referencedUserIds.Add(h.PerformedByUserId.Value);
+                    }
+                }
+            }
+
+            if (app.IssuedDocumentDetails != null)
+            {
+                foreach (var d in app.IssuedDocumentDetails)
+                {
+                    if (d.OriginalEvaluatorUserId.HasValue && d.OriginalEvaluatorUserId.Value != Guid.Empty)
+                    {
+                        referencedUserIds.Add(d.OriginalEvaluatorUserId.Value);
+                    }
+                    if (d.IssuedByUserId.HasValue && d.IssuedByUserId.Value != Guid.Empty)
+                    {
+                        referencedUserIds.Add(d.IssuedByUserId.Value);
+                    }
+                }
+            }
+        }
+
+        foreach (var uid in referencedUserIds)
+        {
+            if (realNameByUserId.ContainsKey(uid)) continue;
+            try
+            {
+                var u = await _userRepository.GetByIdAsync(uid, cancellationToken);
+                if (u == null) continue;
+                var full = u.GetFullName();
+                if (!User.IsPlaceholderDisplayName(full))
+                {
+                    realNameByUserId[uid] = full;
+                }
+            }
+            catch
+            {
+                // Ignore transient individual user lookup failure
+            }
+        }
+
+        string? ResolveHistoryRealName(ApplicationSummaryDto app, string? rawName)
+        {
+            if (!string.IsNullOrWhiteSpace(rawName) && !User.IsPlaceholderDisplayName(rawName))
+            {
+                return rawName.Trim();
+            }
+
+            // Look up the matching history entry's PerformedByUserId to replace placeholder snapshots
+            if (app.Histories != null)
+            {
+                foreach (var h in app.Histories.OrderByDescending(x => x.Timestamp))
+                {
+                    if (!h.PerformedByUserId.HasValue) continue;
+                    if (!realNameByUserId.TryGetValue(h.PerformedByUserId.Value, out var realName)) continue;
+
+                    if (string.IsNullOrWhiteSpace(rawName) ||
+                        string.Equals(h.StaffName?.Trim(), rawName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                        User.IsPlaceholderDisplayName(h.StaffName))
+                    {
+                        return realName;
+                    }
+                }
+            }
+
+            if (app.IssuedDocumentDetails != null)
+            {
+                foreach (var d in app.IssuedDocumentDetails)
+                {
+                    if (d.OriginalEvaluatorUserId.HasValue && realNameByUserId.TryGetValue(d.OriginalEvaluatorUserId.Value, out var evalReal))
+                    {
+                        return evalReal;
+                    }
+                    if (d.IssuedByUserId.HasValue && realNameByUserId.TryGetValue(d.IssuedByUserId.Value, out var issuerReal))
+                    {
+                        return issuerReal;
+                    }
+                }
+            }
+
+            return User.IsPlaceholderDisplayName(rawName) ? null : rawName?.Trim();
+        }
+
+        foreach (var app in apps)
+        {
+            // Resolve officer fields BEFORE rewriting history StaffName so placeholder matching finds the exact history entry
+            app.EvaluatingOfficer = ResolveHistoryRealName(app, app.EvaluatingOfficer);
+            app.AssignedOfficerName = ResolveHistoryRealName(app, app.AssignedOfficerName);
+            app.IssuingOfficer = ResolveHistoryRealName(app, app.IssuingOfficer);
+            app.AccountingOfficer = ResolveHistoryRealName(app, app.AccountingOfficer);
+            app.CashierOfficer = ResolveHistoryRealName(app, app.CashierOfficer);
+
+            if (app.Histories != null)
+            {
+                foreach (var h in app.Histories)
+                {
+                    if (h.PerformedByUserId.HasValue &&
+                        realNameByUserId.TryGetValue(h.PerformedByUserId.Value, out var realName) &&
+                        User.IsPlaceholderDisplayName(h.StaffName))
+                    {
+                        h.StaffName = realName;
+                    }
+                }
+            }
+
+            if (app.IssuedDocumentDetails != null)
+            {
+                foreach (var d in app.IssuedDocumentDetails)
+                {
+                    if (d.OriginalEvaluatorUserId.HasValue &&
+                        realNameByUserId.TryGetValue(d.OriginalEvaluatorUserId.Value, out var evalReal) &&
+                        User.IsPlaceholderDisplayName(d.OriginalEvaluatorName))
+                    {
+                        d.OriginalEvaluatorName = evalReal;
+                    }
+
+                    if (d.IssuedByUserId.HasValue &&
+                        realNameByUserId.TryGetValue(d.IssuedByUserId.Value, out var issuerReal) &&
+                        User.IsPlaceholderDisplayName(d.IssuedByStaffName))
+                    {
+                        d.IssuedByStaffName = issuerReal;
+                    }
+                }
+            }
+        }
     }
 }

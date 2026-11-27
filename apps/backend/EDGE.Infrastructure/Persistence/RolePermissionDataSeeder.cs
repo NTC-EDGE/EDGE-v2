@@ -595,11 +595,28 @@ public static class RolePermissionDataSeeder
                         {
                             var clerkUser = existingClerkUsers[0];
                             var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == cleanEmail);
-                            if (dbUser != null && dbUser.AuthUserId != clerkUser.Id)
+                            if (dbUser != null)
                             {
-                                dbUser.AuthUserId = clerkUser.Id;
-                                await context.SaveChangesAsync();
-                                logger?.LogInformation("Linked seed user '{Email}' to existing Clerk ID: {ClerkId}", cleanEmail, clerkUser.Id);
+                                bool updated = false;
+                                if (dbUser.AuthUserId != clerkUser.Id)
+                                {
+                                    dbUser.AuthUserId = clerkUser.Id;
+                                    updated = true;
+                                }
+                                var clerkRealName = string.Join(" ", new[] { clerkUser.FirstName, clerkUser.LastName }
+                                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                                    .Select(s => s!.Trim()));
+                                if (User.IsPlaceholderDisplayName(dbUser.GetFullName()) && !User.IsPlaceholderDisplayName(clerkRealName))
+                                {
+                                    if (!string.IsNullOrWhiteSpace(clerkUser.FirstName)) dbUser.FirstName = clerkUser.FirstName.Trim();
+                                    if (!string.IsNullOrWhiteSpace(clerkUser.LastName)) dbUser.LastName = clerkUser.LastName.Trim();
+                                    updated = true;
+                                }
+                                if (updated)
+                                {
+                                    await context.SaveChangesAsync();
+                                    logger?.LogInformation("Linked seed user '{Email}' to existing Clerk ID: {ClerkId}", cleanEmail, clerkUser.Id);
+                                }
                             }
                         }
                         else

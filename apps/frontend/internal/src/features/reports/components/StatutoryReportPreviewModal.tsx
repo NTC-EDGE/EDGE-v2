@@ -327,7 +327,7 @@ export function StatutoryReportPreviewModal({
     if (report.code === 'NTC-APP-SUM-EVAL') {
       for (const app of dateFilteredApps) {
         const val = resolveEvaluatorName(app, userName);
-        if (val.trim().length > 0) set.add(val.trim());
+        if (val.trim().length > 0 && val.trim() !== '—') set.add(val.trim());
       }
     } else if (report.code === 'NTC-APP-SUM-SVC') {
       for (const app of dateFilteredApps) {

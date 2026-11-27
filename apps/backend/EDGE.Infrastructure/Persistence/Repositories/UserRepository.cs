@@ -168,7 +168,7 @@ public class UserRepository : IUserRepository
 
             if (user != null)
             {
-                var staffName = $"{user.FirstName} {user.LastName}".Trim();
+                var staffName = user.GetFullName();
                 if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
 
                 var memberRole = user.TenantMemberships?.FirstOrDefault()?.Role?.Name 
@@ -249,13 +249,30 @@ public class UserRepository : IUserRepository
                 var isSuperAdmin = currentUserService.IsSuperAdminClaim || AdministrativeIdentityPolicy.IsSuperAdminEmail(cleanEmail);
                 var isAdmin = isSuperAdmin || currentUserService.IsAdminClaim || AdministrativeIdentityPolicy.IsAdministrativeEmail(cleanEmail);
 
+                string initialFirst = isSuperAdmin ? "Super" : (isAdmin ? "Regional" : "User");
+                string initialLast = isSuperAdmin ? "Administrator" : (isAdmin ? "Admin" : "Account");
+                if (!User.IsPlaceholderDisplayName(currentUserService.FullName))
+                {
+                    var nameParts = currentUserService.FullName!.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (nameParts.Length >= 2)
+                    {
+                        initialFirst = nameParts[0];
+                        initialLast = string.Join(" ", nameParts.Skip(1));
+                    }
+                    else if (nameParts.Length == 1)
+                    {
+                        initialFirst = nameParts[0];
+                        initialLast = string.Empty;
+                    }
+                }
+
                 var newUser = new User
                 {
                     Id = Guid.NewGuid(),
                     AuthUserId = authUserId,
                     Email = cleanEmail,
-                    FirstName = isSuperAdmin ? "Super" : (isAdmin ? "Regional" : "User"),
-                    LastName = isSuperAdmin ? "Administrator" : (isAdmin ? "Admin" : "Account"),
+                    FirstName = initialFirst,
+                    LastName = initialLast,
                     IsSuperAdmin = isSuperAdmin,
                     CreatedAt = DateTime.UtcNow
                 };

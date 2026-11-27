@@ -194,6 +194,17 @@ public static class UserEndpoints
                     }
                     existingUser.AuthUserId = authUserId;
                     if (isSuperAdmin) existingUser.IsSuperAdmin = true;
+
+                    var clerkFullName = string.Join(" ", new[] { clerkUser.FirstName, clerkUser.LastName }
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Select(s => s!.Trim()));
+                    if (EDGE.Domain.Entities.User.IsPlaceholderDisplayName(existingUser.GetFullName()) &&
+                        !EDGE.Domain.Entities.User.IsPlaceholderDisplayName(clerkFullName))
+                    {
+                        if (!string.IsNullOrWhiteSpace(clerkUser.FirstName)) existingUser.FirstName = clerkUser.FirstName.Trim();
+                        if (!string.IsNullOrWhiteSpace(clerkUser.LastName)) existingUser.LastName = clerkUser.LastName.Trim();
+                    }
+
                     await unitOfWork.SaveChangesAsync();
                 }
                 else

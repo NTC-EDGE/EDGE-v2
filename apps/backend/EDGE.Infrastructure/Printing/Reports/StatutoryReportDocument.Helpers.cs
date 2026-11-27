@@ -420,13 +420,54 @@ public partial class StatutoryReportDocument
 
     private (string Name, string Role) ResolvePreparedByCurrentOfficer(string defaultRole)
     {
-        var name = !string.IsNullOrWhiteSpace(_model.GeneratedBy)
+        var name = !string.IsNullOrWhiteSpace(_model.GeneratedBy) && !User.IsPlaceholderDisplayName(_model.GeneratedBy)
             ? _model.GeneratedBy.Trim()
             : "Authorized Regional Officer";
-        var role = !string.IsNullOrWhiteSpace(_model.GeneratedByTitle)
+        var role = !string.IsNullOrWhiteSpace(_model.GeneratedByTitle) && !User.IsPlaceholderDisplayName(_model.GeneratedByTitle)
             ? _model.GeneratedByTitle.Trim()
             : defaultRole;
         return (name, role);
+    }
+
+    private static string ResolveApplicationStaffDisplayName(
+        ApplicationSummaryDto app,
+        IssuedDocumentDetailSummaryDto? issuedDoc)
+    {
+        var candidates = new[]
+        {
+            app.EvaluatingOfficer,
+            issuedDoc?.OriginalEvaluatorName,
+            app.AssignedOfficerName,
+            app.IssuingOfficer,
+            issuedDoc?.IssuedByStaffName,
+            app.AccountingOfficer,
+            app.CashierOfficer
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (!string.IsNullOrWhiteSpace(candidate) && !User.IsPlaceholderDisplayName(candidate))
+            {
+                return candidate.Trim();
+            }
+        }
+
+        if (app.Histories != null && app.Histories.Count > 0)
+        {
+            var latestStaff = app.Histories
+                .OrderByDescending(h => h.Timestamp)
+                .FirstOrDefault(h =>
+                    !string.IsNullOrWhiteSpace(h.StaffName) &&
+                    !User.IsPlaceholderDisplayName(h.StaffName) &&
+                    !string.Equals(h.StaffRole, "Applicant", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(h.StaffRole, "Client", StringComparison.OrdinalIgnoreCase));
+            if (latestStaff != null)
+            {
+                return latestStaff.StaffName.Trim();
+            }
+        }
+
+        return "—";
     }
 
     private static void ComposeSignatories(

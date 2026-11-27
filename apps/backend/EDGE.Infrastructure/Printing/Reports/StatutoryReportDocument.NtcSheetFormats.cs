@@ -368,11 +368,7 @@ public partial class StatutoryReportDocument
                 ?? matchedTx?.Date;
             string datePaid = paidDate.HasValue ? paidDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "—";
 
-            string byStaff = !string.IsNullOrWhiteSpace(app.EvaluatingOfficer)
-                ? app.EvaluatingOfficer!.Trim()
-                : (!string.IsNullOrWhiteSpace(issuedDoc?.OriginalEvaluatorName)
-                    ? issuedDoc!.OriginalEvaluatorName!.Trim()
-                    : (!string.IsNullOrWhiteSpace(app.AssignedOfficerName) ? app.AssignedOfficerName!.Trim() : _model.GeneratedBy));
+            string byStaff = ResolveApplicationStaffDisplayName(app, issuedDoc);
 
             return (
                 AppType: appType,

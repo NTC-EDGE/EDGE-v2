@@ -745,6 +745,7 @@ export function ReportsScreen() {
         applications={state.filteredApplications}
         transactions={state.filteredTransactions}
         feedback={state.filteredFeedback}
+        userName={state.currentUserDisplayName}
         onClose={state.handleCloseStatutoryModal}
       />
     </View>

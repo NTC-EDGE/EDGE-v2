@@ -165,9 +165,10 @@ public partial class StatutoryReportDocument : IDocument
 
     private void ComposeOfficialFooter(IContainer container)
     {
+        var footerActor = ResolvePreparedByCurrentOfficer("Authorized Regional Officer").Name;
         container.PaddingTop(4).BorderTop(0.5f).BorderColor("#CBD5E1").Row(row =>
         {
-            row.RelativeItem().Text($"NTC EDGE Official Statutory Document • {_model.Code} • Generated {_model.GeneratedAt:yyyy-MM-dd HH:mm} UTC by {_model.GeneratedBy}")
+            row.RelativeItem().Text($"NTC EDGE Official Statutory Document • {_model.Code} • Generated {_model.GeneratedAt:yyyy-MM-dd HH:mm} UTC by {footerActor}")
                 .FontSize(6.5f).FontColor(Colors.Grey.Darken2);
 
             row.AutoItem().Text(t =>

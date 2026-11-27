@@ -25,11 +25,7 @@ public partial class StatutoryReportDocument
             var matchedOrs = _receiptsByAppId.TryGetValue(app.Id, out var appOrList) ? appOrList : null;
             var issuedDoc = app.IssuedDocumentDetails?.FirstOrDefault();
 
-            string evaluator = !string.IsNullOrWhiteSpace(app.EvaluatingOfficer)
-                ? app.EvaluatingOfficer!
-                : (!string.IsNullOrWhiteSpace(issuedDoc?.OriginalEvaluatorName)
-                    ? issuedDoc!.OriginalEvaluatorName!
-                    : (!string.IsNullOrWhiteSpace(app.AssignedOfficerName) ? app.AssignedOfficerName! : _model.GeneratedBy));
+            string evaluator = ResolveApplicationStaffDisplayName(app, issuedDoc);
 
             string serviceName = !string.IsNullOrWhiteSpace(app.ServiceName)
                 ? app.ServiceName!

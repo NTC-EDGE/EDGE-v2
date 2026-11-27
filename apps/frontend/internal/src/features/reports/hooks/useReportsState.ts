@@ -662,7 +662,7 @@ export function useReportsState() {
     const set = new Set<string>();
     for (const app of filteredApplications) {
       const name = resolveEvaluatorName(app, user?.name);
-      if (name.trim().length > 0) set.add(name.trim());
+      if (name.trim().length > 0 && name.trim() !== '—') set.add(name.trim());
     }
     return Array.from(set).sort();
   }, [filteredApplications, user?.name]);
@@ -1347,6 +1347,10 @@ export function useReportsState() {
     handleDownloadStatutoryCsv,
     handlePrintStatutoryReport,
     activeTenantId: user?.tenantId ?? null,
+    currentUserDisplayName:
+      [user?.firstName, user?.lastName].filter((s): s is string => typeof s === 'string' && s.trim().length > 0).join(' ').trim() ||
+      user?.name ||
+      null,
     tenantDisplayName,
     stats,
     isLoading,

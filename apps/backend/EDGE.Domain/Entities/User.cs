@@ -36,6 +36,46 @@ public class User : AuditableEntity
     public DateTime? LastOnline { get; set; }
     public string? ESignature { get; set; }
 
+    private static readonly HashSet<string> PlaceholderDisplayNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "superadmin",
+        "super admin",
+        "super administrator",
+        "administrator",
+        "system admin",
+        "system administrator",
+        "system staff",
+        "regional admin",
+        "user account",
+        "clerk user",
+        "ntc agency staff"
+    };
+
+    /// <summary>
+    /// Formats the user's real full name (FirstName MiddleName LastName Suffix),
+    /// collapsing extra whitespace and omitting empty segments.
+    /// </summary>
+    public string GetFullName()
+    {
+        return string.Join(" ", new[] { FirstName, MiddleName, LastName, Suffix }
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!.Trim()));
+    }
+
+    /// <summary>
+    /// Returns true if the supplied display name is empty, a raw email/auth ID,
+    /// or a generic role/system placeholder such as "SuperAdmin" or "Super Administrator".
+    /// </summary>
+    public static bool IsPlaceholderDisplayName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+        var trimmed = name.Trim();
+        if (PlaceholderDisplayNames.Contains(trimmed)) return true;
+        if (trimmed.Contains('@')) return true;
+        if (trimmed.StartsWith("user_", StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
     private static readonly HashSet<string> KnownSeedPlaceholderIds = new(StringComparer.OrdinalIgnoreCase)
     {
         "user_client123",
