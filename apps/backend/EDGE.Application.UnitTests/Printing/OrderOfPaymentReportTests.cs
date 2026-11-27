@@ -423,4 +423,45 @@ public class OrderOfPaymentReportTests
         Assert.Single(model.OrNumbers);
         Assert.Equal("P1,500.00", model.OrAmount);
     }
+
+    [Fact]
+    public void OrderOfPayment_AcroFormAndQuestPdf_BothEmbedNtcSealImage()
+    {
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "EDGE.Infrastructure", "Printing", "Templates", "order-of-payment-template.pdf");
+        if (!File.Exists(templatePath))
+        {
+            templatePath = Path.Combine(Directory.GetCurrentDirectory(), "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", "order-of-payment-template.pdf");
+        }
+
+        var model = MockDataFactory.GetOrderOfPaymentModel();
+        var acroPdfBytes = EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(
+            File.ReadAllBytes(templatePath), model);
+        var questPdfBytes = new OrderOfPaymentReport(model).GeneratePdf();
+
+        // Verify both PDFs contain embedded image XObjects (the NTC Seal)
+        AssertPdfContainsImageXObject(acroPdfBytes);
+        AssertPdfContainsImageXObject(questPdfBytes);
+    }
+
+    private static void AssertPdfContainsImageXObject(byte[] pdfBytes)
+    {
+        using var inStream = new MemoryStream(pdfBytes);
+        using var reader = new iText.Kernel.Pdf.PdfReader(inStream);
+        using var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader);
+        var page = pdfDoc.GetPage(1);
+        var xObjects = page.GetResources().GetResource(iText.Kernel.Pdf.PdfName.XObject);
+        Assert.NotNull(xObjects);
+
+        bool hasImage = false;
+        foreach (var key in xObjects.KeySet())
+        {
+            var stream = xObjects.GetAsStream(key);
+            if (stream != null && iText.Kernel.Pdf.PdfName.Image.Equals(stream.GetAsName(iText.Kernel.Pdf.PdfName.Subtype)))
+            {
+                hasImage = true;
+                break;
+            }
+        }
+        Assert.True(hasImage, "Expected Order of Payment PDF page 1 to embed the NTC Seal image.");
+    }
 }

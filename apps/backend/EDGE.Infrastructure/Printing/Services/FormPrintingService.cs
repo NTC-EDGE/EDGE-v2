@@ -373,15 +373,29 @@ public class FormPrintingService : IFormPrintingService
     {
         model ??= new OrderOfPaymentModel();
 
+        byte[]? templateBytes = null;
         if (_fillerService != null)
         {
             try
             {
-                var templateBytes = _fillerService.GetTemplate("order-of-payment-template.pdf");
-                if (templateBytes != null && templateBytes.Length > 0)
-                {
-                    return EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(templateBytes, model);
-                }
+                templateBytes = _fillerService.GetTemplate("order-of-payment-template.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to retrieve order-of-payment-template.pdf from filler service.");
+            }
+        }
+
+        if (templateBytes == null || templateBytes.Length == 0)
+        {
+            templateBytes = LoadLocalOrEmbeddedTemplate("order-of-payment-template.pdf");
+        }
+
+        if (templateBytes != null && templateBytes.Length > 0)
+        {
+            try
+            {
+                return EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(templateBytes, model);
             }
             catch (Exception ex)
             {

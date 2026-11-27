@@ -3,7 +3,10 @@ using System.IO;
 using System.Linq;
 using EDGE.Infrastructure.Printing.Models;
 using iText.Forms;
+using iText.IO.Image;
+using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Canvas;
 
 namespace EDGE.Infrastructure.Printing.Services.AcroForm;
 
@@ -88,12 +91,97 @@ public static class OrderOfPaymentAcroFormFiller
                 SetField(form, "Accountant", model.CollectingOfficer ?? "Special Collecting Officer");
                 SetField(form, "AccountantPosition", "Special Collecting Officer");
 
+                // Remove empty signature button placeholders so flattening does not paint opaque grey boxes over the signature area
+                try { form.RemoveField("AccountantSignature"); } catch { }
+                try { form.RemoveField("Accountant2Signature"); } catch { }
+
                 // Flatten all AcroForm fields (automatically fills and bakes BOTH Upper and Lower 2-up copies)
                 form.FlattenFields();
+
+                // Stamp the official NTC Seal onto both Upper and Lower 2-up voucher headers
+                StampNtcSeals(pdfDoc);
             }
         }
 
         return outStream.ToArray();
+    }
+
+    private static void StampNtcSeals(PdfDocument pdfDoc)
+    {
+        try
+        {
+            if (pdfDoc.GetNumberOfPages() < 1) return;
+            var sealBytes = LoadNtcSealBytes();
+            if (sealBytes == null || sealBytes.Length == 0) return;
+
+            var page = pdfDoc.GetPage(1);
+            var imageData = ImageDataFactory.Create(sealBytes);
+            var canvas = new PdfCanvas(page.NewContentStreamAfter(), page.GetResources(), pdfDoc);
+
+            // order-of-payment-template.pdf is A5 Portrait (419.528 x 595.276 pt), 2-up layout.
+            // Top-left header seal region on each copy sits cleanly left of
+            // "NATIONAL TELECOMMUNICATIONS COMMISSION / Regional Office No." (X ~ 59.3),
+            // inside the outer top border (Upper Y ~ 588.5, Lower Y ~ 329.5),
+            // and directly above "General Fund" (Upper Y ~ 555.3, Lower Y ~ 299.7).
+            const float sealSize = 23.0f;
+            const float sealX = 22.0f;
+
+            var upperRect = new Rectangle(sealX, 563.0f, sealSize, sealSize);
+            var lowerRect = new Rectangle(sealX + 0.4f, 304.5f, sealSize, sealSize);
+
+            canvas.SaveState();
+            canvas.AddImageFittedIntoRectangle(imageData, upperRect, false);
+            canvas.AddImageFittedIntoRectangle(imageData, lowerRect, false);
+            canvas.RestoreState();
+        }
+        catch
+        {
+            // Never fail OP PDF generation if the seal asset cannot be stamped
+        }
+    }
+
+    internal static byte[]? LoadNtcSealBytes()
+    {
+        var candidateFileNames = new[] { "ntc-Logo.png", "ntc-logo.png" };
+        var searchRoots = new[]
+        {
+            AppDomain.CurrentDomain.BaseDirectory,
+            Directory.GetCurrentDirectory()
+        };
+
+        foreach (var root in searchRoots)
+        {
+            if (string.IsNullOrWhiteSpace(root)) continue;
+            var dir = new DirectoryInfo(root);
+            while (dir != null)
+            {
+                foreach (var name in candidateFileNames)
+                {
+                    var direct = System.IO.Path.Combine(dir.FullName, "Printing", "Assets", "Logos", name);
+                    if (File.Exists(direct)) return File.ReadAllBytes(direct);
+
+                    var infra = System.IO.Path.Combine(dir.FullName, "apps", "backend", "EDGE.Infrastructure", "Printing", "Assets", "Logos", name);
+                    if (File.Exists(infra)) return File.ReadAllBytes(infra);
+                }
+                dir = dir.Parent;
+            }
+        }
+
+        var asm = typeof(OrderOfPaymentAcroFormFiller).Assembly;
+        var resourceName = asm.GetManifestResourceNames()
+            .FirstOrDefault(n => n.EndsWith("ntc-Logo.png", StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(resourceName))
+        {
+            using var stream = asm.GetManifestResourceStream(resourceName);
+            if (stream != null)
+            {
+                using var ms = new MemoryStream();
+                stream.CopyTo(ms);
+                return ms.ToArray();
+            }
+        }
+
+        return null;
     }
 
     private static void SetField(PdfAcroForm form, string fieldName, string? value)
@@ -102,7 +190,14 @@ public static class OrderOfPaymentAcroFormFiller
         var field = form.GetField(fieldName);
         if (field != null)
         {
-            field.SetValue(value);
+            try
+            {
+                field.SetValue(value);
+            }
+            catch
+            {
+                // Ignore individual field errors so the rest of the OP still renders
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using EDGE.Infrastructure.Printing.Models;
+using EDGE.Infrastructure.Printing.Services.AcroForm;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -51,24 +52,37 @@ public class OrderOfPaymentReport : IDocument
         // Enclose each Order of Payment copy in a thick outer border
         container.Border(1.8f).BorderColor(Colors.Black).Padding(8).Column(col =>
         {
-            // 1. Header (Agency, Serial No, Date)
+            // 1. Header (NTC Seal, Agency, Serial No, Date)
             col.Item().Row(row =>
             {
+                var sealBytes = OrderOfPaymentAcroFormFiller.LoadNtcSealBytes();
+
                 row.RelativeItem(0.68f).Column(c =>
                 {
-                    c.Item().Text(_model.AgencyName)
-                        .FontSize(10).Bold();
+                    c.Item().Row(hdr =>
+                    {
+                        if (sealBytes != null && sealBytes.Length > 0)
+                        {
+                            hdr.ConstantItem(34).Height(34).PaddingRight(6).AlignMiddle().Image(sealBytes).FitArea();
+                        }
 
-                    var officeDisplay = string.IsNullOrWhiteSpace(_model.RegionalOffice)
-                        ? string.Empty
-                        : (_model.RegionalOffice.StartsWith("Regional Office", StringComparison.OrdinalIgnoreCase)
-                            ? _model.RegionalOffice.Replace("Regional Office No.", "", StringComparison.OrdinalIgnoreCase)
-                                                   .Replace("Regional Office", "", StringComparison.OrdinalIgnoreCase)
-                                                   .Trim()
-                            : _model.RegionalOffice.Trim());
+                        hdr.RelativeItem().AlignMiddle().Column(agencyCol =>
+                        {
+                            agencyCol.Item().Text(_model.AgencyName)
+                                .FontSize(10).Bold();
 
-                    c.Item().Text($"Regional Office No.   {officeDisplay}")
-                        .FontSize(9).Bold();
+                            var officeDisplay = string.IsNullOrWhiteSpace(_model.RegionalOffice)
+                                ? string.Empty
+                                : (_model.RegionalOffice.StartsWith("Regional Office", StringComparison.OrdinalIgnoreCase)
+                                    ? _model.RegionalOffice.Replace("Regional Office No.", "", StringComparison.OrdinalIgnoreCase)
+                                                           .Replace("Regional Office", "", StringComparison.OrdinalIgnoreCase)
+                                                           .Trim()
+                                    : _model.RegionalOffice.Trim());
+
+                            agencyCol.Item().Text($"Regional Office No.   {officeDisplay}")
+                                .FontSize(9).Bold();
+                        });
+                    });
 
                     c.Item().PaddingTop(3).Text(_model.Fund ?? "General Fund")
                         .FontSize(9).Bold();
