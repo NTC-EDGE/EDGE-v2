@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -86,7 +87,7 @@ public static class TemplateEndpoints
             return Results.BadRequest(ApiResponse<object>.Fail("Template ID is required."));
         }
 
-        var resource = await templateProvider.GetTemplateResourceAsync(templateId, cancellationToken);
+        using var resource = await templateProvider.GetTemplateResourceAsync(templateId, cancellationToken);
         if (resource == null)
         {
             return Results.NotFound(ApiResponse<object>.NotFound($"Template '{templateId}' was not found."));
@@ -96,9 +97,14 @@ public static class TemplateEndpoints
         await resource.Stream.CopyToAsync(ms, cancellationToken);
         ms.Position = 0;
 
-        var downloadName = templateId.EndsWith(".pdf", System.StringComparison.OrdinalIgnoreCase)
+        var rawDownloadName = templateId.EndsWith(".pdf", System.StringComparison.OrdinalIgnoreCase)
             ? templateId
             : $"{templateId}.pdf";
+        var safeChars = rawDownloadName
+            .Select(ch => char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.' ? ch : '_')
+            .ToArray();
+        var downloadName = new string(safeChars).Trim('_');
+        if (string.IsNullOrWhiteSpace(downloadName)) downloadName = "Template.pdf";
 
         return Results.File(ms, "application/pdf", downloadName);
     }

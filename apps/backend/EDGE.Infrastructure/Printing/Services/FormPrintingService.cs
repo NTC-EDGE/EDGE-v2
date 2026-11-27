@@ -56,147 +56,84 @@ public class FormPrintingService : IFormPrintingService
 
     public byte[] PrintConstructionPermit(ConstructionPermitApplication application)
     {
-        const string templateName = "ntc-1-11.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc111FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new ConstructionPermitReport(application).GeneratePdf();
+        application ??= new ConstructionPermitApplication();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-11.pdf"],
+            () => Ntc111FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-11");
+        return overlaid ?? new ConstructionPermitReport(application).GeneratePdf();
     }
 
     public byte[] PrintPurchasePossessSellTransfer(PurchasePossessSellTransferApplication application)
     {
-        const string templateName = "ntc-1-09.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc109FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new PurchasePossessSellTransferReport(application).GeneratePdf();
+        application ??= new PurchasePossessSellTransferApplication();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-09.pdf"],
+            () => Ntc109FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-09");
+        return overlaid ?? new PurchasePossessSellTransferReport(application).GeneratePdf();
     }
 
     public byte[] PrintCertificateOfRegistration(CertificateOfRegistrationApplication application)
     {
-        const string templateName = "ntc-1-19.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc119FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new CertificateOfRegistrationReport(application).GeneratePdf();
+        application ??= new CertificateOfRegistrationApplication();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-19.pdf"],
+            () => Ntc119FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-19");
+        return overlaid ?? new CertificateOfRegistrationReport(application).GeneratePdf();
     }
 
     public byte[] PrintNtc101(Ntc101Application application)
     {
-        const string templateName = "ntc-1-01.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc101FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        // Fallback: Use dedicated NTC 1-01 report
-        return new Ntc101Report(application).GeneratePdf();
+        application ??= new Ntc101Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-01.pdf"],
+            () => Ntc101FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-01");
+        return overlaid ?? new Ntc101Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc102(Ntc102Application application)
     {
-        const string templateName = "ntc-1-02.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc102FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new Ntc102Report(application).GeneratePdf();
+        application ??= new Ntc102Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-02.pdf"],
+            () => Ntc102FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-02");
+        return overlaid ?? new Ntc102Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc103(Ntc103Application application)
     {
-        const string templateName = "ntc-1-03.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc103FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new Ntc103Report(application).GeneratePdf();
+        application ??= new Ntc103Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-03.pdf"],
+            () => Ntc103FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-03");
+        return overlaid ?? new Ntc103Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc104(Ntc104Application application)
     {
-        const string templateName = "ntc-1-04.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc104FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new Ntc104Report(application).GeneratePdf();
+        application ??= new Ntc104Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-04.pdf"],
+            () => Ntc104FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-04");
+        return overlaid ?? new Ntc104Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc105(Ntc105Application application)
     {
-        const string templateName = "ntc-1-05.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc105FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
+        application ??= new Ntc105Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-05.pdf"],
+            () => Ntc105FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-05");
+        if (overlaid != null) return overlaid;
 
-        // Fallback: Use NTC 1-01 report structure or basic generator
+        // Fallback: Use NTC 1-01 report structure when template is unavailable
         return new Ntc101Report(new Ntc101Application
         {
             ApplicationId = application.ApplicationId,
@@ -206,23 +143,17 @@ public class FormPrintingService : IFormPrintingService
 
     public byte[] PrintNtc110(Ntc110Application application)
     {
-        const string templateName = "ntc-1-10.pdf";
+        application ??= new Ntc110Application();
 
         // Use flat PDF overlay when entries fit within the template's 4-column layout (<= 4 entries).
         // For larger entry lists (> 4 entries), switch to dynamic multi-page QuestPDF document generation.
-        if (application.Entries.Count <= 4)
+        if ((application.Entries?.Count ?? 0) <= 4)
         {
-            byte[]? template = null;
-            if (_fillerService != null && _fillerService.TemplateExists(templateName))
-            {
-                template = _fillerService.GetTemplate(templateName);
-            }
-            template ??= LoadLocalOrEmbeddedTemplate(templateName);
-            if (template != null && template.Length > 0)
-            {
-                var overlays = Ntc110FlatPdfOverlayMapper.MapToFieldOverlays(application);
-                return OverlayOnTemplate(template, overlays, _fillerService);
-            }
+            var overlaid = TryRenderFlatOverlayTemplate(
+                ["ntc-1-10.pdf"],
+                () => Ntc110FlatPdfOverlayMapper.MapToFieldOverlays(application),
+                "NTC 1-10");
+            if (overlaid != null) return overlaid;
         }
 
         // Code-driven QuestPDF generator for flexible multi-page output
@@ -231,152 +162,132 @@ public class FormPrintingService : IFormPrintingService
 
     public byte[] PrintNtc114(Ntc114Application application)
     {
-        const string templateName = "ntc-1-14.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc114FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new Ntc114Report(application).GeneratePdf();
+        application ??= new Ntc114Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-14.pdf"],
+            () => Ntc114FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-14");
+        return overlaid ?? new Ntc114Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc118(Ntc118Application application)
     {
-        const string templateName = "ntc-1-18.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc118FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new Ntc118Report(application).GeneratePdf();
+        application ??= new Ntc118Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-18.pdf"],
+            () => Ntc118FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-18");
+        return overlaid ?? new Ntc118Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc120(Ntc120Application application)
     {
-        const string templateName = "ntc-1-20.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc120FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new Ntc120Report(application).GeneratePdf();
+        application ??= new Ntc120Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-20.pdf"],
+            () => Ntc120FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-20");
+        return overlaid ?? new Ntc120Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc121(Ntc121Application application)
     {
-        const string templateName = "ntc-1-21.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc121FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new Ntc121Report(application).GeneratePdf();
+        application ??= new Ntc121Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-21.pdf"],
+            () => Ntc121FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-21");
+        return overlaid ?? new Ntc121Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc122(Ntc122Application application)
     {
-        const string templateName = "ntc-1-22.pdf";
-        byte[]? template = null;
-        if (_fillerService != null && _fillerService.TemplateExists(templateName))
-        {
-            template = _fillerService.GetTemplate(templateName);
-        }
-        template ??= LoadLocalOrEmbeddedTemplate(templateName);
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc122FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        return new Ntc122Report(application).GeneratePdf();
+        application ??= new Ntc122Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["ntc-1-22.pdf"],
+            () => Ntc122FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-22");
+        return overlaid ?? new Ntc122Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc124(Ntc124Application application)
     {
-        byte[]? template = null;
-        string[] candidates = ["NTC1-24.pdf", "ntc-1-24.pdf", "NTC1-24", "NTC24", "ntc24.pdf"];
-        if (_fillerService != null)
-        {
-            foreach (var candidate in candidates)
-            {
-                if (_fillerService.TemplateExists(candidate))
-                {
-                    template = _fillerService.GetTemplate(candidate);
-                    if (template != null && template.Length > 0) break;
-                }
-            }
-        }
-
-        if (template == null || template.Length == 0)
-        {
-            template = LoadLocalOrEmbeddedTemplate("NTC1-24.pdf") ?? LoadLocalOrEmbeddedTemplate("ntc-1-24.pdf");
-        }
-
-        if (template != null && template.Length > 0)
-        {
-            var overlays = Ntc124FlatPdfOverlayMapper.MapToFieldOverlays(application);
-            return OverlayOnTemplate(template, overlays, _fillerService);
-        }
-
-        throw new FileNotFoundException("The official NTC 1-24 PDF template (NTC1-24.pdf) was not found in templates or embedded resources.");
+        application ??= new Ntc124Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["NTC1-24.pdf", "ntc-1-24.pdf", "NTC1-24", "NTC24", "ntc24.pdf"],
+            () => Ntc124FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-24");
+        return overlaid ?? new Ntc124Report(application).GeneratePdf();
     }
 
     public byte[] PrintNtc125(Ntc125Application application)
     {
+        application ??= new Ntc125Application();
+        var overlaid = TryRenderFlatOverlayTemplate(
+            ["NTC1-25.pdf", "ntc-1-25.pdf", "NTC1-25", "NTC25", "ntc25.pdf"],
+            () => Ntc125FlatPdfOverlayMapper.MapToFieldOverlays(application),
+            "NTC 1-25");
+        return overlaid ?? new Ntc125Report(application).GeneratePdf();
+    }
+
+    private byte[]? TryRenderFlatOverlayTemplate(
+        string[] templateCandidates,
+        Func<IReadOnlyList<FieldOverlay>> buildOverlays,
+        string formLabel)
+    {
         byte[]? template = null;
-        string[] candidates = ["NTC1-25.pdf", "ntc-1-25.pdf", "NTC1-25", "NTC25", "ntc25.pdf"];
+
         if (_fillerService != null)
         {
-            foreach (var candidate in candidates)
+            foreach (var candidate in templateCandidates)
             {
-                if (_fillerService.TemplateExists(candidate))
+                try
                 {
-                    template = _fillerService.GetTemplate(candidate);
-                    if (template != null && template.Length > 0) break;
+                    if (_fillerService.TemplateExists(candidate))
+                    {
+                        template = _fillerService.GetTemplate(candidate);
+                        if (template != null && template.Length > 0) break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Failed to retrieve {FormLabel} template candidate '{Candidate}' from filler service.", formLabel, candidate);
                 }
             }
         }
 
         if (template == null || template.Length == 0)
         {
-            template = LoadLocalOrEmbeddedTemplate("NTC1-25.pdf") ?? LoadLocalOrEmbeddedTemplate("ntc-1-25.pdf");
+            foreach (var candidate in templateCandidates)
+            {
+                if (!candidate.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) continue;
+                try
+                {
+                    template = LoadLocalOrEmbeddedTemplate(candidate);
+                    if (template != null && template.Length > 0) break;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Failed to load local/embedded {FormLabel} template '{Candidate}'.", formLabel, candidate);
+                }
+            }
         }
 
-        if (template != null && template.Length > 0)
+        if (template == null || template.Length == 0)
         {
-            var overlays = Ntc125FlatPdfOverlayMapper.MapToFieldOverlays(application);
+            return null;
+        }
+
+        try
+        {
+            var overlays = buildOverlays();
             return OverlayOnTemplate(template, overlays, _fillerService);
         }
-
-        throw new FileNotFoundException("The official NTC 1-25 PDF template (NTC1-25.pdf) was not found in templates or embedded resources.");
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to overlay {FormLabel} PDF template. Falling back to QuestPDF generator.", formLabel);
+            return null;
+        }
     }
 
     public byte[] PrintOfficialReceipt(OfficialReceiptModel? model = null)
@@ -567,29 +478,41 @@ public class FormPrintingService : IFormPrintingService
 
     public byte[] PrintIssuedDocuments(IReadOnlyList<IssuedDocumentModel> models)
     {
-        if (models == null || models.Count == 0)
+        var validModels = (models ?? Array.Empty<IssuedDocumentModel>())
+            .Where(m => m != null)
+            .ToList();
+
+        if (validModels.Count == 0)
         {
             return PrintIssuedDocument(null);
         }
-        if (models.Count == 1)
+        if (validModels.Count == 1)
         {
-            return PrintIssuedDocument(models[0]);
+            return PrintIssuedDocument(validModels[0]);
         }
 
-        using var outStream = new MemoryStream();
-        using (var writer = new iText.Kernel.Pdf.PdfWriter(outStream))
-        using (var mergedPdf = new iText.Kernel.Pdf.PdfDocument(writer))
+        try
         {
-            foreach (var model in models)
+            using var outStream = new MemoryStream();
+            using (var writer = new iText.Kernel.Pdf.PdfWriter(outStream))
+            using (var mergedPdf = new iText.Kernel.Pdf.PdfDocument(writer))
             {
-                var pageBytes = PrintIssuedDocument(model);
-                using var pageStream = new MemoryStream(pageBytes);
-                using var reader = new iText.Kernel.Pdf.PdfReader(pageStream);
-                using var srcPdf = new iText.Kernel.Pdf.PdfDocument(reader);
-                srcPdf.CopyPagesTo(1, srcPdf.GetNumberOfPages(), mergedPdf);
+                foreach (var model in validModels)
+                {
+                    var pageBytes = PrintIssuedDocument(model);
+                    using var pageStream = new MemoryStream(pageBytes);
+                    using var reader = new iText.Kernel.Pdf.PdfReader(pageStream);
+                    using var srcPdf = new iText.Kernel.Pdf.PdfDocument(reader);
+                    srcPdf.CopyPagesTo(1, srcPdf.GetNumberOfPages(), mergedPdf);
+                }
             }
+            return outStream.ToArray();
         }
-        return outStream.ToArray();
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to merge bulk issued document PDFs. Falling back to primary issued document.");
+            return PrintIssuedDocument(validModels[0]);
+        }
     }
 
     private static byte[]? LoadLocalOrEmbeddedTemplate(string templateFileName)

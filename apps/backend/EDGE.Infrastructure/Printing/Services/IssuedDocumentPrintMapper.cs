@@ -27,8 +27,9 @@ public static class IssuedDocumentPrintMapper
         model.ApplicationNumber = app?.ApplicationNumber ?? app?.ReferenceNumber;
 
         // 1. Resolve Service, Variant, and Category
-        var primaryService = app?.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
-        var primaryVariant = app?.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
+        var appApplicants = app?.ApplicationApplicants ?? Enumerable.Empty<ApplicationApplicant>();
+        var primaryService = appApplicants.Select(aa => aa?.Applicant?.Service).FirstOrDefault(s => s != null);
+        var primaryVariant = appApplicants.Select(aa => aa?.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
         var serviceName = primaryService?.Name ?? "Statutory Application";
         var serviceCode = primaryService?.Code ?? string.Empty;
         var categoryName = primaryService?.ServiceCategory?.Name ?? primaryService?.Group ?? string.Empty;
@@ -159,7 +160,10 @@ public static class IssuedDocumentPrintMapper
 
         var allFieldValues = applicantFieldValues.Count > 0
             ? applicantFieldValues
-            : (app?.FormSubmissions?.SelectMany(fs => fs.FieldValues).ToList() ?? new List<FormFieldValue>());
+            : (app?.FormSubmissions?
+                .Where(fs => fs != null)
+                .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<FormFieldValue>())
+                .ToList() ?? new List<FormFieldValue>());
 
         // Extract Equipment & Device Details (including Repeater Rows)
         ExtractEquipmentDetails(allFieldValues, model);
@@ -192,7 +196,11 @@ public static class IssuedDocumentPrintMapper
         // 5. Regional & Signatories
         model.QrVerificationCode = doc.QrVerificationCode ?? $"NTC-VERIFY-{doc.Id.ToString("N")[..12].ToUpperInvariant()}";
         model.OfficeName = "NATIONAL TELECOMMUNICATIONS COMMISSION";
-        model.RegionalOffice = !string.IsNullOrWhiteSpace(app?.Office) ? app.Office : (app?.Region?.Name ?? "National Capital Region");
+        model.RegionalOffice = !string.IsNullOrWhiteSpace(app?.Office)
+            ? app.Office
+            : (!string.IsNullOrWhiteSpace(app?.Tenant?.Name)
+                ? app.Tenant.Name
+                : (app?.Region?.Name ?? string.Empty));
 
         model.SignatoryName = !string.IsNullOrWhiteSpace(doc.IssuedByStaffName)
             ? doc.IssuedByStaffName

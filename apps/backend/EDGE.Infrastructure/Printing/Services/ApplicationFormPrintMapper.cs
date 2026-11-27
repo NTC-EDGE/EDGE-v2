@@ -182,7 +182,8 @@ public static class ApplicationFormPrintMapper
         Guid? applicantId = null)
     {
         var formCode = ResolveCanonicalFormCode(app, applicantId);
-        var refCode = (app.ApplicationNumber ?? app.ReferenceNumber ?? app.Id.ToString()).Replace(" ", "_");
+        var rawRefCode = app.ApplicationNumber ?? app.ReferenceNumber ?? app.Id.ToString();
+        var refCode = SanitizeFileToken(rawRefCode);
 
         switch (formCode)
         {
@@ -279,7 +280,10 @@ public static class ApplicationFormPrintMapper
         if (vDesc.Contains("BLOCKING") || vDesc.Contains("UNBLOCKING") || vDesc.Contains("SPAM") || vDesc.Contains("SCAM") || vDesc.Contains("TAPE PRESERVATION"))
             return true;
 
-        var allFieldValues = app.FormSubmissions?.SelectMany(fs => fs.FieldValues).ToList() ?? new List<FormFieldValue>();
+        var allFieldValues = app.FormSubmissions?
+            .Where(fs => fs != null)
+            .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<FormFieldValue>())
+            .ToList() ?? new List<FormFieldValue>();
         return allFieldValues.Any(f => MatchesKey(f, "action_requested", "device_particulars", "sim_mobile_numbers", "provider_business_name", "complaint_types", "state_briefly_details"));
     }
 
@@ -1956,16 +1960,11 @@ public static class ApplicationFormPrintMapper
 
                         foreach (var row in doc.RootElement.EnumerateArray())
                         {
-                            if (row.TryGetProperty("imei_number", out var i) || row.TryGetProperty("imei", out i))
-                            {
-                                var iv = i.GetString() ?? (i.ValueKind == JsonValueKind.Number ? i.GetInt64().ToString() : "");
-                                if (!string.IsNullOrWhiteSpace(iv)) imeis.Add(iv);
-                            }
-                            if (row.TryGetProperty("make_model_type", out var m) || row.TryGetProperty("model", out m) || row.TryGetProperty("make", out m))
-                            {
-                                var mv = m.GetString();
-                                if (!string.IsNullOrWhiteSpace(mv)) models.Add(mv);
-                            }
+                            var iv = GetJsonString(row, "imei_number", "imei");
+                            if (!string.IsNullOrWhiteSpace(iv)) imeis.Add(iv);
+
+                            var mv = GetJsonString(row, "make_model_type", "model", "make");
+                            if (!string.IsNullOrWhiteSpace(mv)) models.Add(mv);
                         }
 
                         if (imeis.Count > 0) model.ImeiNo = string.Join(" / ", imeis);
@@ -2007,11 +2006,8 @@ public static class ApplicationFormPrintMapper
                         var nums = new List<string>();
                         foreach (var row in doc.RootElement.EnumerateArray())
                         {
-                            if (row.TryGetProperty("mobile_number", out var num) || row.TryGetProperty("mobile", out num) || row.TryGetProperty("sim", out num))
-                            {
-                                var nv = num.GetString();
-                                if (!string.IsNullOrWhiteSpace(nv)) nums.Add(nv);
-                            }
+                            var nv = GetJsonString(row, "mobile_number", "mobile", "sim");
+                            if (!string.IsNullOrWhiteSpace(nv)) nums.Add(nv);
                         }
                         if (nums.Count > 0) model.SimMobileNumber = string.Join(" / ", nums);
                     }
@@ -2048,10 +2044,8 @@ public static class ApplicationFormPrintMapper
                     {
                         foreach (var row in doc.RootElement.EnumerateArray())
                         {
-                            var desc = "";
-                            var file = "";
-                            if (row.TryGetProperty("document_description", out var d)) desc = d.GetString() ?? "";
-                            if (row.TryGetProperty("attachment_file", out var f)) file = f.GetString() ?? "";
+                            var desc = GetJsonString(row, "document_description") ?? "";
+                            var file = GetJsonString(row, "attachment_file") ?? "";
 
                             if (!string.IsNullOrWhiteSpace(desc) || !string.IsNullOrWhiteSpace(file))
                             {
@@ -2110,5 +2104,15 @@ public static class ApplicationFormPrintMapper
     {
         var label = (f.CustomLabel ?? f.Field?.Label ?? string.Empty).ToLowerInvariant();
         return keywords.Any(k => label.Contains(k.ToLowerInvariant()));
+    }
+
+    private static string SanitizeFileToken(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "FORM";
+        var safeChars = raw
+            .Select(ch => char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' ? ch : '_')
+            .ToArray();
+        var cleaned = new string(safeChars).Trim('_');
+        return string.IsNullOrWhiteSpace(cleaned) ? "FORM" : cleaned;
     }
 }

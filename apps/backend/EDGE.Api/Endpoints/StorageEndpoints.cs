@@ -139,15 +139,18 @@ public static class StorageEndpoints
         var query = new GetFileDownloadQuery(fileId, tenantId);
         var result = await mediator.Send(query);
 
-        if (!result.Succeeded)
+        if (!result.Succeeded || result.Data == null || result.Data.FileStream == null)
         {
             return Results.NotFound(result);
         }
 
-        var fileData = result.Data!;
+        var fileData = result.Data;
+        var contentType = string.IsNullOrWhiteSpace(fileData.ContentType)
+            ? "application/octet-stream"
+            : fileData.ContentType;
         return Results.File(
             fileStream: fileData.FileStream,
-            contentType: fileData.ContentType,
+            contentType: contentType,
             fileDownloadName: fileData.FileName,
             enableRangeProcessing: true
         );

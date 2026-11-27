@@ -1002,7 +1002,7 @@ public static class ApplicationEndpoints
             return Results.NotFound(new { message = $"No issued document found for Application '{id}'. The application has not been issued yet." });
         }
 
-        var paidOp = app.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
+        var paidOp = (app.OrdersOfPayment ?? Enumerable.Empty<OrderOfPayment>()).FirstOrDefault(o => o.Status == OpStatus.Paid);
         var defaultDocType = orderedAppApplicants.FirstOrDefault()?.Applicant?.Service?.Name ?? "Statutory License";
 
         IssuedDocumentDetail BuildDocForApplicant(ApplicationApplicant? aa, int idx, int totalCount)
@@ -1106,7 +1106,7 @@ public static class ApplicationEndpoints
             var singleModel = IssuedDocumentPrintMapper.MapToPrintModel(singleDoc, app);
             await PopulateApplicantPhotoBytesAsync(singleModel);
             var singlePdfBytes = printingService.PrintIssuedDocument(singleModel);
-            var singleSafeDocName = $"{singleModel.DocumentType}_{singleModel.LicenseNumber ?? singleModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
+            var singleSafeDocName = SanitizePdfFileName($"{singleModel.DocumentType}_{singleModel.LicenseNumber ?? singleModel.FormNumber ?? id.ToString()}.pdf");
 
             if (download == true)
             {
@@ -1128,7 +1128,7 @@ public static class ApplicationEndpoints
             }
             var bulkPdfBytes = printingService.PrintIssuedDocuments(models);
             var firstModel = models[0];
-            var bulkSafeDocName = $"{firstModel.DocumentType}_{firstModel.LicenseNumber ?? firstModel.FormNumber ?? id.ToString()}_Bulk.pdf".Replace(" ", "_");
+            var bulkSafeDocName = SanitizePdfFileName($"{firstModel.DocumentType}_{firstModel.LicenseNumber ?? firstModel.FormNumber ?? id.ToString()}_Bulk.pdf");
 
             if (download == true)
             {
@@ -1143,7 +1143,7 @@ public static class ApplicationEndpoints
         var printModel = IssuedDocumentPrintMapper.MapToPrintModel(issuedDoc, app);
         await PopulateApplicantPhotoBytesAsync(printModel);
         var pdfBytes = printingService.PrintIssuedDocument(printModel);
-        var safeDocName = $"{printModel.DocumentType}_{printModel.LicenseNumber ?? printModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
+        var safeDocName = SanitizePdfFileName($"{printModel.DocumentType}_{printModel.LicenseNumber ?? printModel.FormNumber ?? id.ToString()}.pdf");
 
         if (download == true)
         {
@@ -1218,7 +1218,8 @@ public static class ApplicationEndpoints
             }
         }
 
-        var (pdfBytes, safeFileName, _) = ApplicationFormPrintMapper.PrintApplicationForm(app, printingService, applicantId);
+        var (pdfBytes, rawFileName, _) = ApplicationFormPrintMapper.PrintApplicationForm(app, printingService, applicantId);
+        var safeFileName = SanitizePdfFileName(rawFileName);
 
         if (download == true)
         {
@@ -1227,6 +1228,17 @@ public static class ApplicationEndpoints
 
         httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{safeFileName}\"";
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
+
+    private static string SanitizePdfFileName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName)) return "Document.pdf";
+        var safeChars = rawName
+            .Select(ch => char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.' ? ch : '_')
+            .ToArray();
+        var cleaned = new string(safeChars).Trim('_');
+        if (string.IsNullOrWhiteSpace(cleaned)) return "Document.pdf";
+        return cleaned.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? cleaned : $"{cleaned}.pdf";
     }
 }
 

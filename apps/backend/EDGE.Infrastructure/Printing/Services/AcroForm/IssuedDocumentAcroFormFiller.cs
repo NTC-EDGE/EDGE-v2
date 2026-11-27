@@ -30,6 +30,9 @@ public static class IssuedDocumentAcroFormFiller
             throw new ArgumentException("Template bytes cannot be null or empty.", nameof(templateBytes));
         }
 
+        model ??= new IssuedDocumentModel();
+        var safeDocType = model.DocumentType ?? string.Empty;
+
         using var inStream = new MemoryStream(templateBytes);
         using var outStream = new MemoryStream();
 
@@ -42,8 +45,8 @@ public static class IssuedDocumentAcroFormFiller
             {
                 // 1. Licensee / Grantee / Examinee Information
                 var displayName = !string.IsNullOrWhiteSpace(model.CompanyName) &&
-                                  (model.DocumentType.Equals("Accreditation", StringComparison.OrdinalIgnoreCase) ||
-                                   model.DocumentType.Equals("Permit", StringComparison.OrdinalIgnoreCase))
+                                  (safeDocType.Equals("Accreditation", StringComparison.OrdinalIgnoreCase) ||
+                                   safeDocType.Equals("Permit", StringComparison.OrdinalIgnoreCase))
                     ? model.CompanyName
                     : model.LicenseeName;
 
@@ -117,7 +120,7 @@ public static class IssuedDocumentAcroFormFiller
                 SetField(form, "Weight", model.Weight);
 
                 // 9. Signatories & Regional Office
-                var region = !string.IsNullOrWhiteSpace(model.RegionalOffice) ? model.RegionalOffice : "National Capital Region";
+                var region = !string.IsNullOrWhiteSpace(model.RegionalOffice) ? model.RegionalOffice : string.Empty;
                 SetField(form, "Region", region);
                 SetField(form, "Region.", region);
 
@@ -170,13 +173,21 @@ public static class IssuedDocumentAcroFormFiller
     {
         if (string.IsNullOrWhiteSpace(value)) return;
         var field = form.GetField(fieldName);
-        if (field is PdfTextFormField textField)
+        if (field == null) return;
+        try
         {
-            textField.SetValue(value);
+            if (field is PdfTextFormField textField)
+            {
+                textField.SetValue(value);
+            }
+            else if (!(field is PdfButtonFormField))
+            {
+                field.SetValue(value);
+            }
         }
-        else if (field != null && !(field is PdfButtonFormField))
+        catch
         {
-            field.SetValue(value);
+            // Ignore individual AcroForm field errors so the rest of the issued document still renders
         }
     }
 
@@ -231,7 +242,7 @@ public static class IssuedDocumentAcroFormFiller
         iText.Kernel.Geom.Rectangle? rect,
         IssuedDocumentModel model)
     {
-        if (rect == null && model.DocumentType.Equals("Admission Slip", StringComparison.OrdinalIgnoreCase))
+        if (rect == null && string.Equals(model.DocumentType, "Admission Slip", StringComparison.OrdinalIgnoreCase))
         {
             // Standard Service-1-Admission-Slip.pdf top-right header QR box coordinates
             rect = new iText.Kernel.Geom.Rectangle(697.998f, 471.851f, 107.687f, 102.519f);
@@ -280,7 +291,7 @@ public static class IssuedDocumentAcroFormFiller
         iText.Kernel.Geom.Rectangle? rect,
         IssuedDocumentModel model)
     {
-        if (rect == null && model.DocumentType.Equals("Admission Slip", StringComparison.OrdinalIgnoreCase))
+        if (rect == null && string.Equals(model.DocumentType, "Admission Slip", StringComparison.OrdinalIgnoreCase))
         {
             // Standard Service-1-Admission-Slip.pdf top-left header 1x1 Photo box coordinates
             rect = new iText.Kernel.Geom.Rectangle(43.328f, 473.966f, 104.606f, 100.988f);

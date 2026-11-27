@@ -1,4 +1,4 @@
-import { apiClient } from '../apiClient';
+import { apiClient, HEAVY_API_TIMEOUT_MS } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
 import { ReturnTargetDto } from '../types';
 
@@ -450,6 +450,7 @@ export const receiptService = {
         {
           params: template ? { template } : undefined,
           responseType: 'blob',
+          timeout: HEAVY_API_TIMEOUT_MS,
         }
       );
       return response.data;
@@ -463,6 +464,7 @@ export const receiptService = {
         {
           params: { download: true, ...(template ? { template } : {}) },
           responseType: 'blob',
+          timeout: HEAVY_API_TIMEOUT_MS,
         }
       );
       return response.data;
