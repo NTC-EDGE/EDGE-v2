@@ -239,6 +239,7 @@ public static class ReportEndpoints
         string fundCluster = "01101101";
         string regionalOfficeAddress = string.Empty;
         var reportSignatories = new ReportSignatoriesDto();
+        List<EDGE.Domain.Entities.FieldOffice> loadedTenantFieldOffices = new();
         if (targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
         {
             var tenantEntity = await tenantRepository.GetByIdAsync(targetTenantId.Value, cancellationToken);
@@ -277,9 +278,13 @@ public static class ReportEndpoints
             try
             {
                 var tenantFieldOffices = await fieldOfficeRepository.GetByTenantIdAsync(targetTenantId.Value, cancellationToken);
-                var mainOffice = tenantFieldOffices?.FirstOrDefault(fo =>
+                if (tenantFieldOffices != null)
+                {
+                    loadedTenantFieldOffices = tenantFieldOffices;
+                }
+                var mainOffice = loadedTenantFieldOffices.FirstOrDefault(fo =>
                     fo.Category.ToString().Contains("Main", StringComparison.OrdinalIgnoreCase) ||
-                    fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase)) ?? tenantFieldOffices?.FirstOrDefault();
+                    fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase)) ?? loadedTenantFieldOffices.FirstOrDefault();
                 if (mainOffice != null && !string.IsNullOrWhiteSpace(mainOffice.Address))
                 {
                     regionalOfficeAddress = mainOffice.Address.Trim();
@@ -357,7 +362,22 @@ public static class ReportEndpoints
         DateTime filterStart = startDate?.Date ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
         DateTime filterEnd = endDate?.Date.AddDays(1).AddTicks(-1) ?? DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
 
-        // Load Official Receipts (with LineItems & Deposit details) and BankDeposits for the period
+        string normalizedCode = string.IsNullOrWhiteSpace(code) ? "NTC-MIS-OPS" : code.Trim().ToUpperInvariant();
+        string trimmedSecondary = secondaryFilter?.Trim() ?? "all";
+
+        bool needsBankDeposits =
+            normalizedCode == "NTC-MIS-OPS" ||
+            normalizedCode == "NTC-COA-APP26-M" ||
+            normalizedCode == "NTC-COA-APP26-D" ||
+            normalizedCode == "NTC-BTR-INC-01" ||
+            normalizedCode == "NTC-BTR-COA-01";
+
+        bool needsFeedback =
+            normalizedCode == "NTC-MIS-OPS" ||
+            normalizedCode == "NTC-CSMR-8888" ||
+            normalizedCode == "ARTA-RA-11032";
+
+        // Load Official Receipts (with LineItems & Deposit details) and optional BankDeposits / Feedback
         var allReceipts = await receiptRepository.GetByTenantAsync(
             txQueryTenantId,
             status: null,
@@ -373,15 +393,19 @@ public static class ReportEndpoints
             .OrderByDescending(r => r.IssuedAt)
             .ToList();
 
-        var bankDeposits = await depositRepository.GetByTenantAsync(
-            txQueryTenantId,
-            bankAccountId: null,
-            status: null,
-            fromDate: filterStart,
-            toDate: filterEnd,
-            cancellationToken: cancellationToken);
+        var bankDeposits = needsBankDeposits
+            ? await depositRepository.GetByTenantAsync(
+                txQueryTenantId,
+                bankAccountId: null,
+                status: null,
+                fromDate: filterStart,
+                toDate: filterEnd,
+                cancellationToken: cancellationToken)
+            : new List<EDGE.Domain.Entities.BankDeposit>();
 
-        var allFeedback = await feedbackRepository.GetByTenantAsync(targetTenantId, cancellationToken);
+        var allFeedback = needsFeedback
+            ? await feedbackRepository.GetByTenantAsync(targetTenantId, cancellationToken)
+            : new List<EDGE.Domain.Entities.Feedback>();
 
         var filteredApps = tenantApps
             .Where(a => a.CreatedAt >= filterStart && a.CreatedAt <= filterEnd)
@@ -405,9 +429,7 @@ public static class ReportEndpoints
                 fieldOfficeFilterLabel = string.Join(", ", selectedTokens);
                 var selectedSet = new HashSet<string>(selectedTokens, StringComparer.OrdinalIgnoreCase);
 
-                var tenantOffices = targetTenantId.HasValue && targetTenantId.Value != Guid.Empty
-                    ? await fieldOfficeRepository.GetByTenantIdAsync(targetTenantId.Value, cancellationToken)
-                    : new List<EDGE.Domain.Entities.FieldOffice>();
+                var tenantOffices = loadedTenantFieldOffices;
 
                 bool includesMainOffice = selectedTokens.Any(t =>
                     t.Contains("Main Office", StringComparison.OrdinalIgnoreCase) ||
@@ -491,9 +513,6 @@ public static class ReportEndpoints
                 }).ToList();
             }
         }
-
-        string normalizedCode = string.IsNullOrWhiteSpace(code) ? "NTC-MIS-OPS" : code.Trim().ToUpperInvariant();
-        string trimmedSecondary = secondaryFilter?.Trim() ?? "all";
 
         // Apply report-specific secondary filtering
         if (normalizedCode == "NTC-EXAM-MST-01")

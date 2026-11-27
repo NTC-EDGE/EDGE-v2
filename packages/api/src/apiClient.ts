@@ -10,9 +10,12 @@ const getApiUrl = (): string => {
   return 'http://localhost:5000';
 };
 
+export const DEFAULT_API_TIMEOUT_MS = 30000;
+export const HEAVY_API_TIMEOUT_MS = 60000;
+
 export const apiClient = axios.create({
   baseURL: getApiUrl(),
-  timeout: 10000,
+  timeout: DEFAULT_API_TIMEOUT_MS,
 });
 
 function isRecord(val: unknown): val is Record<string, unknown> {
@@ -72,12 +75,16 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status;
+    const isRequestTimeout =
+      error.code === 'ECONNABORTED' ||
+      (typeof error.message === 'string' && error.message.toLowerCase().includes('timeout'));
     const isNetworkErr =
-      error.code === 'ERR_NETWORK' ||
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'ETIMEDOUT' ||
-      !error.response ||
-      (typeof status === 'number' && status >= 502 && status <= 504);
+      !isRequestTimeout &&
+      (error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNREFUSED' ||
+        error.code === 'ETIMEDOUT' ||
+        !error.response ||
+        (typeof status === 'number' && status >= 502 && status <= 504));
 
     if (isNetworkErr) {
       setServerUnreachable(true);

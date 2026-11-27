@@ -1,4 +1,4 @@
-import { apiClient } from '../apiClient';
+import { apiClient, HEAVY_API_TIMEOUT_MS } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
 import { ApiResponse } from '../types';
 import { resolveEffectiveTenantId } from '../utils/tenantUtils';
@@ -122,7 +122,7 @@ export const reportService = {
 
     const res = await apiClient.get<ApiResponse<OperationalReportStatisticsDto>>(
       '/api/v2/reports/statistics',
-      { params: queryParams }
+      { params: queryParams, timeout: HEAVY_API_TIMEOUT_MS }
     );
     return res.data;
   },
@@ -145,6 +145,7 @@ export const reportService = {
       const response = await apiClient.get<Blob>('/api/v2/reports/statutory/print', {
         params: queryParams,
         responseType: 'blob',
+        timeout: HEAVY_API_TIMEOUT_MS,
       });
       return response.data;
     });
@@ -156,6 +157,7 @@ export const reportService = {
       const response = await apiClient.get<Blob>('/api/v2/reports/statutory/print', {
         params: queryParams,
         responseType: 'blob',
+        timeout: HEAVY_API_TIMEOUT_MS,
       });
       return response.data;
     });

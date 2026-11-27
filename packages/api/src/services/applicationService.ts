@@ -1,4 +1,4 @@
-import { apiClient } from '../apiClient';
+import { apiClient, HEAVY_API_TIMEOUT_MS } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
 import {
   ApiResponse,
@@ -204,7 +204,8 @@ export const applicationService = {
     return safeAsync(async () => {
       const response = await apiClient.post(
         `/api/v2/applications/${applicationId}/soas`,
-        body ?? {}
+        body ?? {},
+        { timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -214,7 +215,8 @@ export const applicationService = {
     return safeAsync(async () => {
       const response = await apiClient.patch(
         `/api/v2/soas/${soaOrApplicationId}/approve`,
-        { remarks, applicationId: soaOrApplicationId, opNumber }
+        { remarks, applicationId: soaOrApplicationId, opNumber },
+        { timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -264,7 +266,8 @@ export const applicationService = {
     return safeAsync(async () => {
       const response = await apiClient.patch(
         `/api/v2/ops/${opId}/verify-payment`,
-        body
+        body,
+        { timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -341,7 +344,8 @@ export const applicationService = {
     return safeAsync(async () => {
       const response = await apiClient.post<ApiResponse<IssuedDocumentDetailDto>>(
         `/api/v2/applications/${id}/issue`,
-        body
+        body,
+        { timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -360,7 +364,8 @@ export const applicationService = {
     return safeAsync(async () => {
       const response = await apiClient.post<ApiResponse<boolean>>(
         `/api/v2/applications/${id}/submit-payment`,
-        body
+        body,
+        { timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -437,7 +442,7 @@ export const applicationService = {
       const qs = params.toString();
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/soa/print${qs ? `?${qs}` : ''}`,
-        { responseType: 'blob' }
+        { responseType: 'blob', timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -456,7 +461,7 @@ export const applicationService = {
       if (options?.applicantId) params.set('applicantId', options.applicantId);
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/soa/print?${params.toString()}`,
-        { responseType: 'blob' }
+        { responseType: 'blob', timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -476,7 +481,7 @@ export const applicationService = {
       const qs = params.toString();
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/op/print${qs ? `?${qs}` : ''}`,
-        { responseType: 'blob' }
+        { responseType: 'blob', timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -496,7 +501,7 @@ export const applicationService = {
       if (options?.applicantId) params.set('applicantId', options.applicantId);
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/op/print?${params.toString()}`,
-        { responseType: 'blob' }
+        { responseType: 'blob', timeout: HEAVY_API_TIMEOUT_MS }
       );
       return response.data;
     });
@@ -554,6 +559,7 @@ export const applicationService = {
             ...(issueDate ? { issueDate } : {}),
           },
           responseType: 'blob',
+          timeout: HEAVY_API_TIMEOUT_MS,
         }
       );
       return response.data;
@@ -571,6 +577,7 @@ export const applicationService = {
             ...(template ? { template } : {}),
           },
           responseType: 'blob',
+          timeout: HEAVY_API_TIMEOUT_MS,
         }
       );
       return response.data;
@@ -606,6 +613,7 @@ export const applicationService = {
         {
           params,
           responseType: 'blob',
+          timeout: HEAVY_API_TIMEOUT_MS,
         }
       );
       return response.data;
@@ -629,6 +637,7 @@ export const applicationService = {
         {
           params,
           responseType: 'blob',
+          timeout: HEAVY_API_TIMEOUT_MS,
         }
       );
       return response.data;
@@ -654,6 +663,7 @@ export const applicationService = {
         {
           params: applicantId ? { applicantId } : undefined,
           responseType: 'blob',
+          timeout: HEAVY_API_TIMEOUT_MS,
         }
       );
       return response.data;
@@ -667,6 +677,7 @@ export const applicationService = {
         {
           params: applicantId ? { applicantId } : undefined,
           responseType: 'blob',
+          timeout: HEAVY_API_TIMEOUT_MS,
         }
       );
       return response.data;

@@ -37,18 +37,32 @@ function sanitizeErrorMessage(msg: string): string {
  */
 function parseNetworkError(err: unknown): string | null {
   const genericMsg = "Unable to connect to the server. Please check your network connection and try again.";
+  const timeoutMsg = "The request timed out while waiting for the server to respond. Please try again.";
   if (typeof err === "object" && err !== null) {
     const code = getProperty(err, "code");
+    if (code === "ECONNABORTED" || code === "ETIMEDOUT") {
+      return timeoutMsg;
+    }
     if (code === "ERR_NETWORK") {
       return genericMsg;
     }
     const message = getProperty(err, "message");
-    if (typeof message === "string" && message.includes("Network Error")) {
-      return genericMsg;
+    if (typeof message === "string") {
+      if (message.toLowerCase().includes("timeout")) {
+        return timeoutMsg;
+      }
+      if (message.includes("Network Error")) {
+        return genericMsg;
+      }
     }
   }
-  if (err instanceof Error && err.message.includes("Network Error")) {
-    return genericMsg;
+  if (err instanceof Error) {
+    if (err.message.toLowerCase().includes("timeout")) {
+      return timeoutMsg;
+    }
+    if (err.message.includes("Network Error")) {
+      return genericMsg;
+    }
   }
   return null;
 }

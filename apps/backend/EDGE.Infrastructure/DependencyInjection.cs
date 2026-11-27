@@ -134,7 +134,8 @@ public static class DependencyInjection
         services.AddScoped<IRegionalConfigurationService, RegionalConfigurationService>();
         services.AddScoped<INumberingSeriesService, NumberingSeriesService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
-        services.AddScoped<IApplicationEmailNotificationService, ApplicationEmailNotificationService>();
+        services.AddScoped<ApplicationEmailNotificationService>();
+        services.AddScoped<IApplicationEmailNotificationService, QueuedApplicationEmailNotificationService>();
 
         // Register Printing & PDF Rendering Services
         services.AddSingleton<IPdfTemplateProvider, CloudflareR2PdfTemplateProvider>();

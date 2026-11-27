@@ -19,10 +19,12 @@ namespace EDGE.Infrastructure.Printing.Services.Templates;
 public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
 {
     private const string TemplatePrefix = "templates/";
+    private static readonly TimeSpan MissingTemplateCacheTtl = TimeSpan.FromMinutes(5);
     private readonly CloudflareR2Options _options;
     private readonly IAmazonS3? _s3Client;
     private readonly ILogger<CloudflareR2PdfTemplateProvider> _logger;
     private readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTime> _missingInR2Cache = new(StringComparer.OrdinalIgnoreCase);
 
     public CloudflareR2PdfTemplateProvider(
         IOptions<CloudflareR2Options> options,
@@ -45,7 +47,8 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
             {
                 ServiceURL = _options.ServiceUrl,
                 ForcePathStyle = true,
-                AuthenticationRegion = "auto"
+                AuthenticationRegion = "auto",
+                Timeout = TimeSpan.FromSeconds(5)
             };
             var credentials = new BasicAWSCredentials(_options.AccessKeyId, _options.SecretAccessKey);
             _s3Client = new AmazonS3Client(credentials, s3Config);
@@ -74,8 +77,8 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
             return new PdfTemplateResource(cachedTemplate, new MemoryStream(cachedBytes, writable: false));
         }
 
-        // 2. Fetch from Cloudflare R2 (cloud override)
-        if (_s3Client != null)
+        // 2. Fetch from Cloudflare R2 (cloud override), skipping recently-confirmed misses
+        if (_s3Client != null && !IsMarkedMissingInR2(key))
         {
             try
             {
@@ -91,6 +94,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
 
                 var bytes = memoryStream.ToArray();
                 _cache[key] = bytes;
+                _missingInR2Cache.TryRemove(key, out _);
 
                 var template = new PdfTemplate(cleanId, cleanId, Path.GetFileName(key), RenderingStrategy.Overlay);
                 return new PdfTemplateResource(template, new MemoryStream(bytes, writable: false));
@@ -99,10 +103,12 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
                                                  string.Equals(s3Ex.ErrorCode, "NoSuchKey", StringComparison.OrdinalIgnoreCase) ||
                                                  string.Equals(s3Ex.ErrorCode, "NotFound", StringComparison.OrdinalIgnoreCase))
             {
+                _missingInR2Cache[key] = DateTime.UtcNow.Add(MissingTemplateCacheTtl);
                 _logger.LogInformation("Template {Key} was not found in Cloudflare R2 bucket {BucketName}.", key, _options.BucketName);
             }
             catch (Exception ex)
             {
+                _missingInR2Cache[key] = DateTime.UtcNow.Add(TimeSpan.FromMinutes(1));
                 _logger.LogError(ex, "Failed to retrieve template {Key} from Cloudflare R2 bucket {BucketName}.", key, _options.BucketName);
             }
         }
@@ -211,6 +217,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
         }
 
         _cache[key] = bytes;
+        _missingInR2Cache.TryRemove(key, out _);
         return key;
     }
 
@@ -273,7 +280,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
             return true;
         }
 
-        if (_s3Client != null)
+        if (_s3Client != null && !IsMarkedMissingInR2(key))
         {
             try
             {
@@ -290,10 +297,12 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
                                                  string.Equals(s3Ex.ErrorCode, "NoSuchKey", StringComparison.OrdinalIgnoreCase) ||
                                                  string.Equals(s3Ex.ErrorCode, "NotFound", StringComparison.OrdinalIgnoreCase))
             {
+                _missingInR2Cache[key] = DateTime.UtcNow.Add(MissingTemplateCacheTtl);
                 return false;
             }
             catch (Exception ex)
             {
+                _missingInR2Cache[key] = DateTime.UtcNow.Add(TimeSpan.FromMinutes(1));
                 _logger.LogError(ex, "Error checking existence of template {Key} in Cloudflare R2.", key);
             }
         }
@@ -355,14 +364,32 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
         if (string.IsNullOrWhiteSpace(templateId))
         {
             _cache.Clear();
+            _missingInR2Cache.Clear();
             _logger.LogInformation("All template cache invalidated.");
         }
         else
         {
             var key = GetStorageKey(templateId);
             _cache.TryRemove(key, out _);
+            _missingInR2Cache.TryRemove(key, out _);
             _logger.LogInformation("Invalidated cache for template {Key}.", key);
         }
+    }
+
+    private bool IsMarkedMissingInR2(string key)
+    {
+        if (!_missingInR2Cache.TryGetValue(key, out var expiresAt))
+        {
+            return false;
+        }
+
+        if (DateTime.UtcNow <= expiresAt)
+        {
+            return true;
+        }
+
+        _missingInR2Cache.TryRemove(key, out _);
+        return false;
     }
 
     private static string NormalizeTemplateId(string templateId)
