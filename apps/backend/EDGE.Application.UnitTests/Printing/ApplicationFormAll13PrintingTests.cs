@@ -174,6 +174,199 @@ public class ApplicationFormAll13PrintingTests
         mapped102.ExamSeminarDetails.Rating.Should().Be("89%");
     }
 
+    [Fact]
+    public void PrintApplicationForm_LiveDbShape_PopulatesNameGeographicAddressEducationScheduleAndRepeaterDetails()
+    {
+        var pool = EDGE.Infrastructure.Persistence.SeederData.CommonSeederData.GetFieldsPool();
+        var applicantId = Guid.NewGuid();
+        var brgy = new Barangay
+        {
+            Id = Guid.NewGuid(),
+            Name = "Bajada",
+            Municipality = new Municipality
+            {
+                Id = Guid.NewGuid(),
+                Name = "Davao City",
+                Province = new Province
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Davao del Sur",
+                    Region = new Region { Id = Guid.NewGuid(), Code = "ROXI", Name = "Region XI" }
+                }
+            }
+        };
+
+        // 1. NTC 1-01 where ApplicantDetail has empty FirstName/LastName (simulating form-field/User fallback)
+        //    and FormSubmission is attached directly on Applicant.FormSubmission with real FieldIds & ambiguous labels
+        var examApp = new Domain.Entities.Application
+        {
+            Id = Guid.NewGuid(),
+            ApplicationNumber = "APP-LIVE-101",
+            CreatedAt = new DateTime(2026, 11, 20, 8, 0, 0, DateTimeKind.Utc),
+            User = new User
+            {
+                FirstName = "MARIA",
+                MiddleName = "CLARA",
+                LastName = "REYES",
+                Email = "maria.reyes@example.com",
+                ContactNumber = "09179998888",
+                Unit = "Unit 4B",
+                ZipCode = "8000"
+            },
+            Schedule = new Schedule
+            {
+                Venue = "NTC Region XI Testing Hall",
+                StartDate = new DateTime(2026, 12, 15, 0, 0, 0, DateTimeKind.Utc),
+                StartTime = "09:00 AM",
+                EndTime = "12:00 PM"
+            },
+            ApplicationApplicants = new List<ApplicationApplicant>
+            {
+                new()
+                {
+                    ApplicantId = applicantId,
+                    SequenceOrder = 1,
+                    Applicant = new Applicant
+                    {
+                        Id = applicantId,
+                        Service = new Service { Code = "NTC_1_01", Name = "Admission Slip for Radio Operator Examination" },
+                        ServiceVariant = new ServiceVariant { Type = ServiceVariantType.FirstTaker, Description = "1RTG" },
+                        ApplicantDetail = new ApplicantDetail
+                        {
+                            FirstName = "",
+                            LastName = "",
+                            Address = "J.P. Laurel Avenue",
+                            Barangay = brgy,
+                            ZipCode = "8000",
+                            SchoolAttended = "Ateneo de Davao University",
+                            CourseTaken = "BS Electronics Engineering",
+                            YearGraduated = "2023",
+                            BirthDate = new DateOnly(1998, 4, 12),
+                            Sex = "Female",
+                            Nationality = "Filipino"
+                        },
+                        FormSubmission = new FormSubmission
+                        {
+                            Id = Guid.NewGuid(),
+                            ApplicantId = applicantId,
+                            FieldValues = new List<FormFieldValue>
+                            {
+                                new() { FieldId = pool["elements"].Id, Field = pool["elements"], Value = "1RTG - Elements 1, 2, 5, 6 & Code" }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var mapped101 = ApplicationFormPrintMapper.MapToNtc101(examApp, applicantId);
+        mapped101.ApplicantPerson.FirstName.Should().Be("MARIA");
+        mapped101.ApplicantPerson.MiddleName.Should().Be("CLARA");
+        mapped101.ApplicantPerson.LastName.Should().Be("REYES");
+        mapped101.ApplicantPerson.Address.UnitRoomBldgNo.Should().Be("Unit 4B");
+        mapped101.ApplicantPerson.Address.Street.Should().Be("J.P. Laurel Avenue");
+        mapped101.ApplicantPerson.Address.Barangay.Should().Be("Bajada");
+        mapped101.ApplicantPerson.Address.CityMunicipality.Should().Be("Davao City");
+        mapped101.ApplicantPerson.Address.Province.Should().Be("Davao del Sur");
+        mapped101.ApplicantPerson.Address.ZipCode.Should().Be("8000");
+        mapped101.ApplicantPerson.SchoolAttended.Should().Be("Ateneo de Davao University");
+        mapped101.ApplicantPerson.CourseTaken.Should().Be("BS Electronics Engineering");
+        mapped101.ApplicantPerson.YearGraduated.Should().Be(2023);
+        mapped101.AdmissionSlip.PlaceOfExam.Should().Be("NTC Region XI Testing Hall");
+        mapped101.AdmissionSlip.TimeOfExam.Should().Be("09:00 AM - 12:00 PM");
+        mapped101.DateOfExam.Should().Be(new DateOnly(2026, 12, 15));
+
+        var (pdf101, _, _) = ApplicationFormPrintMapper.PrintApplicationForm(examApp, _printingService, applicantId);
+        Encoding.ASCII.GetString(pdf101, 0, 5).Should().Be("%PDF-");
+        Encoding.ASCII.GetString(pdf101).Should().NotContain("QuestPDF");
+
+        // 2. NTC 1-02 with ambiguous canonical labels ("Date", "Type") matched via FieldId
+        var certApplicantId = Guid.NewGuid();
+        var certApp = new Domain.Entities.Application
+        {
+            Id = Guid.NewGuid(),
+            ApplicationNumber = "APP-LIVE-102",
+            CreatedAt = new DateTime(2026, 11, 20, 8, 0, 0, DateTimeKind.Utc),
+            ApplicationApplicants = new List<ApplicationApplicant>
+            {
+                new()
+                {
+                    ApplicantId = certApplicantId,
+                    SequenceOrder = 1,
+                    Applicant = new Applicant
+                    {
+                        Id = certApplicantId,
+                        Service = new Service { Code = "NTC_1_02", Name = "RADIO OPERATOR CERTIFICATES (ROC) EXCLUDING AMATEUR ROC" },
+                        ServiceVariant = new ServiceVariant { Type = ServiceVariantType.New, Description = "1PHN" },
+                        ApplicantDetail = new ApplicantDetail { FirstName = "PEDRO", LastName = "CRUZ", Barangay = brgy },
+                        FormSubmission = new FormSubmission
+                        {
+                            Id = Guid.NewGuid(),
+                            ApplicantId = certApplicantId,
+                            FieldValues = new List<FormFieldValue>
+                            {
+                                new() { FieldId = pool["employmentStatus"].Id, Field = pool["employmentStatus"], Value = "Employed" },
+                                new() { FieldId = pool["employmentType"].Id, Field = pool["employmentType"], Value = "Foreign" },
+                                new() { FieldId = pool["examSeminarDate"].Id, Field = pool["examSeminarDate"], Value = "2026-08-15" },
+                                new() { FieldId = pool["examSeminarRating"].Id, Field = pool["examSeminarRating"], Value = "92.5%" }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var mapped102Live = ApplicationFormPrintMapper.MapToNtc102(certApp, certApplicantId);
+        mapped102Live.ApplicantPerson.EmploymentStatus.Should().Be(EDGE.Infrastructure.Printing.Models.EmploymentStatus.EmployedForeign);
+        mapped102Live.ExamSeminarDetails.Date.Should().Be(new DateOnly(2026, 8, 15));
+        mapped102Live.ExamSeminarDetails.Rating.Should().Be("92.5%");
+
+        // 3. NTC 1-09 with nested Form Builder 'particulars' repeater containing stationClass & equipments[]
+        var permitApplicantId = Guid.NewGuid();
+        var permitApp = new Domain.Entities.Application
+        {
+            Id = Guid.NewGuid(),
+            ApplicationNumber = "APP-LIVE-109",
+            CreatedAt = new DateTime(2026, 11, 20, 8, 0, 0, DateTimeKind.Utc),
+            ApplicationApplicants = new List<ApplicationApplicant>
+            {
+                new()
+                {
+                    ApplicantId = permitApplicantId,
+                    SequenceOrder = 1,
+                    Applicant = new Applicant
+                    {
+                        Id = permitApplicantId,
+                        Service = new Service { Code = "NTC_1_09", Name = "PERMITS TO FIXED AND LAND MOBILE STATIONS" },
+                        ServiceVariant = new ServiceVariant { Type = ServiceVariantType.New, Description = "Permit to Purchase" },
+                        CompanyDetail = new CompanyDetail { Name = "MINDANAO RADIO CORP.", Address = "Rizal Street", Barangay = brgy },
+                        FormSubmission = new FormSubmission
+                        {
+                            Id = Guid.NewGuid(),
+                            ApplicantId = permitApplicantId,
+                            FieldValues = new List<FormFieldValue>
+                            {
+                                new()
+                                {
+                                    FieldId = pool["particulars"].Id,
+                                    Field = pool["particulars"],
+                                    Value = "[{\"stationClass\":\"ML\",\"exactLocation\":\"Davao Port\",\"makeTypeModel\":\"ICOM IC-V86\",\"equipments\":[{\"serialNumber\":\"SN-IC-001\",\"frequencyRange\":\"136-174 MHz\",\"powerOutput\":\"7W\"}]}]"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var mapped109Live = ApplicationFormPrintMapper.MapToNtc109(permitApp, permitApplicantId);
+        mapped109Live.Applicant.Name.Should().Be("MINDANAO RADIO CORP.");
+        mapped109Live.Applicant.Address.Barangay.Should().Be("Bajada");
+        mapped109Live.Applicant.Address.CityMunicipality.Should().Be("Davao City");
+        mapped109Live.ClassOfStation.ML.Should().Be(1);
+        mapped109Live.Equipment.Should().ContainSingle(e => e.Make == "ICOM IC-V86" && e.SerialNumber == "SN-IC-001" && e.PowerOutput == "7W");
+    }
+
     private static Domain.Entities.Application BuildSampleApplication(
         string serviceCode,
         string serviceName,

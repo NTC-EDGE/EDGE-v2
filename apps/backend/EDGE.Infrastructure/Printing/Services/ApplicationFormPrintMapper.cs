@@ -324,24 +324,45 @@ public static class ApplicationFormPrintMapper
         var variant = applicant?.ServiceVariant;
         var vDesc = (variant?.Description ?? string.Empty).ToUpperInvariant();
 
-        var school = FindFieldValue(fields, "schoolName", "school / university", "school attended", "education");
+        var school = FirstNonEmpty(
+            FindFieldValue(fields, "schoolName", "school / university", "school attended", "education"),
+            person.SchoolAttended);
         if (!string.IsNullOrWhiteSpace(school)) person.SchoolAttended = school;
 
-        var course = FindFieldValue(fields, "courseDegree", "course / degree", "course taken");
+        var course = FirstNonEmpty(
+            FindFieldValue(fields, "courseDegree", "course / degree", "course taken"),
+            person.CourseTaken);
         if (!string.IsNullOrWhiteSpace(course)) person.CourseTaken = course;
 
         var yrGrad = FindFieldValue(fields, "yearGraduated", "year graduated");
         if (!string.IsNullOrWhiteSpace(yrGrad) && int.TryParse(yrGrad.Trim(), out var parsedYr))
             person.YearGraduated = parsedYr;
 
-        var elementsText = FindFieldValue(fields, "elements", "selected exam elements", "examCategory", "exam category") ?? vDesc;
+        var elementsText = FirstNonEmpty(
+            FindFieldValue(fields, "elements", "selected exam elements", "examCategory", "exam category"),
+            vDesc) ?? "";
         var examCode = ResolveExamCode(elementsText, vDesc);
 
         var examDateStr = FindFieldValue(fields, "examDate", "date of exam", "schedule");
-        var examDate = TryParseDateOnly(examDateStr) ?? DateOnly.FromDateTime(app.CreatedAt.AddDays(14));
+        var examDate = TryParseDateOnly(examDateStr)
+            ?? (app.Schedule != null && app.Schedule.StartDate != default
+                ? DateOnly.FromDateTime(app.Schedule.StartDate)
+                : DateOnly.FromDateTime(app.CreatedAt != default ? app.CreatedAt.AddDays(14) : DateTime.UtcNow.AddDays(14)));
+
+        var placeOfExam = FirstNonEmpty(
+            app.Schedule?.Venue,
+            FindFieldValue(fields, "placeOfExam", "place of exam", "examVenue", "venue"),
+            app.Office,
+            app.Region?.Name,
+            "NTC Regional Examination Center")!;
+
+        var scheduleTime = (!string.IsNullOrWhiteSpace(app.Schedule?.StartTime) && !string.IsNullOrWhiteSpace(app.Schedule?.EndTime))
+            ? $"{app.Schedule.StartTime} - {app.Schedule.EndTime}"
+            : FirstNonEmpty(app.Schedule?.StartTime, "08:00 AM - 12:00 PM")!;
 
         var specialNeeds = FindFieldValue(fields, "specialNeeds", "special assistance", "assistance");
-        var fullName = $"{person.FirstName} {person.MiddleName} {person.LastName}".Replace("  ", " ").Trim();
+        var fullName = string.Join(" ", new[] { person.FirstName, person.MiddleName, person.LastName }
+            .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
         if (string.IsNullOrWhiteSpace(fullName)) fullName = ResolveDisplayName(app, applicant, fields);
 
         return new Ntc101Application
@@ -362,10 +383,10 @@ public static class ApplicationFormPrintMapper
             {
                 ExamineeName = fullName,
                 MailingAddressLine1 = person.Address.ToSingleLine(),
-                ExaminationFor = !string.IsNullOrWhiteSpace(variant?.Description) ? variant.Description : "Radio Operator Examination",
-                PlaceOfExam = !string.IsNullOrWhiteSpace(app.Office) ? app.Office : "NTC Regional Examination Center",
+                ExaminationFor = FirstNonEmpty(variant?.Description, applicant?.Service?.Name, "Radio Operator Examination")!,
+                PlaceOfExam = placeOfExam,
                 DateOfExam = examDate,
-                TimeOfExam = "08:00 AM - 12:00 PM"
+                TimeOfExam = scheduleTime
             },
             Payment = BuildPayment(app, applicant),
             Declaration = BuildDeclaration(app, fullName)
@@ -1027,27 +1048,30 @@ public static class ApplicationFormPrintMapper
 
         var applicant = ResolveApplicant(app, applicantId);
         var person = applicant?.ApplicantDetail;
-        var company = applicant?.CompanyDetail ?? app.User?.CompanyDetail;
+        var company = applicant?.CompanyDetail ?? person?.CompanyDetail ?? app.User?.CompanyDetail;
         var allFieldValues = GetApplicantFieldValues(app, applicant);
 
-        var fullName = person != null
-            ? $"{person.FirstName} {person.LastName}".Trim()
-            : (company?.Name ?? $"{app.User?.FirstName} {app.User?.LastName}".Trim());
+        var resolvedPerson = BuildApplicantPerson(app, applicant, allFieldValues);
+        var fullName = string.Join(" ", new[] { resolvedPerson.FirstName, resolvedPerson.MiddleName, resolvedPerson.LastName }
+            .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            fullName = ResolveDisplayName(app, applicant, allFieldValues);
+        }
 
-        model.AffiantName = !string.IsNullOrWhiteSpace(fullName) ? fullName : "Affiant";
-        model.Citizenship = !string.IsNullOrWhiteSpace(person?.Nationality) ? person.Nationality : "Filipino";
+        model.AffiantName = FirstNonEmpty(fullName, "Applicant")!;
+        model.Citizenship = FirstNonEmpty(resolvedPerson.Nationality, "Filipino")!;
 
-        if (person != null && person.BirthDate != default && person.BirthDate.Year > 1900)
+        if (resolvedPerson.DateOfBirth != default && resolvedPerson.DateOfBirth.Year > 1900)
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var age = today.Year - person.BirthDate.Year;
-            if (person.BirthDate > today.AddYears(-age)) age--;
+            var age = today.Year - resolvedPerson.DateOfBirth.Year;
+            if (resolvedPerson.DateOfBirth > today.AddYears(-age)) age--;
             model.Age = Math.Max(1, age);
         }
 
-        var fullAddress = person?.Address ?? company?.Address ?? $"{app.User?.Unit} {app.User?.Street}".Trim();
-        model.ResidentialAddress = new Address { Street = fullAddress };
-        model.TelephoneNumber = person?.ContactNumber ?? company?.ContactNumber ?? app.User?.ContactNumber ?? "";
+        model.ResidentialAddress = resolvedPerson.Address;
+        model.TelephoneNumber = FirstNonEmpty(resolvedPerson.ContactNumber, company?.ContactNumber, app.User?.ContactNumber) ?? "";
 
         // Action Requested
         var actionVal = FindFieldValue(allFieldValues, "action_requested", "action requested") ?? "";
@@ -1157,22 +1181,25 @@ public static class ApplicationFormPrintMapper
 
         var applicant = ResolveApplicant(app, applicantId);
         var person = applicant?.ApplicantDetail;
-        var company = applicant?.CompanyDetail ?? app.User?.CompanyDetail;
+        var company = applicant?.CompanyDetail ?? person?.CompanyDetail ?? app.User?.CompanyDetail;
         var allFieldValues = GetApplicantFieldValues(app, applicant);
 
-        var fullName = person != null
-            ? $"{person.FirstName} {person.LastName}".Trim()
-            : (company?.Name ?? $"{app.User?.FirstName} {app.User?.LastName}".Trim());
+        var resolvedPerson = BuildApplicantPerson(app, applicant, allFieldValues);
+        var fullName = string.Join(" ", new[] { resolvedPerson.FirstName, resolvedPerson.MiddleName, resolvedPerson.LastName }
+            .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            fullName = ResolveDisplayName(app, applicant, allFieldValues);
+        }
 
         var comp = model.Complainant;
-        comp.Name = !string.IsNullOrWhiteSpace(fullName) ? fullName : "Complainant";
-        comp.Sex = !string.IsNullOrWhiteSpace(person?.Sex) ? person.Sex : (app.User?.Sex ?? "N/A");
-        comp.Nationality = !string.IsNullOrWhiteSpace(person?.Nationality) ? person.Nationality : "Filipino";
+        comp.Name = FirstNonEmpty(fullName, "Applicant")!;
+        comp.Sex = FirstNonEmpty(person?.Sex, FindFieldValue(allFieldValues, "sex"), app.User?.Sex, resolvedPerson.Sex.ToString())!;
+        comp.Nationality = FirstNonEmpty(resolvedPerson.Nationality, "Filipino")!;
 
-        var fullAddress = person?.Address ?? company?.Address ?? $"{app.User?.Unit} {app.User?.Street}".Trim();
-        comp.ResidentialAddress = new Address { Street = fullAddress };
-        comp.ContactNumber = person?.ContactNumber ?? company?.ContactNumber ?? app.User?.ContactNumber ?? "";
-        comp.Email = person?.EmailAddress ?? company?.Email ?? app.User?.Email ?? "";
+        comp.ResidentialAddress = resolvedPerson.Address;
+        comp.ContactNumber = FirstNonEmpty(resolvedPerson.ContactNumber, company?.ContactNumber, app.User?.ContactNumber) ?? "";
+        comp.Email = FirstNonEmpty(resolvedPerson.Email, company?.Email, app.User?.Email) ?? "";
 
         var civilVal = FindFieldValue(allFieldValues, "civil_status", "civil status");
         comp.CivilStatus = !string.IsNullOrWhiteSpace(civilVal) ? civilVal : "Single";
@@ -1272,19 +1299,62 @@ public static class ApplicationFormPrintMapper
 
     private static List<FormFieldValue> GetApplicantFieldValues(EDGE.Domain.Entities.Application app, EDGE.Domain.Entities.Applicant? applicant)
     {
-        var submissions = app.FormSubmissions ?? Enumerable.Empty<FormSubmission>();
-        if (applicant != null && applicant.Id != Guid.Empty)
+        var result = new List<FormFieldValue>();
+        var seenFieldIds = new HashSet<Guid>();
+        var seenValueIds = new HashSet<Guid>();
+
+        void AddRange(IEnumerable<FormFieldValue>? source)
         {
-            var scoped = submissions
-                .Where(fs => fs.ApplicantId == applicant.Id)
-                .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<FormFieldValue>())
-                .ToList();
-            if (scoped.Count > 0) return scoped;
+            if (source == null) return;
+            foreach (var fv in source)
+            {
+                if (fv == null) continue;
+                if (fv.Id != Guid.Empty && !seenValueIds.Add(fv.Id)) continue;
+
+                // Keep first non-empty value per FieldId when deduplicating across multiple submissions
+                if (fv.FieldId != Guid.Empty && !string.IsNullOrWhiteSpace(fv.Value))
+                {
+                    if (!seenFieldIds.Add(fv.FieldId)) continue;
+                }
+
+                result.Add(fv);
+            }
         }
 
-        return submissions
-            .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<FormFieldValue>())
+        // 1. Direct applicant.FormSubmission (primary live link via Applicant.FormSubmissionId)
+        AddRange(applicant?.FormSubmission?.FieldValues);
+
+        var submissions = (app.FormSubmissions ?? Enumerable.Empty<FormSubmission>())
+            .Where(fs => fs != null)
+            .OrderByDescending(fs => fs.CreatedAt)
             .ToList();
+
+        // 2. Application.FormSubmissions scoped to this applicant
+        if (applicant != null && applicant.Id != Guid.Empty)
+        {
+            foreach (var fs in submissions.Where(fs => fs.ApplicantId == applicant.Id))
+            {
+                AddRange(fs.FieldValues);
+            }
+        }
+
+        // 3. Fallback to application-level submissions without an applicant filter
+        if (result.Count == 0 || applicant == null)
+        {
+            foreach (var fs in submissions)
+            {
+                AddRange(fs.FieldValues);
+            }
+        }
+        else
+        {
+            foreach (var fs in submissions.Where(fs => fs.ApplicantId == Guid.Empty))
+            {
+                AddRange(fs.FieldValues);
+            }
+        }
+
+        return result;
     }
 
     private static ApplicantPerson BuildApplicantPerson(
@@ -1293,42 +1363,87 @@ public static class ApplicationFormPrintMapper
         List<FormFieldValue> fields)
     {
         var detail = applicant?.ApplicantDetail;
-        var company = applicant?.CompanyDetail ?? app.User?.CompanyDetail;
+        var company = applicant?.CompanyDetail ?? detail?.CompanyDetail ?? app.User?.CompanyDetail;
         var user = app.User;
 
-        var firstName = detail?.FirstName ?? FindFieldValue(fields, "first name", "firstName") ?? user?.FirstName ?? "";
-        var middleName = detail?.MiddleName ?? FindFieldValue(fields, "middle name", "middleName") ?? "";
-        var lastName = detail?.LastName ?? FindFieldValue(fields, "last name", "lastName") ?? user?.LastName ?? "";
+        var firstName = FirstNonEmpty(
+            detail?.FirstName,
+            FindFieldValue(fields, "first name", "firstName"),
+            user?.FirstName) ?? "";
+        var middleName = FirstNonEmpty(
+            detail?.MiddleName,
+            FindFieldValue(fields, "middleName", "middle name"),
+            user?.MiddleName) ?? "";
+        var lastName = FirstNonEmpty(
+            detail?.LastName,
+            FindFieldValue(fields, "last name", "lastName"),
+            user?.LastName) ?? "";
 
         if (string.IsNullOrWhiteSpace(firstName) && string.IsNullOrWhiteSpace(lastName))
         {
-            var full = FindFieldValue(fields, "fullName", "full legal name", "applicantName") ?? company?.Name ?? "";
+            var full = FirstNonEmpty(
+                FindFieldValue(fields, "fullName", "full legal name", "applicantName"),
+                company?.Name) ?? "";
             var parts = full.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 1)
             {
                 lastName = parts[0];
             }
-            else if (parts.Length >= 2)
+            else if (parts.Length == 2)
             {
-                firstName = string.Join(" ", parts.Take(parts.Length - 1));
+                firstName = parts[0];
+                lastName = parts[1];
+            }
+            else if (parts.Length >= 3)
+            {
+                firstName = parts[0];
+                middleName = string.IsNullOrWhiteSpace(middleName) ? string.Join(" ", parts.Skip(1).Take(parts.Length - 2)) : middleName;
                 lastName = parts[^1];
             }
         }
 
-        var dob = detail?.BirthDate != null && detail.BirthDate != default
+        var dob = (detail != null && detail.BirthDate != default && detail.BirthDate.Year > 1900)
             ? detail.BirthDate
-            : (TryParseDateOnly(FindFieldValue(fields, "birthDate", "date of birth")) ?? new DateOnly(1990, 1, 1));
+            : (TryParseDateOnly(FindFieldValue(fields, "birthDate", "date of birth"))
+               ?? (user?.DateOfBirth.HasValue == true && user.DateOfBirth.Value.Year > 1900
+                   ? DateOnly.FromDateTime(user.DateOfBirth.Value)
+                   : new DateOnly(1990, 1, 1)));
 
-        var sexStr = detail?.Sex ?? FindFieldValue(fields, "sex") ?? user?.Sex ?? "Male";
+        var sexStr = FirstNonEmpty(detail?.Sex, FindFieldValue(fields, "sex"), user?.Sex, "Male")!;
         var sex = sexStr.StartsWith("F", StringComparison.OrdinalIgnoreCase) ? Sex.Female : Sex.Male;
 
-        var nationality = !string.IsNullOrWhiteSpace(detail?.Nationality)
-            ? detail.Nationality
-            : (FindFieldValue(fields, "nationality", "citizenship") ?? "Filipino");
+        var nationality = FirstNonEmpty(
+            detail?.Nationality,
+            FindFieldValue(fields, "nationality", "citizenship"),
+            user?.Nationality,
+            "Filipino")!;
 
         var address = BuildAddress(app, applicant, fields);
-        var contact = detail?.ContactNumber ?? FindFieldValue(fields, "contactNo", "contact / mobile number", "contact number") ?? company?.ContactNumber ?? user?.ContactNumber ?? "";
-        var email = detail?.EmailAddress ?? FindFieldValue(fields, "email", "email address") ?? company?.Email ?? user?.Email ?? "";
+        var contact = FirstNonEmpty(
+            detail?.ContactNumber,
+            FindFieldValue(fields, "contactNo", "contact / mobile number", "contact number"),
+            company?.ContactNumber,
+            user?.ContactNumber) ?? "";
+        var email = FirstNonEmpty(
+            detail?.EmailAddress,
+            FindFieldValue(fields, "email", "email address"),
+            company?.Email,
+            user?.Email) ?? "";
+
+        var school = FirstNonEmpty(
+            detail?.SchoolAttended,
+            FindFieldValue(fields, "schoolName", "school / university", "school attended", "education"),
+            user?.SchoolAttended);
+        var course = FirstNonEmpty(
+            detail?.CourseTaken,
+            FindFieldValue(fields, "courseDegree", "course / degree", "course taken"),
+            user?.CourseTaken);
+        int? yearGraduated = null;
+        var yearGradRaw = FirstNonEmpty(detail?.YearGraduated, FindFieldValue(fields, "yearGraduated", "year graduated"));
+        if (!string.IsNullOrWhiteSpace(yearGradRaw) && int.TryParse(yearGradRaw.Trim(), out var parsedYearGrad))
+        {
+            yearGraduated = parsedYearGrad;
+        }
 
         return new ApplicantPerson
         {
@@ -1340,7 +1455,10 @@ public static class ApplicationFormPrintMapper
             Nationality = nationality,
             Address = address,
             ContactNumber = contact,
-            Email = email
+            Email = email,
+            SchoolAttended = school ?? "",
+            CourseTaken = course ?? "",
+            YearGraduated = yearGraduated
         };
     }
 
@@ -1349,17 +1467,19 @@ public static class ApplicationFormPrintMapper
         EDGE.Domain.Entities.Applicant? applicant,
         List<FormFieldValue> fields)
     {
-        var name = ResolveDisplayName(app, applicant, fields);
-        var entityTypeStr = FindFieldValue(fields, "entityType", "entity type") ?? "";
-        var entityType = EntityType.Other;
-        if (entityTypeStr.Contains("Single", StringComparison.OrdinalIgnoreCase)) entityType = EntityType.SingleProprietorship;
-        else if (entityTypeStr.Contains("Partnership", StringComparison.OrdinalIgnoreCase)) entityType = EntityType.Partnership;
-        else if (entityTypeStr.Contains("Corp", StringComparison.OrdinalIgnoreCase) || applicant?.ApplicantType == ApplicantType.Company || applicant?.CompanyDetail != null)
-            entityType = EntityType.Corporation;
-
         var detail = applicant?.ApplicantDetail;
-        var company = applicant?.CompanyDetail ?? app.User?.CompanyDetail;
+        var company = applicant?.CompanyDetail ?? detail?.CompanyDetail ?? app.User?.CompanyDetail;
         var user = app.User;
+
+        var name = ResolveDisplayName(app, applicant, fields);
+        var entityTypeStr = FirstNonEmpty(
+            FindFieldValue(fields, "entityType", "entity type"),
+            company?.EntityType?.ToString()) ?? "";
+        var entityType = EntityType.Other;
+        if (entityTypeStr.Contains("Single", StringComparison.OrdinalIgnoreCase) || entityTypeStr.Contains("Sole", StringComparison.OrdinalIgnoreCase)) entityType = EntityType.SingleProprietorship;
+        else if (entityTypeStr.Contains("Partnership", StringComparison.OrdinalIgnoreCase)) entityType = EntityType.Partnership;
+        else if (entityTypeStr.Contains("Corp", StringComparison.OrdinalIgnoreCase) || applicant?.ApplicantType == ApplicantType.Company || company != null)
+            entityType = EntityType.Corporation;
 
         return new EDGE.Infrastructure.Printing.Models.Applicant
         {
@@ -1367,8 +1487,16 @@ public static class ApplicationFormPrintMapper
             Name = name,
             TypeOfEntity = entityType,
             Address = BuildAddress(app, applicant, fields),
-            ContactNumber = detail?.ContactNumber ?? company?.ContactNumber ?? FindFieldValue(fields, "contactNo", "contact number") ?? user?.ContactNumber ?? "",
-            Email = detail?.EmailAddress ?? company?.Email ?? FindFieldValue(fields, "email", "email address") ?? user?.Email ?? ""
+            ContactNumber = FirstNonEmpty(
+                detail?.ContactNumber,
+                company?.ContactNumber,
+                FindFieldValue(fields, "contactNo", "contact / mobile number", "contact number"),
+                user?.ContactNumber) ?? "",
+            Email = FirstNonEmpty(
+                detail?.EmailAddress,
+                company?.Email,
+                FindFieldValue(fields, "email", "email address"),
+                user?.Email) ?? ""
         };
     }
 
@@ -1377,9 +1505,11 @@ public static class ApplicationFormPrintMapper
         EDGE.Domain.Entities.Applicant? applicant,
         List<FormFieldValue> fields)
     {
-        var companyName = applicant?.CompanyDetail?.Name
-            ?? FindFieldValue(fields, "companyName", "company / business name")
-            ?? (applicant?.ApplicantType == ApplicantType.Company ? app.User?.CompanyDetail?.Name : null);
+        var companyName = FirstNonEmpty(
+            applicant?.CompanyDetail?.Name,
+            applicant?.ApplicantDetail?.CompanyDetail?.Name,
+            FindFieldValue(fields, "companyName", "company / business name"),
+            applicant?.ApplicantType == ApplicantType.Company ? app.User?.CompanyDetail?.Name : null);
 
         if (!string.IsNullOrWhiteSpace(companyName))
             return companyName.Trim();
@@ -1393,13 +1523,22 @@ public static class ApplicationFormPrintMapper
                 return personName;
         }
 
-        var fieldFullName = FindFieldValue(fields, "fullName", "full legal name", "applicantName", "registeredOwner");
+        var fieldFullName = FirstNonEmpty(
+            FindFieldValue(fields, "fullName", "full legal name", "applicantName", "registeredOwner"),
+            string.Join(" ", new[]
+            {
+                FindFieldValue(fields, "first name", "firstName"),
+                FindFieldValue(fields, "middleName", "middle name"),
+                FindFieldValue(fields, "last name", "lastName"),
+                FindFieldValue(fields, "suffix")
+            }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim());
         if (!string.IsNullOrWhiteSpace(fieldFullName))
             return fieldFullName.Trim();
 
         if (app.User != null)
         {
-            var userName = $"{app.User.FirstName} {app.User.LastName}".Trim();
+            var userName = string.Join(" ", new[] { app.User.FirstName, app.User.MiddleName, app.User.LastName, app.User.Suffix }
+                .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
             if (!string.IsNullOrWhiteSpace(userName))
                 return userName;
         }
@@ -1413,23 +1552,44 @@ public static class ApplicationFormPrintMapper
         List<FormFieldValue> fields)
     {
         var detail = applicant?.ApplicantDetail;
-        var company = applicant?.CompanyDetail ?? app.User?.CompanyDetail;
+        var company = applicant?.CompanyDetail ?? detail?.CompanyDetail ?? app.User?.CompanyDetail;
         var user = app.User;
 
-        var street = FindFieldValue(fields, "street", "street address")
-            ?? detail?.Address
-            ?? company?.Address
-            ?? FindFieldValue(fields, "address", "complete address")
-            ?? user?.Street
-            ?? "";
-        var barangay = FindFieldValue(fields, "barangay") ?? "";
-        var city = FindFieldValue(fields, "city", "city / municipality") ?? "";
-        var province = FindFieldValue(fields, "province") ?? "";
-        var zip = FindFieldValue(fields, "zipCode", "zip / postal code") ?? "";
+        var detailBrgy = detail?.Barangay;
+        var companyBrgy = company?.Barangay;
+        var effectiveBrgy = detailBrgy ?? companyBrgy;
+
+        var unit = FirstNonEmpty(
+            FindFieldValue(fields, "unit", "house", "bldg", "room"),
+            user?.Unit) ?? "";
+
+        var street = FirstNonEmpty(
+            FindFieldValue(fields, "street", "street address"),
+            detail?.Address,
+            company?.Address,
+            FindFieldValue(fields, "address", "complete address"),
+            user?.Street) ?? "";
+
+        var barangay = FirstNonEmpty(
+            FindFieldValue(fields, "barangay"),
+            effectiveBrgy?.Name) ?? "";
+
+        var city = FirstNonEmpty(
+            FindFieldValue(fields, "city", "city / municipality"),
+            effectiveBrgy?.Municipality?.Name) ?? "";
+
+        var province = FirstNonEmpty(
+            FindFieldValue(fields, "province"),
+            effectiveBrgy?.Municipality?.Province?.Name) ?? "";
+
+        var zip = FirstNonEmpty(
+            FindFieldValue(fields, "zipCode", "zip / postal code"),
+            detail?.ZipCode,
+            user?.ZipCode) ?? "";
 
         return new Address
         {
-            UnitRoomBldgNo = user?.Unit ?? "",
+            UnitRoomBldgNo = unit,
             Street = street,
             Barangay = barangay,
             CityMunicipality = city,
@@ -1481,6 +1641,15 @@ public static class ApplicationFormPrintMapper
         if (op == null || string.IsNullOrWhiteSpace(op.OfficialReceiptNumber))
             return null;
 
+        var cashierName = FirstNonEmpty(
+            op.Histories?
+                .OrderByDescending(h => h.Timestamp)
+                .FirstOrDefault(h => h.Action != null && (h.Action.Contains("Verified", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Paid", StringComparison.OrdinalIgnoreCase)))?.StaffName,
+            app.Histories?
+                .OrderByDescending(h => h.Timestamp)
+                .FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))?.StaffName,
+            "Special Collecting Officer")!;
+
         return new Payment
         {
             PaymentId = op.Id,
@@ -1488,7 +1657,7 @@ public static class ApplicationFormPrintMapper
             OrNo = op.OfficialReceiptNumber,
             OrDate = DateOnly.FromDateTime(op.PaidAt ?? op.CreatedAt),
             Amount = op.AmountReceived > 0 ? op.AmountReceived : op.AmountDue,
-            CollectingOfficer = "Special Collecting Officer"
+            CollectingOfficer = cashierName
         };
     }
 
@@ -1505,21 +1674,71 @@ public static class ApplicationFormPrintMapper
     {
         var cos = new ClassOfStation();
         var stationClassStr = (FindFieldValue(fields, "stationClass", "aeroClassOfStation", "classOfStation", "station class") ?? "").ToUpperInvariant();
-        if (stationClassStr == "RT") cos.RT = 1;
-        else if (stationClassStr == "FX") cos.FX = 1;
-        else if (stationClassStr == "FB") cos.FB = 1;
-        else if (stationClassStr == "FX/FB") { cos.FX = 1; cos.FB = 1; }
-        else if (stationClassStr == "ML") cos.ML = 1;
-        else if (stationClassStr == "P") cos.P = 1;
-        else if (stationClassStr == "BC") cos.BC = 1;
-        else if (stationClassStr == "FC") cos.FC = 1;
-        else if (stationClassStr == "FA") cos.FA = 1;
-        else if (stationClassStr == "MA") cos.MA = 1;
-        else if (stationClassStr == "TC") cos.TC = 1;
-        else if (!string.IsNullOrWhiteSpace(stationClassStr)) cos.Other = stationClassStr;
-        else cos.FX = 1;
+
+        // Also unpack stationClass from Form Builder 'particulars' repeater rows when top-level field is not set
+        if (string.IsNullOrWhiteSpace(stationClassStr))
+        {
+            var repField = FindField(fields, "particulars", "aeroStationParticulars");
+            if (repField != null && !string.IsNullOrWhiteSpace(repField.Value))
+            {
+                var trimmed = repField.Value.Trim();
+                if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(trimmed);
+                        if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                        {
+                            var classes = new List<string>();
+                            foreach (var row in doc.RootElement.EnumerateArray())
+                            {
+                                var sc = GetJsonString(row, "stationClass", "classOfStation");
+                                if (!string.IsNullOrWhiteSpace(sc)) classes.Add(sc.Trim().ToUpperInvariant());
+                            }
+                            if (classes.Count > 0)
+                            {
+                                foreach (var sc in classes)
+                                {
+                                    ApplyStationClassIncrement(cos, sc);
+                                }
+                                return cos;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore malformed JSON
+                    }
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(stationClassStr))
+        {
+            ApplyStationClassIncrement(cos, stationClassStr);
+        }
+        else
+        {
+            cos.FX = 1;
+        }
 
         return cos;
+    }
+
+    private static void ApplyStationClassIncrement(ClassOfStation cos, string stationClassStr)
+    {
+        if (stationClassStr == "RT") cos.RT++;
+        else if (stationClassStr == "FX") cos.FX++;
+        else if (stationClassStr == "FB") cos.FB++;
+        else if (stationClassStr == "FX/FB") { cos.FX++; cos.FB++; }
+        else if (stationClassStr == "ML") cos.ML++;
+        else if (stationClassStr == "P") cos.P++;
+        else if (stationClassStr == "BC") cos.BC++;
+        else if (stationClassStr == "FC") cos.FC++;
+        else if (stationClassStr == "FA") cos.FA++;
+        else if (stationClassStr == "MA") cos.MA++;
+        else if (stationClassStr == "TC") cos.TC++;
+        else if (!string.IsNullOrWhiteSpace(stationClassStr)) cos.Other = stationClassStr;
     }
 
     private static Antenna? BuildSingleAntenna(List<FormFieldValue> fields)
@@ -1571,6 +1790,36 @@ public static class ApplicationFormPrintMapper
                             var freq = GetJsonString(row, "frequencyRange", "frequency") ?? "";
                             var qtyStr = GetJsonString(row, "quantity", "noOfUnits") ?? "1";
                             int.TryParse(qtyStr, out var qty);
+
+                            // Unpack nested 'equipments' array inside Form Builder 'particulars' repeater rows
+                            if (row.ValueKind == JsonValueKind.Object &&
+                                row.TryGetProperty("equipments", out var nestedEq) &&
+                                nestedEq.ValueKind == JsonValueKind.Array &&
+                                nestedEq.GetArrayLength() > 0)
+                            {
+                                foreach (var eqRow in nestedEq.EnumerateArray())
+                                {
+                                    var eqMake = FirstNonEmpty(GetJsonString(eqRow, "make", "makeTypeModel", "makeModel"), make) ?? "";
+                                    var eqModel = FirstNonEmpty(GetJsonString(eqRow, "model", "typeModel", "makeTypeModel"), model) ?? "";
+                                    var eqSerial = FirstNonEmpty(GetJsonString(eqRow, "serialNumber", "serial", "serialNumbers"), serial) ?? "";
+                                    var eqPower = FirstNonEmpty(GetJsonString(eqRow, "powerOutput", "power"), power) ?? "";
+                                    var eqFreq = FirstNonEmpty(GetJsonString(eqRow, "frequencyRange", "frequency"), freq) ?? "";
+
+                                    list.Add(new Equipment
+                                    {
+                                        EquipmentId = Guid.NewGuid(),
+                                        ApplicationId = applicationId,
+                                        RadioEquipment = !string.IsNullOrWhiteSpace(eqMake) ? eqMake : "Radio Transceiver",
+                                        Make = eqMake,
+                                        TypeModel = eqModel,
+                                        SerialNumber = eqSerial,
+                                        PowerOutput = eqPower,
+                                        FrequencyRange = eqFreq,
+                                        Quantity = 1
+                                    });
+                                }
+                                continue;
+                            }
 
                             list.Add(new Equipment
                             {
@@ -2089,21 +2338,102 @@ public static class ApplicationFormPrintMapper
         return AgeGroup124.Age18_29;
     }
 
+    private static readonly Lazy<Dictionary<string, Guid>> CanonicalFieldIds = new(() =>
+    {
+        var map = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in EDGE.Infrastructure.Persistence.SeederData.CommonSeederData.GetFieldsPool())
+        {
+            map[kvp.Key] = kvp.Value.Id;
+        }
+        return map;
+    });
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var v in values)
+        {
+            if (!string.IsNullOrWhiteSpace(v))
+                return v.Trim();
+        }
+        return null;
+    }
+
     private static string? FindFieldValue(List<FormFieldValue> fieldValues, params string[] keywords)
     {
         var f = FindField(fieldValues, keywords);
-        return f?.Value;
+        return string.IsNullOrWhiteSpace(f?.Value) ? null : f.Value.Trim();
     }
 
     private static FormFieldValue? FindField(List<FormFieldValue> fieldValues, params string[] keywords)
     {
+        if (fieldValues == null || fieldValues.Count == 0 || keywords == null || keywords.Length == 0)
+            return null;
+
+        // Pass 1: Exact canonical FieldId match with non-empty value (resolves ambiguous labels like "Type", "Date", "Service", "Unit")
+        var idMap = CanonicalFieldIds.Value;
+        foreach (var kw in keywords)
+        {
+            if (idMap.TryGetValue(kw, out var canonicalId))
+            {
+                var idMatch = fieldValues.FirstOrDefault(f => f.FieldId == canonicalId && !string.IsNullOrWhiteSpace(f.Value));
+                if (idMatch != null) return idMatch;
+            }
+        }
+
+        // Pass 2: Label / normalized-label match with non-empty value
+        var nonEmptyLabelMatch = fieldValues.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.Value) && MatchesKey(f, keywords));
+        if (nonEmptyLabelMatch != null) return nonEmptyLabelMatch;
+
+        // Pass 3: Any matching field (including empty) for presence checks
         return fieldValues.FirstOrDefault(f => MatchesKey(f, keywords));
     }
 
     private static bool MatchesKey(FormFieldValue f, params string[] keywords)
     {
-        var label = (f.CustomLabel ?? f.Field?.Label ?? string.Empty).ToLowerInvariant();
-        return keywords.Any(k => label.Contains(k.ToLowerInvariant()));
+        if (f == null || keywords == null || keywords.Length == 0) return false;
+
+        var idMap = CanonicalFieldIds.Value;
+        if (f.FieldId != Guid.Empty)
+        {
+            foreach (var kw in keywords)
+            {
+                if (idMap.TryGetValue(kw, out var canonicalId) && f.FieldId == canonicalId)
+                    return true;
+            }
+        }
+
+        var customLabel = (f.CustomLabel ?? string.Empty).ToLowerInvariant();
+        var fieldLabel = (f.Field?.Label ?? string.Empty).ToLowerInvariant();
+        var normCustom = NormalizeFieldToken(customLabel);
+        var normField = NormalizeFieldToken(fieldLabel);
+
+        foreach (var k in keywords)
+        {
+            if (string.IsNullOrWhiteSpace(k)) continue;
+            var lowerK = k.ToLowerInvariant();
+            if ((!string.IsNullOrEmpty(customLabel) && customLabel.Contains(lowerK)) ||
+                (!string.IsNullOrEmpty(fieldLabel) && fieldLabel.Contains(lowerK)))
+            {
+                return true;
+            }
+
+            var normK = NormalizeFieldToken(lowerK);
+            if (normK.Length >= 4 &&
+                ((!string.IsNullOrEmpty(normCustom) && normCustom.Contains(normK)) ||
+                 (!string.IsNullOrEmpty(normField) && normField.Contains(normK))))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeFieldToken(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        var chars = raw.Where(char.IsLetterOrDigit).ToArray();
+        return new string(chars);
     }
 
     private static string SanitizeFileToken(string raw)
