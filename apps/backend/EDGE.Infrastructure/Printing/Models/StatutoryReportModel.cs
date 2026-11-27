@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using EDGE.Application.Applications.Dtos;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Tenants.DTOs;
 using EDGE.Domain.Entities;
 
@@ -18,7 +19,11 @@ public class StatutoryReportModel
     public string StartDate { get; set; } = string.Empty;
     public string EndDate { get; set; } = string.Empty;
     public string GeneratedBy { get; set; } = "Authorized Regional Officer";
+    public string GeneratedByTitle { get; set; } = string.Empty;
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+    public string FundCluster { get; set; } = "01101101";
+    public string RegionalOfficeAddress { get; set; } = string.Empty;
+    public ReportSignatoriesDto Signatories { get; set; } = new();
     public string? SecondaryFilter { get; set; }
     public string? FieldOfficeFilter { get; set; }
     public IReadOnlyList<ApplicationSummaryDto> Applications { get; set; } = Array.Empty<ApplicationSummaryDto>();

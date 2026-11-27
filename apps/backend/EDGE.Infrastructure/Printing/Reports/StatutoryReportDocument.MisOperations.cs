@@ -291,11 +291,15 @@ public partial class StatutoryReportDocument
                 });
             });
 
+            var misPrepared = ResolveMisOfficer("MIS / Planning Officer");
+            var chiefEod = ResolveChiefEod("Chief, EOD / Chief, FAD");
+            var director = ResolveRegionalDirector("Regional Director");
+
             col.Item().PaddingTop(8).Element(c => ComposeSignatories(
                 c,
-                ("PREPARED BY:", _model.GeneratedBy, "MIS / Planning Officer"),
-                ("REVIEWED / NOTED BY:", "CHIEF, ENFORCEMENT & OPERATIONS DIV.", "Chief, EOD / Chief, FAD"),
-                ("APPROVED BY:", $"REGIONAL DIRECTOR — {_model.TenantName.ToUpperInvariant()}", "Regional Director")));
+                ("PREPARED BY:", misPrepared.Name, misPrepared.Role),
+                ("REVIEWED / NOTED BY:", chiefEod.Name, chiefEod.Role),
+                ("APPROVED BY:", director.Name, director.Role)));
         });
     }
 }

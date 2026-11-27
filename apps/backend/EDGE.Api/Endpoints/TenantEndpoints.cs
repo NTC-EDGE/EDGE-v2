@@ -369,10 +369,16 @@ public static class TenantEndpoints
     public static async Task<IResult> UpdateTenantConfig(
         Guid id,
         RegionalConfigurationDto command,
+        IValidator<RegionalConfigurationDto> validator,
         IRegionalConfigurationService configService,
         CancellationToken cancellationToken)
     {
         command.TenantId = id;
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
         var result = await configService.UpdateConfigurationAsync(command, cancellationToken);
         return Results.Ok(ApiResponse<RegionalConfigurationDto>.Success(result));
     }
@@ -394,6 +400,7 @@ public static class TenantEndpoints
     [HasPermission(Permissions.UpdateTenants)]
     public static async Task<IResult> UpdateCurrentTenantConfig(
         RegionalConfigurationDto command,
+        IValidator<RegionalConfigurationDto> validator,
         IRegionalConfigurationService configService,
         ITenantContextService tenantContext,
         CancellationToken cancellationToken)
@@ -401,6 +408,11 @@ public static class TenantEndpoints
         if (command.TenantId == Guid.Empty)
         {
             command.TenantId = tenantContext.TenantId ?? Guid.Empty;
+        }
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
         }
         var result = await configService.UpdateConfigurationAsync(command, cancellationToken);
         return Results.Ok(ApiResponse<RegionalConfigurationDto>.Success(result));

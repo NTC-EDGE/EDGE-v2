@@ -294,9 +294,24 @@ public partial class StatutoryReportDocument
             .Text(title).FontSize(7.2f).Bold().FontColor(Colors.White);
     }
 
+    private static void RenderSectionTitleRow(TableCellDescriptor header, uint colSpan, string title)
+    {
+        header.Cell().ColumnSpan(colSpan).Background("#1E293B").Border(0.6f).BorderColor(Colors.Black)
+            .PaddingHorizontal(5).PaddingVertical(3)
+            .Text(title).FontSize(7.2f).Bold().FontColor(Colors.White);
+    }
+
     private static void RenderTableHeaderCell(TableDescriptor table, string text, bool alignLeft = false)
     {
         var cell = table.Cell().Background("#E2E8F0").Border(0.5f).BorderColor(Colors.Black)
+            .PaddingHorizontal(3).PaddingVertical(2.5f).AlignMiddle();
+        if (alignLeft) cell.AlignLeft().Text(text).FontSize(6.5f).Bold();
+        else cell.AlignCenter().Text(text).FontSize(6.5f).Bold();
+    }
+
+    private static void RenderTableHeaderCell(TableCellDescriptor header, string text, bool alignLeft = false)
+    {
+        var cell = header.Cell().Background("#E2E8F0").Border(0.5f).BorderColor(Colors.Black)
             .PaddingHorizontal(3).PaddingVertical(2.5f).AlignMiddle();
         if (alignLeft) cell.AlignLeft().Text(text).FontSize(6.5f).Bold();
         else cell.AlignCenter().Text(text).FontSize(6.5f).Bold();
@@ -319,6 +334,99 @@ public partial class StatutoryReportDocument
 
         IContainer aligned = alignLeft ? cell.AlignLeft() : alignRight ? cell.AlignRight() : cell.AlignCenter();
         aligned.Text(text ?? string.Empty).FontSize(6.8f).Bold();
+    }
+
+    private (string Name, string Role) ResolveRegionalDirector(string defaultRole = "Regional Director")
+    {
+        var s = _model.Signatories;
+        var name = !string.IsNullOrWhiteSpace(s?.RegionalDirectorName)
+            ? s.RegionalDirectorName.Trim()
+            : $"REGIONAL DIRECTOR — {_model.TenantName.ToUpperInvariant()}";
+        var role = !string.IsNullOrWhiteSpace(s?.RegionalDirectorTitle)
+            ? s.RegionalDirectorTitle.Trim()
+            : defaultRole;
+        return (name, role);
+    }
+
+    private (string Name, string Role) ResolveChiefEod(string defaultRole = "Chief, EOD / Chief, FAD")
+    {
+        var s = _model.Signatories;
+        var name = !string.IsNullOrWhiteSpace(s?.ChiefEodName)
+            ? s.ChiefEodName.Trim()
+            : "CHIEF, ENFORCEMENT & OPERATIONS DIV.";
+        var role = !string.IsNullOrWhiteSpace(s?.ChiefEodTitle)
+            ? s.ChiefEodTitle.Trim()
+            : defaultRole;
+        return (name, role);
+    }
+
+    private (string Name, string Role) ResolveRegionalAccountant(string defaultRole = "Head, Accounting Unit (FAD)")
+    {
+        var s = _model.Signatories;
+        var name = !string.IsNullOrWhiteSpace(s?.RegionalAccountantName)
+            ? s.RegionalAccountantName.Trim()
+            : "REGIONAL ACCOUNTANT III";
+        var role = !string.IsNullOrWhiteSpace(s?.RegionalAccountantTitle)
+            ? s.RegionalAccountantTitle.Trim()
+            : defaultRole;
+        return (name, role);
+    }
+
+    private (string Name, string Role) ResolveCollectingOfficer(string defaultRole = "Collecting Officer / Regional Cashier III")
+    {
+        var s = _model.Signatories;
+        if (!string.IsNullOrWhiteSpace(s?.CollectingOfficerName))
+        {
+            var title = !string.IsNullOrWhiteSpace(s.CollectingOfficerTitle)
+                ? s.CollectingOfficerTitle.Trim()
+                : defaultRole;
+            return (s.CollectingOfficerName.Trim(), title);
+        }
+        return ResolvePreparedByCurrentOfficer(defaultRole);
+    }
+
+    private (string Name, string Role) ResolveMisOfficer(string defaultRole = "MIS / Planning Officer")
+    {
+        var s = _model.Signatories;
+        if (!string.IsNullOrWhiteSpace(s?.MisOfficerName))
+        {
+            var title = !string.IsNullOrWhiteSpace(s.MisOfficerTitle)
+                ? s.MisOfficerTitle.Trim()
+                : defaultRole;
+            return (s.MisOfficerName.Trim(), title);
+        }
+        return ResolvePreparedByCurrentOfficer(defaultRole);
+    }
+
+    private (string Name, string Role) ResolveExamProctor(string defaultRole = "Authorized Examination Proctor")
+    {
+        var s = _model.Signatories;
+        if (!string.IsNullOrWhiteSpace(s?.ExamProctorName))
+        {
+            var title = !string.IsNullOrWhiteSpace(s.ExamProctorTitle)
+                ? s.ExamProctorTitle.Trim()
+                : defaultRole;
+            return (s.ExamProctorName.Trim(), title);
+        }
+        if (!string.IsNullOrWhiteSpace(s?.ChiefEodName))
+        {
+            var title = !string.IsNullOrWhiteSpace(s.ChiefEodTitle)
+                ? s.ChiefEodTitle.Trim()
+                : defaultRole;
+            return (s.ChiefEodName.Trim(), title);
+        }
+        return ("REGIONAL EXAMINATION COMMITTEE", defaultRole);
+    }
+
+    private (string Name, string Role) ResolvePreparedByCurrentOfficer(string defaultRole)
+    {
+        var name = !string.IsNullOrWhiteSpace(_model.GeneratedBy)
+            ? _model.GeneratedBy.Trim()
+            : "Authorized Regional Officer";
+        var role = !string.IsNullOrWhiteSpace(_model.GeneratedByTitle)
+            ? _model.GeneratedByTitle.Trim()
+            : defaultRole;
+        return (name, role);
     }
 
     private static void ComposeSignatories(

@@ -16,6 +16,21 @@ export interface RegionOption {
 
 export type { ApiResponse };
 
+export interface ReportSignatoriesDto {
+  regionalDirectorName: string;
+  regionalDirectorTitle: string;
+  chiefEodName: string;
+  chiefEodTitle: string;
+  regionalAccountantName: string;
+  regionalAccountantTitle: string;
+  collectingOfficerName: string;
+  collectingOfficerTitle: string;
+  misOfficerName: string;
+  misOfficerTitle: string;
+  examProctorName: string;
+  examProctorTitle: string;
+}
+
 export interface RegionalConfigDto {
   tenantId?: string;
   regionId?: string;
@@ -30,4 +45,5 @@ export interface RegionalConfigDto {
   allowManualSoaNumber?: boolean;
   allowManualOpNumber?: boolean;
   enableInternalEmailNotifications?: boolean;
+  reportSignatories?: ReportSignatoriesDto;
 }

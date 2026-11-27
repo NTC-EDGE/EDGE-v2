@@ -10,16 +10,21 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
+import { ReportSignatoriesDto } from '@edge/api';
 import { RegionalConfigCard, BranchOffice, BranchOfficeStats } from '../types/adminSettingsTypes';
 import { DeleteAdminItemModal } from './DeleteAdminItemModal';
+import { ReportSignatoriesCard } from './ReportSignatoriesCard';
 
 interface RegionalConfigTabProps {
   configs: RegionalConfigCard[];
   branchOffices: BranchOffice[];
   stats: BranchOfficeStats;
   mode?: 'details' | 'branches' | 'all';
+  tenantId?: string;
   enableInternalEmailNotifications?: boolean;
   onToggleInternalEmailNotifications?: (enabled: boolean) => Promise<void> | void;
+  reportSignatories?: ReportSignatoriesDto;
+  onSaveReportSignatories?: (signatories: ReportSignatoriesDto) => Promise<void> | void;
   onEditConfig: (config: RegionalConfigCard) => void;
   onDeleteConfig: (id: string, name: string) => void;
   onAddBranchOffice: () => void;
@@ -40,8 +45,11 @@ export function RegionalConfigTab({
   branchOffices,
   stats,
   mode = 'all',
+  tenantId,
   enableInternalEmailNotifications = true,
   onToggleInternalEmailNotifications,
+  reportSignatories,
+  onSaveReportSignatories,
   onEditConfig,
   onDeleteConfig,
   onAddBranchOffice,
@@ -362,6 +370,15 @@ export function RegionalConfigTab({
               );
             })}
           </View>
+
+          {/* 3. Statutory Report Signatories Editor */}
+          {onSaveReportSignatories !== undefined && (
+            <ReportSignatoriesCard
+              tenantId={tenantId}
+              signatories={reportSignatories}
+              onSave={onSaveReportSignatories}
+            />
+          )}
         </View>
       )}
 

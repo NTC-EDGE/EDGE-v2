@@ -88,6 +88,29 @@ public class RegionalConfigurationService : IRegionalConfigurationService
             || !bool.TryParse(enableInternalEmailConfig.Value, out var parsedInternalEmail)
             || parsedInternalEmail;
 
+        async Task<string> ReadSignatoryAsync(string fieldKey, string defaultValue)
+        {
+            var cfg = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:Signatory:{fieldKey}", cancellationToken)
+                ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:Signatory:{fieldKey}", cancellationToken);
+            return !string.IsNullOrWhiteSpace(cfg?.Value) ? cfg.Value.Trim() : defaultValue;
+        }
+
+        var signatories = new ReportSignatoriesDto
+        {
+            RegionalDirectorName = await ReadSignatoryAsync("RegionalDirectorName", string.Empty),
+            RegionalDirectorTitle = await ReadSignatoryAsync("RegionalDirectorTitle", "Regional Director"),
+            ChiefEodName = await ReadSignatoryAsync("ChiefEodName", string.Empty),
+            ChiefEodTitle = await ReadSignatoryAsync("ChiefEodTitle", "Chief, Enforcement & Operations Division"),
+            RegionalAccountantName = await ReadSignatoryAsync("RegionalAccountantName", string.Empty),
+            RegionalAccountantTitle = await ReadSignatoryAsync("RegionalAccountantTitle", "Regional Accountant III"),
+            CollectingOfficerName = await ReadSignatoryAsync("CollectingOfficerName", string.Empty),
+            CollectingOfficerTitle = await ReadSignatoryAsync("CollectingOfficerTitle", "Collecting Officer / Regional Cashier III"),
+            MisOfficerName = await ReadSignatoryAsync("MisOfficerName", string.Empty),
+            MisOfficerTitle = await ReadSignatoryAsync("MisOfficerTitle", "MIS / Planning Officer"),
+            ExamProctorName = await ReadSignatoryAsync("ExamProctorName", string.Empty),
+            ExamProctorTitle = await ReadSignatoryAsync("ExamProctorTitle", "Authorized Examination Proctor")
+        };
+
         string? mainFieldOfficeEmail = null;
         string? mainFieldOfficePhone = null;
         if (resolvedTenantId != Guid.Empty && (string.IsNullOrWhiteSpace(emailConfig?.Value) || string.IsNullOrWhiteSpace(phoneConfig?.Value)))
@@ -140,7 +163,8 @@ public class RegionalConfigurationService : IRegionalConfigurationService
                     : "(088) 856-1234 / (02) 8924-4008"),
             AllowManualSoaNumber = allowManualSoa,
             AllowManualOpNumber = allowManualOp,
-            EnableInternalEmailNotifications = enableInternalEmail
+            EnableInternalEmailNotifications = enableInternalEmail,
+            ReportSignatories = signatories
         };
     }
 
@@ -163,6 +187,23 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         if (!string.IsNullOrWhiteSpace(dto.SupportPhone))
         {
             await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:SupportPhone", dto.SupportPhone, $"Support telephone contact for tenant {tenantId}", cancellationToken);
+        }
+
+        if (dto.ReportSignatories != null)
+        {
+            var s = dto.ReportSignatories;
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:RegionalDirectorName", (s.RegionalDirectorName ?? string.Empty).Trim(), $"Regional Director signatory name for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:RegionalDirectorTitle", string.IsNullOrWhiteSpace(s.RegionalDirectorTitle) ? "Regional Director" : s.RegionalDirectorTitle.Trim(), $"Regional Director signatory title for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:ChiefEodName", (s.ChiefEodName ?? string.Empty).Trim(), $"Chief EOD signatory name for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:ChiefEodTitle", string.IsNullOrWhiteSpace(s.ChiefEodTitle) ? "Chief, Enforcement & Operations Division" : s.ChiefEodTitle.Trim(), $"Chief EOD signatory title for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:RegionalAccountantName", (s.RegionalAccountantName ?? string.Empty).Trim(), $"Regional Accountant signatory name for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:RegionalAccountantTitle", string.IsNullOrWhiteSpace(s.RegionalAccountantTitle) ? "Regional Accountant III" : s.RegionalAccountantTitle.Trim(), $"Regional Accountant signatory title for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:CollectingOfficerName", (s.CollectingOfficerName ?? string.Empty).Trim(), $"Collecting Officer signatory name for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:CollectingOfficerTitle", string.IsNullOrWhiteSpace(s.CollectingOfficerTitle) ? "Collecting Officer / Regional Cashier III" : s.CollectingOfficerTitle.Trim(), $"Collecting Officer signatory title for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:MisOfficerName", (s.MisOfficerName ?? string.Empty).Trim(), $"MIS Officer signatory name for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:MisOfficerTitle", string.IsNullOrWhiteSpace(s.MisOfficerTitle) ? "MIS / Planning Officer" : s.MisOfficerTitle.Trim(), $"MIS Officer signatory title for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:ExamProctorName", (s.ExamProctorName ?? string.Empty).Trim(), $"Examination Proctor signatory name for tenant {tenantId}", cancellationToken);
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:Signatory:ExamProctorTitle", string.IsNullOrWhiteSpace(s.ExamProctorTitle) ? "Authorized Examination Proctor" : s.ExamProctorTitle.Trim(), $"Examination Proctor signatory title for tenant {tenantId}", cancellationToken);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

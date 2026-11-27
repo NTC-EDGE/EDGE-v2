@@ -93,6 +93,11 @@ public partial class StatutoryReportDocument : IDocument
                         .FontSize(10f).FontFamily(Fonts.TimesNewRoman).Bold();
                     c.Item().AlignCenter().Text(_model.TenantName.ToUpperInvariant())
                         .FontSize(8.5f).FontFamily(Fonts.Arial).Bold().FontColor("#0F172A");
+                    if (!string.IsNullOrWhiteSpace(_model.RegionalOfficeAddress))
+                    {
+                        c.Item().AlignCenter().Text(_model.RegionalOfficeAddress)
+                            .FontSize(6.5f).FontFamily(Fonts.Arial).FontColor("#475569");
+                    }
                     c.Item().PaddingTop(2).AlignCenter().Text(_model.Title.ToUpperInvariant())
                         .FontSize(9.5f).FontFamily(Fonts.Arial).Bold().FontColor("#1E3A8A");
                     c.Item().AlignCenter().Text($"PERIOD COVERED: {_model.Period.ToUpperInvariant()}   •   FORM CODE: {_model.Code}")

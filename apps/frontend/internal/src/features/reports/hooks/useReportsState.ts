@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import {
   useAdminApplications,
   useTenantTransactions,
@@ -9,10 +9,12 @@ import {
   useBankDeposits,
   useTenants,
   useAdminFieldOffices,
+  reportService,
   ApplicationSummaryDto,
   TenantTransactionDto,
   FeedbackDto,
 } from '@edge/api';
+import { toast } from '@edge/ui';
 import { useAuthContext } from '../../auth/context/AuthContext';
 
 import {
@@ -23,8 +25,6 @@ import {
   STATUTORY_REPORTS_LIST,
   generateStatutoryCsv,
   downloadCsvFile,
-  generateStatutoryPrintableHtml,
-  openPrintableReportWindow,
   getPaidTransactions,
   resolveEvaluatorName,
   resolveServiceName,
@@ -1032,31 +1032,57 @@ export function useReportsState() {
     filteredFeedback,
   ]);
 
-  const handlePrintStatutoryReport = useCallback((reportMeta: StatutoryReportMetadata) => {
+  const handlePrintStatutoryReport = useCallback(async (reportMeta: StatutoryReportMetadata) => {
     const effectivePeriod = periodMode === 'custom'
       ? `${startDate} to ${endDate}`
       : selectedPeriod;
-    const html = generateStatutoryPrintableHtml(
-      reportMeta,
-      tenantDisplayName,
-      effectivePeriod,
-      filteredApplications,
-      filteredTransactions,
-      filteredFeedback,
-      user?.name,
-      {
-        startDate,
-        endDate,
-        evaluatorFilter: selectedEvaluatorId,
-        serviceFilter: selectedServiceId,
-        entityFilter: selectedApplicantId,
-        scheduleFilter: selectedScheduleId,
+    const secondaryFilter =
+      reportMeta.code === 'NTC-APP-SUM-EVAL'
+        ? selectedEvaluatorId
+        : reportMeta.code === 'NTC-APP-SUM-SVC'
+          ? selectedServiceId
+          : reportMeta.code === 'NTC-APP-SUM-ENT'
+            ? selectedApplicantId
+            : reportMeta.code === 'NTC-EXAM-MST-01'
+              ? selectedScheduleId
+              : undefined;
+
+    const params = {
+      code: reportMeta.code,
+      tenantId: user?.tenantId ?? undefined,
+      period: effectivePeriod,
+      startDate,
+      endDate,
+      secondaryFilter,
+      fieldOffices: fieldOfficesQueryParam,
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const [blob, err] = await reportService.previewStatutoryReportPdf(params);
+      if (blob !== null && err === null) {
+        const pdfBlob =
+          blob.type === 'application/pdf'
+            ? blob
+            : new Blob([blob], { type: 'application/pdf' });
+        const blobUrl = window.URL.createObjectURL(pdfBlob);
+        const printWindow = window.open(blobUrl, '_blank');
+        if (printWindow !== null) {
+          printWindow.focus();
+          return;
+        }
       }
-    );
-    openPrintableReportWindow(html);
+      toast.error(
+        typeof err === 'string' && err.trim().length > 0
+          ? err
+          : `Unable to generate official ${reportMeta.code} PDF report.`
+      );
+      return;
+    }
+
+    const url = reportService.getStatutoryReportPrintUrl(params);
+    void Linking.openURL(url);
   }, [
-    tenantDisplayName,
-    user?.name,
+    user?.tenantId,
     periodMode,
     selectedPeriod,
     startDate,
@@ -1065,9 +1091,7 @@ export function useReportsState() {
     selectedServiceId,
     selectedApplicantId,
     selectedScheduleId,
-    filteredApplications,
-    filteredTransactions,
-    filteredFeedback,
+    fieldOfficesQueryParam,
   ]);
 
   // Aggregated Periodic Statistics (Server Single Source of Truth with Client Fallback)

@@ -120,19 +120,22 @@ public partial class StatutoryReportDocument
                     cd.ConstantColumn(48); // Validity
                 });
 
-                RenderSectionTitleRow(t, 12, $"{_model.Title.ToUpperInvariant()} — DETAILED REGISTER ({rows.Count} RECORDS)");
-                RenderTableHeaderCell(t, "#");
-                RenderTableHeaderCell(t, "EVALUATOR", alignLeft: true);
-                RenderTableHeaderCell(t, "SERVICE APPLIED", alignLeft: true);
-                RenderTableHeaderCell(t, "TYPE");
-                RenderTableHeaderCell(t, "CATEGORY");
-                RenderTableHeaderCell(t, "CLIENT / ENTITY NAME", alignLeft: true);
-                RenderTableHeaderCell(t, "APP DATE");
-                RenderTableHeaderCell(t, "ISSUED");
-                RenderTableHeaderCell(t, "OR NO.");
-                RenderTableHeaderCell(t, "AMOUNT");
-                RenderTableHeaderCell(t, "LICENSE / REF NO.");
-                RenderTableHeaderCell(t, "VALIDITY");
+                t.Header(h =>
+                {
+                    RenderSectionTitleRow(h, 12, $"{_model.Title.ToUpperInvariant()} — DETAILED REGISTER ({rows.Count} RECORDS)");
+                    RenderTableHeaderCell(h, "#");
+                    RenderTableHeaderCell(h, "EVALUATOR", alignLeft: true);
+                    RenderTableHeaderCell(h, "SERVICE APPLIED", alignLeft: true);
+                    RenderTableHeaderCell(h, "TYPE");
+                    RenderTableHeaderCell(h, "CATEGORY");
+                    RenderTableHeaderCell(h, "CLIENT / ENTITY NAME", alignLeft: true);
+                    RenderTableHeaderCell(h, "APP DATE");
+                    RenderTableHeaderCell(h, "ISSUED");
+                    RenderTableHeaderCell(h, "OR NO.");
+                    RenderTableHeaderCell(h, "AMOUNT");
+                    RenderTableHeaderCell(h, "LICENSE / REF NO.");
+                    RenderTableHeaderCell(h, "VALIDITY");
+                });
 
                 if (rows.Count == 0)
                 {
@@ -141,7 +144,7 @@ public partial class StatutoryReportDocument
                 }
                 else
                 {
-                    foreach (var r in rows.Take(38))
+                    foreach (var r in rows)
                     {
                         RenderBodyCell(t, r.Index.ToString());
                         RenderBodyCell(t, Truncate(r.Evaluator, 22), alignLeft: true);
@@ -163,11 +166,15 @@ public partial class StatutoryReportDocument
                 RenderTotalCell(t, string.Empty, colspan: 2);
             });
 
+            var sumPrepared = ResolvePreparedByCurrentOfficer("Licensing Evaluator / Records Officer");
+            var sumChiefEod = ResolveChiefEod("Chief, EOD");
+            var sumDirector = ResolveRegionalDirector("Regional Director");
+
             col.Item().PaddingTop(8).Element(c => ComposeSignatories(
                 c,
-                ("PREPARED BY:", _model.GeneratedBy, "Licensing Evaluator / Records Officer"),
-                ("REVIEWED BY:", "CHIEF, ENFORCEMENT & OPERATIONS DIV.", "Chief, EOD"),
-                ("APPROVED BY:", $"REGIONAL DIRECTOR — {_model.TenantName.ToUpperInvariant()}", "Regional Director")));
+                ("PREPARED BY:", sumPrepared.Name, sumPrepared.Role),
+                ("REVIEWED BY:", sumChiefEod.Name, sumChiefEod.Role),
+                ("APPROVED BY:", sumDirector.Name, sumDirector.Role)));
         });
     }
 
@@ -233,19 +240,22 @@ public partial class StatutoryReportDocument
                     cd.ConstantColumn(44); // Share %
                 });
 
-                RenderSectionTitleRow(t, totalMatrixCols, $"I. APPLICATION VOLUME MATRIX BY REGULATORY SERVICE STREAM ({_model.Period.ToUpperInvariant()})");
-                RenderTableHeaderCell(t, "REGULATORY SERVICE STREAM", alignLeft: true);
-                foreach (var m in monthBuckets)
+                t.Header(h =>
                 {
-                    string label = isCompactMonths
-                        ? m.ToString("MMM", CultureInfo.InvariantCulture).ToUpperInvariant()
-                        : m.ToString("MMM yy", CultureInfo.InvariantCulture).ToUpperInvariant();
-                    RenderTableHeaderCell(t, label);
-                }
-                RenderTableHeaderCell(t, "APPS");
-                RenderTableHeaderCell(t, "UNITS");
-                RenderTableHeaderCell(t, "ISSUED");
-                RenderTableHeaderCell(t, "SHARE");
+                    RenderSectionTitleRow(h, totalMatrixCols, $"I. APPLICATION VOLUME MATRIX BY REGULATORY SERVICE STREAM ({_model.Period.ToUpperInvariant()})");
+                    RenderTableHeaderCell(h, "REGULATORY SERVICE STREAM", alignLeft: true);
+                    foreach (var m in monthBuckets)
+                    {
+                        string label = isCompactMonths
+                            ? m.ToString("MMM", CultureInfo.InvariantCulture).ToUpperInvariant()
+                            : m.ToString("MMM yy", CultureInfo.InvariantCulture).ToUpperInvariant();
+                        RenderTableHeaderCell(h, label);
+                    }
+                    RenderTableHeaderCell(h, "APPS");
+                    RenderTableHeaderCell(h, "UNITS");
+                    RenderTableHeaderCell(h, "ISSUED");
+                    RenderTableHeaderCell(h, "SHARE");
+                });
 
                 int[] colTotals = new int[monthBuckets.Count];
                 int grandTotalApps = 0;
@@ -308,16 +318,19 @@ public partial class StatutoryReportDocument
                     cd.ConstantColumn(52); // SLA %
                 });
 
-                RenderSectionTitleRow(t, 9, "II. APPLICATION VOLUME PROCESSING STATUS, REVENUE COLLECTIONS & BANK DEPOSITS BY STREAM");
-                RenderTableHeaderCell(t, "REGULATORY SERVICE STREAM", alignLeft: true);
-                RenderTableHeaderCell(t, "FILED");
-                RenderTableHeaderCell(t, "IN-PROC");
-                RenderTableHeaderCell(t, "RETURNED");
-                RenderTableHeaderCell(t, "ORs");
-                RenderTableHeaderCell(t, "COLLECTED (PHP)");
-                RenderTableHeaderCell(t, "DEPOSITED (BTr)");
-                RenderTableHeaderCell(t, "UNDEPOSITED");
-                RenderTableHeaderCell(t, "SLA %");
+                t.Header(h =>
+                {
+                    RenderSectionTitleRow(h, 9, "II. APPLICATION VOLUME PROCESSING STATUS, REVENUE COLLECTIONS & BANK DEPOSITS BY STREAM");
+                    RenderTableHeaderCell(h, "REGULATORY SERVICE STREAM", alignLeft: true);
+                    RenderTableHeaderCell(h, "FILED");
+                    RenderTableHeaderCell(h, "IN-PROC");
+                    RenderTableHeaderCell(h, "RETURNED");
+                    RenderTableHeaderCell(h, "ORs");
+                    RenderTableHeaderCell(h, "COLLECTED (PHP)");
+                    RenderTableHeaderCell(h, "DEPOSITED (BTr)");
+                    RenderTableHeaderCell(h, "UNDEPOSITED");
+                    RenderTableHeaderCell(h, "SLA %");
+                });
 
                 int totFiled = 0, totInProc = 0, totRet = 0, totOrs = 0;
                 decimal totColl = 0m, totDep = 0m, totUndep = 0m;
@@ -378,11 +391,15 @@ public partial class StatutoryReportDocument
                 RenderTotalCell(t, $"{overallSla}%");
             });
 
+            var volPrepared = ResolveMisOfficer("MIS / Statistics Officer");
+            var volChiefEod = ResolveChiefEod("Chief, EOD");
+            var volDirector = ResolveRegionalDirector("Regional Director");
+
             col.Item().PaddingTop(8).Element(c => ComposeSignatories(
                 c,
-                ("PREPARED BY:", _model.GeneratedBy, "MIS / Statistics Officer"),
-                ("NOTED BY:", "CHIEF, ENFORCEMENT & OPERATIONS DIV.", "Chief, EOD"),
-                ("APPROVED BY:", $"REGIONAL DIRECTOR — {_model.TenantName.ToUpperInvariant()}", "Regional Director")));
+                ("PREPARED BY:", volPrepared.Name, volPrepared.Role),
+                ("NOTED BY:", volChiefEod.Name, volChiefEod.Role),
+                ("APPROVED BY:", volDirector.Name, volDirector.Role)));
         });
     }
 
@@ -423,15 +440,18 @@ public partial class StatutoryReportDocument
                     cd.ConstantColumn(80); // Examinee Signature
                 });
 
-                RenderSectionTitleRow(t, 8, "OFFICIAL RADIO OPERATOR EXAMINATION ROSTER & ATTENDANCE SHEET");
-                RenderTableHeaderCell(t, "SEAT");
-                RenderTableHeaderCell(t, "APP / REF NO.");
-                RenderTableHeaderCell(t, "EXAMINEE FULL NAME", alignLeft: true);
-                RenderTableHeaderCell(t, "EXAMINATION CLASS / ELEMENT", alignLeft: true);
-                RenderTableHeaderCell(t, "OR NO.");
-                RenderTableHeaderCell(t, "FEE PAID");
-                RenderTableHeaderCell(t, "STATUS");
-                RenderTableHeaderCell(t, "SIGNATURE");
+                t.Header(h =>
+                {
+                    RenderSectionTitleRow(h, 8, "OFFICIAL RADIO OPERATOR EXAMINATION ROSTER & ATTENDANCE SHEET");
+                    RenderTableHeaderCell(h, "SEAT");
+                    RenderTableHeaderCell(h, "APP / REF NO.");
+                    RenderTableHeaderCell(h, "EXAMINEE FULL NAME", alignLeft: true);
+                    RenderTableHeaderCell(h, "EXAMINATION CLASS / ELEMENT", alignLeft: true);
+                    RenderTableHeaderCell(h, "OR NO.");
+                    RenderTableHeaderCell(h, "FEE PAID");
+                    RenderTableHeaderCell(h, "STATUS");
+                    RenderTableHeaderCell(h, "SIGNATURE");
+                });
 
                 if (apps.Count == 0)
                 {
@@ -441,7 +461,7 @@ public partial class StatutoryReportDocument
                 else
                 {
                     int idx = 1;
-                    foreach (var app in apps.Take(40))
+                    foreach (var app in apps)
                     {
                         var matchedTx = FindMatchingTransactionForApp(app);
                         var matchedOrs = _receiptsByAppId.TryGetValue(app.Id, out var appOrList) ? appOrList : null;
@@ -475,11 +495,15 @@ public partial class StatutoryReportDocument
                 }
             });
 
+            var examPrepared = ResolvePreparedByCurrentOfficer("Examination Marshall / Licensing Evaluator");
+            var examProctor = ResolveExamProctor("Authorized Examination Proctor");
+            var examDirector = ResolveRegionalDirector("Chairperson / Regional Director");
+
             col.Item().PaddingTop(8).Element(c => ComposeSignatories(
                 c,
-                ("PREPARED / VERIFIED BY:", _model.GeneratedBy, "Examination Marshall / Licensing Evaluator"),
-                ("PROCTORED & ATTESTED BY:", "REGIONAL EXAMINATION COMMITTEE", "Authorized Examination Proctor"),
-                ("APPROVED BY:", $"REGIONAL DIRECTOR — {_model.TenantName.ToUpperInvariant()}", "Chairperson / Regional Director")));
+                ("PREPARED / VERIFIED BY:", examPrepared.Name, examPrepared.Role),
+                ("PROCTORED & ATTESTED BY:", examProctor.Name, examProctor.Role),
+                ("APPROVED BY:", examDirector.Name, examDirector.Role)));
         });
     }
 }

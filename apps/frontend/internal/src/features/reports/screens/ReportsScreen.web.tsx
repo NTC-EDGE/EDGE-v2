@@ -6,7 +6,7 @@ import {
   Pressable,
   ScrollView,
   Platform,
-  TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import {
   COLORS,
@@ -58,6 +58,8 @@ const STATUTORY_PERIODS: Array<{ id: StatutoryPeriod; label: string }> = [
 
 export function ReportsScreen() {
   const { colors, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
   const state = useReportsState();
 
   // Selected Category Filter for the 10 Official Tenant Reports
@@ -117,7 +119,10 @@ export function ReportsScreen() {
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          { padding: isMobile ? SPACING[12] : SPACING[20] },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Page Header ── */}
@@ -582,6 +587,7 @@ export function ReportsScreen() {
                   style={[
                     styles.reportCard,
                     {
+                      minWidth: isMobile ? '100%' : 360,
                       backgroundColor: colors.cardBg,
                       borderColor: colors.border,
                       borderWidth: 1,
@@ -733,6 +739,8 @@ const styles = StyleSheet.create({
     paddingBottom: 90,
     gap: SPACING[16],
     width: '100%',
+    maxWidth: 1440,
+    alignSelf: 'center',
   },
   headerActions: {
     flexDirection: 'row',
@@ -892,7 +900,8 @@ const styles = StyleSheet.create({
   },
   periodControlsWrapper: {
     flex: 1.5,
-    minWidth: 320,
+    minWidth: 0,
+    width: '100%',
     gap: SPACING[6],
   },
   periodPillsRow: {
@@ -990,7 +999,7 @@ const styles = StyleSheet.create({
     gap: SPACING[8],
     flexWrap: 'wrap',
     flex: 1,
-    minWidth: 320,
+    minWidth: 0,
   },
   categoryTabBtn: {
     flexDirection: 'row',

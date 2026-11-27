@@ -40,8 +40,64 @@ public static class ReportEndpoints
             .Produces(StatusCodes.Status403Forbidden);
 
         group.MapGet("/statutory/print", PrintStatutoryReport)
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
             .WithName("PrintStatutoryReport")
             .WithSummary("Generate and stream an official QuestPDF vector statutory report document.")
+            .Produces(StatusCodes.Status200OK, contentType: "application/pdf")
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/statutory/download", (
+            [FromQuery] string? code,
+            [FromQuery] Guid? tenantId,
+            [FromQuery] string? period,
+            [FromQuery] DateTime? startDate,
+            [FromQuery] DateTime? endDate,
+            [FromQuery] string? secondaryFilter,
+            [FromQuery] string? fieldOffices,
+            HttpContext httpContext,
+            IApplicationFullRepository applicationRepository,
+            ITenantRepository tenantRepository,
+            IFieldOfficeRepository fieldOfficeRepository,
+            IOfficialReceiptRepository receiptRepository,
+            IBankDepositRepository depositRepository,
+            IFeedbackRepository feedbackRepository,
+            ITenantContextService tenantContextService,
+            ICurrentUserService currentUserService,
+            IUserRepository userRepository,
+            ITenantMemberRepository tenantMemberRepository,
+            IRegionalConfigurationService regionalConfigurationService,
+            IFormPrintingService printingService,
+            IValidator<GetOperationalReportStatisticsQuery> validator,
+            CancellationToken cancellationToken) =>
+            PrintStatutoryReport(
+                code,
+                tenantId,
+                period,
+                startDate,
+                endDate,
+                secondaryFilter,
+                fieldOffices,
+                httpContext,
+                applicationRepository,
+                tenantRepository,
+                fieldOfficeRepository,
+                receiptRepository,
+                depositRepository,
+                feedbackRepository,
+                tenantContextService,
+                currentUserService,
+                userRepository,
+                tenantMemberRepository,
+                regionalConfigurationService,
+                printingService,
+                validator,
+                download: true,
+                cancellationToken))
+            .RequireRateLimiting(EDGE.Api.Services.RateLimitPolicies.HeavyCompute)
+            .WithName("DownloadStatutoryReport")
+            .WithSummary("Download an official QuestPDF vector statutory report document.")
             .Produces(StatusCodes.Status200OK, contentType: "application/pdf")
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
@@ -105,7 +161,6 @@ public static class ReportEndpoints
         [FromQuery] DateTime? endDate,
         [FromQuery] string? secondaryFilter,
         [FromQuery] string? fieldOffices,
-        [FromQuery] bool download,
         HttpContext httpContext,
         IApplicationFullRepository applicationRepository,
         ITenantRepository tenantRepository,
@@ -116,8 +171,11 @@ public static class ReportEndpoints
         ITenantContextService tenantContextService,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
+        ITenantMemberRepository tenantMemberRepository,
+        IRegionalConfigurationService regionalConfigurationService,
         IFormPrintingService printingService,
         IValidator<GetOperationalReportStatisticsQuery> validator,
+        [FromQuery] bool download = false,
         CancellationToken cancellationToken = default)
     {
         var userIdStr = currentUserService.UserId;
@@ -178,6 +236,9 @@ public static class ReportEndpoints
         }
 
         string tenantDisplayName = "NTC Regional Office (All Active Regions)";
+        string fundCluster = "01101101";
+        string regionalOfficeAddress = string.Empty;
+        var reportSignatories = new ReportSignatoriesDto();
         if (targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
         {
             var tenantEntity = await tenantRepository.GetByIdAsync(targetTenantId.Value, cancellationToken);
@@ -189,6 +250,45 @@ public static class ReportEndpoints
             {
                 tenantDisplayName = $"NTC Regional Office ({targetTenantId.Value.ToString()[..8].ToUpperInvariant()})";
             }
+
+            try
+            {
+                var regionalConfig = await regionalConfigurationService.GetConfigurationAsync(targetTenantId.Value, cancellationToken);
+                if (regionalConfig != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(regionalConfig.FundCluster))
+                    {
+                        var trimmedCluster = regionalConfig.FundCluster.Trim();
+                        fundCluster = string.Equals(trimmedCluster, "01", StringComparison.OrdinalIgnoreCase)
+                            ? "01101101"
+                            : trimmedCluster;
+                    }
+                    if (regionalConfig.ReportSignatories != null)
+                    {
+                        reportSignatories = regionalConfig.ReportSignatories;
+                    }
+                }
+            }
+            catch
+            {
+                // Keep default FundCluster and Signatories if regional config lookup fails
+            }
+
+            try
+            {
+                var tenantFieldOffices = await fieldOfficeRepository.GetByTenantIdAsync(targetTenantId.Value, cancellationToken);
+                var mainOffice = tenantFieldOffices?.FirstOrDefault(fo =>
+                    fo.Category.ToString().Contains("Main", StringComparison.OrdinalIgnoreCase) ||
+                    fo.Name.Contains("Main Office", StringComparison.OrdinalIgnoreCase)) ?? tenantFieldOffices?.FirstOrDefault();
+                if (mainOffice != null && !string.IsNullOrWhiteSpace(mainOffice.Address))
+                {
+                    regionalOfficeAddress = mainOffice.Address.Trim();
+                }
+            }
+            catch
+            {
+                // Ignore field office address lookup errors
+            }
         }
 
         var currentUser = await userRepository.ResolveCurrentUserAsync(currentUserService, cancellationToken);
@@ -196,6 +296,26 @@ public static class ReportEndpoints
         string generatedBy = !string.IsNullOrWhiteSpace(fullName)
             ? fullName
             : (currentUser?.Email ?? "Authorized Regional Officer");
+        string generatedByTitle = string.Empty;
+        if (currentUser != null && targetTenantId.HasValue && targetTenantId.Value != Guid.Empty)
+        {
+            try
+            {
+                var member = await tenantMemberRepository.GetByTenantAndUserAsync(targetTenantId.Value, currentUser.Id, cancellationToken);
+                if (member != null)
+                {
+                    generatedByTitle = !string.IsNullOrWhiteSpace(member.Designation)
+                        ? member.Designation.Trim()
+                        : (!string.IsNullOrWhiteSpace(member.Position)
+                            ? member.Position.Trim()
+                            : (member.JobTitle?.Trim() ?? string.Empty));
+                }
+            }
+            catch
+            {
+                // Ignore member title lookup failures
+            }
+        }
 
         // Load tenant applications
         var tenantApps = new List<ApplicationSummaryDto>();
@@ -541,7 +661,11 @@ public static class ReportEndpoints
             StartDate = filterStart.ToString("yyyy-MM-dd"),
             EndDate = filterEnd.ToString("yyyy-MM-dd"),
             GeneratedBy = generatedBy,
+            GeneratedByTitle = generatedByTitle,
             GeneratedAt = DateTime.UtcNow,
+            FundCluster = fundCluster,
+            RegionalOfficeAddress = regionalOfficeAddress,
+            Signatories = reportSignatories,
             SecondaryFilter = trimmedSecondary,
             FieldOfficeFilter = fieldOfficeFilterLabel,
             Applications = filteredApps,

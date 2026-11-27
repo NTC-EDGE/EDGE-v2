@@ -86,6 +86,24 @@ export interface PrintStatutoryReportParams {
   fieldOffices?: string;
 }
 
+function buildStatutoryPrintQueryParams(
+  params: PrintStatutoryReportParams,
+  download: boolean
+): Record<string, string> {
+  const queryParams: Record<string, string> = {
+    code: params.code,
+    download: download ? 'true' : 'false',
+  };
+  const effectiveTenantId = resolveEffectiveTenantId(params.tenantId);
+  if (effectiveTenantId) queryParams.tenantId = effectiveTenantId;
+  if (params.period) queryParams.period = params.period;
+  if (params.startDate) queryParams.startDate = params.startDate;
+  if (params.endDate) queryParams.endDate = params.endDate;
+  if (params.secondaryFilter) queryParams.secondaryFilter = params.secondaryFilter;
+  if (params.fieldOffices) queryParams.fieldOffices = params.fieldOffices;
+  return queryParams;
+}
+
 export const reportService = {
   getOperationalReportStatistics: async (
     params?: GetOperationalReportStatisticsParams
@@ -109,19 +127,21 @@ export const reportService = {
     return res.data;
   },
 
+  getStatutoryReportPrintUrl: (params: PrintStatutoryReportParams): string => {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const qs = new URLSearchParams(buildStatutoryPrintQueryParams(params, false)).toString();
+    return `${base}/api/v2/reports/statutory/print?${qs}`;
+  },
+
+  getStatutoryReportDownloadUrl: (params: PrintStatutoryReportParams): string => {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    const qs = new URLSearchParams(buildStatutoryPrintQueryParams(params, true)).toString();
+    return `${base}/api/v2/reports/statutory/print?${qs}`;
+  },
+
   previewStatutoryReportPdf: async (params: PrintStatutoryReportParams) => {
     return safeAsync(async () => {
-      const queryParams: Record<string, string> = {
-        code: params.code,
-      };
-      const effectivePreviewTenantId = resolveEffectiveTenantId(params.tenantId);
-      if (effectivePreviewTenantId) queryParams.tenantId = effectivePreviewTenantId;
-      if (params.period) queryParams.period = params.period;
-      if (params.startDate) queryParams.startDate = params.startDate;
-      if (params.endDate) queryParams.endDate = params.endDate;
-      if (params.secondaryFilter) queryParams.secondaryFilter = params.secondaryFilter;
-      if (params.fieldOffices) queryParams.fieldOffices = params.fieldOffices;
-
+      const queryParams = buildStatutoryPrintQueryParams(params, false);
       const response = await apiClient.get<Blob>('/api/v2/reports/statutory/print', {
         params: queryParams,
         responseType: 'blob',
@@ -132,18 +152,7 @@ export const reportService = {
 
   downloadStatutoryReportPdf: async (params: PrintStatutoryReportParams) => {
     return safeAsync(async () => {
-      const queryParams: Record<string, string> = {
-        code: params.code,
-        download: 'true',
-      };
-      const effectiveDownloadTenantId = resolveEffectiveTenantId(params.tenantId);
-      if (effectiveDownloadTenantId) queryParams.tenantId = effectiveDownloadTenantId;
-      if (params.period) queryParams.period = params.period;
-      if (params.startDate) queryParams.startDate = params.startDate;
-      if (params.endDate) queryParams.endDate = params.endDate;
-      if (params.secondaryFilter) queryParams.secondaryFilter = params.secondaryFilter;
-      if (params.fieldOffices) queryParams.fieldOffices = params.fieldOffices;
-
+      const queryParams = buildStatutoryPrintQueryParams(params, true);
       const response = await apiClient.get<Blob>('/api/v2/reports/statutory/print', {
         params: queryParams,
         responseType: 'blob',

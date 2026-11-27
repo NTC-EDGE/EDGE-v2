@@ -33,12 +33,13 @@ public partial class StatutoryReportDocument
         container.Column(col =>
         {
             // COA Appendix 26 Metadata Banner
+            var effectiveFundCluster = !string.IsNullOrWhiteSpace(_model.FundCluster) ? _model.FundCluster : "01101101";
             col.Item().Border(0.8f).BorderColor(Colors.Black).Padding(4).Row(r =>
             {
                 r.RelativeItem().Column(c =>
                 {
                     c.Item().Text($"Entity Name: NATIONAL TELECOMMUNICATIONS COMMISSION — {_model.TenantName.ToUpperInvariant()}").Bold().FontSize(7.5f);
-                    c.Item().Text("Fund Cluster: 01101101 — Regular Agency Fund (General Fund - New General Appropriations)").FontSize(7f);
+                    c.Item().Text($"Fund Cluster: {effectiveFundCluster} — Regular Agency Fund (General Fund - New General Appropriations)").FontSize(7f);
                 });
                 r.ConstantItem(220).Column(c =>
                 {
@@ -69,22 +70,25 @@ public partial class StatutoryReportDocument
                     cd.ConstantColumn(56); // Deposit Status
                 });
 
-                RenderSectionTitleRow(t, 15, "I. SCHEDULE OF OFFICIAL RECEIPT COLLECTIONS BY UACS OBJECT CODE & DEPOSIT STATUS");
-                RenderTableHeaderCell(t, "OR DATE");
-                RenderTableHeaderCell(t, "OR NO.");
-                RenderTableHeaderCell(t, "PAYOR / ENTITY", alignLeft: true);
-                RenderTableHeaderCell(t, "SERVICE / PARTICULAR", alignLeft: true);
-                RenderTableHeaderCell(t, "TOTAL OR");
-                RenderTableHeaderCell(t, "PERMIT\n40201010");
-                RenderTableHeaderCell(t, "LICENSE\n40201010");
-                RenderTableHeaderCell(t, "REGIST.\n40201020");
-                RenderTableHeaderCell(t, "CLR/EXM\n40201030");
-                RenderTableHeaderCell(t, "SUPERV.\n40201070");
-                RenderTableHeaderCell(t, "SPECTRUM\n40201140");
-                RenderTableHeaderCell(t, "FINES\n40201140");
-                RenderTableHeaderCell(t, "DST\n20201050");
-                RenderTableHeaderCell(t, "OTHER\n40201990");
-                RenderTableHeaderCell(t, "DEPOSIT\nSTATUS");
+                t.Header(h =>
+                {
+                    RenderSectionTitleRow(h, 15, "I. SCHEDULE OF OFFICIAL RECEIPT COLLECTIONS BY UACS OBJECT CODE & DEPOSIT STATUS");
+                    RenderTableHeaderCell(h, "OR DATE");
+                    RenderTableHeaderCell(h, "OR NO.");
+                    RenderTableHeaderCell(h, "PAYOR / ENTITY", alignLeft: true);
+                    RenderTableHeaderCell(h, "SERVICE / PARTICULAR", alignLeft: true);
+                    RenderTableHeaderCell(h, "TOTAL OR");
+                    RenderTableHeaderCell(h, "PERMIT\n40201010");
+                    RenderTableHeaderCell(h, "LICENSE\n40201010");
+                    RenderTableHeaderCell(h, "REGIST.\n40201020");
+                    RenderTableHeaderCell(h, "CLR/EXM\n40201030");
+                    RenderTableHeaderCell(h, "SUPERV.\n40201070");
+                    RenderTableHeaderCell(h, "SPECTRUM\n40201140");
+                    RenderTableHeaderCell(h, "FINES\n40201140");
+                    RenderTableHeaderCell(h, "DST\n20201050");
+                    RenderTableHeaderCell(h, "OTHER\n40201990");
+                    RenderTableHeaderCell(h, "DEPOSIT\nSTATUS");
+                });
 
                 if (uacsRows.Count == 0)
                 {
@@ -93,7 +97,7 @@ public partial class StatutoryReportDocument
                 }
                 else
                 {
-                    foreach (var item in uacsRows.Take(28))
+                    foreach (var item in uacsRows)
                     {
                         var tx = item.Tx;
                         var b = item.Breakdown;
@@ -147,25 +151,28 @@ public partial class StatutoryReportDocument
                         cd.ConstantColumn(65); // Status
                     });
 
-                    RenderSectionTitleRow(t, 9, "II. SCHEDULE OF VALIDATED BANK DEPOSITS / AGDB REMITTANCE BATCHES");
-                    RenderTableHeaderCell(t, "DEPOSIT DATE");
-                    RenderTableHeaderCell(t, "DEPOSIT SLIP NO.");
-                    RenderTableHeaderCell(t, "AUTHORIZED GOVT DEPOSITORY BANK (AGDB)", alignLeft: true);
-                    RenderTableHeaderCell(t, "FUND CLUSTER");
-                    RenderTableHeaderCell(t, "CASH AMOUNT");
-                    RenderTableHeaderCell(t, "CHECK AMOUNT");
-                    RenderTableHeaderCell(t, "TOTAL DEPOSITED");
-                    RenderTableHeaderCell(t, "OR COUNT");
-                    RenderTableHeaderCell(t, "STATUS");
+                    t.Header(h =>
+                    {
+                        RenderSectionTitleRow(h, 9, "II. SCHEDULE OF VALIDATED BANK DEPOSITS / AGDB REMITTANCE BATCHES");
+                        RenderTableHeaderCell(h, "DEPOSIT DATE");
+                        RenderTableHeaderCell(h, "DEPOSIT SLIP NO.");
+                        RenderTableHeaderCell(h, "AUTHORIZED GOVT DEPOSITORY BANK (AGDB)", alignLeft: true);
+                        RenderTableHeaderCell(h, "FUND CLUSTER");
+                        RenderTableHeaderCell(h, "CASH AMOUNT");
+                        RenderTableHeaderCell(h, "CHECK AMOUNT");
+                        RenderTableHeaderCell(h, "TOTAL DEPOSITED");
+                        RenderTableHeaderCell(h, "OR COUNT");
+                        RenderTableHeaderCell(h, "STATUS");
+                    });
 
-                    foreach (var d in _model.BankDeposits.Take(10))
+                    foreach (var d in _model.BankDeposits)
                     {
                         string bankInfo = d.BankAccount != null
                             ? $"{d.BankAccount.BankName} — Acct #{d.BankAccount.AccountNumber}"
                             : "LandBank / DBP — BTr Treasury Account";
                         string fundCluster = d.BankAccount != null && !string.IsNullOrWhiteSpace(d.BankAccount.FundCluster)
                             ? d.BankAccount.FundCluster
-                            : "01101101 (NGP)";
+                            : $"{effectiveFundCluster} (NGP)";
 
                         RenderBodyCell(t, d.DepositDate.ToString("yyyy-MM-dd"));
                         RenderBodyCell(t, d.DepositSlipNumber, bold: true);
@@ -200,11 +207,15 @@ public partial class StatutoryReportDocument
                 });
             });
 
+            var cashierSig = ResolveCollectingOfficer("Collecting Officer / Regional Cashier III");
+            var accountantSig = ResolveRegionalAccountant("Head, Accounting Unit (FAD)");
+            var directorSig = ResolveRegionalDirector("Regional Director");
+
             col.Item().PaddingTop(5).Element(c => ComposeSignatories(
                 c,
-                ("PREPARED & CERTIFIED CORRECT BY:", _model.GeneratedBy, "Collecting Officer / Regional Cashier III"),
-                ("VERIFIED & RECONCILED BY:", "REGIONAL ACCOUNTANT III", "Head, Accounting Unit (FAD)"),
-                ("APPROVED BY:", $"REGIONAL DIRECTOR — {_model.TenantName.ToUpperInvariant()}", "Regional Director")));
+                ("PREPARED & CERTIFIED CORRECT BY:", cashierSig.Name, cashierSig.Role),
+                ("VERIFIED & RECONCILED BY:", accountantSig.Name, accountantSig.Role),
+                ("APPROVED BY:", directorSig.Name, directorSig.Role)));
         });
     }
 
@@ -263,15 +274,18 @@ public partial class StatutoryReportDocument
                     cd.ConstantColumn(75); // Remittance Status
                 });
 
-                RenderSectionTitleRow(t, 8, "SCHEDULE OF CONSTRUCTIVE DOCUMENTARY STAMP TAX (DST) COLLECTIONS & REMITTANCE STATUS");
-                RenderTableHeaderCell(t, "OR DATE");
-                RenderTableHeaderCell(t, "OR NUMBER");
-                RenderTableHeaderCell(t, "TAXPAYER / PAYOR NAME", alignLeft: true);
-                RenderTableHeaderCell(t, "TAXABLE CERTIFICATE / LICENSE / PERMIT", alignLeft: true);
-                RenderTableHeaderCell(t, "GROSS OR");
-                RenderTableHeaderCell(t, "NET REG. FEE");
-                RenderTableHeaderCell(t, "DST (SEC. 188)");
-                RenderTableHeaderCell(t, "REMITTANCE");
+                t.Header(h =>
+                {
+                    RenderSectionTitleRow(h, 8, "SCHEDULE OF CONSTRUCTIVE DOCUMENTARY STAMP TAX (DST) COLLECTIONS & REMITTANCE STATUS");
+                    RenderTableHeaderCell(h, "OR DATE");
+                    RenderTableHeaderCell(h, "OR NUMBER");
+                    RenderTableHeaderCell(h, "TAXPAYER / PAYOR NAME", alignLeft: true);
+                    RenderTableHeaderCell(h, "TAXABLE CERTIFICATE / LICENSE / PERMIT", alignLeft: true);
+                    RenderTableHeaderCell(h, "GROSS OR");
+                    RenderTableHeaderCell(h, "NET REG. FEE");
+                    RenderTableHeaderCell(h, "DST (SEC. 188)");
+                    RenderTableHeaderCell(h, "REMITTANCE");
+                });
 
                 if (rows.Count == 0)
                 {
@@ -280,7 +294,7 @@ public partial class StatutoryReportDocument
                 }
                 else
                 {
-                    foreach (var r in rows.Take(38))
+                    foreach (var r in rows)
                     {
                         RenderBodyCell(t, r.Tx.Date.ToString("yyyy-MM-dd"));
                         RenderBodyCell(t, r.Tx.RefNo, bold: true);
@@ -300,11 +314,15 @@ public partial class StatutoryReportDocument
                 RenderTotalCell(t, $"Remitted: {FormatCurrency(totalDstDeposited)}");
             });
 
+            var dstCashier = ResolveCollectingOfficer("Collecting Officer / Cashier III");
+            var dstAccountant = ResolveRegionalAccountant("Head, Accounting Unit");
+            var dstDirector = ResolveRegionalDirector("Regional Director");
+
             col.Item().PaddingTop(8).Element(c => ComposeSignatories(
                 c,
-                ("PREPARED BY:", _model.GeneratedBy, "Collecting Officer / Cashier III"),
-                ("CERTIFIED CORRECT BY:", "REGIONAL ACCOUNTANT III", "Head, Accounting Unit"),
-                ("APPROVED FOR REMITTANCE BY:", $"REGIONAL DIRECTOR — {_model.TenantName.ToUpperInvariant()}", "Regional Director")));
+                ("PREPARED BY:", dstCashier.Name, dstCashier.Role),
+                ("CERTIFIED CORRECT BY:", dstAccountant.Name, dstAccountant.Role),
+                ("APPROVED FOR REMITTANCE BY:", dstDirector.Name, dstDirector.Role)));
         });
     }
 
@@ -318,17 +336,20 @@ public partial class StatutoryReportDocument
         var depositedTotals = ComputeDepositedUacsTotals(paidTx);
         var depositMetrics = ComputeDepositMetrics(paidTx, totals.Dst);
 
+        var effectiveFundCluster = !string.IsNullOrWhiteSpace(_model.FundCluster) ? _model.FundCluster : "01101101";
+        var ngpFundLabel = $"{effectiveFundCluster} (General Fund - NGP)";
+
         var schedule = new (string Code, string Title, string LegalBasis, decimal Collected, decimal Deposited, string Fund)[]
         {
-            ("4-02-01-010-A", "Permit Fees — Purchase / Possess / Construction / Temporary Permits", "Act 3846 / EO 546", totals.PermitFees, depositedTotals.PermitFees, "01101101 (General Fund - NGP)"),
-            ("4-02-01-010-B", "License Fees — Radio Station License (RSL) & Operator Certificates (ROC)", "Act 3846 / RA 7925", totals.LicenseFees, depositedTotals.LicenseFees, "01101101 (General Fund - NGP)"),
-            ("4-02-01-020", "Registration Fees — Radio Transceivers, Telecom & CPE Registration", "EO 546 / NTC MC", totals.RegistrationFees, depositedTotals.RegistrationFees, "01101101 (General Fund - NGP)"),
-            ("4-02-01-030", "Examination Fees — Radio Operator & Amateur Examinations", "Act 3846 / RA 11032", totals.ExamFees, depositedTotals.ExamFees, "01101101 (General Fund - NGP)"),
-            ("4-02-01-040", "Clearance and Certification Fees — Certified True Copies & Verifications", "EO 546 / NTC Charter", totals.ClearanceFees, depositedTotals.ClearanceFees, "01101101 (General Fund - NGP)"),
-            ("4-02-01-070", "Supervision and Regulation Enforcement Fees (SRF)", "CA 146 / RA 7925", totals.SupervisionFees, depositedTotals.SupervisionFees, "01101101 (General Fund - NGP)"),
-            ("4-02-01-140-A", "Spectrum User's Fee (SUF)", "RA 7925 Sec. 15", totals.SpectrumSuf, depositedTotals.SpectrumSuf, "01101101 (General Fund - NGP)"),
-            ("4-02-01-140-B", "Fines and Penalties — Service Income & Late Renewal Surcharges", "Act 3846 / NTC Schedule", totals.FinesPenalties, depositedTotals.FinesPenalties, "01101101 (General Fund - NGP)"),
-            ("4-02-01-990", "Other Service Income — Modifications, Call Sign & Miscellaneous Fees", "GAM Vol. I / EO 546", totals.OtherIncome, depositedTotals.OtherIncome, "01101101 (General Fund - NGP)"),
+            ("4-02-01-010-A", "Permit Fees — Purchase / Possess / Construction / Temporary Permits", "Act 3846 / EO 546", totals.PermitFees, depositedTotals.PermitFees, ngpFundLabel),
+            ("4-02-01-010-B", "License Fees — Radio Station License (RSL) & Operator Certificates (ROC)", "Act 3846 / RA 7925", totals.LicenseFees, depositedTotals.LicenseFees, ngpFundLabel),
+            ("4-02-01-020", "Registration Fees — Radio Transceivers, Telecom & CPE Registration", "EO 546 / NTC MC", totals.RegistrationFees, depositedTotals.RegistrationFees, ngpFundLabel),
+            ("4-02-01-030", "Examination Fees — Radio Operator & Amateur Examinations", "Act 3846 / RA 11032", totals.ExamFees, depositedTotals.ExamFees, ngpFundLabel),
+            ("4-02-01-040", "Clearance and Certification Fees — Certified True Copies & Verifications", "EO 546 / NTC Charter", totals.ClearanceFees, depositedTotals.ClearanceFees, ngpFundLabel),
+            ("4-02-01-070", "Supervision and Regulation Enforcement Fees (SRF)", "CA 146 / RA 7925", totals.SupervisionFees, depositedTotals.SupervisionFees, ngpFundLabel),
+            ("4-02-01-140-A", "Spectrum User's Fee (SUF)", "RA 7925 Sec. 15", totals.SpectrumSuf, depositedTotals.SpectrumSuf, ngpFundLabel),
+            ("4-02-01-140-B", "Fines and Penalties — Service Income & Late Renewal Surcharges", "Act 3846 / NTC Schedule", totals.FinesPenalties, depositedTotals.FinesPenalties, ngpFundLabel),
+            ("4-02-01-990", "Other Service Income — Modifications, Call Sign & Miscellaneous Fees", "GAM Vol. I / EO 546", totals.OtherIncome, depositedTotals.OtherIncome, ngpFundLabel),
             ("2-02-01-050", "Due to BIR — Documentary Stamp Tax (Constructive Affixture)", "NIRC Sec. 188 / RA 10963", totals.Dst, depositedTotals.Dst, "Trust / Inter-Agency Remittance")
         };
 
@@ -347,14 +368,17 @@ public partial class StatutoryReportDocument
                     cd.ConstantColumn(72);
                 });
 
-                RenderSectionTitleRow(t, 7, "I. STATEMENT OF INCOME COLLECTED AND DEPOSITED WITH THE BUREAU OF THE TREASURY (BTr)");
-                RenderTableHeaderCell(t, "UACS CODE");
-                RenderTableHeaderCell(t, "REVENUE ACCOUNT TITLE / DESCRIPTION", alignLeft: true);
-                RenderTableHeaderCell(t, "STATUTORY BASIS", alignLeft: true);
-                RenderTableHeaderCell(t, "FUND CLUSTER", alignLeft: true);
-                RenderTableHeaderCell(t, "COLLECTED (PHP)");
-                RenderTableHeaderCell(t, "DEPOSITED (BTr)");
-                RenderTableHeaderCell(t, "UNDEPOSITED");
+                t.Header(h =>
+                {
+                    RenderSectionTitleRow(h, 7, "I. STATEMENT OF INCOME COLLECTED AND DEPOSITED WITH THE BUREAU OF THE TREASURY (BTr)");
+                    RenderTableHeaderCell(h, "UACS CODE");
+                    RenderTableHeaderCell(h, "REVENUE ACCOUNT TITLE / DESCRIPTION", alignLeft: true);
+                    RenderTableHeaderCell(h, "STATUTORY BASIS", alignLeft: true);
+                    RenderTableHeaderCell(h, "FUND CLUSTER", alignLeft: true);
+                    RenderTableHeaderCell(h, "COLLECTED (PHP)");
+                    RenderTableHeaderCell(h, "DEPOSITED (BTr)");
+                    RenderTableHeaderCell(h, "UNDEPOSITED");
+                });
 
                 foreach (var row in schedule)
                 {
@@ -389,16 +413,19 @@ public partial class StatutoryReportDocument
                         cd.ConstantColumn(80);
                     });
 
-                    RenderSectionTitleRow(t, 7, "II. VALIDATED BANK DEPOSIT SLIPS / AGDB TREASURY REMITTANCES");
-                    RenderTableHeaderCell(t, "DEPOSIT DATE");
-                    RenderTableHeaderCell(t, "DEPOSIT SLIP NO.");
-                    RenderTableHeaderCell(t, "DEPOSITORY BANK & ACCOUNT", alignLeft: true);
-                    RenderTableHeaderCell(t, "FUND CLUSTER");
-                    RenderTableHeaderCell(t, "CASH REMITTED");
-                    RenderTableHeaderCell(t, "CHECK REMITTED");
-                    RenderTableHeaderCell(t, "TOTAL DEPOSITED");
+                    t.Header(h =>
+                    {
+                        RenderSectionTitleRow(h, 7, "II. VALIDATED BANK DEPOSIT SLIPS / AGDB TREASURY REMITTANCES");
+                        RenderTableHeaderCell(h, "DEPOSIT DATE");
+                        RenderTableHeaderCell(h, "DEPOSIT SLIP NO.");
+                        RenderTableHeaderCell(h, "DEPOSITORY BANK & ACCOUNT", alignLeft: true);
+                        RenderTableHeaderCell(h, "FUND CLUSTER");
+                        RenderTableHeaderCell(h, "CASH REMITTED");
+                        RenderTableHeaderCell(h, "CHECK REMITTED");
+                        RenderTableHeaderCell(h, "TOTAL DEPOSITED");
+                    });
 
-                    foreach (var d in _model.BankDeposits.Take(8))
+                    foreach (var d in _model.BankDeposits)
                     {
                         string bankInfo = d.BankAccount != null
                             ? $"{d.BankAccount.BankName} ({d.BankAccount.AccountNumber})"
@@ -406,7 +433,7 @@ public partial class StatutoryReportDocument
                         RenderBodyCell(t, d.DepositDate.ToString("yyyy-MM-dd"));
                         RenderBodyCell(t, d.DepositSlipNumber, bold: true);
                         RenderBodyCell(t, bankInfo, alignLeft: true);
-                        RenderBodyCell(t, d.BankAccount?.FundCluster ?? "01101101");
+                        RenderBodyCell(t, d.BankAccount?.FundCluster ?? effectiveFundCluster);
                         RenderBodyCell(t, FormatCurrency(d.CashAmount), alignRight: true);
                         RenderBodyCell(t, FormatCurrency(d.CheckAmount), alignRight: true);
                         RenderBodyCell(t, FormatCurrency(d.TotalAmount), alignRight: true, bold: true);
@@ -414,11 +441,15 @@ public partial class StatutoryReportDocument
                 });
             }
 
+            var btrCashier = ResolveCollectingOfficer("Regional Cashier III");
+            var btrAccountant = ResolveRegionalAccountant("Chief Accountant / FAD");
+            var btrDirector = ResolveRegionalDirector("Regional Director");
+
             col.Item().PaddingTop(8).Element(c => ComposeSignatories(
                 c,
-                ("PREPARED BY:", _model.GeneratedBy, "Regional Cashier III"),
-                ("CERTIFIED CORRECT BY:", "REGIONAL ACCOUNTANT III", "Chief Accountant / FAD"),
-                ("APPROVED BY:", $"REGIONAL DIRECTOR — {_model.TenantName.ToUpperInvariant()}", "Regional Director")));
+                ("PREPARED BY:", btrCashier.Name, btrCashier.Role),
+                ("CERTIFIED CORRECT BY:", btrAccountant.Name, btrAccountant.Role),
+                ("APPROVED BY:", btrDirector.Name, btrDirector.Role)));
         });
     }
 }

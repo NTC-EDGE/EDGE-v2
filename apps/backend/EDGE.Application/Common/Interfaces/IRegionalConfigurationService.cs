@@ -4,6 +4,22 @@ using System.Threading.Tasks;
 
 namespace EDGE.Application.Common.Interfaces;
 
+public class ReportSignatoriesDto
+{
+    public string RegionalDirectorName { get; set; } = string.Empty;
+    public string RegionalDirectorTitle { get; set; } = "Regional Director";
+    public string ChiefEodName { get; set; } = string.Empty;
+    public string ChiefEodTitle { get; set; } = "Chief, Enforcement & Operations Division";
+    public string RegionalAccountantName { get; set; } = string.Empty;
+    public string RegionalAccountantTitle { get; set; } = "Regional Accountant III";
+    public string CollectingOfficerName { get; set; } = string.Empty;
+    public string CollectingOfficerTitle { get; set; } = "Collecting Officer / Regional Cashier III";
+    public string MisOfficerName { get; set; } = string.Empty;
+    public string MisOfficerTitle { get; set; } = "MIS / Planning Officer";
+    public string ExamProctorName { get; set; } = string.Empty;
+    public string ExamProctorTitle { get; set; } = "Authorized Examination Proctor";
+}
+
 public class RegionalConfigurationDto
 {
     public Guid TenantId { get; set; }
@@ -19,6 +35,7 @@ public class RegionalConfigurationDto
     public bool AllowManualSoaNumber { get; set; }
     public bool AllowManualOpNumber { get; set; }
     public bool EnableInternalEmailNotifications { get; set; } = true;
+    public ReportSignatoriesDto? ReportSignatories { get; set; }
 }
 
 public interface IRegionalConfigurationService

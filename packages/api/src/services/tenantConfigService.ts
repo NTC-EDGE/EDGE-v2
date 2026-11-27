@@ -1,7 +1,22 @@
 import { apiClient } from '../apiClient';
 import { ApiResponse } from '../types';
-import { RegionalConfigDto } from '../types/region';
+import { RegionalConfigDto, ReportSignatoriesDto } from '../types/region';
 import { resolveEffectiveTenantId } from '../utils/tenantUtils';
+
+export const DEFAULT_REPORT_SIGNATORIES: ReportSignatoriesDto = {
+  regionalDirectorName: '',
+  regionalDirectorTitle: 'Regional Director',
+  chiefEodName: '',
+  chiefEodTitle: 'Chief, Enforcement & Operations Division',
+  regionalAccountantName: '',
+  regionalAccountantTitle: 'Regional Accountant III',
+  collectingOfficerName: '',
+  collectingOfficerTitle: 'Collecting Officer / Regional Cashier III',
+  misOfficerName: '',
+  misOfficerTitle: 'MIS / Planning Officer',
+  examProctorName: '',
+  examProctorTitle: 'Authorized Examination Proctor',
+};
 
 export const DEFAULT_TENANT_CONFIG: RegionalConfigDto = {
   tenantCode: '10',
@@ -13,6 +28,7 @@ export const DEFAULT_TENANT_CONFIG: RegionalConfigDto = {
   allowManualSoaNumber: false,
   allowManualOpNumber: false,
   enableInternalEmailNotifications: true,
+  reportSignatories: DEFAULT_REPORT_SIGNATORIES,
 };
 
 function isRegionalConfigDto(data: unknown): data is RegionalConfigDto {
@@ -80,6 +96,7 @@ export const updateTenantConfig = async (
     allowManualOpNumber: config.allowManualOpNumber ?? DEFAULT_TENANT_CONFIG.allowManualOpNumber,
     enableInternalEmailNotifications:
       config.enableInternalEmailNotifications ?? DEFAULT_TENANT_CONFIG.enableInternalEmailNotifications,
+    reportSignatories: config.reportSignatories ?? DEFAULT_REPORT_SIGNATORIES,
   };
 };
 

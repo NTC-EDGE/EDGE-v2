@@ -317,6 +317,7 @@ export function AdminSettingsScreen(): React.ReactElement {
           {activeTab === "regional" && (
             <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
               <RegionalConfigTab
+                tenantId={effectiveTenantId}
                 configs={regionalConfigs}
                 branchOffices={branchOffices}
                 stats={stats}
@@ -335,6 +336,23 @@ export function AdminSettingsScreen(): React.ReactElement {
                     return;
                   }
                   showToast(`Internal officer email alerts ${enabled ? 'enabled' : 'disabled'}.`, 'success');
+                  void refetchTenantConfig();
+                }}
+                reportSignatories={tenantConfig.reportSignatories}
+                onSaveReportSignatories={async (signatories) => {
+                  const targetTenantId = effectiveTenantId || '00000000-0000-0000-0000-000000000001';
+                  const [res, err] = await safeAsync(
+                    updateTenantConfig({
+                      ...tenantConfig,
+                      tenantId: targetTenantId,
+                      reportSignatories: signatories,
+                    })
+                  );
+                  if (err || !res) {
+                    showToast(err || 'Failed to save report signatories.', 'error');
+                    return;
+                  }
+                  showToast('Statutory report signatories saved successfully!', 'success');
                   void refetchTenantConfig();
                 }}
                 onEditConfig={handleEditConfig}
@@ -377,6 +395,7 @@ export function AdminSettingsScreen(): React.ReactElement {
                   allowManualSoaNumber: savedData.allowManualSoaNumber,
                   allowManualOpNumber: savedData.allowManualOpNumber,
                   enableInternalEmailNotifications: tenantConfig.enableInternalEmailNotifications !== false,
+                  reportSignatories: tenantConfig.reportSignatories,
                 })
               );
               if (err || !res) {
