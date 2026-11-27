@@ -379,7 +379,7 @@ public class FormPrintingService : IFormPrintingService
         throw new FileNotFoundException("The official NTC 1-25 PDF template (NTC1-25.pdf) was not found in templates or embedded resources.");
     }
 
-        public byte[] PrintOfficialReceipt(OfficialReceiptModel? model = null)
+    public byte[] PrintOfficialReceipt(OfficialReceiptModel? model = null)
     {
         model ??= new OfficialReceiptModel();
 
@@ -391,10 +391,17 @@ public class FormPrintingService : IFormPrintingService
             {
                 foreach (var candidate in landscapeCandidates)
                 {
-                    if (_fillerService.TemplateExists(candidate))
+                    try
                     {
-                        landscapeTemplate = _fillerService.GetTemplate(candidate);
-                        if (landscapeTemplate != null && landscapeTemplate.Length > 0) break;
+                        if (_fillerService.TemplateExists(candidate))
+                        {
+                            landscapeTemplate = _fillerService.GetTemplate(candidate);
+                            if (landscapeTemplate != null && landscapeTemplate.Length > 0) break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Failed to retrieve landscape OR template {Candidate} from filler service.", candidate);
                     }
                 }
             }
@@ -404,26 +411,48 @@ public class FormPrintingService : IFormPrintingService
 
             if (landscapeTemplate != null && landscapeTemplate.Length > 0)
             {
-                var overlays = OfficialReceiptLandscapeOverlayMapper.MapToFieldOverlays(model);
-                return OverlayOnTemplate(landscapeTemplate, overlays, _fillerService);
+                try
+                {
+                    var overlays = OfficialReceiptLandscapeOverlayMapper.MapToFieldOverlays(model);
+                    return OverlayOnTemplate(landscapeTemplate, overlays, _fillerService);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Failed to overlay landscape Official Receipt template. Falling back to QuestPDF generator.");
+                }
             }
 
             return new OfficialReceiptReport(model).GeneratePdf();
         }
 
+        byte[]? portraitTemplate = null;
         if (_fillerService != null)
         {
-            var templateBytes = _fillerService.GetTemplate("or_portrait-template.pdf");
-            if (templateBytes != null && templateBytes.Length > 0)
+            try
             {
-                return EDGE.Infrastructure.Printing.Services.AcroForm.OfficialReceiptAcroFormFiller.Fill(templateBytes, model);
+                portraitTemplate = _fillerService.GetTemplate("or_portrait-template.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to retrieve or_portrait-template.pdf from filler service.");
             }
         }
 
-        var portraitTemplate = LoadLocalOrEmbeddedTemplate("or_portrait-template.pdf");
+        if (portraitTemplate == null || portraitTemplate.Length == 0)
+        {
+            portraitTemplate = LoadLocalOrEmbeddedTemplate("or_portrait-template.pdf");
+        }
+
         if (portraitTemplate != null && portraitTemplate.Length > 0)
         {
-            return EDGE.Infrastructure.Printing.Services.AcroForm.OfficialReceiptAcroFormFiller.Fill(portraitTemplate, model);
+            try
+            {
+                return EDGE.Infrastructure.Printing.Services.AcroForm.OfficialReceiptAcroFormFiller.Fill(portraitTemplate, model);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to fill portrait Official Receipt AcroForm template. Falling back to QuestPDF generator.");
+            }
         }
 
         return new OfficialReceiptReport(model).GeneratePdf();

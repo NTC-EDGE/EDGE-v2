@@ -68,9 +68,15 @@ public class CancelOfficialReceiptCommandHandler : IRequestHandler<CancelOfficia
             return ApiResponse<OfficialReceiptDto>.Fail("Cannot cancel an Official Receipt that has already been deposited to the bank.");
         }
 
+        Guid? validCancelledByUserId = null;
+        if (cashierContext.UserId.HasValue && await _appRepository.UserExistsAsync(cashierContext.UserId.Value, cancellationToken))
+        {
+            validCancelledByUserId = cashierContext.UserId.Value;
+        }
+
         receipt.Status = ReceiptStatus.Cancelled;
         receipt.CancelledAt = DateTime.UtcNow;
-        receipt.CancelledByUserId = cashierContext.UserId;
+        receipt.CancelledByUserId = validCancelledByUserId;
         receipt.CancellationReason = request.CancellationReason.Trim();
 
         // If tied to an Order of Payment, revert OP status to Billed/Processing so it can be settled again or corrected

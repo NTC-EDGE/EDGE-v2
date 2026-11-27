@@ -176,7 +176,7 @@ public static class SoaEndpoints
         string? orNumber = null,
         Guid? soaId = null,
         Guid? applicantId = null,
-        bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
@@ -305,7 +305,7 @@ public static class SoaEndpoints
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = SanitizePdfFileName($"SOA_{printModel.AccountNo ?? id.ToString()}.pdf");
 
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfBytes, "application/pdf", fileName);
         }
@@ -322,7 +322,7 @@ public static class SoaEndpoints
         IOfficialReceiptRepository? receiptRepository = null,
         ISoaNoteRepository? soaNoteRepository = null,
         string? orNumber = null,
-        bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var soa = await repository.GetSoaByIdAsync(soaId, cancellationToken);
@@ -407,7 +407,7 @@ public static class SoaEndpoints
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = SanitizePdfFileName($"SOA_{printModel.AccountNo ?? soaId.ToString()}.pdf");
 
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfBytes, "application/pdf", fileName);
         }

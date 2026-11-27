@@ -343,7 +343,7 @@ public static class ReceiptEndpoints
         IApplicationFullRepository appRepository,
         IFormPrintingService printingService,
         HttpContext httpContext,
-        bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var receipt = await receiptRepository.GetByIdWithDetailsAsync(id, cancellationToken);
@@ -362,11 +362,17 @@ public static class ReceiptEndpoints
             app = await appRepository.GetByIdWithDetailsAsync(receipt.OrderOfPayment.ApplicationId, true, cancellationToken);
         }
 
-        var printModel = OfficialReceiptPrintMapper.MapToPrintModel(receipt: receipt, op: receipt.OrderOfPayment, app: app, template: template);
+        var printModel = OfficialReceiptPrintMapper.MapToPrintModel(
+            receipt: receipt,
+            op: receipt.OrderOfPayment,
+            app: app,
+            template: template,
+            overridePayor: payorName,
+            overrideDate: issueDate);
         var pdfBytes = printingService.PrintOfficialReceipt(printModel);
-        var fileName = $"OR_{receipt.OfficialReceiptNumber ?? id.ToString()}.pdf";
+        var fileName = SanitizePdfFileName($"OR_{receipt.OfficialReceiptNumber ?? id.ToString()}.pdf");
 
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfBytes, "application/pdf", fileName);
         }
@@ -385,7 +391,7 @@ public static class ReceiptEndpoints
         IOfficialReceiptRepository receiptRepository,
         IFormPrintingService printingService,
         HttpContext httpContext,
-        bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var app = await appRepository.GetByIdWithDetailsAsync(id, true, cancellationToken);
@@ -394,7 +400,10 @@ public static class ReceiptEndpoints
             return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
         }
 
-        var paidOp = app.OrdersOfPayment
+        var appOps = app.OrdersOfPayment ?? new List<OrderOfPayment>();
+        var appSoas = app.StatementsOfAccount ?? new List<StatementOfAccount>();
+
+        var paidOp = appOps
             .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
             .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
 
@@ -439,19 +448,19 @@ public static class ReceiptEndpoints
 
         if (paidOp == null && receipt == null)
         {
-            if (!app.OrdersOfPayment.Any() && !app.StatementsOfAccount.Any())
+            if (!appOps.Any() && !appSoas.Any())
             {
                 return Results.NotFound(new { message = $"No Order of Payment or Official Receipt found for Application '{id}'." });
             }
         }
 
         var effectiveOp = paidOp
-            ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+            ?? appOps.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
 
         var printModel = OfficialReceiptPrintMapper.MapToPrintModel(
             receipt: receipt,
             op: effectiveOp,
-            soa: app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault(),
+            soa: appSoas.OrderByDescending(s => s.CreatedAt).FirstOrDefault(),
             app: app,
             template: template,
             overridePayor: payorName,
@@ -459,15 +468,25 @@ public static class ReceiptEndpoints
             overrideDate: issueDate);
         var pdfBytes = printingService.PrintOfficialReceipt(printModel);
         var orNo = receipt?.OfficialReceiptNumber ?? effectiveOp?.OfficialReceiptNumber ?? orNumber ?? app.ReferenceNumber ?? id.ToString();
-        var fileName = $"OR_{orNo}.pdf";
+        var fileName = SanitizePdfFileName($"OR_{orNo}.pdf");
 
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfBytes, "application/pdf", fileName);
         }
 
         httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
+
+    private static string SanitizePdfFileName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName)) return "OR.pdf";
+        var safeChars = rawName
+            .Select(ch => char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.' ? ch : '_')
+            .ToArray();
+        var cleaned = new string(safeChars).Trim('_');
+        return string.IsNullOrWhiteSpace(cleaned) ? "OR.pdf" : cleaned;
     }
 
     [HasPermission(Permissions.ReceiptsRead)]

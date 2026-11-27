@@ -20,6 +20,8 @@ public static class OfficialReceiptAcroFormFiller
             throw new ArgumentException("Template bytes cannot be null or empty.", nameof(templateBytes));
         }
 
+        model ??= new OfficialReceiptModel();
+
         using var inStream = new MemoryStream(templateBytes);
         using var outStream = new MemoryStream();
 
@@ -39,18 +41,26 @@ public static class OfficialReceiptAcroFormFiller
                 SetField(form, "Total", amountStr);
                 SetField(form, "AmountInWords", model.AmountInWords);
 
-                var details = string.Join("; ", model.Items.Select(i => i.Amount.HasValue && i.Amount.Value > 0 ? $"{i.NatureOfCollection}: ₱{i.Amount.Value:N2}" : i.NatureOfCollection).Where(s => !string.IsNullOrWhiteSpace(s)));
+                var safeItems = (model.Items ?? new System.Collections.Generic.List<OfficialReceiptItem>())
+                    .Where(i => i != null);
+                var details = string.Join(
+                    "; ",
+                    safeItems
+                        .Select(i => i.Amount.HasValue && i.Amount.Value > 0
+                            ? $"{i.NatureOfCollection}: PHP {i.Amount.Value:N2}"
+                            : i.NatureOfCollection)
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
                 SetField(form, "DetailsOfPayment", !string.IsNullOrWhiteSpace(details) ? details : "Assessment & Regulatory Fees");
                 SetField(form, "Cashier", model.CollectingOfficer ?? "Collecting Officer");
 
                 // Payment mode checkboxes (CheckBox0: Cash, CheckBox1: Check)
                 if (model.SelectedPaymentType == PaymentType.Cash)
                 {
-                    form.GetField("CheckBox0")?.SetValue("Yes");
+                    SetCheckboxChecked(form, "CheckBox0");
                 }
                 else if (model.SelectedPaymentType == PaymentType.Check || model.SelectedPaymentType == PaymentType.CheckOrPmo)
                 {
-                    form.GetField("CheckBox1")?.SetValue("Yes");
+                    SetCheckboxChecked(form, "CheckBox1");
                     SetField(form, "CheckDate", model.DateOfTreasuryWarrantCheckMoneyOrder);
                 }
 
@@ -68,7 +78,31 @@ public static class OfficialReceiptAcroFormFiller
         var field = form.GetField(fieldName);
         if (field != null)
         {
-            field.SetValue(value);
+            try
+            {
+                field.SetValue(value);
+            }
+            catch
+            {
+                // Ignore individual AcroForm field write errors so the rest of the receipt still renders
+            }
+        }
+    }
+
+    private static void SetCheckboxChecked(PdfAcroForm form, string fieldName)
+    {
+        var field = form.GetField(fieldName);
+        if (field == null) return;
+
+        try
+        {
+            var states = field.GetAppearanceStates();
+            var onState = states?.FirstOrDefault(s => !string.Equals(s, "Off", StringComparison.OrdinalIgnoreCase)) ?? "Yes";
+            field.SetValue(onState);
+        }
+        catch
+        {
+            // Ignore checkbox appearance errors
         }
     }
 }

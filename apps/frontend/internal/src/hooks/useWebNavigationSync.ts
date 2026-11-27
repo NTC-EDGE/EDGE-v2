@@ -33,13 +33,17 @@ export function useWebMetadata(isAuthenticated: boolean, isLoading: boolean, scr
 
     // Preserve Target Deep Link when definitively Unauthenticated
     if (!isAuthenticated && typeof window !== "undefined" && window.location !== undefined) {
-      const hasClerkParam = window.location.search.includes("__clerk");
-      if (!hasClerkParam) {
+      const search = window.location.search;
+      const hasAuthCallbackParam =
+        search.includes("__clerk") ||
+        search.includes("sso_callback=") ||
+        search.includes("rotating_token_nonce");
+      if (!hasAuthCallbackParam) {
         const currentPath = window.location.pathname;
         if (currentPath === "/" || currentPath === "") {
           window.history.replaceState(null, "", "/internal/login");
         } else if (currentPath !== "/internal/login" && !currentPath.startsWith("/internal/login")) {
-          const redirectUrl = encodeURIComponent(currentPath + window.location.search);
+          const redirectUrl = encodeURIComponent(currentPath + search);
           window.history.replaceState(null, "", `/internal/login?redirect=${redirectUrl}`);
         }
       }

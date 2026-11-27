@@ -112,7 +112,7 @@ public static class OpEndpoints
         Guid? opId = null,
         Guid? soaId = null,
         Guid? applicantId = null,
-        bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
@@ -292,7 +292,7 @@ public static class OpEndpoints
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = SanitizePdfFileName($"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf");
 
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfBytes, "application/pdf", fileName);
         }
@@ -310,7 +310,7 @@ public static class OpEndpoints
         IAgencyBankAccountRepository? bankAccountRepository = null,
         IOfficialReceiptRepository? receiptRepository = null,
         string? orNumber = null,
-        bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var op = await repository.GetOpByIdAsync(opId, cancellationToken);
@@ -379,7 +379,7 @@ public static class OpEndpoints
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = SanitizePdfFileName($"OP_{op.OpNumber ?? opId.ToString()}.pdf");
 
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfBytes, "application/pdf", fileName);
         }

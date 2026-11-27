@@ -278,9 +278,9 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
                 }
                 if (request.PaymentMethod == PaymentMethod.Check)
                 {
-                    targetOp.CheckNumber = request.CheckNumber;
-                    targetOp.CheckBank = request.CheckBank;
-                    targetOp.CheckDate = request.CheckDate;
+                    targetOp.CheckNumber = request.CheckNumber?.Trim();
+                    targetOp.CheckBank = request.CheckBank?.Trim();
+                    targetOp.CheckDate = NormalizeToUtc(request.CheckDate);
                 }
 
                 UpdateOpRemarksWithIssuedOr(targetOp, orNumber, request.PaymentMethod, targetOp.AmountDue, request.CheckNumber);
@@ -417,9 +417,9 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         }
         if (request.PaymentMethod == PaymentMethod.Check)
         {
-            op.CheckNumber = request.CheckNumber;
-            op.CheckBank = request.CheckBank;
-            op.CheckDate = request.CheckDate;
+            op.CheckNumber = request.CheckNumber?.Trim();
+            op.CheckBank = request.CheckBank?.Trim();
+            op.CheckDate = NormalizeToUtc(request.CheckDate);
         }
 
         // Tag the matching payment breakdown item as issued in op.Remarks
@@ -650,23 +650,23 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             PaymentMethod = request.PaymentMethod,
             CheckNumber = request.CheckNumber?.Trim(),
             CheckBank = request.CheckBank?.Trim(),
-            CheckDate = request.CheckDate,
+            CheckDate = NormalizeToUtc(request.CheckDate),
             Status = ReceiptStatus.Issued,
-            IssuedAt = request.IssueDate.HasValue ? DateTime.SpecifyKind(request.IssueDate.Value, DateTimeKind.Utc) : DateTime.UtcNow,
+            IssuedAt = NormalizeToUtc(request.IssueDate) ?? DateTime.UtcNow,
             IssuedByUserId = validUserId,
             Remarks = combinedRemarks
         };
 
         if (request.LineItems != null && request.LineItems.Count > 0)
         {
-            foreach (var item in request.LineItems)
+            foreach (var item in request.LineItems.Where(i => i != null))
             {
                 receipt.LineItems.Add(new OfficialReceiptLineItem
                 {
                     Id = Guid.NewGuid(),
                     OfficialReceiptId = receipt.Id,
-                    FeeCode = item.FeeCode.Trim(),
-                    Description = item.Description.Trim(),
+                    FeeCode = string.IsNullOrWhiteSpace(item.FeeCode) ? "FEE" : item.FeeCode.Trim(),
+                    Description = string.IsNullOrWhiteSpace(item.Description) ? "Assessment Fee" : item.Description.Trim(),
                     Amount = item.Amount
                 });
             }
@@ -860,5 +860,17 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         {
             // If parsing fails, leave remarks intact
         }
+    }
+
+    private static DateTime? NormalizeToUtc(DateTime? value)
+    {
+        if (!value.HasValue) return null;
+        var dt = value.Value;
+        return dt.Kind switch
+        {
+            DateTimeKind.Utc => dt,
+            DateTimeKind.Local => dt.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+        };
     }
 }

@@ -133,7 +133,7 @@ public static class ReportEndpoints
         HttpContext httpContext,
         IMediator mediator,
         IValidator<GenerateStatutoryReportPdfQuery> validator,
-        [FromQuery] bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var query = new GenerateStatutoryReportPdfQuery(
@@ -166,7 +166,7 @@ public static class ReportEndpoints
         }
 
         var pdfResult = result.Data;
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfResult.PdfBytes, "application/pdf", pdfResult.FileName);
         }

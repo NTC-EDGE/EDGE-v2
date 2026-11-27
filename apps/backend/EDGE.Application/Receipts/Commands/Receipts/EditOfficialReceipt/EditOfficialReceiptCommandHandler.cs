@@ -79,26 +79,34 @@ public class EditOfficialReceiptCommandHandler : IRequestHandler<EditOfficialRec
             return ApiResponse<OfficialReceiptDto>.Fail("Cannot edit an Official Receipt that has already been deposited.");
         }
 
+        var normalizedCheckDate = request.CheckDate.HasValue
+            ? (request.CheckDate.Value.Kind == DateTimeKind.Utc
+                ? request.CheckDate.Value
+                : request.CheckDate.Value.Kind == DateTimeKind.Local
+                    ? request.CheckDate.Value.ToUniversalTime()
+                    : DateTime.SpecifyKind(request.CheckDate.Value, DateTimeKind.Utc))
+            : (DateTime?)null;
+
         receipt.PayorName = request.PayorName.Trim();
         receipt.PayorAddress = request.PayorAddress?.Trim();
         receipt.Amount = request.Amount;
         receipt.PaymentMethod = request.PaymentMethod;
         receipt.CheckNumber = request.CheckNumber?.Trim();
         receipt.CheckBank = request.CheckBank?.Trim();
-        receipt.CheckDate = request.CheckDate;
+        receipt.CheckDate = normalizedCheckDate;
         receipt.Remarks = request.Remarks?.Trim();
 
         if (request.LineItems != null)
         {
             receipt.LineItems.Clear();
-            foreach (var item in request.LineItems)
+            foreach (var item in request.LineItems.Where(i => i != null))
             {
                 receipt.LineItems.Add(new OfficialReceiptLineItem
                 {
                     Id = Guid.NewGuid(),
                     OfficialReceiptId = receipt.Id,
-                    FeeCode = item.FeeCode.Trim(),
-                    Description = item.Description.Trim(),
+                    FeeCode = string.IsNullOrWhiteSpace(item.FeeCode) ? "FEE" : item.FeeCode.Trim(),
+                    Description = string.IsNullOrWhiteSpace(item.Description) ? "Assessment Fee" : item.Description.Trim(),
                     Amount = item.Amount
                 });
             }
@@ -112,9 +120,9 @@ public class EditOfficialReceiptCommandHandler : IRequestHandler<EditOfficialRec
             {
                 op.AmountReceived = request.Amount;
                 op.PaymentMethod = request.PaymentMethod;
-                op.CheckNumber = request.CheckNumber;
-                op.CheckBank = request.CheckBank;
-                op.CheckDate = request.CheckDate;
+                op.CheckNumber = request.CheckNumber?.Trim();
+                op.CheckBank = request.CheckBank?.Trim();
+                op.CheckDate = normalizedCheckDate;
 
                 Guid? validUserId = null;
                 if (cashierContext.UserId.HasValue && await _appRepository.UserExistsAsync(cashierContext.UserId.Value, cancellationToken))

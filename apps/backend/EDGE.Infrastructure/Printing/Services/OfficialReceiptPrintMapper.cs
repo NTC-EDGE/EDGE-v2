@@ -54,15 +54,19 @@ public static class OfficialReceiptPrintMapper
         }
 
         // 1. Resolve effective Order of Payment & SOA references if not passed
+        var appOps = app?.OrdersOfPayment ?? Enumerable.Empty<OrderOfPayment>();
+        var appSoas = app?.StatementsOfAccount ?? Enumerable.Empty<StatementOfAccount>();
+        var appApplicants = app?.ApplicationApplicants ?? Enumerable.Empty<ApplicationApplicant>();
+
         var activeOp = op
             ?? receipt?.OrderOfPayment
-            ?? app?.OrdersOfPayment.FirstOrDefault(o => receipt != null && o.OfficialReceiptNumber == receipt.OfficialReceiptNumber)
-            ?? app?.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+            ?? appOps.FirstOrDefault(o => receipt != null && o.OfficialReceiptNumber == receipt.OfficialReceiptNumber)
+            ?? appOps.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
 
         var activeSoa = soa
             ?? activeOp?.StatementOfAccount
-            ?? app?.StatementsOfAccount.FirstOrDefault(s => activeOp != null && s.Id == activeOp.StatementOfAccountId)
-            ?? app?.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+            ?? appSoas.FirstOrDefault(s => activeOp != null && s.Id == activeOp.StatementOfAccountId)
+            ?? appSoas.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
 
         // 2. Receipt metadata
         var effectiveOrNumber = !string.IsNullOrWhiteSpace(overrideOrNumber)
@@ -82,14 +86,14 @@ public static class OfficialReceiptPrintMapper
         model.Date = issuedDate.ToString("MMMM dd, yyyy");
 
         // 3. Payor Name & Address
-        var fallbackApplicantName = app?.ApplicationApplicants
-            .Select(aa => aa.Applicant)
+        var fallbackApplicantName = appApplicants
+            .Select(aa => aa?.Applicant)
             .Where(a => a != null)
             .Select(a => a?.CompanyDetail?.Name ?? (a?.ApplicantDetail != null ? $"{a.ApplicantDetail.FirstName} {a.ApplicantDetail.LastName}".Trim() : null))
             .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
 
-        var fallbackAddress = app?.ApplicationApplicants
-            .Select(aa => aa.Applicant)
+        var fallbackAddress = appApplicants
+            .Select(aa => aa?.Applicant)
             .Where(a => a != null)
             .Select(a =>
             {
@@ -166,7 +170,7 @@ public static class OfficialReceiptPrintMapper
         }
         else
         {
-            var serviceName = app?.ApplicationApplicants.FirstOrDefault()?.Applicant?.Service?.Name ?? "Application Assessment";
+            var serviceName = appApplicants.FirstOrDefault()?.Applicant?.Service?.Name ?? "Application Assessment";
             itemsList.Add(new OfficialReceiptItem
             {
                 NatureOfCollection = $"{serviceName} Fees",
@@ -201,9 +205,10 @@ public static class OfficialReceiptPrintMapper
         // 6. Collecting Officer / Cashier
         var cashierStaffName = receipt?.IssuedByUser != null
             ? $"{receipt.IssuedByUser.FirstName} {receipt.IssuedByUser.LastName}".Trim()
-            : activeOp?.Histories.FirstOrDefault(h =>
-                (h.Action != null && (h.Action.Contains("Payment") || h.Action.Contains("Official Receipt") || h.Action.Contains("Verified"))) ||
-                h.StaffRole == "Cashier")?.StaffName;
+            : (activeOp?.Histories ?? Enumerable.Empty<OpHistory>()).FirstOrDefault(h =>
+                h != null &&
+                ((h.Action != null && (h.Action.Contains("Payment") || h.Action.Contains("Official Receipt") || h.Action.Contains("Verified"))) ||
+                 h.StaffRole == "Cashier"))?.StaffName;
 
         model.CollectingOfficer = !string.IsNullOrWhiteSpace(cashierStaffName)
             ? cashierStaffName

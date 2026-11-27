@@ -1,7 +1,7 @@
 import { createContext, useContext, ReactNode, useState, useEffect, useCallback, useRef } from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
+import { useAuth, useClerk, useUser, useSignIn, useSignUp } from "@clerk/expo";
 import { Icon, TYPOGRAPHY } from "@edge/ui";
 import {
   parseApiError,
@@ -158,10 +158,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }>({});
 
   // Clerk custom flow hooks (Clerk Expo SDK v3)
+  const clerk = useClerk();
   const clerkAuth = useAuth();
   const clerkUser = useUser();
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
+
+  // Complete same-tab Web SSO redirect callbacks cleanly inside the active window
+  const ssoCallbackHandledRef = useRef(false);
+  useEffect(() => {
+    if (
+      Platform.OS !== "web" ||
+      typeof window === "undefined" ||
+      !isClerkEnabled ||
+      !clerkAuth.isLoaded ||
+      ssoCallbackHandledRef.current
+    ) {
+      return;
+    }
+
+    const search = window.location.search;
+    const isSsoCallback =
+      search.includes("sso_callback=1") ||
+      search.includes("__clerk_status") ||
+      search.includes("rotating_token_nonce");
+
+    if (!isSsoCallback) {
+      return;
+    }
+
+    ssoCallbackHandledRef.current = true;
+    const handleCallbackFn =
+      typeof clerk === "object" && clerk !== null
+        ? Reflect.get(clerk, "handleRedirectCallback")
+        : undefined;
+
+    if (typeof handleCallbackFn === "function") {
+      void Promise.resolve(
+        Reflect.apply(handleCallbackFn, clerk, [
+          {
+            signInFallbackRedirectUrl: "/dashboard",
+            signUpFallbackRedirectUrl: "/internal/login",
+          },
+        ])
+      ).catch((err: unknown) => {
+        console.error("[AuthContext] Clerk SSO redirect callback error:", err);
+      });
+    }
+  }, [isClerkEnabled, clerkAuth.isLoaded, clerk]);
 
   const getTokenRef = useRef(clerkAuth.getToken);
   getTokenRef.current = clerkAuth.getToken;

@@ -337,4 +337,66 @@ public class IssueOfficialReceiptCommandHandlerTests
         // Application remains in PendingPayment for remainder
         app.Status.Should().Be(ApplicationStatus.PendingPayment);
     }
+
+    [Fact]
+    public async Task Handle_ShouldNormalizeUnspecifiedCheckDateAndIssueDateToUtc()
+    {
+        var tenantId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+        var appId = Guid.NewGuid();
+        OfficialReceipt? savedReceipt = null;
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            TenantId = tenantId,
+            ApplicationNumber = "APP-2026-CHK-001",
+            Status = ApplicationStatus.PendingPayment
+        };
+        var op = new OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = appId,
+            Application = app,
+            OpNumber = "OP-2026-CHK-001",
+            AmountDue = 1000m,
+            Status = OpStatus.Billed
+        };
+
+        _receiptRepoMock
+            .Setup(r => r.ExistsOrNumberAsync(tenantId, It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _receiptRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<OfficialReceipt>(), It.IsAny<CancellationToken>()))
+            .Callback<OfficialReceipt, CancellationToken>((rec, _) => savedReceipt = rec)
+            .Returns(Task.CompletedTask);
+        _appRepoMock.Setup(a => a.GetOpByIdAsync(opId, It.IsAny<CancellationToken>())).ReturnsAsync(op);
+        _appRepoMock.Setup(a => a.UserExistsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var unspecifiedCheckDate = new DateTime(2026, 11, 27, 0, 0, 0, DateTimeKind.Unspecified);
+        var unspecifiedIssueDate = new DateTime(2026, 11, 26, 0, 0, 0, DateTimeKind.Unspecified);
+
+        var command = new IssueOfficialReceiptCommand(
+            TenantId: tenantId,
+            OrderOfPaymentId: opId,
+            ManualOrNumber: "OR-2026-UTC-01",
+            PayorName: "Check Payor",
+            Amount: 1000m,
+            PaymentMethod: PaymentMethod.Check,
+            CheckNumber: "00012345",
+            CheckBank: "LandBank",
+            CheckDate: unspecifiedCheckDate,
+            IssueDate: unspecifiedIssueDate,
+            DateChangeReason: "Backdated check clearing");
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        savedReceipt.Should().NotBeNull();
+        savedReceipt!.CheckDate.Should().NotBeNull();
+        savedReceipt.CheckDate!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        savedReceipt.IssuedAt.Kind.Should().Be(DateTimeKind.Utc);
+        op.CheckDate.Should().NotBeNull();
+        op.CheckDate!.Value.Kind.Should().Be(DateTimeKind.Utc);
+    }
 }

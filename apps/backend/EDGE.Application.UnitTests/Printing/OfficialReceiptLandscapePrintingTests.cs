@@ -168,4 +168,70 @@ public class OfficialReceiptLandscapePrintingTests
         pdfBytes.Should().NotBeNull();
         pdfBytes.Length.Should().BeGreaterThan(50000);
     }
+
+    [Fact]
+    public void MapToPrintModel_WithNullCollections_DoesNotThrow()
+    {
+        var app = new Domain.Entities.Application
+        {
+            Id = Guid.NewGuid(),
+            ApplicationNumber = "APP-2026-NULL-001",
+            OrdersOfPayment = null!,
+            StatementsOfAccount = null!,
+            ApplicationApplicants = null!
+        };
+
+        var op = new OrderOfPayment
+        {
+            Id = Guid.NewGuid(),
+            OpNumber = "OP-2026-0001",
+            AmountDue = 500m,
+            Histories = null!
+        };
+
+        var model = OfficialReceiptPrintMapper.MapToPrintModel(
+            receipt: null,
+            op: op,
+            soa: null,
+            app: app,
+            template: "landscape");
+
+        model.Should().NotBeNull();
+        model.TotalAmount.Should().Be(500m);
+        model.Items.Should().NotBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(ReceiptOrientation.Landscape)]
+    [InlineData(ReceiptOrientation.Portrait)]
+    public void FormPrintingService_PrintOfficialReceipt_FallsBackToQuestPdf_WhenTemplateFillerThrows(ReceiptOrientation orientation)
+    {
+        var throwingFiller = new Moq.Mock<IPdfFormFillerService>();
+        throwingFiller.Setup(x => x.TemplateExists(Moq.It.IsAny<string>())).Throws(new InvalidOperationException("R2 unavailable"));
+        throwingFiller.Setup(x => x.GetTemplate(Moq.It.IsAny<string>())).Throws(new InvalidOperationException("Corrupt template"));
+        throwingFiller.Setup(x => x.OverlayFields(Moq.It.IsAny<byte[]>(), Moq.It.IsAny<IReadOnlyList<FieldOverlay>>(), Moq.It.IsAny<OverlayDebugOptions?>()))
+            .Throws(new InvalidOperationException("PdfSharp failure"));
+
+        var service = new FormPrintingService(throwingFiller.Object);
+        var model = new OfficialReceiptModel
+        {
+            Orientation = orientation,
+            ReceiptNo = "OR-2026-FALLBACK",
+            Date = "November 27, 2026",
+            Payor = "TEST PAYOR",
+            TotalAmount = 1250.00m,
+            AmountInWords = "ONE THOUSAND TWO HUNDRED FIFTY PESOS ONLY",
+            Items = new List<OfficialReceiptItem>
+            {
+                new() { NatureOfCollection = "Filing Fee", Amount = 1250.00m }
+            },
+            CollectingOfficer = "JUAN CASHIER"
+        };
+
+        var pdfBytes = service.PrintOfficialReceipt(model);
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Length.Should().BeGreaterThan(1000);
+        System.Text.Encoding.ASCII.GetString(pdfBytes, 0, 4).Should().Be("%PDF");
+    }
 }

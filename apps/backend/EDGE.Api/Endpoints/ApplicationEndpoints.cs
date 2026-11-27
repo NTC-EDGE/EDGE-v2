@@ -974,7 +974,7 @@ public static class ApplicationEndpoints
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
-        bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
@@ -1108,7 +1108,7 @@ public static class ApplicationEndpoints
             var singlePdfBytes = printingService.PrintIssuedDocument(singleModel);
             var singleSafeDocName = $"{singleModel.DocumentType}_{singleModel.LicenseNumber ?? singleModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
 
-            if (download)
+            if (download == true)
             {
                 return Results.File(singlePdfBytes, "application/pdf", singleSafeDocName);
             }
@@ -1130,7 +1130,7 @@ public static class ApplicationEndpoints
             var firstModel = models[0];
             var bulkSafeDocName = $"{firstModel.DocumentType}_{firstModel.LicenseNumber ?? firstModel.FormNumber ?? id.ToString()}_Bulk.pdf".Replace(" ", "_");
 
-            if (download)
+            if (download == true)
             {
                 return Results.File(bulkPdfBytes, "application/pdf", bulkSafeDocName);
             }
@@ -1145,7 +1145,7 @@ public static class ApplicationEndpoints
         var pdfBytes = printingService.PrintIssuedDocument(printModel);
         var safeDocName = $"{printModel.DocumentType}_{printModel.LicenseNumber ?? printModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
 
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfBytes, "application/pdf", safeDocName);
         }
@@ -1164,7 +1164,7 @@ public static class ApplicationEndpoints
         IUserAuthorizationService userAuthorizationService,
         ITenantContextService tenantContextService,
         IUserRepository userRepository,
-        [FromQuery] bool download = false,
+        [FromQuery] bool? download = null,
         CancellationToken cancellationToken = default)
     {
         var authUserId = currentUserService.UserId;
@@ -1220,7 +1220,7 @@ public static class ApplicationEndpoints
 
         var (pdfBytes, safeFileName, _) = ApplicationFormPrintMapper.PrintApplicationForm(app, printingService, applicantId);
 
-        if (download)
+        if (download == true)
         {
             return Results.File(pdfBytes, "application/pdf", safeFileName);
         }
