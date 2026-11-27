@@ -145,6 +145,7 @@ public static class DependencyInjection
         services.AddSingleton<IPdfRenderer, FillablePdfRenderer>();
         services.AddSingleton<IPdfRendererFactory, PdfRendererFactory>();
         services.AddSingleton<IFormPrintingService, FormPrintingService>();
+        services.AddSingleton<IStatutoryReportPdfGenerator, StatutoryReportPdfGenerator>();
         services.AddSingleton<IPdfFormFillerService, PdfFormFillerService>();
 
         // Register Clerk Client

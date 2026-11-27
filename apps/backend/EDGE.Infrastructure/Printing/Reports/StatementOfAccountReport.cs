@@ -160,11 +160,14 @@ public class StatementOfAccountReport : IDocument
                 c.Item().AlignCenter().Text("Department of Information and Communications Technology")
                     .FontSize(7.5f).FontFamily(Fonts.TimesNewRoman);
 
-                c.Item().AlignCenter().Text("NATIONAL TELECOMMUNICATIONS COMMISSION")
+                c.Item().AlignCenter().Text(_model.AgencyName)
                     .FontSize(10f).FontFamily(Fonts.TimesNewRoman).Bold().LetterSpacing(0.02f);
 
-                c.Item().AlignCenter().Text("Regional Office No. VII, Mandaue City, Cebu")
-                    .FontSize(7.5f).FontFamily(Fonts.Arial).Italic();
+                if (!string.IsNullOrWhiteSpace(_model.RegionalOfficeName))
+                {
+                    c.Item().AlignCenter().Text(_model.RegionalOfficeName)
+                        .FontSize(7.5f).FontFamily(Fonts.Arial).Italic();
+                }
 
                 c.Item().PaddingTop(2).AlignCenter().Text("STATEMENT OF ACCOUNT")
                     .FontSize(12f).FontFamily(Fonts.Arial).Bold().LetterSpacing(0.04f);

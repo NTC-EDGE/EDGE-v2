@@ -66,6 +66,7 @@ public class StatementOfAccountItem
 public class StatementOfAccountModel
 {
     public string AgencyName { get; set; } = "NATIONAL TELECOMMUNICATIONS COMMISSION";
+    public string? RegionalOfficeName { get; set; }
     public string Title { get; set; } = "Statement of Account";
 
     public string? PayorName { get; set; }

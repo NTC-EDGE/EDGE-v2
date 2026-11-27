@@ -74,6 +74,7 @@ export interface ModalInitialData {
   rcCodeSoa?: string;
   rcCodeOp?: string;
   fundCluster?: string;
+  mfoPapCode?: string;
   requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
   allowManualSoaNumber?: boolean;
   allowManualOpNumber?: boolean;
@@ -110,6 +111,7 @@ interface AdminSettingsModalProps {
     rcCodeSoa?: string;
     rcCodeOp?: string;
     fundCluster?: string;
+    mfoPapCode?: string;
     requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
     allowManualSoaNumber?: boolean;
     allowManualOpNumber?: boolean;
@@ -166,9 +168,10 @@ export function AdminSettingsModal({
   const [allowComplaintReceptionToggle, setAllowComplaintReceptionToggle] = useState(true);
   const [isActiveToggle, setIsActiveToggle] = useState(true);
   const [formStatus, setFormStatus] = useState<'Published' | 'Draft'>('Draft');
-  const [rcCodeSoaInput, setRcCodeSoaInput] = useState('61');
-  const [rcCodeOpInput, setRcCodeOpInput] = useState('61');
+  const [rcCodeSoaInput, setRcCodeSoaInput] = useState('');
+  const [rcCodeOpInput, setRcCodeOpInput] = useState('');
   const [fundClusterInput, setFundClusterInput] = useState('01');
+  const [mfoPapCodeInput, setMfoPapCodeInput] = useState('');
   const [routingInput, setRoutingInput] = useState<'DirectToLegal' | 'DirectToEvaluator'>('DirectToLegal');
   const [allowManualSoaNumberToggle, setAllowManualSoaNumberToggle] = useState(false);
   const [allowManualOpNumberToggle, setAllowManualOpNumberToggle] = useState(false);
@@ -291,9 +294,10 @@ export function AdminSettingsModal({
       setAmountInput(initialData.amount !== undefined ? String(initialData.amount) : '');
       setInstructionsInput(initialData.instructions ?? '1.\n2.\n3.');
       setIsActiveToggle(initialData.isActive ?? true);
-      setRcCodeSoaInput(initialData.rcCodeSoa ?? '61');
-      setRcCodeOpInput(initialData.rcCodeOp ?? '61');
+      setRcCodeSoaInput(initialData.rcCodeSoa ?? '');
+      setRcCodeOpInput(initialData.rcCodeOp ?? '');
       setFundClusterInput(initialData.fundCluster ?? '01');
+      setMfoPapCodeInput(initialData.mfoPapCode ?? '');
       setRoutingInput(initialData.requestAndComplaintRouting === 'DirectToEvaluator' ? 'DirectToEvaluator' : 'DirectToLegal');
       setAllowManualSoaNumberToggle(initialData.allowManualSoaNumber === true);
       setAllowManualOpNumberToggle(initialData.allowManualOpNumber === true);
@@ -301,16 +305,16 @@ export function AdminSettingsModal({
         initialData.mappedDocuments && initialData.mappedDocuments.length > 0
           ? initialData.mappedDocuments
           : [
-              { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
-              { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
-            ]
+            { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
+            { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
+          ]
       );
       setFeeBreakdowns(
         initialData.feeBreakdown && initialData.feeBreakdown.length > 0
           ? initialData.feeBreakdown
           : [
-              { id: 'fb-1', name: 'Filing Fee', amount: 0 },
-            ]
+            { id: 'fb-1', name: 'Filing Fee', amount: 0 },
+          ]
       );
     } else {
       setTitleInput('Aeronautical Station Permit to POSSESS');
@@ -332,9 +336,10 @@ export function AdminSettingsModal({
       setAmountInput('');
       setInstructionsInput('1.\n2.\n3.');
       setIsActiveToggle(true);
-      setRcCodeSoaInput('61');
-      setRcCodeOpInput('61');
+      setRcCodeSoaInput('');
+      setRcCodeOpInput('');
       setFundClusterInput('01');
+      setMfoPapCodeInput('');
       setRoutingInput('DirectToLegal');
       setAllowManualSoaNumberToggle(false);
       setAllowManualOpNumberToggle(false);
@@ -561,9 +566,10 @@ export function AdminSettingsModal({
         feeBreakdown: feeBreakdowns,
         status: formStatus,
         serviceType: titleInput,
-        rcCodeSoa: rcCodeSoaInput,
-        rcCodeOp: rcCodeOpInput,
-        fundCluster: fundClusterInput,
+        rcCodeSoa: rcCodeSoaInput.trim(),
+        rcCodeOp: rcCodeOpInput.trim(),
+        fundCluster: fundClusterInput.trim(),
+        mfoPapCode: mfoPapCodeInput.trim(),
         requestAndComplaintRouting: routingInput,
         allowManualSoaNumber: allowManualSoaNumberToggle,
         allowManualOpNumber: allowManualOpNumberToggle,
@@ -1208,7 +1214,7 @@ export function AdminSettingsModal({
                                 color: colors.text,
                               },
                             ]}
-                            placeholder="61"
+                            placeholder="e.g. 61"
                             placeholderTextColor={COLORS.neutral[400]}
                             value={rcCodeSoaInput}
                             onChangeText={setRcCodeSoaInput}
@@ -1226,7 +1232,7 @@ export function AdminSettingsModal({
                                 color: colors.text,
                               },
                             ]}
-                            placeholder="61"
+                            placeholder="e.g. 61"
                             placeholderTextColor={COLORS.neutral[400]}
                             value={rcCodeOpInput}
                             onChangeText={setRcCodeOpInput}
@@ -1252,6 +1258,25 @@ export function AdminSettingsModal({
                         </View>
                       </View>
 
+                      <View style={styles.inputGroup}>
+                        <Text style={[styles.inputLabel, { color: colors.textMuted }]}>MFO / PAP CODE (COA GAM VOL. II)</Text>
+                        <TextInput
+                          style={[
+                            styles.textInput,
+                            {
+                              backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                              borderColor: isDark ? colors.neutral[700] : '#CBD5E1',
+                              borderWidth: 1,
+                              color: colors.text,
+                            },
+                          ]}
+                          placeholder="e.g. 310100100001000 (leave blank if N/A)"
+                          placeholderTextColor={COLORS.neutral[400]}
+                          value={mfoPapCodeInput}
+                          onChangeText={setMfoPapCodeInput}
+                        />
+                      </View>
+
                       {/* Live Series Format Preview Banner */}
                       <View
                         style={[
@@ -1272,19 +1297,19 @@ export function AdminSettingsModal({
                           <View style={[styles.seriesPreviewPill, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? '#4C1D95' : '#DDD6FE' }]}>
                             <Text style={[styles.seriesPreviewPillTitle, { color: colors.textMuted }]}>SOA:</Text>
                             <Text style={[styles.seriesPreviewPillValue, { color: isDark ? '#A78BFA' : '#6D28D9' }]}>
-                              {(rcCodeSoaInput || '61').trim()}-{new Date().getFullYear()}-{String(new Date().getMonth() + 1).padStart(2, '0')}-0001
+                              {(rcCodeSoaInput.trim() || 'RC')}-{new Date().getFullYear()}-{String(new Date().getMonth() + 1).padStart(2, '0')}-0001
                             </Text>
                           </View>
                           <View style={[styles.seriesPreviewPill, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? '#4C1D95' : '#DDD6FE' }]}>
                             <Text style={[styles.seriesPreviewPillTitle, { color: colors.textMuted }]}>OP:</Text>
                             <Text style={[styles.seriesPreviewPillValue, { color: isDark ? '#A78BFA' : '#6D28D9' }]}>
-                              {(rcCodeOpInput || '61').trim()}-{new Date().getFullYear()}-{String(new Date().getMonth() + 1).padStart(2, '0')}-0001
+                              {(rcCodeOpInput.trim() || 'RC')}-{new Date().getFullYear()}-{String(new Date().getMonth() + 1).padStart(2, '0')}-0001
                             </Text>
                           </View>
                           <View style={[styles.seriesPreviewPill, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? '#4C1D95' : '#DDD6FE' }]}>
                             <Text style={[styles.seriesPreviewPillTitle, { color: colors.textMuted }]}>Fund:</Text>
                             <Text style={[styles.seriesPreviewPillValue, { color: isDark ? '#A78BFA' : '#6D28D9' }]}>
-                              Cluster {(fundClusterInput || '01').trim()}
+                              Cluster {(fundClusterInput.trim() || '—')}
                             </Text>
                           </View>
                         </View>

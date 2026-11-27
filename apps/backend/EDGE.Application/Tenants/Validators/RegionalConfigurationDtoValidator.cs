@@ -19,6 +19,10 @@ public class RegionalConfigurationDtoValidator : AbstractValidator<RegionalConfi
             .MaximumLength(32)
             .WithMessage("Fund Cluster must not exceed 32 characters.");
 
+        RuleFor(x => x.MfoPapCode)
+            .MaximumLength(50)
+            .WithMessage("MFO / PAP Code must not exceed 50 characters.");
+
         When(x => x.ReportSignatories != null, () =>
         {
             RuleFor(x => x.ReportSignatories!.RegionalDirectorName).MaximumLength(150);

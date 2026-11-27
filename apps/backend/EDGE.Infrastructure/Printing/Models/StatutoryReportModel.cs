@@ -14,15 +14,16 @@ public class StatutoryReportModel
     public string Agency { get; set; } = "NTC Central Office (MIS / Planning)";
     public string Frequency { get; set; } = "Monthly";
     public string LegalBasis { get; set; } = "EO 546 / NTC Citizens Charter & ARTA RA 11032";
-    public string TenantName { get; set; } = "NTC Regional Office";
+    public string TenantName { get; set; } = string.Empty;
     public string Period { get; set; } = string.Empty;
     public string StartDate { get; set; } = string.Empty;
     public string EndDate { get; set; } = string.Empty;
-    public string GeneratedBy { get; set; } = "Authorized Regional Officer";
+    public string GeneratedBy { get; set; } = string.Empty;
     public string GeneratedByTitle { get; set; } = string.Empty;
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
-    public string FundCluster { get; set; } = "01101101";
-    public string ResponsibilityCenterCode { get; set; } = "61";
+    public string FundCluster { get; set; } = string.Empty;
+    public string ResponsibilityCenterCode { get; set; } = string.Empty;
+    public string MfoPapCode { get; set; } = string.Empty;
     public string RegionalOfficeAddress { get; set; } = string.Empty;
     public ReportSignatoriesDto Signatories { get; set; } = new();
     public string? SecondaryFilter { get; set; }

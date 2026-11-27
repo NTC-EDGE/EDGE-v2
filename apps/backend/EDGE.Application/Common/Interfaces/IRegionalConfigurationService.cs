@@ -26,12 +26,13 @@ public class RegionalConfigurationDto
     public Guid? RegionId { get; set; }
     public string TenantCode { get; set; } = string.Empty;
     public string TenantName { get; set; } = string.Empty;
-    public string RcCodeSoa { get; set; } = "61";
-    public string RcCodeOp { get; set; } = "61";
+    public string RcCodeSoa { get; set; } = string.Empty;
+    public string RcCodeOp { get; set; } = string.Empty;
     public string FundCluster { get; set; } = "01";
+    public string MfoPapCode { get; set; } = string.Empty;
     public string RequestAndComplaintRouting { get; set; } = "DirectToLegal";
-    public string SupportEmail { get; set; } = "region10@ntc.gov.ph";
-    public string SupportPhone { get; set; } = "(088) 856-1234";
+    public string SupportEmail { get; set; } = string.Empty;
+    public string SupportPhone { get; set; } = string.Empty;
     public bool AllowManualSoaNumber { get; set; }
     public bool AllowManualOpNumber { get; set; }
     public bool EnableInternalEmailNotifications { get; set; } = true;

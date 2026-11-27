@@ -91,8 +91,11 @@ public partial class StatutoryReportDocument : IDocument
                         .FontSize(7f).FontFamily(Fonts.TimesNewRoman);
                     c.Item().AlignCenter().Text("NATIONAL TELECOMMUNICATIONS COMMISSION")
                         .FontSize(10f).FontFamily(Fonts.TimesNewRoman).Bold();
-                    c.Item().AlignCenter().Text(_model.TenantName.ToUpperInvariant())
-                        .FontSize(8.5f).FontFamily(Fonts.Arial).Bold().FontColor("#0F172A");
+                    if (!string.IsNullOrWhiteSpace(_model.TenantName))
+                    {
+                        c.Item().AlignCenter().Text(_model.TenantName.ToUpperInvariant())
+                            .FontSize(8.5f).FontFamily(Fonts.Arial).Bold().FontColor("#0F172A");
+                    }
                     if (!string.IsNullOrWhiteSpace(_model.RegionalOfficeAddress))
                     {
                         c.Item().AlignCenter().Text(_model.RegionalOfficeAddress)

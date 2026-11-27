@@ -33,8 +33,12 @@ public partial class StatutoryReportDocument
         container.Column(col =>
         {
             // COA Appendix 26 Metadata Banner (Official GAM Vol. II Header Fields)
-            var effectiveFundCluster = !string.IsNullOrWhiteSpace(_model.FundCluster) ? _model.FundCluster : "01101101";
-            var rcCode = !string.IsNullOrWhiteSpace(_model.ResponsibilityCenterCode) ? _model.ResponsibilityCenterCode : "61";
+            var effectiveFundCluster = !string.IsNullOrWhiteSpace(_model.FundCluster) ? _model.FundCluster.Trim() : "—";
+            var rcCode = !string.IsNullOrWhiteSpace(_model.ResponsibilityCenterCode) ? _model.ResponsibilityCenterCode.Trim() : "—";
+            var mfoPap = !string.IsNullOrWhiteSpace(_model.MfoPapCode) ? _model.MfoPapCode.Trim() : "—";
+            var entityDisplay = !string.IsNullOrWhiteSpace(_model.TenantName)
+                ? $"NATIONAL TELECOMMUNICATIONS COMMISSION — {_model.TenantName.ToUpperInvariant()}"
+                : "NATIONAL TELECOMMUNICATIONS COMMISSION";
             var orderedOrs = paidTx
                 .Where(tx => !string.IsNullOrWhiteSpace(tx.RefNo))
                 .OrderBy(tx => tx.RefNo, StringComparer.OrdinalIgnoreCase)
@@ -49,8 +53,8 @@ public partial class StatutoryReportDocument
             {
                 r.RelativeItem().Column(c =>
                 {
-                    c.Item().Text($"Entity Name: NATIONAL TELECOMMUNICATIONS COMMISSION — {_model.TenantName.ToUpperInvariant()}").Bold().FontSize(7.5f);
-                    c.Item().Text($"Fund Cluster: {effectiveFundCluster} — Regular Agency Fund   |   Responsibility Center Code: {rcCode}   |   MFO/PAP: 310100100001000").FontSize(6.8f);
+                    c.Item().Text($"Entity Name: {entityDisplay}").Bold().FontSize(7.5f);
+                    c.Item().Text($"Fund Cluster: {effectiveFundCluster}   |   Responsibility Center Code: {rcCode}   |   MFO/PAP: {mfoPap}").FontSize(6.8f);
                 });
                 r.ConstantItem(235).Column(c =>
                 {
@@ -121,7 +125,7 @@ public partial class StatutoryReportDocument
                         RenderBodyCell(t, rcCode);
                         RenderBodyCell(t, Truncate(tx.ApplicantName, 22), alignLeft: true);
                         RenderBodyCell(t, Truncate(tx.ServiceType, 20), alignLeft: true);
-                        RenderBodyCell(t, "3101001");
+                        RenderBodyCell(t, Truncate(mfoPap, 10));
                         RenderBodyCell(t, FormatCurrency(tx.Amount), alignRight: true, bold: true);
                         RenderBodyCell(t, FormatZeroDash(b.PermitFees), alignRight: true);
                         RenderBodyCell(t, FormatZeroDash(b.LicenseFees), alignRight: true);
@@ -354,8 +358,11 @@ public partial class StatutoryReportDocument
         var depositedTotals = ComputeDepositedUacsTotals(paidTx);
         var depositMetrics = ComputeDepositMetrics(paidTx, totals.Dst);
 
-        var effectiveFundCluster = !string.IsNullOrWhiteSpace(_model.FundCluster) ? _model.FundCluster : "01101101";
-        var ngpFundLabel = $"{effectiveFundCluster} — BTr-NGAs Fees & Charges";
+        var effectiveFundCluster = !string.IsNullOrWhiteSpace(_model.FundCluster) ? _model.FundCluster.Trim() : "—";
+        var effectiveRcCode = !string.IsNullOrWhiteSpace(_model.ResponsibilityCenterCode) ? _model.ResponsibilityCenterCode.Trim() : "—";
+        var ngpFundLabel = effectiveFundCluster != "—"
+            ? $"{effectiveFundCluster} — BTr-NGAs Fees & Charges"
+            : "BTr-NGAs Fees & Charges";
 
         var schedule = new (string Code, string Title, string LegalBasis, decimal Collected, decimal Deposited, string Fund)[]
         {
@@ -377,8 +384,9 @@ public partial class StatutoryReportDocument
             {
                 r.RelativeItem().Column(c =>
                 {
-                    c.Item().Text($"BTr Treasury Circular Nos. 02-2022 / 03-2024 / 03-2025 — List of Deposited Collections (NGCDS / UACS)").Bold().FontSize(7.3f);
-                    c.Item().Text($"Entity: NTC {_model.TenantName}   |   Funding Source: {effectiveFundCluster}   |   RC Code: {(!string.IsNullOrWhiteSpace(_model.ResponsibilityCenterCode) ? _model.ResponsibilityCenterCode : "61")}").FontSize(6.6f);
+                    var btrEntity = !string.IsNullOrWhiteSpace(_model.TenantName) ? $"NTC {_model.TenantName}" : "NTC";
+                    c.Item().Text("BTr Treasury Circular Nos. 02-2022 / 03-2024 / 03-2025 — List of Deposited Collections (NGCDS / UACS)").Bold().FontSize(7.3f);
+                    c.Item().Text($"Entity: {btrEntity}   |   Fund Cluster: {effectiveFundCluster}   |   RC Code: {effectiveRcCode}").FontSize(6.6f);
                 });
                 r.ConstantItem(215).Column(c =>
                 {

@@ -262,38 +262,45 @@ export function RegionalConfigTab({
                       <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
                         <Lucide name="shield" size={10} color={isDark ? colors.brand[500] : colors.brand.primary} />
                         <Text style={[styles.codeBadgeText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
-                          RC CODE: {card.rcCode || 'RC-10'}
+                          RC CODE: {card.rcCode || '—'}
                         </Text>
                       </View>
 
                       <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
                         <Lucide name="layers" size={10} color={colors.textMuted} />
                         <Text style={[styles.codeBadgeText, { color: colors.textMuted }]}>
-                          OFFICE: {card.officeCode || 'R10-MAIN'}
+                          OFFICE: {card.officeCode || '—'}
                         </Text>
                       </View>
                     </View>
 
-                    {/* Series & Regional Numbering Badges: RC SOA, RC OP, Fund Cluster */}
+                    {/* Series & Regional Numbering Badges: RC SOA, RC OP, Fund Cluster, MFO/PAP */}
                     <View style={styles.codesRow}>
                       <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
                         <Lucide name="file-text" size={10} color={isDark ? colors.brand[500] : colors.brand.primary} />
                         <Text style={[styles.codeBadgeText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
-                          RC SOA: {card.rcCodeSoa || '61'}
+                          RC SOA: {card.rcCodeSoa || '—'}
                         </Text>
                       </View>
 
                       <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
                         <Lucide name="credit-card" size={10} color={isDark ? colors.brand[500] : colors.brand.primary} />
                         <Text style={[styles.codeBadgeText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
-                          RC OP: {card.rcCodeOp || '61'}
+                          RC OP: {card.rcCodeOp || '—'}
                         </Text>
                       </View>
 
                       <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
                         <Lucide name="database" size={10} color={colors.textMuted} />
                         <Text style={[styles.codeBadgeText, { color: colors.textMuted }]}>
-                          FUND: {card.fundCluster || '01'}
+                          FUND: {card.fundCluster || '—'}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                        <Lucide name="hash" size={10} color={colors.textMuted} />
+                        <Text style={[styles.codeBadgeText, { color: colors.textMuted }]}>
+                          MFO/PAP: {card.mfoPapCode || '—'}
                         </Text>
                       </View>
 
@@ -337,11 +344,11 @@ export function RegionalConfigTab({
                       <Text style={[styles.supportTitle, { color: colors.textMuted }]}>SUPPORT CONTACT DETAILS</Text>
                       <View style={styles.supportLine}>
                         <Lucide name="mail" size={12} color={isDark ? colors.brand[500] : colors.brand.primary} />
-                        <Text style={[styles.supportValue, { color: colors.text }]}>{card.supportEmail || 'region10@ntc.gov.ph'}</Text>
+                        <Text style={[styles.supportValue, { color: colors.text }]}>{card.supportEmail || 'Not configured'}</Text>
                       </View>
                       <View style={styles.supportLine}>
                         <Lucide name="phone" size={12} color={isDark ? colors.brand[500] : colors.brand.primary} />
-                        <Text style={[styles.supportValue, { color: colors.text }]}>{card.supportPhone || '(088) 856-1234 / (02) 8924-4008'}</Text>
+                        <Text style={[styles.supportValue, { color: colors.text }]}>{card.supportPhone || 'Not configured'}</Text>
                       </View>
                     </View>
                   </View>

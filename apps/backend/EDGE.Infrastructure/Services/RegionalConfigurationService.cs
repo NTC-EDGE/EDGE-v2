@@ -42,12 +42,12 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         }
 
         var resolvedTenantId = tenant?.Id ?? tenantId;
-        var tenantCode = tenant?.Code ?? "10";
-        var tenantName = tenant?.Name ?? "Regional Office";
+        var tenantCode = tenant?.Code ?? string.Empty;
+        var tenantName = tenant?.Name ?? tenant?.Region?.Name ?? string.Empty;
         var regionId = tenant?.RegionId;
 
         var cleanCode = ExtractCodeDigits(tenantCode);
-        if (string.IsNullOrWhiteSpace(cleanCode)) cleanCode = "10";
+        if (string.IsNullOrWhiteSpace(cleanCode)) cleanCode = "00";
 
         var soaConfig = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:RCCodeSOA", cancellationToken)
             ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:RCCodeSOA", cancellationToken)
@@ -60,6 +60,10 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         var fundConfig = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:FundCluster", cancellationToken)
             ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:FundCluster", cancellationToken)
             ?? await _systemConfigRepository.GetByKeyAsync("FundCluster", cancellationToken);
+
+        var mfoPapConfig = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:MfoPapCode", cancellationToken)
+            ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:MfoPapCode", cancellationToken)
+            ?? await _systemConfigRepository.GetByKeyAsync("MfoPapCode", cancellationToken);
 
         var routingConfig = await _systemConfigRepository.GetByKeyAsync($"TenantConfig:{resolvedTenantId}:RequestAndComplaintRouting", cancellationToken)
             ?? await _systemConfigRepository.GetByKeyAsync($"RegionalConfig:{cleanCode}:RequestAndComplaintRouting", cancellationToken)
@@ -126,17 +130,13 @@ public class RegionalConfigurationService : IRegionalConfigurationService
             mainFieldOfficePhone = mainOffice?.ContactPhone?.Trim();
         }
 
-        var defaultEmailSlug = (tenantCode ?? "region10")
+        var defaultEmailSlug = tenantCode
             .ToLowerInvariant()
             .Replace("ntc-", "")
             .Replace("ntc", "")
             .Replace(" ", "")
             .Trim('-');
-        if (string.IsNullOrWhiteSpace(defaultEmailSlug))
-        {
-            defaultEmailSlug = "region10";
-        }
-        else if (int.TryParse(defaultEmailSlug, out var numCode))
+        if (!string.IsNullOrWhiteSpace(defaultEmailSlug) && int.TryParse(defaultEmailSlug, out var numCode))
         {
             defaultEmailSlug = $"region{numCode}";
         }
@@ -145,22 +145,23 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         {
             TenantId = resolvedTenantId,
             RegionId = regionId,
-            TenantCode = tenantCode ?? "10",
+            TenantCode = tenantCode,
             TenantName = tenantName,
             RcCodeSoa = !string.IsNullOrWhiteSpace(soaConfig?.Value) ? soaConfig.Value : cleanCode,
             RcCodeOp = !string.IsNullOrWhiteSpace(opConfig?.Value) ? opConfig.Value : cleanCode,
             FundCluster = !string.IsNullOrWhiteSpace(fundConfig?.Value) ? fundConfig.Value : "01",
+            MfoPapCode = !string.IsNullOrWhiteSpace(mfoPapConfig?.Value) ? mfoPapConfig.Value.Trim() : string.Empty,
             RequestAndComplaintRouting = !string.IsNullOrWhiteSpace(routingConfig?.Value) ? routingConfig.Value : "DirectToLegal",
             SupportEmail = !string.IsNullOrWhiteSpace(emailConfig?.Value)
                 ? emailConfig.Value.Trim()
                 : (!string.IsNullOrWhiteSpace(mainFieldOfficeEmail)
                     ? mainFieldOfficeEmail
-                    : $"{defaultEmailSlug}@ntc.gov.ph"),
+                    : (!string.IsNullOrWhiteSpace(defaultEmailSlug) ? $"{defaultEmailSlug}@ntc.gov.ph" : string.Empty)),
             SupportPhone = !string.IsNullOrWhiteSpace(phoneConfig?.Value)
                 ? phoneConfig.Value.Trim()
                 : (!string.IsNullOrWhiteSpace(mainFieldOfficePhone)
                     ? mainFieldOfficePhone
-                    : "(088) 856-1234 / (02) 8924-4008"),
+                    : string.Empty),
             AllowManualSoaNumber = allowManualSoa,
             AllowManualOpNumber = allowManualOp,
             EnableInternalEmailNotifications = enableInternalEmail,
@@ -172,9 +173,13 @@ public class RegionalConfigurationService : IRegionalConfigurationService
     {
         var tenantId = dto.TenantId;
 
-        await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:RCCodeSOA", dto.RcCodeSoa ?? "61", $"Responsibility Center Code for SOA series in tenant {tenantId}", cancellationToken);
-        await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:RCCodeOP", dto.RcCodeOp ?? "61", $"Responsibility Center Code for OP series in tenant {tenantId}", cancellationToken);
+        await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:RCCodeSOA", dto.RcCodeSoa ?? string.Empty, $"Responsibility Center Code for SOA series in tenant {tenantId}", cancellationToken);
+        await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:RCCodeOP", dto.RcCodeOp ?? string.Empty, $"Responsibility Center Code for OP series in tenant {tenantId}", cancellationToken);
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:FundCluster", dto.FundCluster ?? "01", $"Accounting Fund Cluster for tenant {tenantId}", cancellationToken);
+        if (dto.MfoPapCode != null)
+        {
+            await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:MfoPapCode", dto.MfoPapCode.Trim(), $"MFO / PAP Code for statutory reports in tenant {tenantId}", cancellationToken);
+        }
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:RequestAndComplaintRouting", dto.RequestAndComplaintRouting ?? "DirectToLegal", $"Client application routing preference for Requests and Complaints in tenant {tenantId}", cancellationToken);
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:AllowManualSoaNumber", dto.AllowManualSoaNumber.ToString().ToLowerInvariant(), $"Whether manual SOA number entry and editing is allowed for tenant {tenantId}", cancellationToken, "Boolean");
         await SetOrUpdateConfigAsync($"TenantConfig:{tenantId}:AllowManualOpNumber", dto.AllowManualOpNumber.ToString().ToLowerInvariant(), $"Whether manual OP number entry and editing is allowed for tenant {tenantId}", cancellationToken, "Boolean");

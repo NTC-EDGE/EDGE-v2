@@ -38,6 +38,11 @@ public static class StatementOfAccountPrintMapper
 
         // 2. Basic Metadata & Payor
         model.AgencyName = "NATIONAL TELECOMMUNICATIONS COMMISSION";
+        model.RegionalOfficeName = !string.IsNullOrWhiteSpace(app?.Office)
+            ? app.Office.Trim()
+            : (!string.IsNullOrWhiteSpace(regionalSignatories?.OfficeName)
+                ? regionalSignatories.OfficeName.Trim()
+                : (!string.IsNullOrWhiteSpace(app?.Region?.Name) ? app.Region.Name.Trim() : null));
         model.Title = "Statement of Account";
 
         var isBulkConsolidatedSoa = (app?.SubmissionMode == SubmissionMode.Bulk || (app?.ApplicationApplicants?.Count ?? 0) > 1)

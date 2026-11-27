@@ -39,6 +39,7 @@ export interface RegionalConfigDto {
   rcCodeSoa: string;
   rcCodeOp: string;
   fundCluster: string;
+  mfoPapCode?: string;
   requestAndComplaintRouting: 'DirectToLegal' | 'DirectToEvaluator';
   supportEmail?: string;
   supportPhone?: string;

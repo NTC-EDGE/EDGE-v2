@@ -19,11 +19,12 @@ export const DEFAULT_REPORT_SIGNATORIES: ReportSignatoriesDto = {
 };
 
 export const DEFAULT_TENANT_CONFIG: RegionalConfigDto = {
-  tenantCode: '10',
-  tenantName: 'Region X - Northern Mindanao',
-  rcCodeSoa: '61',
-  rcCodeOp: '61',
+  tenantCode: '',
+  tenantName: '',
+  rcCodeSoa: '',
+  rcCodeOp: '',
   fundCluster: '01',
+  mfoPapCode: '',
   requestAndComplaintRouting: 'DirectToLegal',
   allowManualSoaNumber: false,
   allowManualOpNumber: false,
