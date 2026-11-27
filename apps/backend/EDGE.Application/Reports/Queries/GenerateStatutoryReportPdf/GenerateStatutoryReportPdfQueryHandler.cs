@@ -898,13 +898,6 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
 
         foreach (var app in apps)
         {
-            // Resolve officer fields BEFORE rewriting history StaffName so placeholder matching finds the exact history entry
-            app.EvaluatingOfficer = ResolveHistoryRealName(app, app.EvaluatingOfficer);
-            app.AssignedOfficerName = ResolveHistoryRealName(app, app.AssignedOfficerName);
-            app.IssuingOfficer = ResolveHistoryRealName(app, app.IssuingOfficer);
-            app.AccountingOfficer = ResolveHistoryRealName(app, app.AccountingOfficer);
-            app.CashierOfficer = ResolveHistoryRealName(app, app.CashierOfficer);
-
             if (app.Histories != null)
             {
                 foreach (var h in app.Histories)
@@ -937,6 +930,12 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
                     }
                 }
             }
+
+            app.EvaluatingOfficer = ResolveHistoryRealName(app, app.EvaluatingOfficer);
+            app.AssignedOfficerName = ResolveHistoryRealName(app, app.AssignedOfficerName);
+            app.IssuingOfficer = ResolveHistoryRealName(app, app.IssuingOfficer);
+            app.AccountingOfficer = ResolveHistoryRealName(app, app.AccountingOfficer);
+            app.CashierOfficer = ResolveHistoryRealName(app, app.CashierOfficer);
         }
     }
 }
