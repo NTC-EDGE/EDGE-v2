@@ -2174,6 +2174,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             dto.ChiefEodTitle = !string.IsNullOrWhiteSpace(chiefMember.Designation)
                 ? chiefMember.Designation
                 : (!string.IsNullOrWhiteSpace(chiefMember.Position) ? chiefMember.Position : (!string.IsNullOrWhiteSpace(chiefMember.JobTitle) ? chiefMember.JobTitle : null));
+            dto.ChiefEodSignature = u.ESignature;
         }
 
         // 2. Resolve Regional Director
@@ -2192,6 +2193,26 @@ public class ApplicationFullRepository : IApplicationFullRepository
             dto.RegionalDirectorTitle = !string.IsNullOrWhiteSpace(rdMember.Designation)
                 ? rdMember.Designation
                 : (!string.IsNullOrWhiteSpace(rdMember.Position) ? rdMember.Position : (!string.IsNullOrWhiteSpace(rdMember.JobTitle) ? rdMember.JobTitle : null));
+            dto.RegionalDirectorSignature = u.ESignature;
+        }
+
+        // 3. Resolve Regional Accountant / Collecting Officer (for Order of Payment signatory)
+        var accountantMember = members.FirstOrDefault(m =>
+            (m.Role != null && (string.Equals(m.Role.Key, "accountant", StringComparison.OrdinalIgnoreCase) ||
+                                (!string.IsNullOrWhiteSpace(m.Role.Name) && m.Role.Name.Contains("Accountant", StringComparison.OrdinalIgnoreCase)))) ||
+            (!string.IsNullOrWhiteSpace(m.Position) && (m.Position.Contains("Accountant", StringComparison.OrdinalIgnoreCase) || m.Position.Contains("Collecting Officer", StringComparison.OrdinalIgnoreCase))) ||
+            (!string.IsNullOrWhiteSpace(m.Designation) && (m.Designation.Contains("Accountant", StringComparison.OrdinalIgnoreCase) || m.Designation.Contains("Collecting Officer", StringComparison.OrdinalIgnoreCase))));
+
+        if (accountantMember?.User != null)
+        {
+            var u = accountantMember.User;
+            var middleInitial = !string.IsNullOrWhiteSpace(u.MiddleName) ? $" {u.MiddleName[0]}." : "";
+            var suffix = !string.IsNullOrWhiteSpace(u.Suffix) ? $" {u.Suffix}" : "";
+            dto.AccountantName = $"{u.FirstName}{middleInitial} {u.LastName}{suffix}".Trim();
+            dto.AccountantTitle = !string.IsNullOrWhiteSpace(accountantMember.Designation)
+                ? accountantMember.Designation
+                : (!string.IsNullOrWhiteSpace(accountantMember.Position) ? accountantMember.Position : (!string.IsNullOrWhiteSpace(accountantMember.JobTitle) ? accountantMember.JobTitle : null));
+            dto.AccountantSignature = u.ESignature;
         }
 
         return dto;

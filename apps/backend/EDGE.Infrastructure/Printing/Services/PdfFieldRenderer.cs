@@ -29,14 +29,25 @@ public class PdfFieldRenderer
         if (overlays == null || overlays.Count == 0)
             return;
 
+        if (context == null)
+            throw new NullReferenceException("PdfRenderingContext cannot be null.");
+
         var sortedOverlays = overlays.OrderBy(o => o.ZIndex).ToList();
 
         foreach (var overlay in sortedOverlays)
         {
-            var renderer = _renderers.FirstOrDefault(r => r.CanRender(overlay));
-            renderer?.Render(context, overlay);
+            if (overlay == null || overlay.Field == null) continue;
+            try
+            {
+                var renderer = _renderers.FirstOrDefault(r => r.CanRender(overlay));
+                renderer?.Render(context, overlay);
 
-            PdfOverlayDebugRenderer.RenderFieldDebug(context, overlay);
+                PdfOverlayDebugRenderer.RenderFieldDebug(context, overlay);
+            }
+            catch
+            {
+                // Never abort rendering an official NTC PDF form because of a single malformed field overlay
+            }
         }
     }
 }

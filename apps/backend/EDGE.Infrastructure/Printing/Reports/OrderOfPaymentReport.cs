@@ -258,10 +258,21 @@ public class OrderOfPaymentReport : IDocument
                 // Bottom Right Collecting Officer Signature Line
                 r.ConstantItem(270).AlignBottom().Column(sigCol =>
                 {
+                    var officerSigBytes = _model.CollectingOfficerSignatureBytes
+                        ?? SignatoryImageHelper.TryDecodeInlineSignatureBytes(_model.CollectingOfficerSignature);
+                    if (SignatoryImageHelper.IsSupportedRasterImage(officerSigBytes))
+                    {
+                        sigCol.Item().Height(24).AlignCenter().Image(officerSigBytes!).FitArea();
+                    }
+
                     sigCol.Item().LineHorizontal(0.8f).LineColor(Colors.Black);
                     if (!string.IsNullOrWhiteSpace(_model.CollectingOfficer))
                     {
                         sigCol.Item().AlignCenter().Text(_model.CollectingOfficer).FontSize(8.5f).Bold();
+                    }
+                    if (!string.IsNullOrWhiteSpace(_model.CollectingOfficerPosition))
+                    {
+                        sigCol.Item().AlignCenter().Text(_model.CollectingOfficerPosition).FontSize(7.5f).Italic();
                     }
                 });
             });

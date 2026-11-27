@@ -20,25 +20,31 @@ public class TextFieldRenderer : IFieldTypeRenderer
         var field = textOverlay.Field;
 
         // Apply template-defined formatting before measuring or rendering.
-        var text = TextFormatter.Apply(textOverlay.Text, field);
+        var rawFormatted = TextFormatter.Apply(textOverlay.Text, field);
+        var text = SanitizePrintableText(rawFormatted);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
 
         var fontStyle = field.IsBold
             ? XFontStyleEx.Bold
             : XFontStyleEx.Regular;
 
-        var font = new XFont("Arial", field.FontSize, fontStyle);
+        double safeFontSize = field.FontSize > 0 ? field.FontSize : 8.0;
+        var font = new XFont("Arial", safeFontSize, fontStyle);
 
         XBrush brush = ResolveBrush(field.TextColor);
 
         // Multi-line field handling (e.g. details of complaint, descriptions)
-        if (field.Width.HasValue && field.Height.HasValue && field.Height.Value > field.FontSize * 1.8)
+        if (field.Width.HasValue && field.Height.HasValue && field.Height.Value > safeFontSize * 1.8)
         {
             RenderMultiLineText(context, text, field, font, brush);
             return;
         }
 
         // Single-line field handling with auto-fit to prevent overlapping adjacent fields
-        double fontSize = field.FontSize;
+        double fontSize = safeFontSize;
         XSize textSize = context.Graphics.MeasureString(text, font);
 
         if (field.Width.HasValue && textSize.Width > field.Width.Value)
@@ -168,4 +174,26 @@ public class TextFieldRenderer : IFieldTypeRenderer
 
     private static bool IsCentered(PdfAnchor anchor) =>
         anchor is PdfAnchor.Center or PdfAnchor.BaselineCenter;
+
+    private static string SanitizePrintableText(string? input)
+    {
+        if (string.IsNullOrEmpty(input)) return string.Empty;
+        var sb = new System.Text.StringBuilder(input.Length);
+        foreach (var ch in input)
+        {
+            if (ch == '\r' || ch == '\n')
+            {
+                sb.Append(ch);
+            }
+            else if (ch == '\t')
+            {
+                sb.Append(' ');
+            }
+            else if (!char.IsControl(ch))
+            {
+                sb.Append(ch);
+            }
+        }
+        return sb.ToString();
+    }
 }

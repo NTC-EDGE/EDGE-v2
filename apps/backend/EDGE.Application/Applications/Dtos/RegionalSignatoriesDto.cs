@@ -7,11 +7,30 @@ public class RegionalSignatoriesDto
 {
     public string? ChiefEodName { get; set; }
     public string? ChiefEodTitle { get; set; }
+    public string? ChiefEodSignature { get; set; }
     public string? RegionalDirectorName { get; set; }
     public string? RegionalDirectorTitle { get; set; }
+    public string? RegionalDirectorSignature { get; set; }
+    public string? AccountantName { get; set; }
+    public string? AccountantTitle { get; set; }
+    public string? AccountantSignature { get; set; }
     public string? RegionName { get; set; }
     public string? RegionCode { get; set; }
     public string? OfficeName { get; set; }
+
+    /// <summary>
+    /// Resolves the Approver's e-signature string matching the resolved approver (Chief of EOD or Regional Director).
+    /// </summary>
+    public string? GetResolvedApproverSignature()
+    {
+        if (!string.IsNullOrWhiteSpace(ChiefEodName))
+            return ChiefEodSignature;
+
+        if (!string.IsNullOrWhiteSpace(RegionalDirectorName))
+            return RegionalDirectorSignature;
+
+        return null;
+    }
 
     /// <summary>
     /// Resolves the Approver's name based on regional administrative rules:

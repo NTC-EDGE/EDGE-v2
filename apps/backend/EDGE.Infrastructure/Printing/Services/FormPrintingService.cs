@@ -235,57 +235,97 @@ public class FormPrintingService : IFormPrintingService
         Func<IReadOnlyList<FieldOverlay>> buildOverlays,
         string formLabel)
     {
-        byte[]? template = null;
+        IReadOnlyList<FieldOverlay> overlays;
+        try
+        {
+            overlays = buildOverlays() ?? Array.Empty<FieldOverlay>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to build field overlays for {FormLabel}. Rendering official NTC template without overlays.", formLabel);
+            overlays = Array.Empty<FieldOverlay>();
+        }
 
+        // 1. Try cloud / configured filler service template first
         if (_fillerService != null)
         {
             foreach (var candidate in templateCandidates)
             {
+                byte[]? cloudTemplate = null;
                 try
                 {
                     if (_fillerService.TemplateExists(candidate))
                     {
-                        template = _fillerService.GetTemplate(candidate);
-                        if (template != null && template.Length > 0) break;
+                        cloudTemplate = _fillerService.GetTemplate(candidate);
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex, "Failed to retrieve {FormLabel} template candidate '{Candidate}' from filler service.", formLabel, candidate);
                 }
+
+                if (cloudTemplate == null || cloudTemplate.Length == 0) continue;
+
+                var renderedCloud = TryOverlayWithFallbackRenderer(cloudTemplate, overlays, _fillerService, formLabel, candidate);
+                if (renderedCloud != null) return renderedCloud;
             }
         }
 
-        if (template == null || template.Length == 0)
+        // 2. Always fall back to the bundled official NTC PDF template (local disk or embedded assembly resource)
+        //    before ever considering a non-NTC QuestPDF generator.
+        foreach (var candidate in templateCandidates)
         {
-            foreach (var candidate in templateCandidates)
+            if (!candidate.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) continue;
+
+            byte[]? bundledTemplate = null;
+            try
             {
-                if (!candidate.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) continue;
-                try
-                {
-                    template = LoadLocalOrEmbeddedTemplate(candidate);
-                    if (template != null && template.Length > 0) break;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "Failed to load local/embedded {FormLabel} template '{Candidate}'.", formLabel, candidate);
-                }
+                bundledTemplate = LoadLocalOrEmbeddedTemplate(candidate);
             }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load local/embedded {FormLabel} template '{Candidate}'.", formLabel, candidate);
+            }
+
+            if (bundledTemplate == null || bundledTemplate.Length == 0) continue;
+
+            // Use direct OverlayPdfRenderer directly so a failing/mocked _fillerService never breaks bundled official templates
+            var renderedBundled = TryOverlayWithFallbackRenderer(bundledTemplate, overlays, fillerService: null, formLabel, candidate);
+            if (renderedBundled != null) return renderedBundled;
+
+            // Even if overlay drawing somehow fails completely, return the official NTC template itself rather than a non-NTC form
+            return bundledTemplate;
         }
 
-        if (template == null || template.Length == 0)
+        return null;
+    }
+
+    private byte[]? TryOverlayWithFallbackRenderer(
+        byte[] templateBytes,
+        IReadOnlyList<FieldOverlay> overlays,
+        IPdfFormFillerService? fillerService,
+        string formLabel,
+        string candidate)
+    {
+        if (fillerService != null)
         {
-            return null;
+            try
+            {
+                return fillerService.OverlayFields(templateBytes, overlays);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Filler service OverlayFields failed for {FormLabel} ('{Candidate}'). Retrying with direct OverlayPdfRenderer.", formLabel, candidate);
+            }
         }
 
         try
         {
-            var overlays = buildOverlays();
-            return OverlayOnTemplate(template, overlays, _fillerService);
+            return OverlayOnTemplate(templateBytes, overlays, fillerService: null);
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to overlay {FormLabel} PDF template. Falling back to QuestPDF generator.", formLabel);
+            _logger?.LogWarning(ex, "Direct OverlayPdfRenderer failed for {FormLabel} ('{Candidate}').", formLabel, candidate);
             return null;
         }
     }
@@ -566,6 +606,20 @@ public class FormPrintingService : IFormPrintingService
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
             return ms.ToArray();
+        }
+
+        // Case-insensitive fallback lookup in embedded manifest resources
+        var matchedName = asm.GetManifestResourceNames()
+            .FirstOrDefault(r => r.EndsWith($".{templateFileName}", StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(matchedName))
+        {
+            using var ciStream = asm.GetManifestResourceStream(matchedName);
+            if (ciStream != null)
+            {
+                using var ms = new MemoryStream();
+                ciStream.CopyTo(ms);
+                return ms.ToArray();
+            }
         }
 
         return null;

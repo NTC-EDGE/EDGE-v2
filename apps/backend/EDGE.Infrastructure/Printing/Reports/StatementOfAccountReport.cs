@@ -337,7 +337,17 @@ public class StatementOfAccountReport : IDocument
                     {
                         sig.Item().Text("PREPARED / EVALUATED BY:").FontSize(7f);
                     }
-                    sig.Item().PaddingTop(isOverlay ? 8 : 12).LineHorizontal(isOverlay ? 0f : 0.8f).LineColor(Colors.Black);
+                    var preparedSigBytes = _model.PreparedBySignatureBytes
+                        ?? EDGE.Infrastructure.Printing.Services.AcroForm.SignatoryImageHelper.TryDecodeInlineSignatureBytes(_model.PreparedBySignature);
+                    if (EDGE.Infrastructure.Printing.Services.AcroForm.SignatoryImageHelper.IsSupportedRasterImage(preparedSigBytes))
+                    {
+                        sig.Item().Height(22).AlignCenter().Image(preparedSigBytes!).FitArea();
+                        sig.Item().LineHorizontal(isOverlay ? 0f : 0.8f).LineColor(Colors.Black);
+                    }
+                    else
+                    {
+                        sig.Item().PaddingTop(isOverlay ? 8 : 12).LineHorizontal(isOverlay ? 0f : 0.8f).LineColor(Colors.Black);
+                    }
                     sig.Item().AlignCenter().Text(_model.PreparedByName ?? "EVALUATOR").Bold().FontSize(8f);
                     if (!isOverlay)
                     {
@@ -352,7 +362,17 @@ public class StatementOfAccountReport : IDocument
                     {
                         sig.Item().Text("APPROVED BY:").FontSize(7f);
                     }
-                    sig.Item().PaddingTop(isOverlay ? 8 : 12).LineHorizontal(isOverlay ? 0f : 0.8f).LineColor(Colors.Black);
+                    var approvedSigBytes = _model.ApprovedBySignatureBytes
+                        ?? EDGE.Infrastructure.Printing.Services.AcroForm.SignatoryImageHelper.TryDecodeInlineSignatureBytes(_model.ApprovedBySignature);
+                    if (EDGE.Infrastructure.Printing.Services.AcroForm.SignatoryImageHelper.IsSupportedRasterImage(approvedSigBytes))
+                    {
+                        sig.Item().Height(22).AlignCenter().Image(approvedSigBytes!).FitArea();
+                        sig.Item().LineHorizontal(isOverlay ? 0f : 0.8f).LineColor(Colors.Black);
+                    }
+                    else
+                    {
+                        sig.Item().PaddingTop(isOverlay ? 8 : 12).LineHorizontal(isOverlay ? 0f : 0.8f).LineColor(Colors.Black);
+                    }
                     sig.Item().AlignCenter().Text(_model.ApprovedByName ?? "CHIEF, EOD").Bold().FontSize(8f);
                     if (!isOverlay)
                     {

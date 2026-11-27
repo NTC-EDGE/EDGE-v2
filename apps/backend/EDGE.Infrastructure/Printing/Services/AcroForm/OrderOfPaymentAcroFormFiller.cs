@@ -88,18 +88,48 @@ public static class OrderOfPaymentAcroFormFiller
                     SetField(form, "ORBy", model.OrBy);
                 }
 
-                SetField(form, "Accountant", model.CollectingOfficer ?? "Special Collecting Officer");
-                SetField(form, "AccountantPosition", "Special Collecting Officer");
+                // Capture signature button placeholder rectangles and remove them before flattening
+                // so iText does not paint opaque grey rectangles over the signatory area.
+                var upperSigRect = SignatoryImageHelper.ExtractRectAndRemovePlaceholder(form, "AccountantSignature");
+                var lowerSigRect = SignatoryImageHelper.ExtractRectAndRemovePlaceholder(form, "Accountant2Signature");
 
-                // Remove empty signature button placeholders so flattening does not paint opaque grey boxes over the signature area
-                try { form.RemoveField("AccountantSignature"); } catch { }
-                try { form.RemoveField("Accountant2Signature"); } catch { }
+                SignatoryImageHelper.ClearFieldBackground(form, "Accountant");
+                SignatoryImageHelper.ClearFieldBackground(form, "AccountantPosition");
+
+                SetField(form, "Accountant", model.CollectingOfficer ?? "Special Collecting Officer");
+                SetField(form, "AccountantPosition", model.CollectingOfficerPosition ?? "Special Collecting Officer");
 
                 // Flatten all AcroForm fields (automatically fills and bakes BOTH Upper and Lower 2-up copies)
                 form.FlattenFields();
 
                 // Stamp the official NTC Seal onto both Upper and Lower 2-up voucher headers
                 StampNtcSeals(pdfDoc);
+
+                // Stamp Collecting Officer / Accountant e-signature cleanly above the printed name on both copies if available
+                var officerSigBytes = model.CollectingOfficerSignatureBytes
+                    ?? SignatoryImageHelper.TryDecodeInlineSignatureBytes(model.CollectingOfficerSignature);
+                if (officerSigBytes != null && pdfDoc.GetNumberOfPages() >= 1)
+                {
+                    var page = pdfDoc.GetPage(1);
+                    if (upperSigRect != null)
+                    {
+                        var targetUpper = new Rectangle(
+                            upperSigRect.GetX(),
+                            upperSigRect.GetY() + 9.5f,
+                            upperSigRect.GetWidth(),
+                            Math.Max(10f, upperSigRect.GetHeight() - 9.5f));
+                        SignatoryImageHelper.StampSignatureCentered(pdfDoc, page, targetUpper, officerSigBytes);
+                    }
+                    if (lowerSigRect != null)
+                    {
+                        var targetLower = new Rectangle(
+                            lowerSigRect.GetX(),
+                            lowerSigRect.GetY() + 9.5f,
+                            lowerSigRect.GetWidth(),
+                            Math.Max(10f, lowerSigRect.GetHeight() - 9.5f));
+                        SignatoryImageHelper.StampSignatureCentered(pdfDoc, page, targetLower, officerSigBytes);
+                    }
+                }
             }
         }
 
@@ -120,14 +150,13 @@ public static class OrderOfPaymentAcroFormFiller
 
             // order-of-payment-template.pdf is A5 Portrait (419.528 x 595.276 pt), 2-up layout.
             // Top-left header seal region on each copy sits cleanly left of
-            // "NATIONAL TELECOMMUNICATIONS COMMISSION / Regional Office No." (X ~ 59.3),
-            // inside the outer top border (Upper Y ~ 588.5, Lower Y ~ 329.5),
+            // "NATIONAL TELECOMMUNICATIONS COMMISSION / Regional Office No." (X ~ 59.3)
             // and directly above "General Fund" (Upper Y ~ 555.3, Lower Y ~ 299.7).
-            const float sealSize = 23.0f;
-            const float sealX = 22.0f;
+            const float sealSize = 25.0f;
+            const float sealX = 21.0f;
 
-            var upperRect = new Rectangle(sealX, 563.0f, sealSize, sealSize);
-            var lowerRect = new Rectangle(sealX + 0.4f, 304.5f, sealSize, sealSize);
+            var upperRect = new Rectangle(sealX, 562.5f, sealSize, sealSize);
+            var lowerRect = new Rectangle(sealX + 0.4f, 305.5f, sealSize, sealSize);
 
             canvas.SaveState();
             canvas.AddImageFittedIntoRectangle(imageData, upperRect, false);

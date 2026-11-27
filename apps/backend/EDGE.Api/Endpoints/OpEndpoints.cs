@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,15 +7,19 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using EDGE.Application.Applications.Commands.VerifyPayment;
 using EDGE.Application.Applications.Commands.ReturnOp;
 using EDGE.Application.Applications.Commands.UpdateOpNumber;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Application.Storage.Queries.GetFileDownload;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Infrastructure.Printing.Models;
 using EDGE.Infrastructure.Printing.Services;
+using EDGE.Infrastructure.Printing.Services.AcroForm;
 using EDGE.Api.Endpoints.Ops.DTOs;
 
 namespace EDGE.Api.Endpoints;
@@ -280,6 +285,16 @@ public static class OpEndpoints
             }
         }
 
+        EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null;
+        try
+        {
+            regionalSignatories = await repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
+        }
+        catch
+        {
+            // Keep printing OP even if optional signatory lookup fails
+        }
+
         var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(
             op: op,
             soa: soa,
@@ -288,7 +303,9 @@ public static class OpEndpoints
             agencyBankAccounts: bankAccounts,
             receipt: receipt,
             overrideOrNumber: orNumber,
-            receipts: matchingReceipts);
+            receipts: matchingReceipts,
+            regionalSignatories: regionalSignatories);
+        await PopulateSignatorySignatureAsync(printModel, httpContext, cancellationToken);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = SanitizePdfFileName($"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf");
 
@@ -367,6 +384,16 @@ public static class OpEndpoints
             }
         }
 
+        EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null;
+        try
+        {
+            regionalSignatories = await repository.GetRegionalSignatoriesAsync(app?.TenantId, app?.RegionId, cancellationToken);
+        }
+        catch
+        {
+            // Keep printing OP even if optional signatory lookup fails
+        }
+
         var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(
             op: op,
             soa: soa,
@@ -375,7 +402,9 @@ public static class OpEndpoints
             agencyBankAccounts: bankAccounts,
             receipt: receipt,
             overrideOrNumber: orNumber,
-            receipts: matchingReceipts);
+            receipts: matchingReceipts,
+            regionalSignatories: regionalSignatories);
+        await PopulateSignatorySignatureAsync(printModel, httpContext, cancellationToken);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = SanitizePdfFileName($"OP_{op.OpNumber ?? opId.ToString()}.pdf");
 
@@ -386,6 +415,56 @@ public static class OpEndpoints
 
         httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
+
+    private static async Task PopulateSignatorySignatureAsync(
+        OrderOfPaymentModel model,
+        HttpContext? httpContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (model.CollectingOfficerSignatureBytes != null) return;
+
+            var services = httpContext?.RequestServices;
+            var userRepo = services?.GetService<IUserRepository>();
+            var mediator = services?.GetService<IMediator>();
+
+            if (string.IsNullOrWhiteSpace(model.CollectingOfficerSignature) && model.CollectingOfficerUserId.HasValue && userRepo != null)
+            {
+                var user = await userRepo.GetByIdAsync(model.CollectingOfficerUserId.Value, cancellationToken);
+                model.CollectingOfficerSignature = user?.ESignature;
+            }
+
+            if (string.IsNullOrWhiteSpace(model.CollectingOfficerSignature)) return;
+
+            var inlineBytes = SignatoryImageHelper.TryDecodeInlineSignatureBytes(model.CollectingOfficerSignature);
+            if (inlineBytes != null)
+            {
+                model.CollectingOfficerSignatureBytes = inlineBytes;
+                return;
+            }
+
+            if (mediator != null && Guid.TryParse(model.CollectingOfficerSignature.Trim(), out var fileId) && fileId != Guid.Empty)
+            {
+                var fileRes = await mediator.Send(new GetFileDownloadQuery(fileId, Guid.Empty), cancellationToken);
+                if (fileRes.Succeeded && fileRes.Data?.FileStream != null)
+                {
+                    using var stream = fileRes.Data.FileStream;
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms, cancellationToken);
+                    var bytes = ms.ToArray();
+                    if (SignatoryImageHelper.IsSupportedRasterImage(bytes))
+                    {
+                        model.CollectingOfficerSignatureBytes = bytes;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Never fail OP PDF generation if optional signature lookup fails
+        }
     }
 
     private static string SanitizePdfFileName(string rawName)

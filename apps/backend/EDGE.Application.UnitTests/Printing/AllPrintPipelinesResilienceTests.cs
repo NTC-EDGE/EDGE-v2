@@ -36,27 +36,34 @@ public class AllPrintPipelinesResilienceTests
         Encoding.ASCII.GetString(pdfBytes, 0, 4).Should().Be("%PDF");
     }
 
+    private static void AssertOfficialNtcTemplatePdf(byte[] pdfBytes)
+    {
+        AssertValidPdf(pdfBytes);
+        // Official NTC PDF templates must NOT silently be replaced by non-NTC QuestPDF forms
+        Encoding.ASCII.GetString(pdfBytes).Should().NotContain("QuestPDF");
+    }
+
     [Fact]
-    public void FormPrintingService_All16ApplicationForms_FallBackToQuestPdf_WhenTemplateFillerThrows()
+    public void FormPrintingService_AllOfficialApplicationForms_PreserveOfficialNtcTemplate_WhenCloudFillerThrows()
     {
         var service = CreateServiceWithFailingFiller();
 
-        AssertValidPdf(service.PrintConstructionPermit(MockDataFactory.GetConstructionPermitApplication()));
-        AssertValidPdf(service.PrintPurchasePossessSellTransfer(MockDataFactory.GetPurchasePossessSellTransferApplication()));
-        AssertValidPdf(service.PrintCertificateOfRegistration(MockDataFactory.GetCertificateOfRegistrationApplication()));
-        AssertValidPdf(service.PrintNtc101(MockDataFactory.GetNtc101Application()));
-        AssertValidPdf(service.PrintNtc102(MockDataFactory.GetNtc102Application()));
-        AssertValidPdf(service.PrintNtc103(MockDataFactory.GetNtc103Application()));
-        AssertValidPdf(service.PrintNtc104(MockDataFactory.GetNtc104Application()));
-        AssertValidPdf(service.PrintNtc105(MockDataFactory.GetNtc105Application()));
-        AssertValidPdf(service.PrintNtc110(MockDataFactory.GetNtc110Application()));
-        AssertValidPdf(service.PrintNtc114(MockDataFactory.GetNtc114Application()));
-        AssertValidPdf(service.PrintNtc118(MockDataFactory.GetNtc118Application()));
-        AssertValidPdf(service.PrintNtc120(MockDataFactory.GetNtc120Application()));
-        AssertValidPdf(service.PrintNtc121(new Ntc121Application { ApplicationId = Guid.NewGuid() }));
-        AssertValidPdf(service.PrintNtc122(new Ntc122Application { ApplicationId = Guid.NewGuid() }));
-        AssertValidPdf(service.PrintNtc124(new Ntc124Application { ApplicationId = Guid.NewGuid(), AffiantName = "TEST AFFIANT" }));
-        AssertValidPdf(service.PrintNtc125(new Ntc125Application { ApplicationId = Guid.NewGuid(), StateBrieflyDetails = "Test complaint" }));
+        AssertOfficialNtcTemplatePdf(service.PrintConstructionPermit(MockDataFactory.GetConstructionPermitApplication()));
+        AssertOfficialNtcTemplatePdf(service.PrintPurchasePossessSellTransfer(MockDataFactory.GetPurchasePossessSellTransferApplication()));
+        AssertOfficialNtcTemplatePdf(service.PrintCertificateOfRegistration(MockDataFactory.GetCertificateOfRegistrationApplication()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc101(MockDataFactory.GetNtc101Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc102(MockDataFactory.GetNtc102Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc103(MockDataFactory.GetNtc103Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc104(MockDataFactory.GetNtc104Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc105(MockDataFactory.GetNtc105Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc110(MockDataFactory.GetNtc110Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc114(MockDataFactory.GetNtc114Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc118(MockDataFactory.GetNtc118Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc120(MockDataFactory.GetNtc120Application()));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc121(new Ntc121Application { ApplicationId = Guid.NewGuid() }));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc122(new Ntc122Application { ApplicationId = Guid.NewGuid() }));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc124(new Ntc124Application { ApplicationId = Guid.NewGuid(), AffiantName = "TEST AFFIANT" }));
+        AssertOfficialNtcTemplatePdf(service.PrintNtc125(new Ntc125Application { ApplicationId = Guid.NewGuid(), StateBrieflyDetails = "Test complaint" }));
     }
 
     [Fact]
@@ -154,5 +161,41 @@ public class AllPrintPipelinesResilienceTests
         model.RegionalOffice.Should().NotBe("National Capital Region");
         var service = CreateServiceWithFailingFiller();
         AssertValidPdf(service.PrintIssuedDocument(model));
+    }
+
+    [Fact]
+    public void OrderOfPaymentAndSoa_RemoveGreySignaturePlaceholders_AndStampOptionalSignatures()
+    {
+        // Minimal valid 1x1 transparent PNG
+        var samplePngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        var dataUri = $"data:image/png;base64,{samplePngBase64}";
+
+        var decoded = EDGE.Infrastructure.Printing.Services.AcroForm.SignatoryImageHelper.TryDecodeInlineSignatureBytes(dataUri);
+        decoded.Should().NotBeNull();
+        EDGE.Infrastructure.Printing.Services.AcroForm.SignatoryImageHelper.TryDecodeInlineSignatureBytes("JUAN DELA CRUZ").Should().BeNull();
+        EDGE.Infrastructure.Printing.Services.AcroForm.SignatoryImageHelper.TryDecodeInlineSignatureBytes(Guid.NewGuid().ToString()).Should().BeNull();
+
+        var service = new FormPrintingService(new PdfFormFillerService());
+
+        var opModel = MockDataFactory.GetOrderOfPaymentModel();
+        opModel.CollectingOfficer = "MARIA C. SANTOS";
+        opModel.CollectingOfficerPosition = "Accountant III";
+        var opWithoutSig = service.PrintOrderOfPayment(opModel);
+        AssertValidPdf(opWithoutSig);
+
+        opModel.CollectingOfficerSignature = dataUri;
+        var opWithSig = service.PrintOrderOfPayment(opModel);
+        AssertValidPdf(opWithSig);
+        opWithSig.Length.Should().BeGreaterThan(opWithoutSig.Length);
+
+        var soaModel = MockDataFactory.GetStatementOfAccountModel();
+        var soaWithoutSig = service.PrintStatementOfAccount(soaModel);
+        AssertValidPdf(soaWithoutSig);
+
+        soaModel.PreparedBySignature = dataUri;
+        soaModel.ApprovedBySignature = dataUri;
+        var soaWithSig = service.PrintStatementOfAccount(soaModel);
+        AssertValidPdf(soaWithSig);
+        soaWithSig.Length.Should().BeGreaterThan(soaWithoutSig.Length);
     }
 }

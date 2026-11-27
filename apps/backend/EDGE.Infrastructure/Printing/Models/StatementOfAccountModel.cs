@@ -117,9 +117,15 @@ public class StatementOfAccountModel
     // Signatures
     public string PreparedByTitle { get; set; } = "EVALUATOR";
     public string? PreparedByName { get; set; }
+    public System.Guid? PreparedByUserId { get; set; }
+    public string? PreparedBySignature { get; set; }
+    public byte[]? PreparedBySignatureBytes { get; set; }
 
     public string ApprovedByTitle { get; set; } = "CEOD";
     public string? ApprovedByName { get; set; }
+    public System.Guid? ApprovedByUserId { get; set; }
+    public string? ApprovedBySignature { get; set; }
+    public byte[]? ApprovedBySignatureBytes { get; set; }
 
     // Remarks
     public string Remarks { get; set; } = string.Empty;

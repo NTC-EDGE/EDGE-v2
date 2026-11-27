@@ -103,6 +103,16 @@ public static class StatementOfAccountAcroFormFiller
                 }
 
                 // 6. Signatures and Remarks
+                // Capture signature placeholder rects and remove the empty button fields before flattening
+                // so iText does not paint opaque grey rectangles over the signatory area.
+                var preparedSigRect = SignatoryImageHelper.ExtractRectAndRemovePlaceholder(form, "PreparedBySignature");
+                var approvedSigRect = SignatoryImageHelper.ExtractRectAndRemovePlaceholder(form, "ApprovedBySignature");
+
+                SignatoryImageHelper.ClearFieldBackground(form, "PreparedBy");
+                SignatoryImageHelper.ClearFieldBackground(form, "PreparedByPosition");
+                SignatoryImageHelper.ClearFieldBackground(form, "ApprovedBy");
+                SignatoryImageHelper.ClearFieldBackground(form, "ApprovedByPosition");
+
                 SetField(form, "PreparedBy", model.PreparedByName ?? "EVALUATOR");
                 SetField(form, "PreparedByPosition", model.PreparedByTitle ?? "Evaluator");
                 SetField(form, "ApprovedBy", model.ApprovedByName ?? "CHIEF, EOD");
@@ -125,6 +135,33 @@ public static class StatementOfAccountAcroFormFiller
                 foreach (var cb in drawnCheckboxes)
                 {
                     DrawCheckbox(pageCanvas, cb.X, cb.Y, cb.W, cb.H, cb.BoxSize, cb.IsChecked);
+                }
+
+                // 8B. Stamp staff e-signatures cleanly above signatory names when available
+                var preparedSigBytes = model.PreparedBySignatureBytes
+                    ?? SignatoryImageHelper.TryDecodeInlineSignatureBytes(model.PreparedBySignature);
+                if (preparedSigBytes != null && preparedSigRect != null)
+                {
+                    // PreparedBy text sits at the bottom ~8.5pt of PreparedBySignature; place image strictly above it
+                    var targetRect = new iText.Kernel.Geom.Rectangle(
+                        preparedSigRect.GetX(),
+                        preparedSigRect.GetY() + 8.5f,
+                        preparedSigRect.GetWidth(),
+                        Math.Max(10f, preparedSigRect.GetHeight() - 8.5f));
+                    SignatoryImageHelper.StampSignatureCentered(pdfDoc, page, targetRect, preparedSigBytes);
+                }
+
+                var approvedSigBytes = model.ApprovedBySignatureBytes
+                    ?? SignatoryImageHelper.TryDecodeInlineSignatureBytes(model.ApprovedBySignature);
+                if (approvedSigBytes != null && approvedSigRect != null)
+                {
+                    // ApprovedBy text sits at the bottom ~9pt of ApprovedBySignature; place image strictly above it
+                    var targetRect = new iText.Kernel.Geom.Rectangle(
+                        approvedSigRect.GetX(),
+                        approvedSigRect.GetY() + 9.0f,
+                        approvedSigRect.GetWidth(),
+                        Math.Max(10f, approvedSigRect.GetHeight() - 9.0f));
+                    SignatoryImageHelper.StampSignatureCentered(pdfDoc, page, targetRect, approvedSigBytes);
                 }
             }
 

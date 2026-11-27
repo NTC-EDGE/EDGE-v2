@@ -51,4 +51,8 @@ public class OrderOfPaymentModel
     public string? OrBy { get; set; }
 
     public string? CollectingOfficer { get; set; }
+    public string? CollectingOfficerPosition { get; set; }
+    public System.Guid? CollectingOfficerUserId { get; set; }
+    public string? CollectingOfficerSignature { get; set; }
+    public byte[]? CollectingOfficerSignatureBytes { get; set; }
 }

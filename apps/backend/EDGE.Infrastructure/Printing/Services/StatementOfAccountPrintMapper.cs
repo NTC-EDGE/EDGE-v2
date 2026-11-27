@@ -395,9 +395,9 @@ public static class StatementOfAccountPrintMapper
 
         // 8. Signatures: Prepared By (Evaluator) & Approved By (Chief of EOD / Regional Director)
         var allHistories = (app?.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>())
-            .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (EDGE.Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
+            .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (EDGE.Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp, h.PerformedByUserId })
             .Concat((soa?.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>())
-                .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (EDGE.Domain.Enums.ApplicationStatus?)null, h.Timestamp }))
+                .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (EDGE.Domain.Enums.ApplicationStatus?)null, h.Timestamp, h.PerformedByUserId }))
             .OrderByDescending(h => h.Timestamp)
             .ToList();
 
@@ -412,9 +412,16 @@ public static class StatementOfAccountPrintMapper
                                    h.Action.Contains("Assessment", StringComparison.OrdinalIgnoreCase))) &&
              (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)))));
 
+        var soaEvaluatorHistory = soa?.Histories?.FirstOrDefault(h => h.Action == "Created" || (h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase)));
+        var opEvaluatorHistory = activeOp?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase));
+
         var evaluatorName = evaluatorHistory?.StaffName
-            ?? soa?.Histories?.FirstOrDefault(h => h.Action == "Created" || (h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase)))?.StaffName
-            ?? activeOp?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase))?.StaffName;
+            ?? soaEvaluatorHistory?.StaffName
+            ?? opEvaluatorHistory?.StaffName;
+
+        model.PreparedByUserId = evaluatorHistory?.PerformedByUserId
+            ?? soaEvaluatorHistory?.PerformedByUserId
+            ?? opEvaluatorHistory?.PerformedByUserId;
 
         var fallbackRegionLabel = !string.IsNullOrWhiteSpace(app?.Region?.Code)
             ? $"NTC {app.Region.Code}"
@@ -451,21 +458,29 @@ public static class StatementOfAccountPrintMapper
         if (chiefOrDirectorHistory != null && !string.IsNullOrWhiteSpace(chiefOrDirectorHistory.StaffName))
         {
             model.ApprovedByName = chiefOrDirectorHistory.StaffName;
+            model.ApprovedByUserId = chiefOrDirectorHistory.PerformedByUserId;
             var isDirector = chiefOrDirectorHistory.StaffRole != null &&
                              chiefOrDirectorHistory.StaffRole.Contains("Director", StringComparison.OrdinalIgnoreCase);
             model.ApprovedByTitle = isDirector
                 ? $"Regional Director, {fallbackRegionLabel}"
                 : $"Chief, Enforcement & Operations Division, {fallbackRegionLabel}";
+            model.ApprovedBySignature = regionalSignatories?.GetResolvedApproverSignature();
         }
         else if (regionalSignatories != null)
         {
             model.ApprovedByName = regionalSignatories.GetResolvedApproverName(defaultFallback: "CHIEF, EOD");
             model.ApprovedByTitle = regionalSignatories.GetResolvedApproverTitle();
+            model.ApprovedBySignature = regionalSignatories.GetResolvedApproverSignature();
         }
         else
         {
             model.ApprovedByName = "CHIEF, EOD";
             model.ApprovedByTitle = $"Chief, Enforcement & Operations Division, {fallbackRegionLabel}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.ApprovedBySignature))
+        {
+            model.ApprovedBySignatureBytes = AcroForm.SignatoryImageHelper.TryDecodeInlineSignatureBytes(model.ApprovedBySignature);
         }
 
         // 9. Remarks & Notes

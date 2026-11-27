@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,16 +7,20 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using EDGE.Application.Applications.Commands.CreateSoa;
 using EDGE.Application.Applications.Commands.ApproveSoa;
 using EDGE.Application.Applications.Commands.ReturnSoa;
 using EDGE.Application.Applications.Commands.UpdateSoaNumber;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Application.Storage.Queries.GetFileDownload;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Infrastructure.Printing.Models;
 using EDGE.Infrastructure.Printing.Services;
+using EDGE.Infrastructure.Printing.Services.AcroForm;
 using EDGE.Api.Endpoints.Soas.DTOs;
 
 namespace EDGE.Api.Endpoints;
@@ -302,6 +307,7 @@ public static class SoaEndpoints
             overrideOrNumber: orNumber,
             receipts: matchingReceipts,
             tenantSoaNote: tenantSoaNote);
+        await PopulateSignatorySignaturesAsync(printModel, httpContext, cancellationToken);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = SanitizePdfFileName($"SOA_{printModel.AccountNo ?? id.ToString()}.pdf");
 
@@ -404,6 +410,7 @@ public static class SoaEndpoints
             overrideOrNumber: orNumber,
             receipts: matchingReceipts,
             tenantSoaNote: tenantSoaNote);
+        await PopulateSignatorySignaturesAsync(printModel, httpContext, cancellationToken);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = SanitizePdfFileName($"SOA_{printModel.AccountNo ?? soaId.ToString()}.pdf");
 
@@ -414,6 +421,76 @@ public static class SoaEndpoints
 
         httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
+
+    private static async Task PopulateSignatorySignaturesAsync(
+        StatementOfAccountModel model,
+        HttpContext? httpContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var services = httpContext?.RequestServices;
+            var userRepo = services?.GetService<IUserRepository>();
+            var mediator = services?.GetService<IMediator>();
+
+            if (model.PreparedBySignatureBytes == null)
+            {
+                if (string.IsNullOrWhiteSpace(model.PreparedBySignature) && model.PreparedByUserId.HasValue && userRepo != null)
+                {
+                    var prepUser = await userRepo.GetByIdAsync(model.PreparedByUserId.Value, cancellationToken);
+                    model.PreparedBySignature = prepUser?.ESignature;
+                }
+                model.PreparedBySignatureBytes = await ResolveSignatureImageBytesAsync(model.PreparedBySignature, mediator, cancellationToken);
+            }
+
+            if (model.ApprovedBySignatureBytes == null)
+            {
+                if (string.IsNullOrWhiteSpace(model.ApprovedBySignature) && model.ApprovedByUserId.HasValue && userRepo != null)
+                {
+                    var appUser = await userRepo.GetByIdAsync(model.ApprovedByUserId.Value, cancellationToken);
+                    model.ApprovedBySignature = appUser?.ESignature;
+                }
+                model.ApprovedBySignatureBytes = await ResolveSignatureImageBytesAsync(model.ApprovedBySignature, mediator, cancellationToken);
+            }
+        }
+        catch
+        {
+            // Never fail SOA PDF generation if optional signature lookup fails
+        }
+    }
+
+    private static async Task<byte[]?> ResolveSignatureImageBytesAsync(
+        string? rawSignature,
+        IMediator? mediator,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(rawSignature)) return null;
+
+        var inlineBytes = SignatoryImageHelper.TryDecodeInlineSignatureBytes(rawSignature);
+        if (inlineBytes != null) return inlineBytes;
+
+        if (mediator != null && Guid.TryParse(rawSignature.Trim(), out var fileId) && fileId != Guid.Empty)
+        {
+            try
+            {
+                var fileRes = await mediator.Send(new GetFileDownloadQuery(fileId, Guid.Empty), cancellationToken);
+                if (fileRes.Succeeded && fileRes.Data?.FileStream != null)
+                {
+                    using var stream = fileRes.Data.FileStream;
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms, cancellationToken);
+                    var bytes = ms.ToArray();
+                    return SignatoryImageHelper.IsSupportedRasterImage(bytes) ? bytes : null;
+                }
+            }
+            catch
+            {
+                // Ignore storage errors for optional signature image
+            }
+        }
+
+        return null;
     }
 
     private static string SanitizePdfFileName(string rawName)

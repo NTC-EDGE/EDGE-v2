@@ -68,6 +68,8 @@ public class ApplicationFormAll13PrintingTests
 
         var header = Encoding.ASCII.GetString(pdfBytes, 0, 5);
         header.Should().Be("%PDF-");
+        Encoding.ASCII.GetString(pdfBytes).Should().NotContain("QuestPDF",
+            "all 13 official NTC application forms must use their real official NTC PDF template");
     }
 
     [Fact]

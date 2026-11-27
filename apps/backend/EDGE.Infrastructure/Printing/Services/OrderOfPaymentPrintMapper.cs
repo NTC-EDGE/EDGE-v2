@@ -22,7 +22,8 @@ public static class OrderOfPaymentPrintMapper
         IEnumerable<AgencyBankAccount>? agencyBankAccounts = null,
         OfficialReceipt? receipt = null,
         string? overrideOrNumber = null,
-        IEnumerable<OfficialReceipt>? receipts = null)
+        IEnumerable<OfficialReceipt>? receipts = null,
+        EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null)
     {
         var model = new OrderOfPaymentModel();
 
@@ -306,9 +307,48 @@ public static class OrderOfPaymentPrintMapper
             ? app.Office
             : (!string.IsNullOrWhiteSpace(app?.Region?.Name) ? $"NTC {app.Region.Name}" : null);
 
-        model.CollectingOfficer = !string.IsNullOrWhiteSpace(regionalOfficeLabel)
-            ? $"Special Collecting Officer, {regionalOfficeLabel}"
-            : "Special Collecting Officer";
+        var opAccountantHistory = (op.Histories ?? Enumerable.Empty<OpHistory>())
+            .OrderByDescending(h => h.Timestamp)
+            .FirstOrDefault(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                ((h.StaffRole != null && (h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) ||
+                                          h.StaffRole.Contains("Collecting", StringComparison.OrdinalIgnoreCase))) ||
+                 (h.Action != null && (h.Action.Contains("Approved", StringComparison.OrdinalIgnoreCase) ||
+                                       h.Action.Contains("Generated", StringComparison.OrdinalIgnoreCase)))));
+
+        var appAccountantHistory = (app?.Histories ?? Enumerable.Empty<ApplicationHistory>())
+            .OrderByDescending(h => h.Timestamp)
+            .FirstOrDefault(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                (h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)));
+
+        var resolvedOfficerName = opAccountantHistory?.StaffName
+            ?? appAccountantHistory?.StaffName
+            ?? regionalSignatories?.AccountantName;
+
+        model.CollectingOfficerUserId = opAccountantHistory?.PerformedByUserId
+            ?? appAccountantHistory?.PerformedByUserId;
+
+        if (!string.IsNullOrWhiteSpace(resolvedOfficerName))
+        {
+            model.CollectingOfficer = resolvedOfficerName.Trim();
+            model.CollectingOfficerPosition = !string.IsNullOrWhiteSpace(regionalSignatories?.AccountantTitle)
+                ? regionalSignatories.AccountantTitle.Trim()
+                : (!string.IsNullOrWhiteSpace(regionalOfficeLabel)
+                    ? $"Special Collecting Officer, {regionalOfficeLabel}"
+                    : "Special Collecting Officer");
+        }
+        else
+        {
+            model.CollectingOfficer = !string.IsNullOrWhiteSpace(regionalOfficeLabel)
+                ? $"Special Collecting Officer, {regionalOfficeLabel}"
+                : "Special Collecting Officer";
+            model.CollectingOfficerPosition = "Special Collecting Officer";
+        }
+
+        if (!string.IsNullOrWhiteSpace(regionalSignatories?.AccountantSignature))
+        {
+            model.CollectingOfficerSignature = regionalSignatories.AccountantSignature;
+            model.CollectingOfficerSignatureBytes = AcroForm.SignatoryImageHelper.TryDecodeInlineSignatureBytes(regionalSignatories.AccountantSignature);
+        }
 
         return model;
     }
