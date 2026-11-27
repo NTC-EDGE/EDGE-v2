@@ -14,6 +14,7 @@ namespace EDGE.Application.Reports.DTOs;
 public sealed class StatutoryReportDocumentData
 {
     public string Code { get; init; } = string.Empty;
+    public string Format { get; init; } = "standard";
     public string Title { get; init; } = string.Empty;
     public string Agency { get; init; } = string.Empty;
     public string Frequency { get; init; } = string.Empty;
@@ -31,11 +32,14 @@ public sealed class StatutoryReportDocumentData
     public string RegionalOfficeAddress { get; init; } = string.Empty;
     public ReportSignatoriesDto Signatories { get; init; } = new();
     public string? SecondaryFilter { get; init; }
+    public string? ServiceTypeFilter { get; init; }
     public string? FieldOfficeFilter { get; init; }
     public IReadOnlyList<ApplicationSummaryDto> Applications { get; init; } = Array.Empty<ApplicationSummaryDto>();
     public IReadOnlyList<TenantTransactionDto> Transactions { get; init; } = Array.Empty<TenantTransactionDto>();
     public IReadOnlyList<TenantTransactionDto> PaidTransactions { get; init; } = Array.Empty<TenantTransactionDto>();
     public IReadOnlyList<OfficialReceipt> OfficialReceipts { get; init; } = Array.Empty<OfficialReceipt>();
+    public IReadOnlyList<TenantTransactionDto> YtdPaidTransactions { get; init; } = Array.Empty<TenantTransactionDto>();
+    public IReadOnlyList<OfficialReceipt> YtdOfficialReceipts { get; init; } = Array.Empty<OfficialReceipt>();
     public IReadOnlyList<BankDeposit> BankDeposits { get; init; } = Array.Empty<BankDeposit>();
     public int FeedbackCount { get; init; }
     public double AverageCsat { get; init; } = 5.0;

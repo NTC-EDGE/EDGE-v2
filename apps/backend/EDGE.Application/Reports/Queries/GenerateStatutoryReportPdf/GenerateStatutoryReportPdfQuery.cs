@@ -12,5 +12,7 @@ public sealed record GenerateStatutoryReportPdfQuery(
     DateTime? StartDate = null,
     DateTime? EndDate = null,
     string? SecondaryFilter = null,
-    string? FieldOffices = null
+    string? FieldOffices = null,
+    string? Format = null,
+    string? ServiceType = null
 ) : IRequest<ApiResponse<StatutoryReportPdfResult>>;

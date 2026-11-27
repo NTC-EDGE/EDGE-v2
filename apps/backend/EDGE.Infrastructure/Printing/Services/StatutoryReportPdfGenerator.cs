@@ -18,6 +18,7 @@ public sealed class StatutoryReportPdfGenerator : IStatutoryReportPdfGenerator
         var model = new StatutoryReportModel
         {
             Code = data.Code,
+            Format = data.Format,
             Title = data.Title,
             Agency = data.Agency,
             Frequency = data.Frequency,
@@ -35,11 +36,14 @@ public sealed class StatutoryReportPdfGenerator : IStatutoryReportPdfGenerator
             RegionalOfficeAddress = data.RegionalOfficeAddress,
             Signatories = data.Signatories,
             SecondaryFilter = data.SecondaryFilter,
+            ServiceTypeFilter = data.ServiceTypeFilter,
             FieldOfficeFilter = data.FieldOfficeFilter,
             Applications = data.Applications,
             Transactions = data.Transactions,
             PaidTransactions = data.PaidTransactions,
             OfficialReceipts = data.OfficialReceipts,
+            YtdPaidTransactions = data.YtdPaidTransactions,
+            YtdOfficialReceipts = data.YtdOfficialReceipts,
             BankDeposits = data.BankDeposits,
             FeedbackCount = data.FeedbackCount,
             AverageCsat = data.AverageCsat

@@ -1,4 +1,6 @@
+using System;
 using FluentValidation;
+using EDGE.Application.Reports.Constants;
 
 namespace EDGE.Application.Reports.Queries.GenerateStatutoryReportPdf;
 
@@ -25,6 +27,18 @@ public sealed class GenerateStatutoryReportPdfQueryValidator : AbstractValidator
             .MaximumLength(500)
             .When(x => !string.IsNullOrWhiteSpace(x.FieldOffices))
             .WithMessage("Field offices filter cannot exceed 500 characters.");
+
+        RuleFor(x => x.Format)
+            .Must(f =>
+                string.Equals(f!.Trim(), ReportConstants.FormatStandard, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(f.Trim(), ReportConstants.FormatNtcSheet, StringComparison.OrdinalIgnoreCase))
+            .When(x => !string.IsNullOrWhiteSpace(x.Format))
+            .WithMessage($"Format must be '{ReportConstants.FormatStandard}' or '{ReportConstants.FormatNtcSheet}'.");
+
+        RuleFor(x => x.ServiceType)
+            .MaximumLength(100)
+            .When(x => !string.IsNullOrWhiteSpace(x.ServiceType))
+            .WithMessage("ServiceType filter cannot exceed 100 characters.");
 
         RuleFor(x => x.EndDate)
             .GreaterThanOrEqualTo(x => x.StartDate!.Value)

@@ -609,15 +609,38 @@ export function ReportsScreen() {
                         {meta.agency}
                       </Text>
                     </View>
-                    <View
-                      style={[
-                        styles.frequencyPill,
-                        { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
-                      ]}
-                    >
-                      <Text style={[styles.frequencyPillText, { color: colors.textMuted }]}>
-                        {meta.frequency}
-                      </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {meta.formatOptions !== undefined && meta.formatOptions.length > 1 && (
+                        <View
+                          style={[
+                            styles.frequencyPill,
+                            {
+                              backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                              borderWidth: 1,
+                              borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.frequencyPillText,
+                              { color: isDark ? colors.brand[300] : colors.brand[700] },
+                            ]}
+                          >
+                            {meta.formatOptions.length} Formats
+                          </Text>
+                        </View>
+                      )}
+                      <View
+                        style={[
+                          styles.frequencyPill,
+                          { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+                        ]}
+                      >
+                        <Text style={[styles.frequencyPillText, { color: colors.textMuted }]}>
+                          {meta.frequency}
+                        </Text>
+                      </View>
                     </View>
                   </View>
 

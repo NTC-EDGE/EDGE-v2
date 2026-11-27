@@ -84,6 +84,8 @@ export interface PrintStatutoryReportParams {
   endDate?: string;
   secondaryFilter?: string;
   fieldOffices?: string;
+  format?: string;
+  serviceType?: string;
 }
 
 function buildStatutoryPrintQueryParams(
@@ -101,6 +103,8 @@ function buildStatutoryPrintQueryParams(
   if (params.endDate) queryParams.endDate = params.endDate;
   if (params.secondaryFilter) queryParams.secondaryFilter = params.secondaryFilter;
   if (params.fieldOffices) queryParams.fieldOffices = params.fieldOffices;
+  if (params.format) queryParams.format = params.format;
+  if (params.serviceType && params.serviceType !== 'all') queryParams.serviceType = params.serviceType;
   return queryParams;
 }
 

@@ -262,7 +262,11 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
         DateTime filterEnd = request.EndDate?.Date.AddDays(1).AddTicks(-1) ?? DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
 
         string normalizedCode = string.IsNullOrWhiteSpace(request.Code) ? "NTC-MIS-OPS" : request.Code.Trim().ToUpperInvariant();
+        string effectiveFormat = string.Equals(request.Format?.Trim(), ReportConstants.FormatNtcSheet, StringComparison.OrdinalIgnoreCase)
+            ? ReportConstants.FormatNtcSheet
+            : ReportConstants.FormatStandard;
         string trimmedSecondary = request.SecondaryFilter?.Trim() ?? "all";
+        string trimmedServiceType = request.ServiceType?.Trim() ?? "all";
 
         bool needsBankDeposits =
             normalizedCode == "NTC-MIS-OPS" ||
@@ -270,6 +274,10 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
             normalizedCode == "NTC-COA-APP26-D" ||
             normalizedCode == "NTC-BTR-INC-01" ||
             normalizedCode == "NTC-BTR-COA-01";
+
+        bool needsYtdIncome =
+            normalizedCode == "NTC-BTR-INC-01" &&
+            string.Equals(effectiveFormat, ReportConstants.FormatNtcSheet, StringComparison.OrdinalIgnoreCase);
 
         bool needsFeedback =
             normalizedCode == "NTC-MIS-OPS" ||
@@ -437,26 +445,54 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
                 return string.Equals(evalName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
             }).ToList();
         }
-        else if (normalizedCode == "NTC-APP-SUM-SVC" && !string.IsNullOrWhiteSpace(trimmedSecondary) && !string.Equals(trimmedSecondary, "all", StringComparison.OrdinalIgnoreCase))
+        else if (normalizedCode == "NTC-APP-SUM-SVC")
         {
-            filteredApps = filteredApps.Where(a =>
+            if (!string.IsNullOrWhiteSpace(trimmedSecondary) && !string.Equals(trimmedSecondary, "all", StringComparison.OrdinalIgnoreCase))
             {
-                string svcName = a.ServiceName ?? a.Services?.FirstOrDefault()?.ServiceName ?? string.Empty;
-                return string.Equals(svcName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
-            }).ToList();
+                filteredApps = filteredApps.Where(a =>
+                {
+                    string svcName = a.ServiceName ?? a.Services?.FirstOrDefault()?.ServiceName ?? string.Empty;
+                    return string.Equals(svcName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
+                }).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(trimmedServiceType) && !string.Equals(trimmedServiceType, "all", StringComparison.OrdinalIgnoreCase))
+            {
+                filteredApps = filteredApps.Where(a =>
+                {
+                    string filingType = a.ServiceVariantType
+                        ?? a.Services?.FirstOrDefault()?.ApplicationType
+                        ?? a.Applicants?.FirstOrDefault()?.ApplicationType
+                        ?? a.ServiceVariantName
+                        ?? (a.RenewedFromApplicationId.HasValue ? "RENEWAL" : "NEW");
+                    return string.Equals(filingType.Trim(), trimmedServiceType, StringComparison.OrdinalIgnoreCase)
+                        || filingType.Contains(trimmedServiceType, StringComparison.OrdinalIgnoreCase);
+                }).ToList();
+            }
         }
-        else if (normalizedCode == "NTC-APP-SUM-ENT" && !string.IsNullOrWhiteSpace(trimmedSecondary) && !string.Equals(trimmedSecondary, "all", StringComparison.OrdinalIgnoreCase))
+        else if (normalizedCode == "NTC-APP-SUM-ENT")
         {
-            filteredApps = filteredApps.Where(a =>
+            if (string.Equals(effectiveFormat, ReportConstants.FormatNtcSheet, StringComparison.OrdinalIgnoreCase))
             {
-                string entName = a.PayorName
-                    ?? a.FilingUser?.Company?.Name
-                    ?? a.FilingUser?.Name
-                    ?? a.Applicants?.FirstOrDefault()?.Company?.Name
-                    ?? a.Applicants?.FirstOrDefault()?.Name
-                    ?? string.Empty;
-                return string.Equals(entName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
-            }).ToList();
+                // Per NTC FORMS & Reports specification: Only Completed Applications must be included in the Entity report
+                filteredApps = filteredApps
+                    .Where(a => string.Equals(a.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(trimmedSecondary) && !string.Equals(trimmedSecondary, "all", StringComparison.OrdinalIgnoreCase))
+            {
+                filteredApps = filteredApps.Where(a =>
+                {
+                    string entName = a.PayorName
+                        ?? a.FilingUser?.Company?.Name
+                        ?? a.FilingUser?.Name
+                        ?? a.Applicants?.FirstOrDefault()?.Company?.Name
+                        ?? a.Applicants?.FirstOrDefault()?.Name
+                        ?? string.Empty;
+                    return string.Equals(entName.Trim(), trimmedSecondary, StringComparison.OrdinalIgnoreCase);
+                }).ToList();
+            }
         }
 
         var paidTx = filteredTx
@@ -561,9 +597,101 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
             ? request.Period.Trim()
             : $"{filterStart:yyyy-MM-dd} to {filterEnd:yyyy-MM-dd}";
 
+        var ytdPaidTx = new List<TenantTransactionDto>();
+        var ytdValidReceipts = new List<OfficialReceipt>();
+        if (needsYtdIncome)
+        {
+            var ytdStart = new DateTime(filterEnd.Year, 1, 1);
+            if (ytdStart < filterStart)
+            {
+                var ytdReceiptsRaw = await _receiptRepository.GetByTenantAsync(
+                    txQueryTenantId,
+                    status: null,
+                    paymentMethod: null,
+                    fromDate: ytdStart,
+                    toDate: filterEnd,
+                    cashierUserId: null,
+                    search: null,
+                    cancellationToken: cancellationToken);
+
+                ytdValidReceipts = ytdReceiptsRaw
+                    .Where(r => r.Status != ReceiptStatus.Cancelled)
+                    .OrderByDescending(r => r.IssuedAt)
+                    .ToList();
+
+                ytdPaidTx = transactions
+                    .Where(t => t.Date >= ytdStart && t.Date <= filterEnd && (
+                        string.Equals(t.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(t.PaymentStatus, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(t.PaymentStatus, "Verified", StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+
+                var ytdCoveredIds = new HashSet<Guid>(ytdPaidTx.Select(t => t.Id));
+                var ytdCoveredRefs = new HashSet<string>(
+                    ytdPaidTx.Select(t => t.RefNo?.Trim() ?? string.Empty).Where(s => s.Length > 0),
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var r in ytdValidReceipts)
+                {
+                    ytdCoveredIds.Add(r.Id);
+                    if (r.ApplicationId.HasValue) ytdCoveredIds.Add(r.ApplicationId.Value);
+                    if (r.OrderOfPaymentId.HasValue) ytdCoveredIds.Add(r.OrderOfPaymentId.Value);
+                    if (!string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+                    {
+                        ytdCoveredRefs.Add(r.OfficialReceiptNumber.Trim());
+                    }
+                }
+
+                foreach (var app in tenantApps.Where(a => a.CreatedAt >= ytdStart && a.CreatedAt <= filterEnd))
+                {
+                    if (ytdCoveredIds.Contains(app.Id)) continue;
+                    if (app.OrderOfPaymentId.HasValue && ytdCoveredIds.Contains(app.OrderOfPaymentId.Value)) continue;
+                    if (!string.IsNullOrWhiteSpace(app.OfficialReceiptNumber) && ytdCoveredRefs.Contains(app.OfficialReceiptNumber.Trim())) continue;
+
+                    bool isPaidApp =
+                        !string.IsNullOrWhiteSpace(app.OfficialReceiptNumber) ||
+                        (app.AmountPaid.HasValue && app.AmountPaid.Value > 0m) ||
+                        string.Equals(app.Status, "ForIssuance", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(app.Status, "Approved", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(app.Status, "Completed", StringComparison.OrdinalIgnoreCase);
+
+                    decimal paidAmount = app.AmountPaid ?? app.TotalAmountDue ?? 0m;
+                    if (isPaidApp && paidAmount > 0m)
+                    {
+                        string refNo = !string.IsNullOrWhiteSpace(app.OfficialReceiptNumber)
+                            ? app.OfficialReceiptNumber!
+                            : (app.ApplicationNumber ?? app.ReferenceNumber ?? app.Id.ToString("N")[..8].ToUpperInvariant());
+
+                        ytdCoveredIds.Add(app.Id);
+                        ytdCoveredRefs.Add(refNo);
+
+                        ytdPaidTx.Add(new TenantTransactionDto(
+                            Id: app.Id,
+                            RefNo: refNo,
+                            ApplicantName: app.PayorName
+                                ?? app.FilingUser?.Company?.Name
+                                ?? app.FilingUser?.Name
+                                ?? app.Applicants?.FirstOrDefault()?.Name
+                                ?? "Applicant",
+                            ServiceType: app.ServiceName ?? app.ServiceCategory ?? "Regulatory Service",
+                            Amount: paidAmount,
+                            PaymentStatus: "Paid",
+                            Date: app.PaidAt ?? app.UpdatedAt ?? app.CreatedAt
+                        ));
+                    }
+                }
+            }
+            else
+            {
+                ytdPaidTx = paidTx.ToList();
+                ytdValidReceipts = validReceipts.ToList();
+            }
+        }
+
         var documentData = new StatutoryReportDocumentData
         {
             Code = matchedTemplate.Code,
+            Format = effectiveFormat,
             Title = matchedTemplate.Title,
             Agency = matchedTemplate.Agency,
             Frequency = matchedTemplate.Frequency,
@@ -581,18 +709,24 @@ public sealed class GenerateStatutoryReportPdfQueryHandler
             RegionalOfficeAddress = regionalOfficeAddress,
             Signatories = reportSignatories,
             SecondaryFilter = trimmedSecondary,
+            ServiceTypeFilter = trimmedServiceType,
             FieldOfficeFilter = fieldOfficeFilterLabel,
             Applications = filteredApps,
             Transactions = filteredTx,
             PaidTransactions = paidTx.OrderByDescending(t => t.Date).ToList(),
             OfficialReceipts = validReceipts,
+            YtdPaidTransactions = ytdPaidTx.OrderByDescending(t => t.Date).ToList(),
+            YtdOfficialReceipts = ytdValidReceipts,
             BankDeposits = bankDeposits,
             FeedbackCount = filteredFeedback.Count,
             AverageCsat = avgCsat
         };
 
         byte[] pdfBytes = _pdfGenerator.GeneratePdf(documentData);
-        string safeFileName = $"{documentData.Code}_{documentData.StartDate}_to_{documentData.EndDate}.pdf".Replace(" ", "_");
+        string formatSuffix = string.Equals(effectiveFormat, ReportConstants.FormatNtcSheet, StringComparison.OrdinalIgnoreCase)
+            ? $"_{effectiveFormat}"
+            : string.Empty;
+        string safeFileName = $"{documentData.Code}{formatSuffix}_{documentData.StartDate}_to_{documentData.EndDate}.pdf".Replace(" ", "_");
 
         return ApiResponse<StatutoryReportPdfResult>.Success(new StatutoryReportPdfResult(pdfBytes, safeFileName));
     }

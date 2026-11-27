@@ -145,4 +145,146 @@ public class GenerateStatutoryReportPdfQueryHandlerTests
         validation.IsValid.Should().BeFalse();
         validation.Errors.Should().Contain(e => e.PropertyName == "EndDate");
     }
+
+    [Fact]
+    public async Task Validator_ShouldReject_InvalidReportFormat()
+    {
+        var validator = new GenerateStatutoryReportPdfQueryValidator();
+        var query = new GenerateStatutoryReportPdfQuery(
+            Code: "NTC-BTR-INC-01",
+            Format: "invalid-format");
+
+        var validation = await validator.ValidateAsync(query);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().Contain(e => e.PropertyName == "Format");
+    }
+
+    [Fact]
+    public async Task Handle_NtcAppSumEnt_NtcSheetFormat_ShouldIncludeOnlyCompletedApplications()
+    {
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        StatutoryReportDocumentData? captured = null;
+
+        _currentUser.SetupGet(x => x.UserId).Returns(userId.ToString());
+        _tenantContext.Setup(x => x.IsCurrentUserSuperAdminAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _tenantRepo.Setup(x => x.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, Code = "07", Name = "Region VII" });
+        _regionalConfig.Setup(x => x.GetConfigurationAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RegionalConfigurationDto { TenantId = tenantId, TenantName = "Region VII" });
+        _fieldOfficeRepo.Setup(x => x.GetByTenantIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FieldOffice>());
+        _userRepo.Setup(x => x.ResolveCurrentUserAsync(_currentUser.Object, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User { Id = userId, FirstName = "Ana", LastName = "Evaluator" });
+
+        var createdAt = new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc);
+        _appRepo.Setup(x => x.GetPagedApplicationSummaryDtosAsync(
+                null, null, null, null, null,
+                It.IsAny<int>(), It.IsAny<int>(),
+                null, null, tenantId, null, null, null, null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedApplicationListDto
+            {
+                Items = new List<ApplicationSummaryDto>
+                {
+                    new() { Id = Guid.NewGuid(), Status = "Completed", PayorName = "Acme Telecom", CreatedAt = createdAt },
+                    new() { Id = Guid.NewGuid(), Status = "Evaluating", PayorName = "Acme Telecom", CreatedAt = createdAt },
+                    new() { Id = Guid.NewGuid(), Status = "Returned", PayorName = "Acme Telecom", CreatedAt = createdAt }
+                },
+                TotalCount = 3,
+                PageNumber = 1,
+                PageSize = 1000
+            });
+        _tenantRepo.Setup(x => x.GetTenantTransactionsAsync(
+                tenantId, null, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<TenantTransactionDto>(), 0));
+        _receiptRepo.Setup(x => x.GetByTenantAsync(
+                tenantId, null, null, It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<OfficialReceipt>());
+        _pdfGenerator.Setup(x => x.GeneratePdf(It.IsAny<StatutoryReportDocumentData>()))
+            .Callback<StatutoryReportDocumentData>(d => captured = d)
+            .Returns(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+
+        var handler = CreateHandler();
+        var result = await handler.Handle(
+            new GenerateStatutoryReportPdfQuery(
+                Code: "NTC-APP-SUM-ENT",
+                TenantId: tenantId,
+                StartDate: new DateTime(2026, 3, 1),
+                EndDate: new DateTime(2026, 3, 31),
+                Format: "ntc-sheet"),
+            CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.Format.Should().Be("ntc-sheet");
+        captured.Applications.Should().HaveCount(1);
+        captured.Applications[0].Status.Should().Be("Completed");
+        result.Data!.FileName.Should().Contain("_ntc-sheet_");
+    }
+
+    [Fact]
+    public async Task Handle_NtcAppSumSvc_ShouldFilterByOptionalServiceType()
+    {
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        StatutoryReportDocumentData? captured = null;
+
+        _currentUser.SetupGet(x => x.UserId).Returns(userId.ToString());
+        _tenantContext.Setup(x => x.IsCurrentUserSuperAdminAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _tenantRepo.Setup(x => x.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, Code = "07", Name = "Region VII" });
+        _regionalConfig.Setup(x => x.GetConfigurationAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RegionalConfigurationDto { TenantId = tenantId, TenantName = "Region VII" });
+        _fieldOfficeRepo.Setup(x => x.GetByTenantIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FieldOffice>());
+        _userRepo.Setup(x => x.ResolveCurrentUserAsync(_currentUser.Object, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User { Id = userId, FirstName = "Ana", LastName = "Evaluator" });
+
+        var createdAt = new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc);
+        _appRepo.Setup(x => x.GetPagedApplicationSummaryDtosAsync(
+                null, null, null, null, null,
+                It.IsAny<int>(), It.IsAny<int>(),
+                null, null, tenantId, null, null, null, null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedApplicationListDto
+            {
+                Items = new List<ApplicationSummaryDto>
+                {
+                    new() { Id = Guid.NewGuid(), ServiceName = "Dealer Permit", ServiceVariantType = "NEW", Status = "Completed", CreatedAt = createdAt },
+                    new() { Id = Guid.NewGuid(), ServiceName = "Dealer Permit", ServiceVariantType = "RENEWAL", Status = "Completed", CreatedAt = createdAt }
+                },
+                TotalCount = 2,
+                PageNumber = 1,
+                PageSize = 1000
+            });
+        _tenantRepo.Setup(x => x.GetTenantTransactionsAsync(
+                tenantId, null, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<TenantTransactionDto>(), 0));
+        _receiptRepo.Setup(x => x.GetByTenantAsync(
+                tenantId, null, null, It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<OfficialReceipt>());
+        _pdfGenerator.Setup(x => x.GeneratePdf(It.IsAny<StatutoryReportDocumentData>()))
+            .Callback<StatutoryReportDocumentData>(d => captured = d)
+            .Returns(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+
+        var handler = CreateHandler();
+        var result = await handler.Handle(
+            new GenerateStatutoryReportPdfQuery(
+                Code: "NTC-APP-SUM-SVC",
+                TenantId: tenantId,
+                StartDate: new DateTime(2026, 3, 1),
+                EndDate: new DateTime(2026, 3, 31),
+                SecondaryFilter: "Dealer Permit",
+                Format: "ntc-sheet",
+                ServiceType: "RENEWAL"),
+            CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.ServiceTypeFilter.Should().Be("RENEWAL");
+        captured.Applications.Should().HaveCount(1);
+        captured.Applications[0].ServiceVariantType.Should().Be("RENEWAL");
+    }
 }

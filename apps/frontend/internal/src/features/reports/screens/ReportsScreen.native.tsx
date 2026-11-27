@@ -374,9 +374,22 @@ export function ReportsScreen() {
                   <Text style={[styles.freqText, { color: colors.textMuted }]}>{meta.frequency}</Text>
                 </View>
 
-                <Text style={[styles.cardCode, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
-                  {meta.code}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.cardCode, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                    {meta.code}
+                  </Text>
+                  {meta.formatOptions !== undefined && meta.formatOptions.length > 1 && (
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '700',
+                        color: isDark ? colors.brand[300] : colors.brand[700],
+                      }}
+                    >
+                      • {meta.formatOptions.length} Formats
+                    </Text>
+                  )}
+                </View>
                 <Text style={[styles.cardTitle, { color: colors.text }]}>{meta.title}</Text>
                 <Text style={[styles.cardDesc, { color: colors.textMuted }]} numberOfLines={2}>
                   {meta.description}

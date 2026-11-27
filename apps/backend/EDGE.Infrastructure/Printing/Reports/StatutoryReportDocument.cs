@@ -25,23 +25,42 @@ public partial class StatutoryReportDocument : IDocument
 
         foreach (var r in _model.OfficialReceipts)
         {
-            _receiptById[r.Id] = r;
-            if (!string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+            IndexReceipt(r);
+        }
+
+        foreach (var r in _model.YtdOfficialReceipts)
+        {
+            if (!_receiptById.ContainsKey(r.Id))
             {
-                _receiptByOrNo[r.OfficialReceiptNumber.Trim()] = r;
+                IndexReceipt(r);
             }
-            var appId = r.ApplicationId ?? r.OrderOfPayment?.ApplicationId;
-            if (appId.HasValue && appId.Value != Guid.Empty)
+        }
+    }
+
+    private void IndexReceipt(OfficialReceipt r)
+    {
+        _receiptById[r.Id] = r;
+        if (!string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+        {
+            _receiptByOrNo[r.OfficialReceiptNumber.Trim()] = r;
+        }
+        var appId = r.ApplicationId ?? r.OrderOfPayment?.ApplicationId;
+        if (appId.HasValue && appId.Value != Guid.Empty)
+        {
+            if (!_receiptsByAppId.TryGetValue(appId.Value, out var list))
             {
-                if (!_receiptsByAppId.TryGetValue(appId.Value, out var list))
-                {
-                    list = new List<OfficialReceipt>();
-                    _receiptsByAppId[appId.Value] = list;
-                }
+                list = new List<OfficialReceipt>();
+                _receiptsByAppId[appId.Value] = list;
+            }
+            if (!list.Contains(r))
+            {
                 list.Add(r);
             }
         }
     }
+
+    private bool IsNtcSheetFormat =>
+        string.Equals(_model.Format, "ntc-sheet", StringComparison.OrdinalIgnoreCase);
 
     public DocumentMetadata GetMetadata() => new DocumentMetadata
     {
@@ -103,7 +122,8 @@ public partial class StatutoryReportDocument : IDocument
                     }
                     c.Item().PaddingTop(2).AlignCenter().Text(_model.Title.ToUpperInvariant())
                         .FontSize(9.5f).FontFamily(Fonts.Arial).Bold().FontColor("#1E3A8A");
-                    c.Item().AlignCenter().Text($"PERIOD COVERED: {_model.Period.ToUpperInvariant()}   •   FORM CODE: {_model.Code}")
+                    var formatBadge = IsNtcSheetFormat ? "   •   FORMAT: NTC SHEET" : string.Empty;
+                    c.Item().AlignCenter().Text($"PERIOD COVERED: {_model.Period.ToUpperInvariant()}   •   FORM CODE: {_model.Code}{formatBadge}")
                         .FontSize(7f).FontFamily(Fonts.Arial).Bold().FontColor("#334155");
                 });
 
@@ -129,6 +149,10 @@ public partial class StatutoryReportDocument : IDocument
                     if (!string.IsNullOrWhiteSpace(_model.SecondaryFilter) && !string.Equals(_model.SecondaryFilter, "all", StringComparison.OrdinalIgnoreCase))
                     {
                         t.Span($"  |  Filter: {_model.SecondaryFilter}").Bold().FontSize(6.8f);
+                    }
+                    if (!string.IsNullOrWhiteSpace(_model.ServiceTypeFilter) && !string.Equals(_model.ServiceTypeFilter, "all", StringComparison.OrdinalIgnoreCase))
+                    {
+                        t.Span($"  |  Service Type: {_model.ServiceTypeFilter}").Bold().FontSize(6.8f);
                     }
                     if (!string.IsNullOrWhiteSpace(_model.FieldOfficeFilter) && !string.Equals(_model.FieldOfficeFilter, "all", StringComparison.OrdinalIgnoreCase))
                     {
@@ -159,6 +183,39 @@ public partial class StatutoryReportDocument : IDocument
 
     private void ComposeReportBody(IContainer container)
     {
+        if (IsNtcSheetFormat)
+        {
+            switch (_model.Code)
+            {
+                case "NTC-MIS-OPS":
+                    ComposeMisLicensingNtcSheet(container);
+                    return;
+                case "NTC-COA-APP26-M":
+                    ComposeRcdAppendix26NtcSheet(container);
+                    return;
+                case "NTC-COA-APP26-D":
+                    ComposeDailyCollectionNtcSheet(container);
+                    return;
+                case "NTC-BIR-DST-01":
+                    ComposeBirDstDailySeriesNtcSheet(container);
+                    return;
+                case "NTC-BTR-INC-01":
+                    ComposeBtrIncomeNtcSheet(container);
+                    return;
+                case "NTC-APP-SUM-EVAL":
+                case "NTC-APP-SUM-SVC":
+                case "NTC-APP-SUM-ENT":
+                    ComposeApplicationSummaryNtcSheet(container);
+                    return;
+                case "NTC-APP-VOL-01":
+                    ComposeApplicationVolumeNtcSheet(container);
+                    return;
+                case "NTC-EXAM-MST-01":
+                    ComposeExamMasterlistRoomSheet(container);
+                    return;
+            }
+        }
+
         switch (_model.Code)
         {
             case "NTC-MIS-OPS":

@@ -29,6 +29,15 @@ export type SubmissionAgency =
 
 export type SubmissionFrequency = 'Daily' | 'Monthly' | 'Quarterly' | 'Semi-Annual' | 'Annual' | 'On-Demand';
 
+export type StatutoryReportFormatId = 'standard' | 'ntc-sheet';
+
+export interface StatutoryReportFormatOption {
+  id: StatutoryReportFormatId;
+  label: string;
+  shortLabel: string;
+  description: string;
+}
+
 export interface StatutoryReportMetadata {
   code: StatutoryReportCode;
   title: string;
@@ -41,6 +50,7 @@ export interface StatutoryReportMetadata {
   badgeColor: string;
   requiresDateRange?: boolean;
   filterType?: 'evaluator' | 'service' | 'entity' | 'schedule' | 'dateRange' | 'none';
+  formatOptions?: StatutoryReportFormatOption[];
 }
 
 export interface StatutoryReportSummary {

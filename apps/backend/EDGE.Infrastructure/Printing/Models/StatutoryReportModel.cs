@@ -10,6 +10,7 @@ namespace EDGE.Infrastructure.Printing.Models;
 public class StatutoryReportModel
 {
     public string Code { get; set; } = "NTC-MIS-OPS";
+    public string Format { get; set; } = "standard";
     public string Title { get; set; } = "Monthly Regional Operational & MIS Accomplishment Report";
     public string Agency { get; set; } = "NTC Central Office (MIS / Planning)";
     public string Frequency { get; set; } = "Monthly";
@@ -27,11 +28,14 @@ public class StatutoryReportModel
     public string RegionalOfficeAddress { get; set; } = string.Empty;
     public ReportSignatoriesDto Signatories { get; set; } = new();
     public string? SecondaryFilter { get; set; }
+    public string? ServiceTypeFilter { get; set; }
     public string? FieldOfficeFilter { get; set; }
     public IReadOnlyList<ApplicationSummaryDto> Applications { get; set; } = Array.Empty<ApplicationSummaryDto>();
     public IReadOnlyList<TenantTransactionDto> Transactions { get; set; } = Array.Empty<TenantTransactionDto>();
     public IReadOnlyList<TenantTransactionDto> PaidTransactions { get; set; } = Array.Empty<TenantTransactionDto>();
     public IReadOnlyList<OfficialReceipt> OfficialReceipts { get; set; } = Array.Empty<OfficialReceipt>();
+    public IReadOnlyList<TenantTransactionDto> YtdPaidTransactions { get; set; } = Array.Empty<TenantTransactionDto>();
+    public IReadOnlyList<OfficialReceipt> YtdOfficialReceipts { get; set; } = Array.Empty<OfficialReceipt>();
     public IReadOnlyList<BankDeposit> BankDeposits { get; set; } = Array.Empty<BankDeposit>();
     public int FeedbackCount { get; set; }
     public double AverageCsat { get; set; } = 5.0;

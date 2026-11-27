@@ -47,6 +47,8 @@ public static class ReportEndpoints
             [FromQuery] DateTime? endDate,
             [FromQuery] string? secondaryFilter,
             [FromQuery] string? fieldOffices,
+            [FromQuery] string? format,
+            [FromQuery] string? serviceType,
             HttpContext httpContext,
             IMediator mediator,
             IValidator<GenerateStatutoryReportPdfQuery> validator,
@@ -59,6 +61,8 @@ public static class ReportEndpoints
                 endDate,
                 secondaryFilter,
                 fieldOffices,
+                format,
+                serviceType,
                 httpContext,
                 mediator,
                 validator,
@@ -130,6 +134,8 @@ public static class ReportEndpoints
         [FromQuery] DateTime? endDate,
         [FromQuery] string? secondaryFilter,
         [FromQuery] string? fieldOffices,
+        [FromQuery] string? format,
+        [FromQuery] string? serviceType,
         HttpContext httpContext,
         IMediator mediator,
         IValidator<GenerateStatutoryReportPdfQuery> validator,
@@ -143,7 +149,9 @@ public static class ReportEndpoints
             StartDate: startDate,
             EndDate: endDate,
             SecondaryFilter: secondaryFilter,
-            FieldOffices: fieldOffices);
+            FieldOffices: fieldOffices,
+            Format: format,
+            ServiceType: serviceType);
 
         var validationResult = await validator.ValidateAsync(query, cancellationToken);
         if (!validationResult.IsValid)

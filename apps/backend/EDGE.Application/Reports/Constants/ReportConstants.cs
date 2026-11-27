@@ -7,6 +7,9 @@ public static class ReportConstants
     public const int DefaultBatchPageSize = 1000;
     public const int MaxSafetyRecordThreshold = 50000;
 
+    public const string FormatStandard = "standard";
+    public const string FormatNtcSheet = "ntc-sheet";
+
     public static readonly IReadOnlyList<string> StandardCategories = new[]
     {
         "Permits",

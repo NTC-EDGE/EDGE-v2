@@ -122,6 +122,23 @@ public class StatutoryReportPrintingTests
         Encoding.ASCII.GetString(pdfBytes.Take(5).ToArray()).Should().Be("%PDF-");
     }
 
+    [Theory]
+    [MemberData(nameof(All10StatutoryReportCodes))]
+    public void PrintStatutoryReport_ShouldGenerateValidPdf_ForAll10NtcSheetFormats(string code, string title)
+    {
+        var model = BuildSampleModel(code, title, recordCount: 35);
+        model.Format = ReportConstants.FormatNtcSheet;
+        model.ServiceTypeFilter = code == "NTC-APP-SUM-SVC" ? "NEW" : null;
+        model.YtdPaidTransactions = model.PaidTransactions;
+        model.YtdOfficialReceipts = model.OfficialReceipts;
+
+        var pdfBytes = _printingService.PrintStatutoryReport(model);
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Length.Should().BeGreaterThan(1500);
+        Encoding.ASCII.GetString(pdfBytes.Take(5).ToArray()).Should().Be("%PDF-");
+    }
+
     private static StatutoryReportModel BuildSampleModel(string code, string title, int recordCount)
     {
         var now = new DateTime(2026, 4, 15, 9, 0, 0, DateTimeKind.Utc);

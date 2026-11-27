@@ -23,7 +23,10 @@ import {
   DatePickerInput,
   toast,
 } from '@edge/ui';
-import { StatutoryReportMetadata } from '../types/statutoryReports';
+import {
+  StatutoryReportFormatId,
+  StatutoryReportMetadata,
+} from '../types/statutoryReports';
 import { FieldOfficeFilterOption } from '../hooks/useReportsState';
 import {
   ApplicationSummaryDto,
@@ -39,6 +42,7 @@ import {
   resolveEvaluatorName,
   resolveServiceName,
   resolveEntityName,
+  resolveApplicationFilingType,
   filterApplicationsForStatutoryReport,
 } from '../utils/statutoryReportGenerator';
 
@@ -167,6 +171,10 @@ export function StatutoryReportPreviewModal({
 
   // Report-specific secondary filter (Evaluator / Service / Entity / Exam Class)
   const [selectedSecondaryFilter, setSelectedSecondaryFilter] = useState<string>('all');
+  // Optional Service Type filter (Row 14: Application Summary Report by Service)
+  const [selectedServiceTypeFilter, setSelectedServiceTypeFilter] = useState<string>('all');
+  // Report Format selector (Existing Standard Statutory vs. NTC Sheet Format)
+  const [selectedFormat, setSelectedFormat] = useState<StatutoryReportFormatId>('standard');
 
   useEffect(() => {
     setLocalStartDate(startDate);
@@ -177,6 +185,8 @@ export function StatutoryReportPreviewModal({
   useEffect(() => {
     if (visible) {
       setSelectedSecondaryFilter('all');
+      setSelectedServiceTypeFilter('all');
+      setSelectedFormat('standard');
       setShowActionMenu(false);
       setShowMobileFilters(false);
       setPdfBlobUrl(null);
@@ -209,6 +219,7 @@ export function StatutoryReportPreviewModal({
 
   const printParams = useMemo<PrintStatutoryReportParams | null>(() => {
     if (report === null) return null;
+    const hasFormatOptions = Array.isArray(report.formatOptions) && report.formatOptions.length > 1;
     return {
       code: report.code,
       tenantId: tenantId ?? undefined,
@@ -217,6 +228,11 @@ export function StatutoryReportPreviewModal({
       endDate: activeDateRange.end,
       secondaryFilter: selectedSecondaryFilter,
       fieldOffices: fieldOfficesParam,
+      format: hasFormatOptions ? selectedFormat : 'standard',
+      serviceType:
+        report.code === 'NTC-APP-SUM-SVC' && selectedServiceTypeFilter !== 'all'
+          ? selectedServiceTypeFilter
+          : undefined,
     };
   }, [
     report,
@@ -225,6 +241,8 @@ export function StatutoryReportPreviewModal({
     activeDateRange.start,
     activeDateRange.end,
     selectedSecondaryFilter,
+    selectedServiceTypeFilter,
+    selectedFormat,
     fieldOfficesParam,
   ]);
 
@@ -339,17 +357,36 @@ export function StatutoryReportPreviewModal({
     return Array.from(set).sort();
   }, [report, dateFilteredApps, userName]);
 
+  const serviceTypeOptions = useMemo(() => {
+    if (!report || report.code !== 'NTC-APP-SUM-SVC') return [];
+    const set = new Set<string>(['NEW', 'RENEWAL', 'DUPLICATE', 'MODIFICATION']);
+    for (const app of dateFilteredApps) {
+      const fType = resolveApplicationFilingType(app);
+      if (fType.length > 0) set.add(fType);
+    }
+    return Array.from(set).sort();
+  }, [report, dateFilteredApps]);
+
   const generatorOptions = useMemo(() => {
     return {
       startDate: activeDateRange.start,
       endDate: activeDateRange.end,
       evaluatorFilter: report?.code === 'NTC-APP-SUM-EVAL' ? selectedSecondaryFilter : undefined,
       serviceFilter: report?.code === 'NTC-APP-SUM-SVC' ? selectedSecondaryFilter : undefined,
+      serviceTypeFilter: report?.code === 'NTC-APP-SUM-SVC' ? selectedServiceTypeFilter : undefined,
       entityFilter: report?.code === 'NTC-APP-SUM-ENT' ? selectedSecondaryFilter : undefined,
       scheduleFilter: report?.code === 'NTC-EXAM-MST-01' ? selectedSecondaryFilter : undefined,
       fieldOfficeFilter: selectedFieldOffices.length > 0 ? selectedFieldOffices.join(', ') : undefined,
+      format: selectedFormat,
     };
-  }, [activeDateRange, report?.code, selectedSecondaryFilter, selectedFieldOffices]);
+  }, [
+    activeDateRange,
+    report?.code,
+    selectedSecondaryFilter,
+    selectedServiceTypeFilter,
+    selectedFieldOffices,
+    selectedFormat,
+  ]);
 
   const filteredApps = useMemo(() => {
     if (!report) return dateFilteredApps;
@@ -441,7 +478,8 @@ export function StatutoryReportPreviewModal({
           const url = window.URL.createObjectURL(pdfBlob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = `${printParams.code}_${activeDateRange.start}_to_${activeDateRange.end}.pdf`;
+          const formatPart = selectedFormat === 'ntc-sheet' ? '_ntc-sheet' : '';
+          link.download = `${printParams.code}${formatPart}_${activeDateRange.start}_to_${activeDateRange.end}.pdf`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -465,7 +503,7 @@ export function StatutoryReportPreviewModal({
     } finally {
       setIsDownloadingPdf(false);
     }
-  }, [printParams, isDownloadingPdf, activeDateRange.start, activeDateRange.end]);
+  }, [printParams, isDownloadingPdf, selectedFormat, activeDateRange.start, activeDateRange.end]);
 
   if (report === null || report === undefined) return null;
 
@@ -487,7 +525,12 @@ export function StatutoryReportPreviewModal({
 
   const activeFiltersCount =
     (selectedFieldOffices.length > 0 ? 1 : 0) +
-    (selectedSecondaryFilter !== 'all' ? 1 : 0);
+    (selectedSecondaryFilter !== 'all' ? 1 : 0) +
+    (selectedServiceTypeFilter !== 'all' ? 1 : 0) +
+    (selectedFormat !== 'standard' ? 1 : 0);
+
+  const availableFormats = report.formatOptions ?? [];
+  const activeFormatOption = availableFormats.find((opt) => opt.id === selectedFormat);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -973,9 +1016,105 @@ export function StatutoryReportPreviewModal({
                     { color: isDark ? colors.brand[300] : colors.brand[700] },
                   ]}
                 >
-                  Official Backend PDF Template
+                  {activeFormatOption !== undefined ? activeFormatOption.shortLabel : 'Official Backend PDF Template'}
                 </Text>
               </View>
+
+              {/* Report Format Switcher (Keep Existing Standard Format + Offer NTC Sheet Format Option) */}
+              {availableFormats.length > 1 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingTop: 2,
+                  }}
+                >
+                  <Text style={[styles.dateLabel, { color: colors.textMuted, marginRight: 4 }]}>
+                    REPORT FORMAT:
+                  </Text>
+                  {availableFormats.map((fmt) => {
+                    const isSelected = selectedFormat === fmt.id;
+                    return (
+                      <Pressable
+                        key={fmt.id}
+                        style={[
+                          {
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 5,
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 6,
+                            borderWidth: 1,
+                            borderColor: isSelected
+                              ? isDark
+                                ? colors.brand[400]
+                                : colors.brand[600]
+                              : colors.border,
+                            backgroundColor: isSelected
+                              ? isDark
+                                ? colors.brand[900]
+                                : colors.brand[50]
+                              : 'transparent',
+                          },
+                          Platform.select({ web: { cursor: 'pointer' } }),
+                        ]}
+                        onPress={() => setSelectedFormat(fmt.id)}
+                      >
+                        <Lucide
+                          name={fmt.id === 'ntc-sheet' ? 'grid' : 'file-text'}
+                          size={12}
+                          color={
+                            isSelected
+                              ? isDark
+                                ? colors.brand[300]
+                                : colors.brand[700]
+                              : colors.textMuted
+                          }
+                        />
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: isSelected ? '700' : '500',
+                            color: isSelected
+                              ? isDark
+                                ? colors.brand[300]
+                                : colors.brand[700]
+                              : colors.text,
+                          }}
+                        >
+                          {fmt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                  {report.code === 'NTC-APP-SUM-ENT' && selectedFormat === 'ntc-sheet' && (
+                    <View
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 6,
+                        backgroundColor: isDark ? '#14532d' : '#dcfce7',
+                        borderWidth: 1,
+                        borderColor: isDark ? '#166534' : '#86efac',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: isDark ? '#86efac' : '#166534',
+                        }}
+                      >
+                        Completed Applications Only
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+              )}
 
               {/* Field Office Checkbox Filter (Monitoring Only) */}
               {fieldOfficeOptions.length > 0 && onToggleFieldOffice && onSelectAllFieldOffices && (
@@ -1213,6 +1352,105 @@ export function StatutoryReportPreviewModal({
                           Platform.select({ web: { cursor: 'pointer' } }),
                         ]}
                         onPress={() => setSelectedSecondaryFilter(opt)}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: isActive ? '700' : '500',
+                            color: isActive
+                              ? isDark
+                                ? colors.brand[500]
+                                : colors.brand.primary
+                              : colors.textMuted,
+                          }}
+                        >
+                          {opt}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
+
+              {/* Optional Service Type Filter (Row 14: Application Summary Report by Service) */}
+              {report.code === 'NTC-APP-SUM-SVC' && serviceTypeOptions.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingTop: 2,
+                  }}
+                >
+                  <Text style={[styles.dateLabel, { color: colors.textMuted, marginRight: 4 }]}>
+                    SERVICE TYPE (OPTIONAL):
+                  </Text>
+                  <Pressable
+                    style={[
+                      {
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor:
+                          selectedServiceTypeFilter === 'all'
+                            ? isDark
+                              ? colors.brand[500]
+                              : colors.brand.primary
+                            : colors.border,
+                        backgroundColor:
+                          selectedServiceTypeFilter === 'all'
+                            ? isDark
+                              ? colors.neutral[800]
+                              : colors.brand.light
+                            : 'transparent',
+                      },
+                      Platform.select({ web: { cursor: 'pointer' } }),
+                    ]}
+                    onPress={() => setSelectedServiceTypeFilter('all')}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: selectedServiceTypeFilter === 'all' ? '700' : '500',
+                        color:
+                          selectedServiceTypeFilter === 'all'
+                            ? isDark
+                              ? colors.brand[500]
+                              : colors.brand.primary
+                            : colors.textMuted,
+                      }}
+                    >
+                      All Types
+                    </Text>
+                  </Pressable>
+                  {serviceTypeOptions.map((opt) => {
+                    const isActive = selectedServiceTypeFilter === opt;
+                    return (
+                      <Pressable
+                        key={opt}
+                        style={[
+                          {
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                            borderWidth: 1,
+                            borderColor: isActive
+                              ? isDark
+                                ? colors.brand[500]
+                                : colors.brand.primary
+                              : colors.border,
+                            backgroundColor: isActive
+                              ? isDark
+                                ? colors.neutral[800]
+                                : colors.brand.light
+                              : 'transparent',
+                          },
+                          Platform.select({ web: { cursor: 'pointer' } }),
+                        ]}
+                        onPress={() => setSelectedServiceTypeFilter(opt)}
                       >
                         <Text
                           style={{

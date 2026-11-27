@@ -1,5 +1,6 @@
 import {
   StatutoryReportCode,
+  StatutoryReportFormatId,
   StatutoryReportMetadata,
 } from '../types/statutoryReports';
 import { ApplicationSummaryDto, TenantTransactionDto, FeedbackDto } from '@edge/api';
@@ -19,6 +20,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#2563EB',
     requiresDateRange: true,
     filterType: 'dateRange',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory (Full MIS + Financial & SLA)',
+        shortLabel: 'Standard (Full MIS)',
+        description: 'Existing comprehensive MIS report with Pending/Received/Processed/On-Time SLA and Financial Status.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (Licensing NEW / REN-MOD)',
+        shortLabel: 'NTC Sheet (Licensing)',
+        description: 'Official NTC Reporting Format Licensing PDF layout: Sections I, II, II-B (NEW / REN-MOD) and III (Existing).',
+      },
+    ],
   },
   {
     code: 'NTC-COA-APP26-M',
@@ -33,6 +48,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#059669',
     requiresDateRange: true,
     filterType: 'dateRange',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory (17-Col UACS Breakdown)',
+        shortLabel: 'Standard (17-Col UACS)',
+        description: 'Existing full 17-column COA GAM Appendix 26 with UACS object codes and AGDB batches.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (Taxes 40101010 / Fees 40201010)',
+        shortLabel: 'NTC Sheet (Taxes/Fees)',
+        description: 'Official NTC Excel RCD Appendix 26: Total per OR split into Taxes (40101010) and Fees (40201010) + DST Breakdown.',
+      },
+    ],
   },
   {
     code: 'NTC-COA-APP26-D',
@@ -47,6 +76,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#10B981',
     requiresDateRange: true,
     filterType: 'dateRange',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory (COA Appendix 26 UACS)',
+        shortLabel: 'Standard (UACS)',
+        description: 'Existing COA Appendix 26 daily Official Receipt ledger with UACS columns and 3-tier signatories.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (Sub-Column Fee Ledger + Recap)',
+        shortLabel: 'NTC Sheet (+ Recap)',
+        description: 'Official NTC Daily Collection Excel layout: RSL/ROC/Reg, Surcharges, Permits/CP, Other Service Income, and Recap.',
+      },
+    ],
   },
   {
     code: 'NTC-BIR-DST-01',
@@ -61,6 +104,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#D97706',
     requiresDateRange: true,
     filterType: 'dateRange',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory (Per-OR BIR Schedule)',
+        shortLabel: 'Standard (Per-OR)',
+        description: 'Detailed per-Official Receipt schedule with Gross OR, Net Regulatory Fee, and DST.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (Daily Inclusive GOR Series)',
+        shortLabel: 'NTC Sheet (Daily GOR)',
+        description: 'Grouped daily summary with inclusive GOR serial numbers (From–To) and certification counts.',
+      },
+    ],
   },
   {
     code: 'NTC-BTR-INC-01',
@@ -75,6 +132,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#7C3AED',
     requiresDateRange: true,
     filterType: 'dateRange',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory (BTr UACS + Deposits)',
+        shortLabel: 'Standard (UACS + Deposits)',
+        description: 'Existing BTr UACS statement with Statutory Basis, Fund Cluster, and Bank Deposit Batches.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (12 NG Accounts • Month & YTD)',
+        shortLabel: 'NTC Sheet (Month + YTD)',
+        description: 'Official NTC Google Sheet matrix: 12 NG accounts with This Month, DST, Year-to-Date, and Undeposited columns.',
+      },
+    ],
   },
   {
     code: 'NTC-APP-SUM-EVAL',
@@ -89,6 +160,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#0284C7',
     requiresDateRange: true,
     filterType: 'evaluator',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory Register',
+        shortLabel: 'Standard Register',
+        description: 'Existing statutory detailed register with 3-tier office signatories.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (12-Column + Summary)',
+        shortLabel: 'NTC Sheet (+ Summary)',
+        description: 'Official NTC Google Sheet layout with Full Address, Permit No., Date Paid, and bottom Summary counts.',
+      },
+    ],
   },
   {
     code: 'NTC-APP-SUM-SVC',
@@ -98,11 +183,25 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     frequency: 'Monthly',
     legalBasis: 'NTC Citizens Charter & Regulatory Service Directory',
     description:
-      'Summary of all transactions filed under a specific telecommunication service category (e.g. Amateur, Commercial, Ship Station, Dealer, Reseller).',
+      'Summary of all transactions filed under a specific telecommunication service category (e.g. Amateur, Commercial, Ship Station, Dealer, Reseller) with optional Service Type filtering.',
     category: 'Operations',
     badgeColor: '#4F46E5',
     requiresDateRange: true,
     filterType: 'service',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory Register',
+        shortLabel: 'Standard Register',
+        description: 'Existing statutory detailed register with 3-tier office signatories.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (12-Column + Summary)',
+        shortLabel: 'NTC Sheet (+ Summary)',
+        description: 'Official NTC Google Sheet layout with Full Address, Permit No., Date Paid, and bottom Summary counts.',
+      },
+    ],
   },
   {
     code: 'NTC-APP-SUM-ENT',
@@ -117,6 +216,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#9333EA',
     requiresDateRange: true,
     filterType: 'entity',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory Register (All Statuses)',
+        shortLabel: 'Standard (All Statuses)',
+        description: 'Existing statutory register including all filed, evaluating, approved, and completed applications.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (Completed Only • 11-Col)',
+        shortLabel: 'NTC Sheet (Completed Only)',
+        description: 'Official NTC Google Sheet Entity layout: Completed applications only, Reference No. first, plus Summary table.',
+      },
+    ],
   },
   {
     code: 'NTC-APP-VOL-01',
@@ -131,6 +244,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#0EA5E9',
     requiresDateRange: true,
     filterType: 'dateRange',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Executive (Volume + Collections & SLA)',
+        shortLabel: 'Standard (Executive)',
+        description: 'Existing 2-table executive report with 6 regulatory streams, collections, deposits, and SLA %. ',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (5-Category Monthly Matrix)',
+        shortLabel: 'NTC Sheet (5-Category)',
+        description: 'Official NTC Google Sheet matrix: Accreditations, Certificates, Exams, Licenses, Permits × Months + Total.',
+      },
+    ],
   },
   {
     code: 'NTC-EXAM-MST-01',
@@ -145,6 +272,20 @@ export const STATUTORY_REPORTS_LIST: StatutoryReportMetadata[] = [
     badgeColor: '#EA580C',
     requiresDateRange: true,
     filterType: 'schedule',
+    formatOptions: [
+      {
+        id: 'standard',
+        label: 'Standard Statutory Roster (With OR & Fees)',
+        shortLabel: 'Standard Roster',
+        description: 'Existing continuous roster with Seat #, OR No., Fee Paid, Status, and Examinee Signature.',
+      },
+      {
+        id: 'ntc-sheet',
+        label: 'NTC Sheet Format (Grouped by Exam Class + Summary)',
+        shortLabel: 'NTC Sheet (By Exam Class)',
+        description: 'Official NTC Excel Exam Masterlist: grouped by Exam Type with Room #, No./Name/Sex/Signature, and bottom Summary.',
+      },
+    ],
   },
 
 ];
@@ -161,9 +302,11 @@ export interface StatutoryReportGeneratorOptions {
   endDate?: string;
   evaluatorFilter?: string;
   serviceFilter?: string;
+  serviceTypeFilter?: string;
   entityFilter?: string;
   scheduleFilter?: string;
   fieldOfficeFilter?: string;
+  format?: StatutoryReportFormatId;
 }
 
 export interface UacsBreakdown {
@@ -460,6 +603,15 @@ export function resolveApplicationSummaryRow(
   };
 }
 
+export function resolveApplicationFilingType(app: ApplicationSummaryDto): string {
+  const rawFilingType =
+    app.services?.[0]?.applicationType ??
+    app.applicants?.[0]?.applicationType ??
+    app.serviceVariantType ??
+    (app.renewedFromApplicationId ? 'RENEWAL' : 'NEW');
+  return rawFilingType.trim().toUpperCase();
+}
+
 export function filterApplicationsForStatutoryReport(
   reportCode: StatutoryReportCode,
   applications: ApplicationSummaryDto[],
@@ -475,18 +627,34 @@ export function filterApplicationsForStatutoryReport(
     );
   }
 
-  if (reportCode === 'NTC-APP-SUM-SVC' && options.serviceFilter && options.serviceFilter !== 'all') {
-    const target = options.serviceFilter.trim().toLowerCase();
-    return applications.filter(
-      (app) => resolveServiceName(app).toLowerCase() === target
-    );
+  if (reportCode === 'NTC-APP-SUM-SVC') {
+    let result = applications;
+    if (options.serviceFilter && options.serviceFilter !== 'all') {
+      const target = options.serviceFilter.trim().toLowerCase();
+      result = result.filter((app) => resolveServiceName(app).toLowerCase() === target);
+    }
+    if (options.serviceTypeFilter && options.serviceTypeFilter !== 'all') {
+      const typeTarget = options.serviceTypeFilter.trim().toLowerCase();
+      result = result.filter((app) => {
+        const filingType = resolveApplicationFilingType(app).toLowerCase();
+        const variantName = (app.serviceVariantName ?? '').trim().toLowerCase();
+        return filingType === typeTarget || filingType.includes(typeTarget) || variantName.includes(typeTarget);
+      });
+    }
+    return result;
   }
 
-  if (reportCode === 'NTC-APP-SUM-ENT' && options.entityFilter && options.entityFilter !== 'all') {
-    const target = options.entityFilter.trim().toLowerCase();
-    return applications.filter(
-      (app) => resolveEntityName(app).toLowerCase() === target
-    );
+  if (reportCode === 'NTC-APP-SUM-ENT') {
+    let result = applications;
+    if (options.format === 'ntc-sheet') {
+      // Per NTC FORMS & Reports specification: Only Completed Applications must be included
+      result = result.filter((app) => (app.status ?? '').trim().toLowerCase() === 'completed');
+    }
+    if (options.entityFilter && options.entityFilter !== 'all') {
+      const target = options.entityFilter.trim().toLowerCase();
+      result = result.filter((app) => resolveEntityName(app).toLowerCase() === target);
+    }
+    return result;
   }
 
   if (reportCode === 'NTC-EXAM-MST-01' && options.scheduleFilter && options.scheduleFilter !== 'all') {
@@ -637,14 +805,34 @@ export function generateStatutoryCsv(
     case 'NTC-COA-APP26-M':
     case 'NTC-COA-APP26-D': {
       const isDaily = reportCode === 'NTC-COA-APP26-D';
+      const isNtcSheet = dateRange?.format === 'ntc-sheet';
       filename = isDaily
-        ? `NTC_COA_Appendix26_Daily_${periodLabel}_${dateStamp}.csv`
-        : `NTC_COA_Appendix26_Monthly_${periodLabel}_${dateStamp}.csv`;
+        ? `NTC_COA_Appendix26_Daily${isNtcSheet ? '_NTCSheet' : ''}_${periodLabel}_${dateStamp}.csv`
+        : `NTC_COA_Appendix26_Monthly${isNtcSheet ? '_NTCSheet' : ''}_${periodLabel}_${dateStamp}.csv`;
 
       content = 'Entity Name: National Telecommunications Commission\n';
       content += `Regional Office: ${q(tenantName)}\n`;
       content += 'Fund Cluster: 101101\n';
       content += `Reporting Period: ${q(period)}\n\n`;
+
+      if (!isDaily && isNtcSheet) {
+        content += 'Date,OR Number,Payor,Particulars,Total per OR,Taxes (40101010),Fees (40201010)\n';
+        let sumOr = 0;
+        let sumTaxes = 0;
+        let sumFees = 0;
+        for (const tx of paidTransactions) {
+          const b = classifyUacsBreakdown(tx);
+          const taxes = b.dst;
+          const fees = Math.max(0, b.total - taxes);
+          sumOr += b.total;
+          sumTaxes += taxes;
+          sumFees += fees;
+          content += `${q((tx.date ?? '').slice(0, 10))},${q(tx.refNo ?? '')},${q(tx.applicantName ?? '')},${q(tx.serviceType ?? '')},${b.total.toFixed(2)},${taxes.toFixed(2)},${fees.toFixed(2)}\n`;
+        }
+        content += `"TOTAL","","","",${sumOr.toFixed(2)},${sumTaxes.toFixed(2)},${sumFees.toFixed(2)}\n`;
+        break;
+      }
+
       content += 'Date,Official Receipt No,Payor Name,4-02-01-060 Doc Stamps,4-02-01-020 Licensing Fees,4-02-01-140 Surcharges,4-02-01-010 Permit Fees,4-02-01-040 Exam Fees,4-02-02-030 Inspection Fees,4-02-01-100 Application Fees,4-02-01-130 Supervision Fees,4-02-01-990 Spectrum Users Fees,Other Service Income,Total Amount\n';
 
       let sumDst = 0;
@@ -727,7 +915,10 @@ export function generateStatutoryCsv(
     // Row 17: Monthly Report of Income Collected & Deposited (BTr)
     // ----------------------------------------------------
     case 'NTC-BTR-INC-01': {
-      filename = `NTC_BTr_Income_Deposited_${periodLabel}_${dateStamp}.csv`;
+      const isNtcSheet = dateRange?.format === 'ntc-sheet';
+      filename = isNtcSheet
+        ? `NTC_BTr_Income_Deposited_NTCSheet_${periodLabel}_${dateStamp}.csv`
+        : `NTC_BTr_Income_Deposited_${periodLabel}_${dateStamp}.csv`;
       content = 'MONTHLY REPORT OF INCOME COLLECTED AND INCOME DEPOSITED WITH THE BUREAU OF THE TREASURY\n';
       content += `Office of the President - National Telecommunications Commission\n`;
       content += `Regional Office: ${q(tenantName)}\n`;
@@ -745,6 +936,12 @@ export function generateStatutoryCsv(
         { title: 'Processing Fees', code: '4-02-01-130' },
         { title: 'Fines and Penalties - Service Income', code: '4-02-01-140' },
         { title: 'Other Service Income', code: '4-02-01-990' },
+        ...(isNtcSheet
+          ? [
+              { title: 'Other Non-Operating Income', code: '4-06-01-010' },
+              { title: 'Miscellaneous Income', code: '4-06-09-990' },
+            ]
+          : []),
       ];
 
       let sumMonthCollected = 0;
@@ -783,17 +980,21 @@ export function generateStatutoryCsv(
     case 'NTC-APP-SUM-EVAL':
     case 'NTC-APP-SUM-SVC':
     case 'NTC-APP-SUM-ENT': {
+      const isNtcSheet = dateRange?.format === 'ntc-sheet';
+      const isEntityNtcSheet = reportCode === 'NTC-APP-SUM-ENT' && isNtcSheet;
       const typeLabel = reportCode === 'NTC-APP-SUM-EVAL'
         ? 'by Evaluator'
         : reportCode === 'NTC-APP-SUM-SVC'
         ? 'by Service'
         : 'by Entity';
 
-      filename = `NTC_Application_Summary_${typeLabel.replace(/\s+/g, '_')}_${periodLabel}_${dateStamp}.csv`;
+      filename = `NTC_Application_Summary_${typeLabel.replace(/\s+/g, '_')}${isNtcSheet ? '_NTCSheet' : ''}_${periodLabel}_${dateStamp}.csv`;
       content = `APPLICATION SUMMARY REPORT ${typeLabel.toUpperCase()}\n`;
       content += `Regional Office: ${q(tenantName)}\n`;
       content += `Reporting Period: ${q(period)}\n\n`;
-      content += 'Application Type,COMPANY NAME / NAME,STATUS(NEW/REN/DUP),FULL ADDRESS,PERMIT NO.,REFERENCE NUMBER,DATE OF FILING,EXPIRATION DATE,OR NUMBER,AMOUNT,DATE PAID,BY\n';
+      content += isEntityNtcSheet
+        ? 'REFERENCE NUMBER,Application Type,STATUS(NEW/REN/DUP),ADDRESS,PERMIT NO.,DATE OF FILING,EXPIRATION DATE,OR NUMBER,AMOUNT,DATE PAID,BY\n'
+        : 'Application Type,COMPANY NAME / NAME,STATUS(NEW/REN/DUP),FULL ADDRESS,PERMIT NO.,REFERENCE NUMBER,DATE OF FILING,EXPIRATION DATE,OR NUMBER,AMOUNT,DATE PAID,BY\n';
 
       const groupCounter = new Map<string, { count: number; totalAmount: number }>();
       let grandTotalAmount = 0;
@@ -802,14 +1003,19 @@ export function generateStatutoryCsv(
         const row = resolveApplicationSummaryRow(app, paidTransactions, tenantName);
         grandTotalAmount += row.amount;
 
-        content += `${q(row.appType)},${q(row.companyName)},${q(`${row.filingType} (${row.workflowStatus})`)},${q(row.address)},${q(row.permitNo)},${q(row.refNo)},${q(row.dateFiling)},${q(row.expDate)},${q(row.orNo)},${row.amount.toFixed(2)},${q(row.datePaid)},${q(row.staffBy)}\n`;
+        if (isEntityNtcSheet) {
+          content += `${q(row.refNo)},${q(row.appType)},${q(row.filingType)},${q(row.address)},${q(row.permitNo)},${q(row.dateFiling)},${q(row.expDate)},${q(row.orNo)},${row.amount.toFixed(2)},${q(row.datePaid)},${q(row.staffBy)}\n`;
+        } else {
+          content += `${q(row.appType)},${q(row.companyName)},${q(`${row.filingType} (${row.workflowStatus})`)},${q(row.address)},${q(row.permitNo)},${q(row.refNo)},${q(row.dateFiling)},${q(row.expDate)},${q(row.orNo)},${row.amount.toFixed(2)},${q(row.datePaid)},${q(row.staffBy)}\n`;
+        }
 
-        const groupKey =
-          reportCode === 'NTC-APP-SUM-EVAL'
-            ? row.staffBy
-            : reportCode === 'NTC-APP-SUM-ENT'
-            ? row.companyName
-            : row.appType;
+        const groupKey = isNtcSheet
+          ? `${row.appType} (${row.filingType})`
+          : reportCode === 'NTC-APP-SUM-EVAL'
+          ? row.staffBy
+          : reportCode === 'NTC-APP-SUM-ENT'
+          ? row.companyName
+          : row.appType;
         const prev = groupCounter.get(groupKey) ?? { count: 0, totalAmount: 0 };
         groupCounter.set(groupKey, {
           count: prev.count + 1,
@@ -817,11 +1023,17 @@ export function generateStatutoryCsv(
         });
       }
 
-      content += '\nSUMMARY\nTYPE / GROUP,NUMBER(S),TOTAL AMOUNT (PHP)\n';
+      content += isNtcSheet
+        ? '\nSUMMARY\nTYPE,NUMBER(S)\n'
+        : '\nSUMMARY\nTYPE / GROUP,NUMBER(S),TOTAL AMOUNT (PHP)\n';
       for (const [gName, statsObj] of groupCounter.entries()) {
-        content += `${q(gName)},${statsObj.count},${statsObj.totalAmount.toFixed(2)}\n`;
+        content += isNtcSheet
+          ? `${q(gName)},${statsObj.count}\n`
+          : `${q(gName)},${statsObj.count},${statsObj.totalAmount.toFixed(2)}\n`;
       }
-      content += `TOTAL,${scopedApplications.length},${grandTotalAmount.toFixed(2)}\n`;
+      content += isNtcSheet
+        ? `TOTAL,${scopedApplications.length}\n`
+        : `TOTAL,${scopedApplications.length},${grandTotalAmount.toFixed(2)}\n`;
       break;
     }
 
@@ -829,12 +1041,19 @@ export function generateStatutoryCsv(
     // Row 21: Volume Report (EDGE Application Volume Report)
     // ----------------------------------------------------
     case 'NTC-APP-VOL-01': {
-      filename = `NTC_Application_Volume_Report_${periodLabel}_${dateStamp}.csv`;
+      const isNtcSheet = dateRange?.format === 'ntc-sheet';
+      filename = isNtcSheet
+        ? `NTC_Application_Volume_Report_NTCSheet_${periodLabel}_${dateStamp}.csv`
+        : `NTC_Application_Volume_Report_${periodLabel}_${dateStamp}.csv`;
       const buckets = computeVolumeMonthBuckets(scopedApplications, dateRange);
-      content = 'EDGE APPLICATION VOLUME & DEPOSIT ACCOUNTABILITY REPORT\n';
+      content = isNtcSheet
+        ? 'EDGE APPLICATION VOLUME REPORT\n'
+        : 'EDGE APPLICATION VOLUME & DEPOSIT ACCOUNTABILITY REPORT\n';
       content += `Regional Office: ${q(tenantName)}\n`;
       content += `Coverage: ${q(period)}\n\n`;
-      content += `Service Name,${buckets.map((b) => q(b.label)).join(',')},TOTAL APPS,ISSUED,IN-PROCESS,COLLECTED (PHP),DEPOSITED (PHP)\n`;
+      content += isNtcSheet
+        ? `Service Name,${buckets.map((b) => q(b.label)).join(',')},TOTAL\n`
+        : `Service Name,${buckets.map((b) => q(b.label)).join(',')},TOTAL APPS,ISSUED,IN-PROCESS,COLLECTED (PHP),DEPOSITED (PHP)\n`;
 
       const streams: Array<'Accreditations' | 'Certificates' | 'Exams' | 'Licenses' | 'Permits'> = [
         'Accreditations',
@@ -874,9 +1093,13 @@ export function generateStatutoryCsv(
         for (let idx = 0; idx < buckets.length; idx++) {
           colTotals[idx] = (colTotals[idx] ?? 0) + (mCounts[idx] ?? 0);
         }
-        content += `${q(s)},${mCounts.join(',')},${rowSum},${issued},${inProc},${collected.toFixed(2)},${deposited.toFixed(2)}\n`;
+        content += isNtcSheet
+          ? `${q(s)},${mCounts.join(',')},${rowSum}\n`
+          : `${q(s)},${mCounts.join(',')},${rowSum},${issued},${inProc},${collected.toFixed(2)},${deposited.toFixed(2)}\n`;
       }
-      content += `"TOTAL",${colTotals.join(',')},${grandTotal},${grandIssued},${grandInProc},${grandCollected.toFixed(2)},${grandDeposited.toFixed(2)}\n`;
+      content += isNtcSheet
+        ? `"TOTAL",${colTotals.join(',')},${grandTotal}\n`
+        : `"TOTAL",${colTotals.join(',')},${grandTotal},${grandIssued},${grandInProc},${grandCollected.toFixed(2)},${grandDeposited.toFixed(2)}\n`;
       break;
     }
 

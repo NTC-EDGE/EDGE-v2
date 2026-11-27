@@ -219,6 +219,50 @@ describe('statutoryReportGenerator', () => {
       expect(result.content).not.toContain('Private Citizen');
       expect(result.content).not.toContain('private@secret.ph');
     });
+
+    it('should generate 12-account NTC Sheet CSV for NTC-BTR-INC-01 when format is ntc-sheet', () => {
+      const result = generateStatutoryCsv(
+        'NTC-BTR-INC-01',
+        'NTC Region VII (Central Visayas)',
+        'March 2026',
+        sampleApps,
+        sampleTx,
+        sampleFeedback,
+        { startDate: '2026-03-01', endDate: '2026-03-31', format: 'ntc-sheet' }
+      );
+
+      expect(result.filename).toContain('NTCSheet');
+      expect(result.content).toContain('4-06-01-010');
+      expect(result.content).toContain('4-06-09-990');
+    });
+
+    it('should include only Completed applications and Reference Number first for NTC-APP-SUM-ENT in ntc-sheet format', () => {
+      const completedApp: ApplicationSummaryDto = {
+        ...sampleApps[0],
+        id: 'app-completed',
+        applicationNumber: 'APP-2026-999',
+        status: 'Completed',
+      };
+      const result = generateStatutoryCsv(
+        'NTC-APP-SUM-ENT',
+        'NTC Region VII (Central Visayas)',
+        'March 2026',
+        [...sampleApps, completedApp],
+        sampleTx,
+        sampleFeedback,
+        { startDate: '2026-03-01', endDate: '2026-03-31', format: 'ntc-sheet' }
+      );
+
+      expect(result.content).toContain('REFERENCE NUMBER,Application Type,STATUS(NEW/REN/DUP)');
+      expect(result.content).toContain('APP-2026-999');
+      expect(result.content).not.toContain('APP-2026-002');
+    });
+
+    it('should expose both standard and ntc-sheet format options on all 10 statutory reports', () => {
+      for (const report of STATUTORY_REPORTS_LIST) {
+        expect(report.formatOptions?.map((o) => o.id)).toEqual(['standard', 'ntc-sheet']);
+      }
+    });
   });
 
   describe('generateStatutoryPrintableHtml', () => {
