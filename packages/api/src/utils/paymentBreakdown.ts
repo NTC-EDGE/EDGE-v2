@@ -123,7 +123,7 @@ export function parsePaymentBreakdown(remarks?: string | null): PaymentBreakdown
 
     if (jsonString) {
       try {
-        const parsed = JSON.parse(jsonString) as unknown;
+        const parsed: unknown = JSON.parse(jsonString);
         if (isValidPaymentBreakdown(parsed)) {
           return parsed;
         }
@@ -194,10 +194,9 @@ function isValidPaymentBreakdown(data: unknown): data is PaymentBreakdown {
   if (typeof data !== 'object' || data === null) {
     return false;
   }
-  const obj = data as Record<string, unknown>;
   return (
-    typeof obj.isCombination === 'boolean' &&
-    typeof obj.totalAmount === 'number' &&
-    Array.isArray(obj.items)
+    typeof Reflect.get(data, 'isCombination') === 'boolean' &&
+    typeof Reflect.get(data, 'totalAmount') === 'number' &&
+    Array.isArray(Reflect.get(data, 'items'))
   );
 }

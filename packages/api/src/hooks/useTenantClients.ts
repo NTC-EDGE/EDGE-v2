@@ -34,16 +34,20 @@ export function useTenantClients(tenantId?: string | null, params?: UseTenantCli
     ? `/api/v2/tenants/${effectiveTenantId}/clients${queryString ? `?${queryString}` : ''}`
     : null;
 
-  const { data, error, isLoading, mutate } = useSWR<PaginatedApiResponse<TenantClientDto>>(
+type PaginatedTenantClientsResponse = PaginatedApiResponse<TenantClientDto> & {
+  items?: TenantClientDto[];
+};
+
+  const { data, error, isLoading, mutate } = useSWR<PaginatedTenantClientsResponse>(
     endpoint,
-    (url: string) => apiClient.get<PaginatedApiResponse<TenantClientDto>>(url).then((res) => res.data),
+    (url: string) => apiClient.get<PaginatedTenantClientsResponse>(url).then((res) => res.data),
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
     }
   );
 
-  const rawData = data?.data ?? (data as unknown as { items?: TenantClientDto[] })?.items ?? [];
+  const rawData = data?.data ?? data?.items ?? [];
   const clients = Array.isArray(rawData) ? rawData : [];
   const totalCount = data?.totalCount ?? clients.length;
   const totalPages = data?.totalPages ?? (params?.pageSize ? Math.ceil(totalCount / params.pageSize) : 1);

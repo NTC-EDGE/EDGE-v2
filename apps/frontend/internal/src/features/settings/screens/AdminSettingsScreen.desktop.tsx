@@ -90,6 +90,33 @@ const TABS: TabItem[] = [
   },
 ];
 
+interface ScrollableDomNode {
+  scrollLeft: number;
+}
+
+function extractMousePageX(event: unknown): number {
+  if (typeof event !== 'object' || event === null) return 0;
+  const nativeEvent = Reflect.get(event, 'nativeEvent');
+  if (typeof nativeEvent === 'object' && nativeEvent !== null) {
+    const nativePageX = Reflect.get(nativeEvent, 'pageX');
+    if (typeof nativePageX === 'number') return nativePageX;
+  }
+  const pageX = Reflect.get(event, 'pageX');
+  return typeof pageX === 'number' ? pageX : 0;
+}
+
+function isScrollableDomNode(node: unknown): node is ScrollableDomNode {
+  return typeof node === 'object' && node !== null && typeof Reflect.get(node, 'scrollLeft') === 'number';
+}
+
+function getWebScrollNode(scrollView: ScrollView | null): ScrollableDomNode | null {
+  if (scrollView === null) return null;
+  const getter = Reflect.get(scrollView, 'getScrollableNode');
+  if (typeof getter !== 'function') return null;
+  const node: unknown = Reflect.apply(getter, scrollView, []);
+  return isScrollableDomNode(node) ? node : null;
+}
+
 export function AdminSettingsScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
@@ -103,15 +130,12 @@ export function AdminSettingsScreen(): React.ReactElement {
   const dragStartX = useRef(0);
   const dragScrollLeft = useRef(0);
 
-  const handleMouseDown = (e: any) => {
+  const handleMouseDown = (e: unknown) => {
     if (Platform.OS !== 'web') return;
     isDraggingTab.current = true;
-    const pageX = e.nativeEvent?.pageX || e.pageX || 0;
-    dragStartX.current = pageX;
-    const scrollNode = (tabScrollRef.current as any)?.getScrollableNode
-      ? (tabScrollRef.current as any).getScrollableNode()
-      : null;
-    if (scrollNode) {
+    dragStartX.current = extractMousePageX(e);
+    const scrollNode = getWebScrollNode(tabScrollRef.current);
+    if (scrollNode !== null) {
       dragScrollLeft.current = scrollNode.scrollLeft;
     }
   };
@@ -120,14 +144,11 @@ export function AdminSettingsScreen(): React.ReactElement {
     isDraggingTab.current = false;
   };
 
-  const handleMouseMove = (e: any) => {
+  const handleMouseMove = (e: unknown) => {
     if (!isDraggingTab.current || Platform.OS !== 'web') return;
-    const pageX = e.nativeEvent?.pageX || e.pageX || 0;
-    const distance = (pageX - dragStartX.current) * 1.5;
-    const scrollNode = (tabScrollRef.current as any)?.getScrollableNode
-      ? (tabScrollRef.current as any).getScrollableNode()
-      : null;
-    if (scrollNode) {
+    const distance = (extractMousePageX(e) - dragStartX.current) * 1.5;
+    const scrollNode = getWebScrollNode(tabScrollRef.current);
+    if (scrollNode !== null) {
       scrollNode.scrollLeft = dragScrollLeft.current - distance;
     }
   };
@@ -292,7 +313,7 @@ export function AdminSettingsScreen(): React.ReactElement {
           ref={tabScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={[styles.topTabsScrollWrapper, Platform.select({ web: { cursor: 'grab' } }) as any]}
+          style={[styles.topTabsScrollWrapper, Platform.select({ web: { cursor: 'pointer' } })]}
           contentContainerStyle={styles.topTabsScrollContent}
           {...Platform.select({
             web: {
@@ -355,6 +376,7 @@ export function AdminSettingsScreen(): React.ReactElement {
           <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
             <RegionalConfigTab
               mode="details"
+              tenantId={effectiveTenantId}
               configs={regionalConfigs}
               branchOffices={branchOffices}
               stats={stats}
@@ -373,6 +395,23 @@ export function AdminSettingsScreen(): React.ReactElement {
                   return;
                 }
                 showToast(`Internal officer email alerts ${enabled ? 'enabled' : 'disabled'}.`, 'success');
+                void refetchTenantConfig();
+              }}
+              reportSignatories={tenantConfig.reportSignatories}
+              onSaveReportSignatories={async (signatories) => {
+                const targetTenantId = effectiveTenantId || '00000000-0000-0000-0000-000000000001';
+                const [res, err] = await safeAsync(
+                  updateTenantConfig({
+                    ...tenantConfig,
+                    tenantId: targetTenantId,
+                    reportSignatories: signatories,
+                  })
+                );
+                if (err || !res) {
+                  showToast(err || 'Failed to save report signatories.', 'error');
+                  return;
+                }
+                showToast('Statutory report signatories saved successfully!', 'success');
                 void refetchTenantConfig();
               }}
               onEditConfig={handleEditConfig}

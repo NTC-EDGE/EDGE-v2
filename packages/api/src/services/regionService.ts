@@ -45,6 +45,15 @@ export const fetchRegions = async (activeOnly = true): Promise<RegionDto[]> => {
   }
 };
 
+function isRegionDto(payload: unknown): payload is RegionDto {
+  if (typeof payload !== "object" || payload === null) return false;
+  return (
+    typeof Reflect.get(payload, "id") === "string" &&
+    typeof Reflect.get(payload, "code") === "string" &&
+    typeof Reflect.get(payload, "name") === "string"
+  );
+}
+
 /**
  * Network Layer API function to fetch a single region by ID from the C# .NET 10 Backend API.
  * Endpoint: GET /api/v2/regions/{id}
@@ -58,8 +67,8 @@ export const fetchRegionById = async (id: string): Promise<RegionDto | null> => 
     if (payload !== null && typeof payload === "object" && "data" in payload && payload.data) {
       return payload.data;
     }
-    if (payload !== null && typeof payload === "object" && "id" in payload) {
-      return payload as RegionDto;
+    if (isRegionDto(payload)) {
+      return payload;
     }
     return null;
   } catch (error: unknown) {

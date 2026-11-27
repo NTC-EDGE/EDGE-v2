@@ -34,16 +34,20 @@ export function useTenantTransactions(tenantId?: string | null, params?: UseTena
     ? `/api/v2/tenants/${effectiveTenantId}/transactions${queryString ? `?${queryString}` : ''}`
     : null;
 
-  const { data, error, isLoading, mutate } = useSWR<PaginatedApiResponse<TenantTransactionDto>>(
+type PaginatedTenantTransactionsResponse = PaginatedApiResponse<TenantTransactionDto> & {
+  items?: TenantTransactionDto[];
+};
+
+  const { data, error, isLoading, mutate } = useSWR<PaginatedTenantTransactionsResponse>(
     endpoint,
-    (url: string) => apiClient.get<PaginatedApiResponse<TenantTransactionDto>>(url).then((res) => res.data),
+    (url: string) => apiClient.get<PaginatedTenantTransactionsResponse>(url).then((res) => res.data),
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
     }
   );
 
-  const rawData = data?.data ?? (data as unknown as { items?: TenantTransactionDto[] })?.items ?? [];
+  const rawData = data?.data ?? data?.items ?? [];
   const transactions = Array.isArray(rawData) ? rawData : [];
   const totalCount = data?.totalCount ?? transactions.length;
   const totalPages = data?.totalPages ?? (params?.pageSize ? Math.ceil(totalCount / params.pageSize) : 1);

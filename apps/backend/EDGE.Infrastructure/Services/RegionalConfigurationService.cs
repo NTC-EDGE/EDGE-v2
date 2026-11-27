@@ -145,7 +145,7 @@ public class RegionalConfigurationService : IRegionalConfigurationService
         {
             TenantId = resolvedTenantId,
             RegionId = regionId,
-            TenantCode = tenantCode,
+            TenantCode = tenantCode ?? "10",
             TenantName = tenantName,
             RcCodeSoa = !string.IsNullOrWhiteSpace(soaConfig?.Value) ? soaConfig.Value : cleanCode,
             RcCodeOp = !string.IsNullOrWhiteSpace(opConfig?.Value) ? opConfig.Value : cleanCode,

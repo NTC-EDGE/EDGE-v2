@@ -73,17 +73,18 @@ apiClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
-    const status = error.response?.status;
+  (error: unknown) => {
+    const info = getErrorInfo(error);
+    const status = info.status;
     const isRequestTimeout =
-      error.code === 'ECONNABORTED' ||
-      (typeof error.message === 'string' && error.message.toLowerCase().includes('timeout'));
+      info.code === 'ECONNABORTED' ||
+      (typeof info.message === 'string' && info.message.toLowerCase().includes('timeout'));
     const isNetworkErr =
       !isRequestTimeout &&
-      (error.code === 'ERR_NETWORK' ||
-        error.code === 'ECONNREFUSED' ||
-        error.code === 'ETIMEDOUT' ||
-        !error.response ||
+      (info.code === 'ERR_NETWORK' ||
+        info.code === 'ECONNREFUSED' ||
+        info.code === 'ETIMEDOUT' ||
+        !info.hasResponse ||
         (typeof status === 'number' && status >= 502 && status <= 504));
 
     if (isNetworkErr) {

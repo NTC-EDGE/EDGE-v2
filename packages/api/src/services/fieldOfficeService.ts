@@ -42,6 +42,14 @@ export async function fetchFieldOffices(tenantId?: string): Promise<FieldOfficeD
   return [];
 }
 
+function isFieldOfficeDto(data: unknown): data is FieldOfficeDto {
+  if (typeof data !== 'object' || data === null) return false;
+  return (
+    typeof Reflect.get(data, 'id') === 'string' &&
+    typeof Reflect.get(data, 'name') === 'string'
+  );
+}
+
 /**
  * Service function to fetch a field office by ID.
  */
@@ -53,8 +61,8 @@ export async function fetchFieldOfficeById(id: string, tenantId?: string): Promi
   if (data !== null && typeof data === 'object' && 'data' in data && data.data) {
     return data.data;
   }
-  if (data !== null && typeof data === 'object' && 'id' in data) {
-    return data as FieldOfficeDto;
+  if (isFieldOfficeDto(data)) {
+    return data;
   }
   return null;
 }

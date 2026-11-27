@@ -33,6 +33,27 @@ export interface UseAdminFieldOfficesReturn {
   refetch: () => Promise<unknown>;
 }
 
+function isFieldOfficeDto(item: unknown): item is FieldOfficeDto {
+  if (typeof item !== "object" || item === null) return false;
+  return (
+    typeof Reflect.get(item, "id") === "string" &&
+    typeof Reflect.get(item, "name") === "string"
+  );
+}
+
+function extractFieldOffices(payload: unknown): FieldOfficeDto[] {
+  if (Array.isArray(payload)) {
+    return payload.filter(isFieldOfficeDto);
+  }
+  if (typeof payload === "object" && payload !== null) {
+    const nested = Reflect.get(payload, "data");
+    if (Array.isArray(nested)) {
+      return nested.filter(isFieldOfficeDto);
+    }
+  }
+  return [];
+}
+
 export function useAdminFieldOffices(tenantId?: string): UseAdminFieldOfficesReturn {
   const effectiveTenantId = resolveEffectiveTenantId(tenantId);
   const url = effectiveTenantId
@@ -47,12 +68,7 @@ export function useAdminFieldOffices(tenantId?: string): UseAdminFieldOfficesRet
     { revalidateOnFocus: false, dedupingInterval: 5000 }
   );
 
-  let fieldOffices: FieldOfficeDto[] = [];
-  if (Array.isArray(data)) {
-    fieldOffices = data as FieldOfficeDto[];
-  } else if (data && typeof data === "object" && "data" in data && Array.isArray((data as { data: unknown }).data)) {
-    fieldOffices = (data as { data: FieldOfficeDto[] }).data;
-  }
+  const fieldOffices = extractFieldOffices(data);
 
   return {
     fieldOffices,
