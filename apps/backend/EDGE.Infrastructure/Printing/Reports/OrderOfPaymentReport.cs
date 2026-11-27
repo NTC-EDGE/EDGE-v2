@@ -158,7 +158,7 @@ public class OrderOfPaymentReport : IDocument
                 });
 
                 // Bank rows
-                var banks = _model.BankAccounts;
+                var banks = _model.BankAccounts ?? new System.Collections.Generic.List<OrderOfPaymentBankAccount>();
                 int rowCount = Math.Max(2, banks.Count);
 
                 for (int i = 0; i < rowCount; i++)

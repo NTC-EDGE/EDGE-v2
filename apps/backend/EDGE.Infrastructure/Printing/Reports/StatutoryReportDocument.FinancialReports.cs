@@ -32,52 +32,67 @@ public partial class StatutoryReportDocument
 
         container.Column(col =>
         {
-            // COA Appendix 26 Metadata Banner
+            // COA Appendix 26 Metadata Banner (Official GAM Vol. II Header Fields)
             var effectiveFundCluster = !string.IsNullOrWhiteSpace(_model.FundCluster) ? _model.FundCluster : "01101101";
+            var rcCode = !string.IsNullOrWhiteSpace(_model.ResponsibilityCenterCode) ? _model.ResponsibilityCenterCode : "61";
+            var orderedOrs = paidTx
+                .Where(tx => !string.IsNullOrWhiteSpace(tx.RefNo))
+                .OrderBy(tx => tx.RefNo, StringComparer.OrdinalIgnoreCase)
+                .Select(tx => tx.RefNo.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var orRangeLabel = orderedOrs.Count > 0
+                ? (orderedOrs.Count == 1 ? orderedOrs[0] : $"{orderedOrs.First()} to {orderedOrs.Last()}")
+                : "N/A";
+
             col.Item().Border(0.8f).BorderColor(Colors.Black).Padding(4).Row(r =>
             {
                 r.RelativeItem().Column(c =>
                 {
                     c.Item().Text($"Entity Name: NATIONAL TELECOMMUNICATIONS COMMISSION — {_model.TenantName.ToUpperInvariant()}").Bold().FontSize(7.5f);
-                    c.Item().Text($"Fund Cluster: {effectiveFundCluster} — Regular Agency Fund (General Fund - New General Appropriations)").FontSize(7f);
+                    c.Item().Text($"Fund Cluster: {effectiveFundCluster} — Regular Agency Fund   |   Responsibility Center Code: {rcCode}   |   MFO/PAP: 310100100001000").FontSize(6.8f);
                 });
-                r.ConstantItem(220).Column(c =>
+                r.ConstantItem(235).Column(c =>
                 {
-                    c.Item().AlignRight().Text("COA GAM Volume II — Appendix 26").Bold().FontSize(7.5f);
-                    c.Item().AlignRight().Text($"Report No.: RCD-{_model.GeneratedAt:yyyyMMdd}   •   Period: {_model.Period}").FontSize(7f);
+                    c.Item().AlignRight().Text("COA GAM Volume II — Appendix 26 (RCD)").Bold().FontSize(7.5f);
+                    c.Item().AlignRight().Text($"Report No.: RCD-{_model.GeneratedAt:yyyyMMdd}   •   Period: {_model.Period}").FontSize(6.8f);
                 });
             });
 
-            // A. COLLECTIONS TABLE
+            // A. COLLECTIONS TABLE (Official GAM Vol. II Appendix 26 Columns)
             col.Item().PaddingTop(4).Table(t =>
             {
                 t.ColumnsDefinition(cd =>
                 {
-                    cd.ConstantColumn(44); // OR Date
-                    cd.ConstantColumn(54); // OR No.
-                    cd.RelativeColumn(1.2f); // Payor
-                    cd.RelativeColumn(1.1f); // Particulars
-                    cd.ConstantColumn(48); // Total per OR
-                    cd.ConstantColumn(40); // Permit (40201010)
-                    cd.ConstantColumn(40); // License (40201010)
-                    cd.ConstantColumn(40); // Reg (40201020)
-                    cd.ConstantColumn(38); // Clear/Exam
-                    cd.ConstantColumn(40); // SRF (40201070)
-                    cd.ConstantColumn(40); // SUF (40201140)
-                    cd.ConstantColumn(38); // Fines (40201140)
-                    cd.ConstantColumn(34); // DST (20201050)
-                    cd.ConstantColumn(38); // Other (40201990)
-                    cd.ConstantColumn(56); // Deposit Status
+                    cd.ConstantColumn(42); // OR Date
+                    cd.ConstantColumn(52); // OR No.
+                    cd.ConstantColumn(28); // RC Code
+                    cd.RelativeColumn(1.15f); // Payor
+                    cd.RelativeColumn(1.05f); // Particulars
+                    cd.ConstantColumn(44); // MFO/PAP
+                    cd.ConstantColumn(46); // Total per OR
+                    cd.ConstantColumn(38); // Permit (40201010)
+                    cd.ConstantColumn(38); // License (40201010)
+                    cd.ConstantColumn(38); // Reg (40201020)
+                    cd.ConstantColumn(36); // Clear/Exam (40201030)
+                    cd.ConstantColumn(36); // SRF (40201070)
+                    cd.ConstantColumn(36); // SUF (40201140)
+                    cd.ConstantColumn(34); // Fines (40201140)
+                    cd.ConstantColumn(32); // DST (20201050)
+                    cd.ConstantColumn(36); // Other (40201990)
+                    cd.ConstantColumn(52); // Deposit Status
                 });
 
                 t.Header(h =>
                 {
-                    RenderSectionTitleRow(h, 15, "I. SCHEDULE OF OFFICIAL RECEIPT COLLECTIONS BY UACS OBJECT CODE & DEPOSIT STATUS");
+                    RenderSectionTitleRow(h, 17, "I. REPORT OF COLLECTIONS AND DEPOSITS — SCHEDULE OF OFFICIAL RECEIPTS BY UACS OBJECT CODE");
                     RenderTableHeaderCell(h, "OR DATE");
                     RenderTableHeaderCell(h, "OR NO.");
+                    RenderTableHeaderCell(h, "RC\nCODE");
                     RenderTableHeaderCell(h, "PAYOR / ENTITY", alignLeft: true);
-                    RenderTableHeaderCell(h, "SERVICE / PARTICULAR", alignLeft: true);
-                    RenderTableHeaderCell(h, "TOTAL OR");
+                    RenderTableHeaderCell(h, "PARTICULARS", alignLeft: true);
+                    RenderTableHeaderCell(h, "MFO /\nPAP");
+                    RenderTableHeaderCell(h, "TOTAL\nPER OR");
                     RenderTableHeaderCell(h, "PERMIT\n40201010");
                     RenderTableHeaderCell(h, "LICENSE\n40201010");
                     RenderTableHeaderCell(h, "REGIST.\n40201020");
@@ -92,7 +107,7 @@ public partial class StatutoryReportDocument
 
                 if (uacsRows.Count == 0)
                 {
-                    t.Cell().ColumnSpan(15).Border(0.5f).BorderColor("#CBD5E1").Padding(8).AlignCenter()
+                    t.Cell().ColumnSpan(17).Border(0.5f).BorderColor("#CBD5E1").Padding(8).AlignCenter()
                         .Text("No Official Receipt collections recorded for the selected date range.").Italic().FontColor(Colors.Grey.Darken1);
                 }
                 else
@@ -103,8 +118,10 @@ public partial class StatutoryReportDocument
                         var b = item.Breakdown;
                         RenderBodyCell(t, tx.Date.ToString("yyyy-MM-dd"));
                         RenderBodyCell(t, tx.RefNo, bold: true);
-                        RenderBodyCell(t, Truncate(tx.ApplicantName, 24), alignLeft: true);
-                        RenderBodyCell(t, Truncate(tx.ServiceType, 22), alignLeft: true);
+                        RenderBodyCell(t, rcCode);
+                        RenderBodyCell(t, Truncate(tx.ApplicantName, 22), alignLeft: true);
+                        RenderBodyCell(t, Truncate(tx.ServiceType, 20), alignLeft: true);
+                        RenderBodyCell(t, "3101001");
                         RenderBodyCell(t, FormatCurrency(tx.Amount), alignRight: true, bold: true);
                         RenderBodyCell(t, FormatZeroDash(b.PermitFees), alignRight: true);
                         RenderBodyCell(t, FormatZeroDash(b.LicenseFees), alignRight: true);
@@ -115,11 +132,11 @@ public partial class StatutoryReportDocument
                         RenderBodyCell(t, FormatZeroDash(b.FinesPenalties), alignRight: true);
                         RenderBodyCell(t, FormatZeroDash(b.Dst), alignRight: true);
                         RenderBodyCell(t, FormatZeroDash(b.OtherIncome), alignRight: true);
-                        RenderBodyCell(t, Truncate(item.DepositStatus, 14), bold: item.DepositStatus.StartsWith("DEPOSITED"));
+                        RenderBodyCell(t, Truncate(item.DepositStatus, 13), bold: item.DepositStatus.StartsWith("DEPOSITED"));
                     }
                 }
 
-                RenderTotalCell(t, "TOTAL", colspan: 4, alignLeft: true);
+                RenderTotalCell(t, "TOTAL", colspan: 6, alignLeft: true);
                 RenderTotalCell(t, FormatCurrency(depositMetrics.TotalCollected), alignRight: true);
                 RenderTotalCell(t, FormatCurrency(totals.PermitFees), alignRight: true);
                 RenderTotalCell(t, FormatCurrency(totals.LicenseFees), alignRight: true);
@@ -187,23 +204,24 @@ public partial class StatutoryReportDocument
                 });
             }
 
-            // Summary of Remittances & Official Oath Certification
+            // Summary of Remittances & Official Oath Certification (COA GAM Vol. II Appendix 26)
             col.Item().PaddingTop(4).Border(0.8f).BorderColor(Colors.Black).Padding(5).Row(r =>
             {
                 r.RelativeItem(0.48f).Column(c =>
                 {
-                    c.Item().Text("III. SUMMARY OF COLLECTIONS, REMITTANCES & UNDEPOSITED BALANCE").Bold().FontSize(7.2f);
-                    c.Item().PaddingTop(2).Text($"• Total Collections per Accountable Form 51 ({paidTx.Count} ORs): PHP {FormatCurrency(depositMetrics.TotalCollected)} (Cash: {FormatCurrency(depositMetrics.CashCollected)} | Check: {FormatCurrency(depositMetrics.CheckCollected)} | Online: {FormatCurrency(depositMetrics.OnlineCollected)})").FontSize(6.6f);
-                    c.Item().Text($"• Total Remitted / Deposited with AGDB / BTr ({_model.BankDeposits.Count} Deposit Batches): PHP {FormatCurrency(depositMetrics.TotalDeposited)}").Bold().FontSize(6.6f);
-                    c.Item().Text($"• Ending Undeposited Collections on Hand ({depositMetrics.UndepositedOrCount} Issued ORs Awaiting Deposit): PHP {FormatCurrency(depositMetrics.UndepositedBalance)}").Bold().FontSize(6.6f);
+                    c.Item().Text("III. SUMMARY (RECONCILIATION OF COLLECTIONS & DEPOSITS)").Bold().FontSize(7.2f);
+                    c.Item().PaddingTop(2).Text("• Undeposited Collections per last Report: PHP 0.00").FontSize(6.5f);
+                    c.Item().Text($"• Add: Collections per OR Nos. {orRangeLabel} ({paidTx.Count} ORs): PHP {FormatCurrency(depositMetrics.TotalCollected)} (Cash: {FormatCurrency(depositMetrics.CashCollected)} | Check: {FormatCurrency(depositMetrics.CheckCollected)} | Online: {FormatCurrency(depositMetrics.OnlineCollected)})").FontSize(6.5f);
+                    c.Item().Text($"• Less: Deposits with AGDB / BTr ({_model.BankDeposits.Count} Batches): PHP {FormatCurrency(depositMetrics.TotalDeposited)}").Bold().FontSize(6.5f);
+                    c.Item().Text($"• Undeposited Collections, this Report ({depositMetrics.UndepositedOrCount} ORs Awaiting Deposit): PHP {FormatCurrency(depositMetrics.UndepositedBalance)}").Bold().FontSize(6.5f);
                 });
 
                 r.RelativeItem(0.52f).PaddingLeft(8).Column(c =>
                 {
-                    c.Item().Text("OFFICIAL CERTIFICATION:").Bold().FontSize(7.2f);
+                    c.Item().Text("CERTIFICATION (COA GAM VOL. II — APPENDIX 26):").Bold().FontSize(7.2f);
                     c.Item().PaddingTop(2).Text(
-                        "I HEREBY CERTIFY on my official oath that the above is a true and correct statement of all collections received by me during the period stated above for which Official Receipts were actually issued by me in the amounts shown thereon, and that the deposited amounts were duly remitted with the Authorized Government Depository Bank (AGDB) to the credit of the Bureau of the Treasury.")
-                        .FontSize(6.4f).Italic();
+                        $"I hereby certify on my official oath that the above is a true statement of all collections and deposits had by me during the period stated above for which Official Receipt Nos. {orRangeLabel} inclusive, were actually issued by me in the amounts shown thereon, and that I have not received money from whatever source without having issued the necessary Official Receipt in acknowledgement thereof.")
+                        .FontSize(6.3f).Italic();
                 });
             });
 
@@ -250,13 +268,13 @@ public partial class StatutoryReportDocument
             {
                 r.RelativeItem().Column(c =>
                 {
-                    c.Item().Text("STATUTORY TAX RETURN REFERENCE: BIR Form No. 2000-OT / NIRC Sec. 188").Bold().FontSize(7.5f);
-                    c.Item().Text("Tax Type: Documentary Stamp Tax (DST) on Certificates, Permits & Licenses (Constructive Affixture)").FontSize(7f);
+                    c.Item().Text("STATUTORY TAX RETURN REFERENCE: BIR Form No. 2000 (Monthly DST Declaration/Return) — NIRC Sec. 173 & 188 (TRAIN Law)").Bold().FontSize(7.3f);
+                    c.Item().Text("Tax Type: Documentary Stamp Tax (Constructive Affixture)   |   ATC: DS125 (Certificates / Licenses / Permits)   |   Filing Deadline: Within 5 days after close of month").FontSize(6.6f);
                 });
-                r.ConstantItem(220).Column(c =>
+                r.ConstantItem(225).Column(c =>
                 {
-                    c.Item().AlignRight().Text($"DST Collected: PHP {FormatCurrency(totalDst)}   |   Remitted: PHP {FormatCurrency(totalDstDeposited)}").Bold().FontSize(7.2f);
-                    c.Item().AlignRight().Text($"UACS Code: 2-02-01-050   |   Undeposited DST: PHP {FormatCurrency(totalDstUndeposited)}").FontSize(6.8f);
+                    c.Item().AlignRight().Text($"DST Collected: PHP {FormatCurrency(totalDst)}   |   Remitted: PHP {FormatCurrency(totalDstDeposited)}").Bold().FontSize(7.1f);
+                    c.Item().AlignRight().Text($"UACS Code: 2-02-01-050 (Due to BIR)   |   Undeposited: PHP {FormatCurrency(totalDstUndeposited)}").FontSize(6.6f);
                 });
             });
 
@@ -337,7 +355,7 @@ public partial class StatutoryReportDocument
         var depositMetrics = ComputeDepositMetrics(paidTx, totals.Dst);
 
         var effectiveFundCluster = !string.IsNullOrWhiteSpace(_model.FundCluster) ? _model.FundCluster : "01101101";
-        var ngpFundLabel = $"{effectiveFundCluster} (General Fund - NGP)";
+        var ngpFundLabel = $"{effectiveFundCluster} — BTr-NGAs Fees & Charges";
 
         var schedule = new (string Code, string Title, string LegalBasis, decimal Collected, decimal Deposited, string Fund)[]
         {
@@ -350,12 +368,26 @@ public partial class StatutoryReportDocument
             ("4-02-01-140-A", "Spectrum User's Fee (SUF)", "RA 7925 Sec. 15", totals.SpectrumSuf, depositedTotals.SpectrumSuf, ngpFundLabel),
             ("4-02-01-140-B", "Fines and Penalties — Service Income & Late Renewal Surcharges", "Act 3846 / NTC Schedule", totals.FinesPenalties, depositedTotals.FinesPenalties, ngpFundLabel),
             ("4-02-01-990", "Other Service Income — Modifications, Call Sign & Miscellaneous Fees", "GAM Vol. I / EO 546", totals.OtherIncome, depositedTotals.OtherIncome, ngpFundLabel),
-            ("2-02-01-050", "Due to BIR — Documentary Stamp Tax (Constructive Affixture)", "NIRC Sec. 188 / RA 10963", totals.Dst, depositedTotals.Dst, "Trust / Inter-Agency Remittance")
+            ("2-02-01-050", "Due to BIR — Documentary Stamp Tax (Constructive Affixture)", "NIRC Sec. 188 / RA 10963", totals.Dst, depositedTotals.Dst, "BTr-Inter-Agency Trust Fund (IATF)")
         };
 
         container.Column(col =>
         {
-            col.Item().Table(t =>
+            col.Item().Border(0.8f).BorderColor(Colors.Black).Padding(4).Row(r =>
+            {
+                r.RelativeItem().Column(c =>
+                {
+                    c.Item().Text($"BTr Treasury Circular Nos. 02-2022 / 03-2024 / 03-2025 — List of Deposited Collections (NGCDS / UACS)").Bold().FontSize(7.3f);
+                    c.Item().Text($"Entity: NTC {_model.TenantName}   |   Funding Source: {effectiveFundCluster}   |   RC Code: {(!string.IsNullOrWhiteSpace(_model.ResponsibilityCenterCode) ? _model.ResponsibilityCenterCode : "61")}").FontSize(6.6f);
+                });
+                r.ConstantItem(215).Column(c =>
+                {
+                    c.Item().AlignRight().Text($"Total Collected: PHP {FormatCurrency(depositMetrics.TotalCollected)}").Bold().FontSize(7.1f);
+                    c.Item().AlignRight().Text($"Deposited to AGDB/BTr: PHP {FormatCurrency(depositMetrics.TotalDeposited)}").FontSize(6.6f);
+                });
+            });
+
+            col.Item().PaddingTop(4).Table(t =>
             {
                 t.ColumnsDefinition(cd =>
                 {

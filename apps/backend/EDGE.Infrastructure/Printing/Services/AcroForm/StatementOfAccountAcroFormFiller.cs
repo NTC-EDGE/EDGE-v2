@@ -161,8 +161,8 @@ public static class StatementOfAccountAcroFormFiller
                     ? item.Particular1.Amount.Value.ToString("N2")
                     : (item.Particular1.Fees.HasValue && item.Particular1.Fees.Value > 0 ? item.Particular1.Fees.Value.ToString("N2") : string.Empty));
 
-            var desc = item.Description.ToLowerInvariant();
-            var code = item.Code.Trim();
+            var desc = (item.Description ?? string.Empty).ToLowerInvariant();
+            var code = (item.Code ?? string.Empty).Trim();
 
             // Match by category and description
             if (item.Category == SoaCategory.Licenses)

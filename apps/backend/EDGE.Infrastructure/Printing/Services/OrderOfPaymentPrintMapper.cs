@@ -142,8 +142,8 @@ public static class OrderOfPaymentPrintMapper
         model.AmountInWords = NumberToWordsConverter.Convert(op.AmountDue);
 
         // Build Purpose description from Application / SOA particulars
-        var serviceName = app?.ApplicationApplicants.FirstOrDefault()?.Applicant?.Service?.Name ?? "Application";
-        var particulars = soa?.LineItems.Select(li => li.Particular).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct().ToList();
+        var serviceName = app?.ApplicationApplicants?.FirstOrDefault()?.Applicant?.Service?.Name ?? "Application";
+        var particulars = soa?.LineItems?.Select(li => li.Particular).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct().ToList();
         if (particulars != null && particulars.Any())
         {
             model.Purpose = $"{serviceName} - {string.Join(", ", particulars)}";
@@ -154,11 +154,11 @@ public static class OrderOfPaymentPrintMapper
         }
 
         // SOA Reference
-        var activeSoa = soa ?? op.StatementOfAccount ?? app?.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId);
+        var activeSoa = soa ?? op.StatementOfAccount ?? app?.StatementsOfAccount?.FirstOrDefault(s => s.Id == op.StatementOfAccountId);
         model.StatementOfAccountNo = activeSoa?.SoaNumber ?? "N/A";
-        model.StatementOfAccountDate = activeSoa?.CreatedAt != default
-            ? activeSoa?.CreatedAt.ToString("dd/MM/yyyy")
-            : op.CreatedAt.ToString("dd/MM/yyyy");
+        model.StatementOfAccountDate = activeSoa != null && activeSoa.CreatedAt != default
+            ? activeSoa.CreatedAt.ToString("dd/MM/yyyy")
+            : (op.CreatedAt != default ? op.CreatedAt.ToString("dd/MM/yyyy") : DateTime.UtcNow.ToString("dd/MM/yyyy"));
 
         // Bank Account entries - populated only from configured depository accounts; otherwise blank
         model.BankAccounts = new List<OrderOfPaymentBankAccount>();
@@ -287,13 +287,13 @@ public static class OrderOfPaymentPrintMapper
             var effectiveDate = op.PaidAt
                 ?? receipt?.IssuedAt
                 ?? receipts?.OrderByDescending(r => r.IssuedAt).Select(r => (DateTime?)r.IssuedAt).FirstOrDefault()
-                ?? op.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.Timestamp
+                ?? op.Histories?.FirstOrDefault(h => h.Action != null && (h.Action.Contains("Verified") || h.Action.Contains("Paid")))?.Timestamp
                 ?? (op.CreatedAt != default ? op.CreatedAt : DateTime.UtcNow);
 
-            var cashierStaff = op.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName
+            var cashierStaff = op.Histories?.FirstOrDefault(h => h.Action != null && (h.Action.Contains("Verified") || h.Action.Contains("Paid")))?.StaffName
                 ?? app?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))?.StaffName
                 ?? (receipt?.IssuedByUser != null ? $"{receipt.IssuedByUser.FirstName} {receipt.IssuedByUser.LastName}".Trim() : null)
-                ?? (receipts?.FirstOrDefault(r => r.IssuedByUser != null)?.IssuedByUser != null ? $"{receipts.First(r => r.IssuedByUser != null).IssuedByUser!.FirstName} {receipts.First(r => r.IssuedByUser != null).IssuedByUser!.LastName}".Trim() : null)
+                ?? (receipts?.FirstOrDefault(r => r.IssuedByUser != null)?.IssuedByUser is { } firstCashier ? $"{firstCashier.FirstName} {firstCashier.LastName}".Trim() : null)
                 ?? "Cashier";
 
             model.OrNo = !string.IsNullOrWhiteSpace(effectiveOrNumber) ? effectiveOrNumber : "OR-RECORDED";

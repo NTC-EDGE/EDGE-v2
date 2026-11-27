@@ -22,6 +22,7 @@ public class StatutoryReportModel
     public string GeneratedByTitle { get; set; } = string.Empty;
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
     public string FundCluster { get; set; } = "01101101";
+    public string ResponsibilityCenterCode { get; set; } = "61";
     public string RegionalOfficeAddress { get; set; } = string.Empty;
     public ReportSignatoriesDto Signatories { get; set; } = new();
     public string? SecondaryFilter { get; set; }

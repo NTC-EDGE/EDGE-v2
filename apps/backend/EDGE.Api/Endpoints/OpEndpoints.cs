@@ -121,8 +121,13 @@ public static class OpEndpoints
             return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
         }
 
-        var activeSoas = app.StatementsOfAccount.Where(s => !s.IsDeleted).OrderByDescending(s => s.CreatedAt).ToList();
-        var activeOps = app.OrdersOfPayment.Where(o => !o.IsDeleted).ToList();
+        var activeSoas = (app.StatementsOfAccount ?? Enumerable.Empty<StatementOfAccount>())
+            .Where(s => !s.IsDeleted)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToList();
+        var activeOps = (app.OrdersOfPayment ?? Enumerable.Empty<OrderOfPayment>())
+            .Where(o => !o.IsDeleted)
+            .ToList();
         OrderOfPayment? op = null;
         StatementOfAccount? soa = null;
 
@@ -156,7 +161,18 @@ public static class OpEndpoints
                 : activeSoas.FirstOrDefault();
         }
 
-        var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app.TenantId, cancellationToken) : null;
+        RegionalConfigurationDto? regionalConfig = null;
+        if (configService != null && app.TenantId != Guid.Empty)
+        {
+            try
+            {
+                regionalConfig = await configService.GetConfigurationAsync(app.TenantId, cancellationToken);
+            }
+            catch
+            {
+                // Fallback to default regional configuration when lookup fails
+            }
+        }
         var allowManualOpNumber = regionalConfig?.AllowManualOpNumber == true;
         var isOpApproved = app.Status == ApplicationStatus.PendingPayment ||
                            app.Status == ApplicationStatus.ForIssuance ||
@@ -213,40 +229,57 @@ public static class OpEndpoints
 
         List<OfficialReceipt> matchingReceipts = new();
         OfficialReceipt? receipt = null;
-        if (receiptRepository != null)
+        if (receiptRepository != null && app.TenantId != Guid.Empty)
         {
-            if (!string.IsNullOrWhiteSpace(orNumber))
+            try
             {
-                var cleanOr = orNumber.TrimStart('#').Trim();
-                receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, cleanOr, cancellationToken)
-                          ?? await receiptRepository.GetByOrNumberAsync(app.TenantId, orNumber.Trim(), cancellationToken);
-                if (receipt != null)
+                if (!string.IsNullOrWhiteSpace(orNumber))
                 {
-                    matchingReceipts.Add(receipt);
+                    var cleanOr = orNumber.TrimStart('#').Trim();
+                    receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, cleanOr, cancellationToken)
+                              ?? await receiptRepository.GetByOrNumberAsync(app.TenantId, orNumber.Trim(), cancellationToken);
+                    if (receipt != null)
+                    {
+                        matchingReceipts.Add(receipt);
+                    }
+                }
+
+                var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+                if (opReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(opReceipts);
+                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                }
+
+                var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
+                var appReceipts = receipts
+                    .Where(r => r.ApplicationId == app.Id || r.OrderOfPaymentId == op.Id)
+                    .ToList();
+                if (appReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(appReceipts);
+                    receipt ??= appReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
                 }
             }
-
-            var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
-            if (opReceipts.Count > 0)
+            catch
             {
-                matchingReceipts.AddRange(opReceipts);
-                receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
-            }
-
-            var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
-            var appReceipts = receipts
-                .Where(r => r.ApplicationId == app.Id || r.OrderOfPaymentId == op.Id)
-                .ToList();
-            if (appReceipts.Count > 0)
-            {
-                matchingReceipts.AddRange(appReceipts);
-                receipt ??= appReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                // Keep printing OP even if optional receipt enrichment fails
             }
         }
 
-        var bankAccounts = bankAccountRepository != null
-            ? await bankAccountRepository.GetByTenantAsync(app.TenantId, activeOnly: true, cancellationToken)
-            : null;
+        IReadOnlyList<AgencyBankAccount>? bankAccounts = null;
+        if (bankAccountRepository != null && app.TenantId != Guid.Empty)
+        {
+            try
+            {
+                bankAccounts = await bankAccountRepository.GetByTenantAsync(app.TenantId, activeOnly: true, cancellationToken);
+            }
+            catch
+            {
+                // Keep printing OP even if bank account lookup fails
+            }
+        }
+
         var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(
             op: op,
             soa: soa,
@@ -257,7 +290,7 @@ public static class OpEndpoints
             overrideOrNumber: orNumber,
             receipts: matchingReceipts);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
-        var fileName = $"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf";
+        var fileName = SanitizePdfFileName($"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf");
 
         if (download)
         {
@@ -344,7 +377,7 @@ public static class OpEndpoints
             overrideOrNumber: orNumber,
             receipts: matchingReceipts);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
-        var fileName = $"OP_{op.OpNumber ?? opId.ToString()}.pdf";
+        var fileName = SanitizePdfFileName($"OP_{op.OpNumber ?? opId.ToString()}.pdf");
 
         if (download)
         {
@@ -353,6 +386,16 @@ public static class OpEndpoints
 
         httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
+
+    private static string SanitizePdfFileName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName)) return "OP.pdf";
+        var safeChars = rawName
+            .Select(ch => char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.' ? ch : '_')
+            .ToArray();
+        var cleaned = new string(safeChars).Trim('_');
+        return string.IsNullOrWhiteSpace(cleaned) ? "OP.pdf" : cleaned;
     }
 }
 

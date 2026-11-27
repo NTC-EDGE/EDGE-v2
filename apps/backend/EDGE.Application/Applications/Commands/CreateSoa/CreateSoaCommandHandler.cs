@@ -270,6 +270,11 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         var resolvedDueDate = EnsureUtc(rawDueDate);
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Evaluator", cancellationToken);
+        Guid? validUserId = null;
+        if (userContext.UserId.HasValue && await _repository.UserExistsAsync(userContext.UserId.Value, cancellationToken))
+        {
+            validUserId = userContext.UserId.Value;
+        }
 
         StatementOfAccount? existingSoa;
         Guid? resolvedApplicantId;
@@ -356,7 +361,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                     ? await _numberingSeriesService.GenerateSoaNumberAsync(app.TenantId, cancellationToken)
                     : $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}"),
             Status = SoaStatus.Pending,
-            PreparedByUserId = userContext.UserId,
+            PreparedByUserId = validUserId,
         };
 
         if (isExistingSoa && requestedManualSoaNumber != null)
@@ -583,7 +588,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 }
                 else
                 {
-                    desired.Id = Guid.Empty;
+                    desired.Id = Guid.NewGuid();
+                    desired.StatementOfAccountId = soa.Id;
+                    await _repository.AddSoaLineItemAsync(desired, cancellationToken);
                     soa.LineItems.Add(desired);
                 }
             }
@@ -615,7 +622,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             StatementOfAccountId = soa.Id,
             Action = historyAction,
             ToStatus = SoaStatus.Pending,
-            PerformedByUserId = userContext.UserId,
+            PerformedByUserId = validUserId,
             StaffName = staffName,
             StaffRole = staffRole,
             Timestamp = DateTime.UtcNow
@@ -710,7 +717,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             Action = actionName,
             FromStatus = app.Status,
             ToStatus = app.Status,
-            PerformedByUserId = userContext.UserId,
+            PerformedByUserId = validUserId,
             StaffName = staffName,
             StaffRole = staffRole,
             Remarks = remarksText,

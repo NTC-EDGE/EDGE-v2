@@ -237,6 +237,7 @@ public static class ReportEndpoints
 
         string tenantDisplayName = "NTC Regional Office (All Active Regions)";
         string fundCluster = "01101101";
+        string responsibilityCenterCode = "61";
         string regionalOfficeAddress = string.Empty;
         var reportSignatories = new ReportSignatoriesDto();
         List<EDGE.Domain.Entities.FieldOffice> loadedTenantFieldOffices = new();
@@ -263,6 +264,14 @@ public static class ReportEndpoints
                         fundCluster = string.Equals(trimmedCluster, "01", StringComparison.OrdinalIgnoreCase)
                             ? "01101101"
                             : trimmedCluster;
+                    }
+                    if (!string.IsNullOrWhiteSpace(regionalConfig.RcCodeSoa))
+                    {
+                        responsibilityCenterCode = regionalConfig.RcCodeSoa.Trim();
+                    }
+                    else if (!string.IsNullOrWhiteSpace(regionalConfig.RcCodeOp))
+                    {
+                        responsibilityCenterCode = regionalConfig.RcCodeOp.Trim();
                     }
                     if (regionalConfig.ReportSignatories != null)
                     {
@@ -683,6 +692,7 @@ public static class ReportEndpoints
             GeneratedByTitle = generatedByTitle,
             GeneratedAt = DateTime.UtcNow,
             FundCluster = fundCluster,
+            ResponsibilityCenterCode = responsibilityCenterCode,
             RegionalOfficeAddress = regionalOfficeAddress,
             Signatories = reportSignatories,
             SecondaryFilter = trimmedSecondary,

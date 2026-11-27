@@ -1853,6 +1853,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
         await _context.StatementsOfAccount.AddAsync(soa, cancellationToken);
     }
 
+    public async Task AddSoaLineItemAsync(SoaLineItem lineItem, CancellationToken cancellationToken = default)
+    {
+        await _context.Set<SoaLineItem>().AddAsync(lineItem, cancellationToken);
+    }
+
     public async Task<OrderOfPayment?> GetOpByIdAsync(Guid opId, CancellationToken cancellationToken = default)
     {
         return await _context.OrdersOfPayment
@@ -2156,7 +2161,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         var chiefMember = members.FirstOrDefault(m =>
             (m.Role != null && (string.Equals(m.Role.Key, "chief_of_eod", StringComparison.OrdinalIgnoreCase) ||
                                 string.Equals(m.Role.Key, "higherups", StringComparison.OrdinalIgnoreCase) ||
-                                (m.Role.Name.Contains("Chief", StringComparison.OrdinalIgnoreCase) && m.Role.Name.Contains("EOD", StringComparison.OrdinalIgnoreCase)))) ||
+                                (!string.IsNullOrWhiteSpace(m.Role.Name) && m.Role.Name.Contains("Chief", StringComparison.OrdinalIgnoreCase) && m.Role.Name.Contains("EOD", StringComparison.OrdinalIgnoreCase)))) ||
             (!string.IsNullOrWhiteSpace(m.Position) && m.Position.Contains("Chief", StringComparison.OrdinalIgnoreCase) && m.Position.Contains("EOD", StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrWhiteSpace(m.Designation) && m.Designation.Contains("Chief", StringComparison.OrdinalIgnoreCase) && m.Designation.Contains("EOD", StringComparison.OrdinalIgnoreCase)));
 
@@ -2174,7 +2179,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         // 2. Resolve Regional Director
         var rdMember = members.FirstOrDefault(m =>
             (m.Role != null && (string.Equals(m.Role.Key, "regional_director", StringComparison.OrdinalIgnoreCase) ||
-                                m.Role.Name.Contains("Regional Director", StringComparison.OrdinalIgnoreCase))) ||
+                                (!string.IsNullOrWhiteSpace(m.Role.Name) && m.Role.Name.Contains("Regional Director", StringComparison.OrdinalIgnoreCase)))) ||
             (!string.IsNullOrWhiteSpace(m.Position) && m.Position.Contains("Regional Director", StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrWhiteSpace(m.Designation) && m.Designation.Contains("Regional Director", StringComparison.OrdinalIgnoreCase)));
 

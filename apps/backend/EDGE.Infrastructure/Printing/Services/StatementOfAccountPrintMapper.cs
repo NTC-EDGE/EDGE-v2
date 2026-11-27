@@ -162,16 +162,17 @@ public static class StatementOfAccountPrintMapper
         model.IsEndorsedForPayment = !model.IsForAssessmentOnly;
 
         // 5. Particular Headers & Periods
-        var firstItemWithPeriod = soa?.LineItems.FirstOrDefault(li => li.PeriodOfCoverageStart.HasValue && li.PeriodOfCoverageEnd.HasValue);
+        var soaLineItems = soa?.LineItems ?? new List<SoaLineItem>();
+        var firstItemWithPeriod = soaLineItems.FirstOrDefault(li => li.PeriodOfCoverageStart.HasValue && li.PeriodOfCoverageEnd.HasValue);
         var particularNumber = ResolveParticularNumber(app);
         model.Particular1Header = !string.IsNullOrWhiteSpace(particularNumber) ? particularNumber : model.AccountNo;
         if (firstItemWithPeriod != null && firstItemWithPeriod.PeriodOfCoverageStart.HasValue && firstItemWithPeriod.PeriodOfCoverageEnd.HasValue)
         {
             model.Particular1PeriodCovered = $"{firstItemWithPeriod.PeriodOfCoverageStart.Value:MM/dd/yyyy} to {firstItemWithPeriod.PeriodOfCoverageEnd.Value:MM/dd/yyyy}";
         }
-        else if (soa?.LineItems.Any(li => li.ValidityYears > 0) == true)
+        else if (soaLineItems.Any(li => li.ValidityYears > 0))
         {
-            var maxYears = soa.LineItems.Max(li => li.ValidityYears);
+            var maxYears = soaLineItems.Max(li => li.ValidityYears);
             model.Particular1PeriodCovered = $"{creationDate:MM/dd/yyyy} to {creationDate.AddYears(maxYears):MM/dd/yyyy}";
         }
         else
@@ -231,9 +232,10 @@ public static class StatementOfAccountPrintMapper
                         (i.Description == "Others" || i.Description.StartsWith("Others", StringComparison.OrdinalIgnoreCase)));
                     if (othersItem != null && (othersItem.Particular1.Amount == null || othersItem.Particular1.Amount == 0))
                     {
-                        othersItem.Description = li.Particular.StartsWith("Others", StringComparison.OrdinalIgnoreCase)
-                            ? li.Particular
-                            : $"Others: {li.Particular}";
+                        var safeParticular = li.Particular ?? "Other Fee";
+                        othersItem.Description = safeParticular.StartsWith("Others", StringComparison.OrdinalIgnoreCase)
+                            ? safeParticular
+                            : $"Others: {safeParticular}";
                         othersItem.Code = !string.IsNullOrWhiteSpace(li.ItemCode) ? li.ItemCode : "4-02-01-990";
                         othersItem.Particular1.Fees = feeRate;
                         othersItem.Particular1.Amount = li.Amount;
@@ -244,8 +246,8 @@ public static class StatementOfAccountPrintMapper
                     {
                         model.Items.Add(new StatementOfAccountItem
                         {
-                            Code = li.ItemCode,
-                            Description = li.Particular,
+                            Code = li.ItemCode ?? string.Empty,
+                            Description = li.Particular ?? "Other Fee",
                             Category = SoaCategory.OtherApplication,
                             Particular1 = new StatementOfAccountFeeDetail
                             {
@@ -371,18 +373,18 @@ public static class StatementOfAccountPrintMapper
             var effectiveDate = activeOp?.PaidAt
                 ?? receipt?.IssuedAt
                 ?? receipts?.OrderByDescending(r => r.IssuedAt).Select(r => (DateTime?)r.IssuedAt).FirstOrDefault()
-                ?? activeOp?.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.Timestamp
-                ?? (activeOp?.CreatedAt != default ? activeOp?.CreatedAt : (app?.CreatedAt != default ? app?.CreatedAt : DateTime.UtcNow));
+                ?? activeOp?.Histories?.FirstOrDefault(h => h.Action != null && (h.Action.Contains("Verified") || h.Action.Contains("Paid")))?.Timestamp
+                ?? (activeOp != null && activeOp.CreatedAt != default ? activeOp.CreatedAt : (app != null && app.CreatedAt != default ? app.CreatedAt : DateTime.UtcNow));
 
-            var cashierStaff = activeOp?.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName
+            var cashierStaff = activeOp?.Histories?.FirstOrDefault(h => h.Action != null && (h.Action.Contains("Verified") || h.Action.Contains("Paid")))?.StaffName
                 ?? app?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))?.StaffName
                 ?? (receipt?.IssuedByUser != null ? $"{receipt.IssuedByUser.FirstName} {receipt.IssuedByUser.LastName}".Trim() : null)
-                ?? (receipts?.FirstOrDefault(r => r.IssuedByUser != null)?.IssuedByUser != null ? $"{receipts.First(r => r.IssuedByUser != null).IssuedByUser!.FirstName} {receipts.First(r => r.IssuedByUser != null).IssuedByUser!.LastName}".Trim() : null)
+                ?? (receipts?.FirstOrDefault(r => r.IssuedByUser != null)?.IssuedByUser is { } firstCashierUser ? $"{firstCashierUser.FirstName} {firstCashierUser.LastName}".Trim() : null)
                 ?? "Cashier";
 
             model.OrNo = !string.IsNullOrWhiteSpace(effectiveOrNumber) ? effectiveOrNumber : "OR-RECORDED";
             model.OrAmount = $"P{effectiveAmount:N2}";
-            model.OrDate = effectiveDate?.ToString("MMMM dd, yyyy") ?? DateTime.UtcNow.ToString("MMMM dd, yyyy");
+            model.OrDate = effectiveDate.ToString("MMMM dd, yyyy");
             model.OrBy = cashierStaff;
         }
 
@@ -406,8 +408,8 @@ public static class StatementOfAccountPrintMapper
              (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)))));
 
         var evaluatorName = evaluatorHistory?.StaffName
-            ?? soa?.Histories.FirstOrDefault(h => h.Action == "Created" || h.StaffRole.Contains("Evaluator"))?.StaffName
-            ?? activeOp?.Histories.FirstOrDefault(h => h.StaffRole.Contains("Evaluator"))?.StaffName;
+            ?? soa?.Histories?.FirstOrDefault(h => h.Action == "Created" || (h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase)))?.StaffName
+            ?? activeOp?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase))?.StaffName;
 
         var fallbackRegionLabel = !string.IsNullOrWhiteSpace(app?.Region?.Code)
             ? $"NTC {app.Region.Code}"
@@ -444,7 +446,8 @@ public static class StatementOfAccountPrintMapper
         if (chiefOrDirectorHistory != null && !string.IsNullOrWhiteSpace(chiefOrDirectorHistory.StaffName))
         {
             model.ApprovedByName = chiefOrDirectorHistory.StaffName;
-            var isDirector = chiefOrDirectorHistory.StaffRole.Contains("Director", StringComparison.OrdinalIgnoreCase);
+            var isDirector = chiefOrDirectorHistory.StaffRole != null &&
+                             chiefOrDirectorHistory.StaffRole.Contains("Director", StringComparison.OrdinalIgnoreCase);
             model.ApprovedByTitle = isDirector
                 ? $"Regional Director, {fallbackRegionLabel}"
                 : $"Chief, Enforcement & Operations Division, {fallbackRegionLabel}";

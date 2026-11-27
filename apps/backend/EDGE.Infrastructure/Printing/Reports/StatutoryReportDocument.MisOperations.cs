@@ -1,24 +1,46 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using EDGE.Application.Applications.Dtos;
 using QuestPDF.Fluent;
+using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
 namespace EDGE.Infrastructure.Printing.Reports;
 
 public partial class StatutoryReportDocument
 {
+    private readonly record struct MisRowMetrics(
+        int PendingPrev,
+        int RecNew,
+        int RecRen,
+        int ProcNew,
+        int ProcRen,
+        int OnTimeNew,
+        int OnTimeRen,
+        int PendEndNew,
+        int PendEndRen);
+
     // =========================================================================
-    // 1. NTC-MIS-OPS: Monthly Regional Operational & MIS Accomplishment Report
+    // 1. NTC-MIS-OPS: Monthly Management Information Service (MIS) Report
+    //    Aligned with official NTC MIS-EDGE-REPORT.pdf (Sections I, II, II-B, III, VIII, IX)
     // =========================================================================
     private void ComposeMisOperationsReport(IContainer container)
     {
         var apps = _model.Applications;
         var paidTx = _model.PaidTransactions;
 
+        const string MisSectionBannerBg = "#FCE4D6"; // Official NTC MIS peach/salmon section header tint
+        const string MisGroupHeaderBg = "#E2EFDA";   // Official NTC MIS light-sage category row tint
+
         bool IsIssued(ApplicationSummaryDto a) =>
             string.Equals(a.Status, "Approved", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a.Status, "Completed", StringComparison.OrdinalIgnoreCase);
+            string.Equals(a.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.Status, "ForIssuance", StringComparison.OrdinalIgnoreCase);
+
+        bool IsReturnedOrDisapproved(ApplicationSummaryDto a) =>
+            string.Equals(a.Status, "Returned", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.Status, "Rejected", StringComparison.OrdinalIgnoreCase);
 
         bool IsNewApp(ApplicationSummaryDto a)
         {
@@ -37,50 +59,132 @@ public partial class StatutoryReportDocument
             return $"{a.ServiceCategory ?? ""} {a.ServiceName ?? ""} {a.ServiceVariantName ?? ""} {a.Element ?? ""} {applicantServices} {issuedTypes}".ToLowerInvariant();
         }
 
-        (int NewCount, int RenModCount, int TotalCount) CountMisRow(Func<string, bool> matcher)
+        MisRowMetrics ComputeMisRow(Func<string, bool> matcher)
         {
-            int n = 0, r = 0;
+            int recNew = 0, recRen = 0, procNew = 0, procRen = 0, onTimeNew = 0, onTimeRen = 0, pendNew = 0, pendRen = 0;
             foreach (var a in apps)
             {
                 if (!matcher(Corpus(a))) continue;
                 int units = a.Applicants != null && a.Applicants.Count > 1 ? a.Applicants.Count : 1;
-                if (IsNewApp(a)) n += units;
-                else r += units;
+                bool isNew = IsNewApp(a);
+                bool issued = IsIssued(a);
+                bool returned = IsReturnedOrDisapproved(a);
+
+                if (isNew) recNew += units; else recRen += units;
+
+                if (issued)
+                {
+                    if (isNew) { procNew += units; onTimeNew += units; }
+                    else { procRen += units; onTimeRen += units; }
+                }
+                else if (returned)
+                {
+                    if (isNew) pendNew += units; else pendRen += units;
+                }
+                else
+                {
+                    if (isNew) pendNew += units; else pendRen += units;
+                }
             }
-            return (n, r, n + r);
+            return new MisRowMetrics(0, recNew, recRen, procNew, procRen, onTimeNew, onTimeRen, pendNew, pendRen);
         }
 
-        var rslRows = new (string Label, (int NewCount, int RenModCount, int TotalCount) Counts)[]
+        static MisRowMetrics AddMetrics(MisRowMetrics a, MisRowMetrics b) => new(
+            a.PendingPrev + b.PendingPrev,
+            a.RecNew + b.RecNew,
+            a.RecRen + b.RecRen,
+            a.ProcNew + b.ProcNew,
+            a.ProcRen + b.ProcRen,
+            a.OnTimeNew + b.OnTimeNew,
+            a.OnTimeRen + b.OnTimeRen,
+            a.PendEndNew + b.PendEndNew,
+            a.PendEndRen + b.PendEndRen);
+
+        static string FormatCount(int value) => value > 0 ? value.ToString("N0") : "0";
+
+        // Section I: Radio Station License — exact official NTC MIS groups & rows
+        var rslGroups = new (string GroupName, (string Label, MisRowMetrics M)[] Rows)[]
         {
-            ("A. CV / CO (Commercial / Coastal / Maritime / Aircraft)", CountMisRow(c => c.Contains("coastal") || c.Contains("ship") || c.Contains("maritime") || c.Contains("vessel") || c.Contains("aircraft") || c.Contains("aeronautical"))),
-            ("B. FB / FX / ML / P (Fixed / Base / Land Mobile / Portable)", CountMisRow(c => c.Contains("fixed") || c.Contains("land mobile") || c.Contains("base") || c.Contains("portable") || (c.Contains("rsl") && !c.Contains("amateur")) || (c.Contains("station license") && !c.Contains("amateur")))),
-            ("C. PAGING", CountMisRow(c => c.Contains("paging"))),
-            ("D. REPEATER (RT)", CountMisRow(c => c.Contains("repeater"))),
-            ("E. PRS (Citizens Band / Civic / Family Radio / SRA)", CountMisRow(c => c.Contains("prs") || c.Contains("civic") || c.Contains("citizens") || c.Contains("family radio") || c.Contains("sra"))),
-            ("F. AMATEUR (AT-RSL / Amateur Radio Station)", CountMisRow(c => c.Contains("amateur") && (c.Contains("station") || c.Contains("rsl") || c.Contains("at-rsl")))),
-            ("G. BROADCAST (TV / AM / FM / CATV / STL)", CountMisRow(c => c.Contains("broadcast") || c.Contains("catv") || c.Contains("fm") || c.Contains("television") || c.Contains("stl"))),
-            ("H. CELLULAR BASE STATION / WDN / BWA", CountMisRow(c => c.Contains("cellular") || c.Contains("wdn") || c.Contains("bwa") || c.Contains("tower"))),
-            ("I. SATELLITE EARTH STATION (VSAT)", CountMisRow(c => c.Contains("vsat") || c.Contains("satellite") || c.Contains("earth station"))),
-            ("J. OTHERS (GMDSS / SROP / RLMP / Telemetry / Point-to-Point)", CountMisRow(c => c.Contains("gmdss") || c.Contains("telemetry") || c.Contains("microwave") || c.Contains("point-to-point")))
+            ("Amateur Service", new[]
+            {
+                ("Amateur Repeater (ATR) / AT-RSL", ComputeMisRow(c => c.Contains("amateur") && (c.Contains("repeater") || c.Contains("atr") || c.Contains("at-rsl") || c.Contains("station")))),
+                ("AT Repeater Club", ComputeMisRow(c => c.Contains("amateur") && c.Contains("club"))),
+                ("AT Radio Lic. Temp. / Special Permit", ComputeMisRow(c => c.Contains("amateur") && (c.Contains("temp") || c.Contains("special") || c.Contains("vanity"))))
+            }),
+            ("Fixed/Land Mobile Service/Private", new[]
+            {
+                ("Private Portable (P-CV) / Land Mobile (ML-CV)", ComputeMisRow(c => (c.Contains("private") || c.Contains("p-cv") || c.Contains("ml-cv")) && (c.Contains("portable") || c.Contains("mobile")) && !c.Contains("gov"))),
+                ("Private Land Base (FB) / Fixed (FX-CV / FX-FB-CV)", ComputeMisRow(c => (c.Contains("private") || c.Contains("fx-cv") || c.Contains("fb")) && (c.Contains("fixed") || c.Contains("base")) && !c.Contains("gov") && !c.Contains("cellular"))),
+                ("Private Repeater (RPT-CV) / Trunk Repeater", ComputeMisRow(c => (c.Contains("repeater") || c.Contains("rpt-cv") || c.Contains("trunk")) && !c.Contains("amateur") && !c.Contains("gov") && !c.Contains("cp"))),
+                ("PRS (Land Base / ML / Portable) & Civic Action", ComputeMisRow(c => c.Contains("prs") || c.Contains("civic") || c.Contains("citizens") || c.Contains("sra"))),
+                ("VSAT / Private Earth Station / Telemetry", ComputeMisRow(c => (c.Contains("vsat") || c.Contains("earth station") || c.Contains("telemetry") || c.Contains("satellite")) && !c.Contains("tc-cp"))),
+                ("WDN - Base / Portable / Mobile (Wireless Data Network)", ComputeMisRow(c => c.Contains("wdn") || c.Contains("wireless data") || c.Contains("bwa")))
+            }),
+            ("Maritime Service", new[]
+            {
+                ("Int'l (MS) Ship Stn. License & GMDSS / Inmarsat Certs", ComputeMisRow(c => (c.Contains("ship") || c.Contains("inmarsat") || c.Contains("sesc") || c.Contains("ssas") || c.Contains("lrit") || c.Contains("gmdss")) && !c.Contains("domestic"))),
+                ("Coastal / FC (Private & Public Coastal Station)", ComputeMisRow(c => c.Contains("coastal"))),
+                ("Fishing Boat / Ship MS (Domestic)", ComputeMisRow(c => c.Contains("fishing") || (c.Contains("ship") && c.Contains("domestic")) || c.Contains("vessel")))
+            }),
+            ("Aeronautical Service", new[]
+            {
+                ("Aircraft / MA & Aeronautical FA Station License", ComputeMisRow(c => (c.Contains("aircraft") || c.Contains("aeronautical") || c.Contains("asl") || c.Contains("fasl")) && !c.Contains("rroc") && !c.Contains("operator")))
+            }),
+            ("Fixed/Land Mobile - Government", new[]
+            {
+                ("Gov't Radio Stations (P-CO / ML-CO / FX-CO / FB-CO / RPT-CO / Gov't PRS)", ComputeMisRow(c => c.Contains("gov") && (c.Contains("station") || c.Contains("rsl") || c.Contains("co") || c.Contains("prs"))))
+            }),
+            ("Public Correspondence (NFD)", new[]
+            {
+                ("RPT-CP / Fixed Microwave (FX-CP) / BTS Cellsites (FB/CP)", ComputeMisRow(c => c.Contains("bts") || c.Contains("cellsite") || c.Contains("cellular") || c.Contains("microwave") || c.Contains("fx-cp") || c.Contains("rpt-cp"))),
+                ("TC/CP (TELCO) / VSAT (TC-CP) / Broadband WDN-FB / Public Earth Stn.", ComputeMisRow(c => c.Contains("telco") || c.Contains("tc-cp") || c.Contains("public correspondence") || c.Contains("network radio")))
+            }),
+            ("Broadcast", new[]
+            {
+                ("TVRO Reg. & License / CATV License / STL License", ComputeMisRow(c => c.Contains("tvro") || c.Contains("catv") || c.Contains("stl") || c.Contains("broadcast") || c.Contains("am/fm")))
+            })
         };
 
-        var certRows = new (string Label, (int NewCount, int RenModCount, int TotalCount) Counts)[]
+        // Section II: Other Certificates / Permits — exact official NTC MIS rows (Page 3)
+        var otherPermitsRows = new (string Label, MisRowMetrics M)[]
         {
-            ("A. PERMIT TO PURCHASE / POSSESS / IMPORT / SELL / TRANSFER", CountMisRow(c => c.Contains("purchase") || c.Contains("possess") || c.Contains("import") || c.Contains("sell") || c.Contains("transfer") || c.Contains("1-09"))),
-            ("B. CONSTRUCTION PERMIT (CP)", CountMisRow(c => c.Contains("construction") || c.Contains("1-11"))),
-            ("C. TEMPORARY PERMIT TO OPERATE / SPECIAL PERMIT / DEMO / STORAGE", CountMisRow(c => c.Contains("temporary") || c.Contains("special") || c.Contains("demo") || c.Contains("storage") || c.Contains("event"))),
-            ("D. DEALER / SUPPLIER / SERVICE CENTER ACCREDITATION (RCE / CPE / MPSC)", CountMisRow(c => c.Contains("dealer") || c.Contains("supplier") || c.Contains("manufacturer") || c.Contains("accredit") || c.Contains("service center") || c.Contains("cpe") || c.Contains("mpsc"))),
-            ("E. TELECOM REGISTRATION & CONSUMER SERVICES (VAS / COR / BLOCKING)", CountMisRow(c => c.Contains("vas") || c.Contains("voip") || c.Contains("registration") || c.Contains("1-19") || c.Contains("cor") || c.Contains("block") || c.Contains("complaint")))
+            ("Permit to Transport", ComputeMisRow(c => c.Contains("transport"))),
+            ("Permit to Purchase", ComputeMisRow(c => c.Contains("purchase") && !c.Contains("possess"))),
+            ("Permit to Possess / Purchase & Possess", ComputeMisRow(c => c.Contains("possess"))),
+            ("Permit to Sell / Transfer", ComputeMisRow(c => c.Contains("sell") || c.Contains("transfer"))),
+            ("Construction Permit (CP)", ComputeMisRow(c => c.Contains("construction") || c.Contains("1-11"))),
+            ("Dealer / MFTR (Radio Communication Equipment Dealer / Manufacturer)", ComputeMisRow(c => (c.Contains("dealer") || c.Contains("manufacturer") || c.Contains("mftr")) && !c.Contains("mobile phone") && !c.Contains("cpe") && !c.Contains("wdn"))),
+            ("MPDP / MPRR / MPSCP (Mobile Phone Dealer / Retailer / Service Center)", ComputeMisRow(c => c.Contains("mobile phone") || c.Contains("mpdp") || c.Contains("mprr") || c.Contains("mpscp"))),
+            ("Service Center (RCE / WDN) & CPE Supplier Accreditation", ComputeMisRow(c => c.Contains("service center") || c.Contains("cpe") || c.Contains("supplier") || c.Contains("accredit"))),
+            ("SRD / WDN / TVRO / RFID / Radio Registration (COR)", ComputeMisRow(c => (c.Contains("srd") || c.Contains("rfid") || c.Contains("registration") || c.Contains("1-19") || c.Contains("cor")) && !c.Contains("tvro station"))),
+            ("Permit to Import / Certificate of Exemption / Release Clearance", ComputeMisRow(c => c.Contains("import") || c.Contains("exemption") || c.Contains("release clearance"))),
+            ("Demo Permit (TP) / Storage / Duplicate / Modification / VAS", ComputeMisRow(c => c.Contains("demo") || c.Contains("storage") || c.Contains("duplicate") || c.Contains("modification") || c.Contains("vas") || c.Contains("1-14")))
         };
 
-        var rocRows = new (string Label, (int NewCount, int RenModCount, int TotalCount) Counts)[]
+        // Section II-B: Operator's Certificates / Permits — exact official NTC MIS rows (Page 4)
+        var commercialRocRows = new (string Label, MisRowMetrics M)[]
         {
-            ("A. COMMERCIAL ROC (1RTG / 2RTG / 3RTG / 1PHN / 2PHN / 3PHN)", CountMisRow(c => c.Contains("rtg") || c.Contains("phn") || c.Contains("commercial operator") || (c.Contains("roc") && !c.Contains("aircraft") && !c.Contains("amateur")))),
-            ("B. RROC - AIRCRAFT / SROP / GROC / RRLM", CountMisRow(c => c.Contains("aircraft") || c.Contains("srop") || c.Contains("groc") || c.Contains("rrlm") || c.Contains("restricted"))),
-            ("C. AMATEUR OPERATOR (Class A / B / C / D / Lifetime / Club)", CountMisRow(c => c.Contains("amateur") && !c.Contains("station") && !c.Contains("rsl"))),
-            ("D. RADIO OPERATOR EXAMINATION (ROCE / Amateur Exam)", CountMisRow(c => c.Contains("exam") || c.Contains("roce") || c.Contains("1-01") || c.Contains("admission")))
+            ("1st RTG / 1st PHN (Commercial Radio Operator)", ComputeMisRow(c => c.Contains("1rtg") || c.Contains("1st rtg") || c.Contains("1phn") || c.Contains("1st phn"))),
+            ("2nd RTG / 2nd PHN (Commercial Radio Operator)", ComputeMisRow(c => c.Contains("2rtg") || c.Contains("2nd rtg") || c.Contains("2phn") || c.Contains("2nd phn"))),
+            ("3rd RTG / 3rd PHN / Other Commercial ROC", ComputeMisRow(c => c.Contains("3rtg") || c.Contains("3rd rtg") || c.Contains("3phn") || c.Contains("3rd phn") || (c.Contains("roc") && !c.Contains("aircraft") && !c.Contains("srop") && !c.Contains("groc") && !c.Contains("amateur"))))
         };
 
+        var specialRocRows = new (string Label, MisRowMetrics M)[]
+        {
+            ("Amateur Certificate (Class A / B / C / D / Lifetime)", ComputeMisRow(c => c.Contains("amateur") && !c.Contains("station") && !c.Contains("rsl") && !c.Contains("repeater") && !c.Contains("exam"))),
+            ("RLMOP (Restricted Land Mobile Operator Permit)", ComputeMisRow(c => c.Contains("rlm") || c.Contains("rlmop"))),
+            ("RROC - Aircraft (RMAP) / RROC - Ship", ComputeMisRow(c => (c.Contains("rroc") || c.Contains("rmap")) && (c.Contains("aircraft") || c.Contains("ship") || c.Contains("restricted")))),
+            ("RSTP / SLOP / RTTY / SROP-FB / SROP-GOV (GROC)", ComputeMisRow(c => c.Contains("srop") || c.Contains("groc") || c.Contains("rstp") || c.Contains("slop") || c.Contains("rtty")))
+        };
+
+        // Section III: Number of Existing
+        int existingDealers = apps.Count(a => Corpus(a).Contains("dealer") && !Corpus(a).Contains("mobile phone"));
+        int existingManufacturers = apps.Count(a => Corpus(a).Contains("manufacturer") || Corpus(a).Contains("supplier"));
+        int existingWdnSrd = apps.Count(a => Corpus(a).Contains("wdn") || Corpus(a).Contains("srd") || Corpus(a).Contains("rfid"));
+        int existingMobileEquip = apps.Count(a => Corpus(a).Contains("mobile phone") || Corpus(a).Contains("cpe"));
+        int totalExisting = existingDealers + existingManufacturers + existingWdnSrd + existingMobileEquip;
+
+        // Section VIII & IX metrics
         var uacsTotals = ComputeUacsTotals(paidTx);
         var depositMetrics = ComputeDepositMetrics(paidTx, uacsTotals.Dst);
         decimal netNgp = Math.Max(0m, depositMetrics.TotalCollected - uacsTotals.Dst);
@@ -88,202 +192,376 @@ public partial class StatutoryReportDocument
         int totalApps = apps.Count;
         int totalUnits = apps.Sum(a => a.Applicants != null && a.Applicants.Count > 1 ? a.Applicants.Count : 1);
         int issuedCount = apps.Count(IsIssued);
-        int returnedCount = apps.Count(a => string.Equals(a.Status, "Returned", StringComparison.OrdinalIgnoreCase) || string.Equals(a.Status, "Rejected", StringComparison.OrdinalIgnoreCase));
-        int inProgressCount = Math.Max(0, totalApps - issuedCount - returnedCount);
+        int returnedCount = apps.Count(IsReturnedOrDisapproved);
+        int examApps = apps.Count(a => Corpus(a).Contains("exam") || Corpus(a).Contains("roce") || Corpus(a).Contains("1-01") || Corpus(a).Contains("admission"));
+        int examExaminees = apps
+            .Where(a => Corpus(a).Contains("exam") || Corpus(a).Contains("roce") || Corpus(a).Contains("1-01") || Corpus(a).Contains("admission"))
+            .Sum(a => a.Applicants != null && a.Applicants.Count > 1 ? a.Applicants.Count : 1);
         int complianceRate = totalApps > 0 ? (int)Math.Round(issuedCount * 100.0 / totalApps) : 100;
+
+        static void RenderMisBanner(TableCellDescriptor h, uint colSpan, string title, string bgHex)
+        {
+            h.Cell().ColumnSpan(colSpan).Background(bgHex).Border(0.6f).BorderColor(Colors.Black)
+                .PaddingVertical(2.5f).PaddingHorizontal(4).AlignCenter()
+                .Text(title).Bold().FontSize(7.2f).FontColor(Colors.Black);
+        }
+
+        static void RenderMisHeaderCell(TableCellDescriptor h, string text, uint colSpan = 1, uint rowSpan = 1, bool alignLeft = false)
+        {
+            var cell = h.Cell().ColumnSpan(colSpan).RowSpan(rowSpan)
+                .Background("#E2EFDA").Border(0.5f).BorderColor(Colors.Black)
+                .PaddingVertical(2f).PaddingHorizontal(2.5f).AlignMiddle();
+            if (alignLeft)
+                cell.AlignLeft().Text(text).Bold().FontSize(6.2f).FontColor(Colors.Black);
+            else
+                cell.AlignCenter().Text(text).Bold().FontSize(6.2f).FontColor(Colors.Black);
+        }
 
         container.Column(col =>
         {
-            col.Item().Row(row =>
+            // =================================================================
+            // SECTION I: RADIO STATION LICENSE (Exact MIS-EDGE-REPORT.pdf Page 1)
+            // =================================================================
+            col.Item().Table(t =>
             {
-                // Section I: Radio Station License
-                row.RelativeItem(1.05f).PaddingRight(4).Table(t =>
+                t.ColumnsDefinition(cd =>
+                {
+                    cd.RelativeColumn(2.6f); // SERVICES
+                    cd.ConstantColumn(44);   // PENDING PREV
+                    cd.ConstantColumn(36);   // REC NEW
+                    cd.ConstantColumn(42);   // REC REN/MOD
+                    cd.ConstantColumn(36);   // PROC NEW
+                    cd.ConstantColumn(42);   // PROC REN/MOD
+                    cd.ConstantColumn(36);   // ONTIME NEW
+                    cd.ConstantColumn(42);   // ONTIME REN/MOD
+                    cd.ConstantColumn(36);   // PEND END NEW
+                    cd.ConstantColumn(42);   // PEND END REN/MOD
+                });
+
+                t.Header(h =>
+                {
+                    RenderMisBanner(h, 10, "I. RADIO STATION LICENSE", MisSectionBannerBg);
+
+                    // Top multi-row header
+                    RenderMisHeaderCell(h, "SERVICES", colSpan: 1, rowSpan: 2, alignLeft: true);
+                    RenderMisHeaderCell(h, "PENDING\nPREV. MO.", colSpan: 1, rowSpan: 2);
+                    RenderMisHeaderCell(h, "APPLICATION RECEIVED", colSpan: 2, rowSpan: 1);
+                    RenderMisHeaderCell(h, "PROCESSED", colSpan: 2, rowSpan: 1);
+                    RenderMisHeaderCell(h, "ON TIME", colSpan: 2, rowSpan: 1);
+                    RenderMisHeaderCell(h, "PENDING END OF MO.", colSpan: 2, rowSpan: 1);
+
+                    // Sub-header NEW / REN/MOD
+                    RenderMisHeaderCell(h, "NEW");
+                    RenderMisHeaderCell(h, "REN/MOD");
+                    RenderMisHeaderCell(h, "NEW");
+                    RenderMisHeaderCell(h, "REN/MOD");
+                    RenderMisHeaderCell(h, "NEW");
+                    RenderMisHeaderCell(h, "REN/MOD");
+                    RenderMisHeaderCell(h, "NEW");
+                    RenderMisHeaderCell(h, "REN/MOD");
+                });
+
+                var rslGrandTotal = new MisRowMetrics();
+                foreach (var group in rslGroups)
+                {
+                    t.Cell().ColumnSpan(10).Background(MisGroupHeaderBg).Border(0.5f).BorderColor(Colors.Black)
+                        .PaddingVertical(1.8f).PaddingHorizontal(4)
+                        .Text(group.GroupName).Bold().FontSize(6.5f);
+
+                    foreach (var r in group.Rows)
+                    {
+                        rslGrandTotal = AddMetrics(rslGrandTotal, r.M);
+                        RenderBodyCell(t, r.Label, alignLeft: true);
+                        RenderBodyCell(t, FormatCount(r.M.PendingPrev));
+                        RenderBodyCell(t, FormatCount(r.M.RecNew));
+                        RenderBodyCell(t, FormatCount(r.M.RecRen));
+                        RenderBodyCell(t, FormatCount(r.M.ProcNew), bold: r.M.ProcNew > 0);
+                        RenderBodyCell(t, FormatCount(r.M.ProcRen), bold: r.M.ProcRen > 0);
+                        RenderBodyCell(t, FormatCount(r.M.OnTimeNew));
+                        RenderBodyCell(t, FormatCount(r.M.OnTimeRen));
+                        RenderBodyCell(t, FormatCount(r.M.PendEndNew));
+                        RenderBodyCell(t, FormatCount(r.M.PendEndRen));
+                    }
+                }
+
+                RenderTotalCell(t, "TOTAL — RADIO STATION LICENSE", alignLeft: true);
+                RenderTotalCell(t, FormatCount(rslGrandTotal.PendingPrev));
+                RenderTotalCell(t, FormatCount(rslGrandTotal.RecNew));
+                RenderTotalCell(t, FormatCount(rslGrandTotal.RecRen));
+                RenderTotalCell(t, FormatCount(rslGrandTotal.ProcNew));
+                RenderTotalCell(t, FormatCount(rslGrandTotal.ProcRen));
+                RenderTotalCell(t, FormatCount(rslGrandTotal.OnTimeNew));
+                RenderTotalCell(t, FormatCount(rslGrandTotal.OnTimeRen));
+                RenderTotalCell(t, FormatCount(rslGrandTotal.PendEndNew));
+                RenderTotalCell(t, FormatCount(rslGrandTotal.PendEndRen));
+            });
+
+            // =================================================================
+            // SECTION II: OTHER CERTIFICATES / PERMITS (Exact MIS-EDGE-REPORT.pdf Page 3)
+            // =================================================================
+            col.Item().PaddingTop(6).Table(t =>
+            {
+                t.ColumnsDefinition(cd =>
+                {
+                    cd.RelativeColumn(2.6f);
+                    cd.ConstantColumn(40);
+                    cd.ConstantColumn(40);
+                    cd.ConstantColumn(40);
+                    cd.ConstantColumn(40);
+                    cd.ConstantColumn(40);
+                    cd.ConstantColumn(40);
+                    cd.ConstantColumn(40);
+                    cd.ConstantColumn(40);
+                });
+
+                t.Header(h =>
+                {
+                    RenderMisBanner(h, 9, "II. OTHER CERTIFICATES / PERMITS", MisSectionBannerBg);
+                    RenderMisHeaderCell(h, "SERVICES", colSpan: 1, rowSpan: 2, alignLeft: true);
+                    RenderMisHeaderCell(h, "APPLICATION RECEIVED", colSpan: 2, rowSpan: 1);
+                    RenderMisHeaderCell(h, "RELEASED", colSpan: 2, rowSpan: 1);
+                    RenderMisHeaderCell(h, "ON TIME", colSpan: 2, rowSpan: 1);
+                    RenderMisHeaderCell(h, "PENDING END OF MO.", colSpan: 2, rowSpan: 1);
+
+                    RenderMisHeaderCell(h, "NEW");
+                    RenderMisHeaderCell(h, "REN");
+                    RenderMisHeaderCell(h, "NEW");
+                    RenderMisHeaderCell(h, "REN");
+                    RenderMisHeaderCell(h, "NEW");
+                    RenderMisHeaderCell(h, "REN");
+                    RenderMisHeaderCell(h, "NEW");
+                    RenderMisHeaderCell(h, "REN");
+                });
+
+                var otherTotal = new MisRowMetrics();
+                foreach (var r in otherPermitsRows)
+                {
+                    otherTotal = AddMetrics(otherTotal, r.M);
+                    RenderBodyCell(t, r.Label, alignLeft: true);
+                    RenderBodyCell(t, FormatCount(r.M.RecNew));
+                    RenderBodyCell(t, FormatCount(r.M.RecRen));
+                    RenderBodyCell(t, FormatCount(r.M.ProcNew), bold: r.M.ProcNew > 0);
+                    RenderBodyCell(t, FormatCount(r.M.ProcRen), bold: r.M.ProcRen > 0);
+                    RenderBodyCell(t, FormatCount(r.M.OnTimeNew));
+                    RenderBodyCell(t, FormatCount(r.M.OnTimeRen));
+                    RenderBodyCell(t, FormatCount(r.M.PendEndNew));
+                    RenderBodyCell(t, FormatCount(r.M.PendEndRen));
+                }
+
+                RenderTotalCell(t, "TOTAL — OTHER CERTIFICATES / PERMITS", alignLeft: true);
+                RenderTotalCell(t, FormatCount(otherTotal.RecNew));
+                RenderTotalCell(t, FormatCount(otherTotal.RecRen));
+                RenderTotalCell(t, FormatCount(otherTotal.ProcNew));
+                RenderTotalCell(t, FormatCount(otherTotal.ProcRen));
+                RenderTotalCell(t, FormatCount(otherTotal.OnTimeNew));
+                RenderTotalCell(t, FormatCount(otherTotal.OnTimeRen));
+                RenderTotalCell(t, FormatCount(otherTotal.PendEndNew));
+                RenderTotalCell(t, FormatCount(otherTotal.PendEndRen));
+            });
+
+            // =================================================================
+            // SECTION II-B: OPERATOR'S CERTIFICATES / PERMITS & SECTION III: NUMBER OF EXISTING
+            // =================================================================
+            col.Item().PaddingTop(6).Row(row =>
+            {
+                row.RelativeItem(1.35f).PaddingRight(5).Table(t =>
+                {
+                    t.ColumnsDefinition(cd =>
+                    {
+                        cd.RelativeColumn(2.2f);
+                        cd.ConstantColumn(30);
+                        cd.ConstantColumn(30);
+                        cd.ConstantColumn(30);
+                        cd.ConstantColumn(30);
+                        cd.ConstantColumn(30);
+                        cd.ConstantColumn(30);
+                    });
+
+                    t.Header(h =>
+                    {
+                        RenderMisBanner(h, 7, "II-B. OPERATOR'S CERTIFICATES / PERMITS", MisSectionBannerBg);
+                        RenderMisHeaderCell(h, "SERVICES", colSpan: 1, rowSpan: 2, alignLeft: true);
+                        RenderMisHeaderCell(h, "RECEIVED", colSpan: 2, rowSpan: 1);
+                        RenderMisHeaderCell(h, "ISSUED", colSpan: 2, rowSpan: 1);
+                        RenderMisHeaderCell(h, "PENDING", colSpan: 2, rowSpan: 1);
+                        RenderMisHeaderCell(h, "NEW");
+                        RenderMisHeaderCell(h, "REN");
+                        RenderMisHeaderCell(h, "NEW");
+                        RenderMisHeaderCell(h, "REN");
+                        RenderMisHeaderCell(h, "NEW");
+                        RenderMisHeaderCell(h, "REN");
+                    });
+
+                    t.Cell().ColumnSpan(7).Background(MisGroupHeaderBg).Border(0.5f).BorderColor(Colors.Black)
+                        .PaddingVertical(1.5f).PaddingHorizontal(4).Text("COMMERCIAL OPERATOR").Bold().FontSize(6.3f);
+                    var commTot = new MisRowMetrics();
+                    foreach (var r in commercialRocRows)
+                    {
+                        commTot = AddMetrics(commTot, r.M);
+                        RenderBodyCell(t, r.Label, alignLeft: true);
+                        RenderBodyCell(t, FormatCount(r.M.RecNew));
+                        RenderBodyCell(t, FormatCount(r.M.RecRen));
+                        RenderBodyCell(t, FormatCount(r.M.ProcNew), bold: r.M.ProcNew > 0);
+                        RenderBodyCell(t, FormatCount(r.M.ProcRen), bold: r.M.ProcRen > 0);
+                        RenderBodyCell(t, FormatCount(r.M.PendEndNew));
+                        RenderBodyCell(t, FormatCount(r.M.PendEndRen));
+                    }
+
+                    t.Cell().ColumnSpan(7).Background(MisGroupHeaderBg).Border(0.5f).BorderColor(Colors.Black)
+                        .PaddingVertical(1.5f).PaddingHorizontal(4).Text("SPECIAL OPERATORS").Bold().FontSize(6.3f);
+                    var specTot = new MisRowMetrics();
+                    foreach (var r in specialRocRows)
+                    {
+                        specTot = AddMetrics(specTot, r.M);
+                        RenderBodyCell(t, r.Label, alignLeft: true);
+                        RenderBodyCell(t, FormatCount(r.M.RecNew));
+                        RenderBodyCell(t, FormatCount(r.M.RecRen));
+                        RenderBodyCell(t, FormatCount(r.M.ProcNew), bold: r.M.ProcNew > 0);
+                        RenderBodyCell(t, FormatCount(r.M.ProcRen), bold: r.M.ProcRen > 0);
+                        RenderBodyCell(t, FormatCount(r.M.PendEndNew));
+                        RenderBodyCell(t, FormatCount(r.M.PendEndRen));
+                    }
+
+                    var rocGrand = AddMetrics(commTot, specTot);
+                    RenderTotalCell(t, "GRAND TOTAL — OPERATOR'S CERTIFICATES", alignLeft: true);
+                    RenderTotalCell(t, FormatCount(rocGrand.RecNew));
+                    RenderTotalCell(t, FormatCount(rocGrand.RecRen));
+                    RenderTotalCell(t, FormatCount(rocGrand.ProcNew));
+                    RenderTotalCell(t, FormatCount(rocGrand.ProcRen));
+                    RenderTotalCell(t, FormatCount(rocGrand.PendEndNew));
+                    RenderTotalCell(t, FormatCount(rocGrand.PendEndRen));
+                });
+
+                row.RelativeItem(0.65f).PaddingLeft(5).Table(t =>
                 {
                     t.ColumnsDefinition(cd =>
                     {
                         cd.RelativeColumn();
-                        cd.ConstantColumn(34);
-                        cd.ConstantColumn(42);
-                        cd.ConstantColumn(38);
+                        cd.ConstantColumn(62);
                     });
 
-                    RenderSectionTitleRow(t, 4, "I. RADIO STATION LICENSE (RSL)");
-                    RenderTableHeaderCell(t, "SERVICES", alignLeft: true);
-                    RenderTableHeaderCell(t, "NEW");
-                    RenderTableHeaderCell(t, "REN/MOD");
-                    RenderTableHeaderCell(t, "TOTAL");
-
-                    int sumNew = 0, sumRen = 0, sumTot = 0;
-                    foreach (var r in rslRows)
+                    t.Header(h =>
                     {
-                        sumNew += r.Counts.NewCount;
-                        sumRen += r.Counts.RenModCount;
-                        sumTot += r.Counts.TotalCount;
-                        RenderBodyCell(t, r.Label, alignLeft: true);
-                        RenderBodyCell(t, r.Counts.NewCount.ToString());
-                        RenderBodyCell(t, r.Counts.RenModCount.ToString());
-                        RenderBodyCell(t, r.Counts.TotalCount.ToString(), bold: true);
-                    }
-
-                    RenderTotalCell(t, "TOTAL RADIO STATION LICENSES", alignLeft: true);
-                    RenderTotalCell(t, sumNew.ToString());
-                    RenderTotalCell(t, sumRen.ToString());
-                    RenderTotalCell(t, sumTot.ToString());
-                });
-
-                // Right Column: Section II + Section II-B
-                row.RelativeItem(0.95f).PaddingLeft(4).Column(rCol =>
-                {
-                    rCol.Item().Table(t =>
-                    {
-                        t.ColumnsDefinition(cd =>
-                        {
-                            cd.RelativeColumn();
-                            cd.ConstantColumn(32);
-                            cd.ConstantColumn(36);
-                            cd.ConstantColumn(36);
-                        });
-
-                        RenderSectionTitleRow(t, 4, "II. OTHER CERTIFICATES / PERMITS");
-                        RenderTableHeaderCell(t, "SERVICES", alignLeft: true);
-                        RenderTableHeaderCell(t, "NEW");
-                        RenderTableHeaderCell(t, "REN");
-                        RenderTableHeaderCell(t, "TOTAL");
-
-                        int sumNew = 0, sumRen = 0, sumTot = 0;
-                        foreach (var r in certRows)
-                        {
-                            sumNew += r.Counts.NewCount;
-                            sumRen += r.Counts.RenModCount;
-                            sumTot += r.Counts.TotalCount;
-                            RenderBodyCell(t, r.Label, alignLeft: true);
-                            RenderBodyCell(t, r.Counts.NewCount.ToString());
-                            RenderBodyCell(t, r.Counts.RenModCount.ToString());
-                            RenderBodyCell(t, r.Counts.TotalCount.ToString(), bold: true);
-                        }
-
-                        RenderTotalCell(t, "SUB-TOTAL PERMITS & CERTIFICATES", alignLeft: true);
-                        RenderTotalCell(t, sumNew.ToString());
-                        RenderTotalCell(t, sumRen.ToString());
-                        RenderTotalCell(t, sumTot.ToString());
+                        RenderMisBanner(h, 2, "III. NUMBER OF EXISTING", MisSectionBannerBg);
+                        RenderMisHeaderCell(h, "CATEGORY", alignLeft: true);
+                        RenderMisHeaderCell(h, "AS OF END\nOF PERIOD");
                     });
 
-                    rCol.Item().PaddingTop(5).Table(t =>
-                    {
-                        t.ColumnsDefinition(cd =>
-                        {
-                            cd.RelativeColumn();
-                            cd.ConstantColumn(32);
-                            cd.ConstantColumn(36);
-                            cd.ConstantColumn(36);
-                        });
+                    RenderBodyCell(t, "No. of Radio Dealer", alignLeft: true);
+                    RenderBodyCell(t, FormatCount(existingDealers), bold: existingDealers > 0);
 
-                        RenderSectionTitleRow(t, 4, "II-B. OPERATOR'S CERTIFICATES & EXAMS");
-                        RenderTableHeaderCell(t, "CATEGORY", alignLeft: true);
-                        RenderTableHeaderCell(t, "NEW");
-                        RenderTableHeaderCell(t, "REN");
-                        RenderTableHeaderCell(t, "TOTAL");
+                    RenderBodyCell(t, "No. of Radio Manufacturer / Supplier", alignLeft: true);
+                    RenderBodyCell(t, FormatCount(existingManufacturers), bold: existingManufacturers > 0);
 
-                        int sumNew = 0, sumRen = 0, sumTot = 0;
-                        foreach (var r in rocRows)
-                        {
-                            sumNew += r.Counts.NewCount;
-                            sumRen += r.Counts.RenModCount;
-                            sumTot += r.Counts.TotalCount;
-                            RenderBodyCell(t, r.Label, alignLeft: true);
-                            RenderBodyCell(t, r.Counts.NewCount.ToString());
-                            RenderBodyCell(t, r.Counts.RenModCount.ToString());
-                            RenderBodyCell(t, r.Counts.TotalCount.ToString(), bold: true);
-                        }
+                    RenderBodyCell(t, "No. of Registered WDN / Short Range Device", alignLeft: true);
+                    RenderBodyCell(t, FormatCount(existingWdnSrd), bold: existingWdnSrd > 0);
 
-                        RenderTotalCell(t, "SUB-TOTAL ROC & EXAMS", alignLeft: true);
-                        RenderTotalCell(t, sumNew.ToString());
-                        RenderTotalCell(t, sumRen.ToString());
-                        RenderTotalCell(t, sumTot.ToString());
-                    });
+                    RenderBodyCell(t, "No. of Registered Mobile Phone Equipment / CPE", alignLeft: true);
+                    RenderBodyCell(t, FormatCount(existingMobileEquip), bold: existingMobileEquip > 0);
+
+                    RenderTotalCell(t, "TOTAL EXISTING ENTITIES", alignLeft: true);
+                    RenderTotalCell(t, FormatCount(totalExisting));
                 });
             });
 
-            // Second Row: Section VIII (Control & Enforcement / ARTA Metrics) & Section IX (Regional Financial Status)
+            // =================================================================
+            // SECTION VIII (CONTROL & ENFORCEMENT) & SECTION IX (REGIONAL FINANCIAL STATUS)
+            // Exact MIS-EDGE-REPORT.pdf Page 8 structure
+            // =================================================================
             col.Item().PaddingTop(6).Row(row =>
             {
-                row.RelativeItem(0.95f).PaddingRight(4).Table(t =>
+                row.RelativeItem(0.95f).PaddingRight(5).Table(t =>
                 {
                     t.ColumnsDefinition(cd =>
                     {
                         cd.RelativeColumn();
-                        cd.ConstantColumn(80);
+                        cd.ConstantColumn(82);
                     });
 
-                    RenderSectionTitleRow(t, 2, "VIII. CONTROL, ENFORCEMENT & ARTA COMPLIANCE");
-                    RenderTableHeaderCell(t, "OPERATIONAL INDICATOR", alignLeft: true);
-                    RenderTableHeaderCell(t, "ACCOMPLISHMENT");
+                    t.Header(h =>
+                    {
+                        RenderMisBanner(h, 2, "VIII. CONTROL, ENFORCEMENT & EXAMINATIONS", MisSectionBannerBg);
+                        RenderMisHeaderCell(h, "SERVICES / INDICATOR", alignLeft: true);
+                        RenderMisHeaderCell(h, "ACTUAL THIS\nPERIOD");
+                    });
 
-                    RenderBodyCell(t, "1. Total Applications Logged (Total Applicants / Units)", alignLeft: true);
+                    RenderBodyCell(t, "Total Applications Logged (Total Units / Applicants)", alignLeft: true);
                     RenderBodyCell(t, $"{totalApps:N0} ({totalUnits:N0} units)", bold: true);
 
-                    RenderBodyCell(t, "2. Total Licenses / Permits / Certificates Issued", alignLeft: true);
+                    RenderBodyCell(t, "Licenses / Permits / Certificates Issued (Encoded)", alignLeft: true);
                     RenderBodyCell(t, issuedCount.ToString("N0"), bold: true);
 
-                    RenderBodyCell(t, "3. Applications In-Process (Eval / SOA / OP / Cashier / Issuance)", alignLeft: true);
-                    RenderBodyCell(t, inProgressCount.ToString("N0"));
-
-                    RenderBodyCell(t, "4. Deficient / Returned Applications for Compliance", alignLeft: true);
-                    RenderBodyCell(t, returnedCount.ToString("N0"));
-
-                    RenderBodyCell(t, "5. Official Receipts (AF-51) Issued & Verified", alignLeft: true);
-                    RenderBodyCell(t, paidTx.Count.ToString("N0"), bold: true);
-
-                    RenderBodyCell(t, "6. Validated AGDB / BTr Bank Deposit Batches", alignLeft: true);
-                    RenderBodyCell(t, _model.BankDeposits.Count.ToString("N0"), bold: true);
-
-                    RenderBodyCell(t, "7. Citizen's Charter Turnaround Compliance Rate (RA 11032)", alignLeft: true);
+                    RenderBodyCell(t, "% Licenses / Permits / Certificates Processed On Time", alignLeft: true);
                     RenderBodyCell(t, $"{complianceRate}%", bold: true);
 
-                    RenderBodyCell(t, "8. Client Satisfaction Rating (CSAT Survey Average)", alignLeft: true);
+                    RenderBodyCell(t, "Applications Returned / Deficient for Compliance", alignLeft: true);
+                    RenderBodyCell(t, returnedCount.ToString("N0"));
+
+                    RenderBodyCell(t, "No. of Examinations Conducted (ROCE / Amateur)", alignLeft: true);
+                    RenderBodyCell(t, examApps.ToString("N0"), bold: examApps > 0);
+
+                    RenderBodyCell(t, "No. of Examinees Processed", alignLeft: true);
+                    RenderBodyCell(t, examExaminees.ToString("N0"), bold: examExaminees > 0);
+
+                    RenderBodyCell(t, "Official Receipts (AF-51) Issued & Verified", alignLeft: true);
+                    RenderBodyCell(t, paidTx.Count.ToString("N0"), bold: true);
+
+                    RenderBodyCell(t, "Validated AGDB / BTr Bank Deposit Batches", alignLeft: true);
+                    RenderBodyCell(t, _model.BankDeposits.Count.ToString("N0"));
+
+                    RenderBodyCell(t, "Client Satisfaction Rating (CSAT Survey Average)", alignLeft: true);
                     RenderBodyCell(t, $"{_model.AverageCsat:F2} / 5.00 ({_model.FeedbackCount} resp.)", bold: true);
                 });
 
-                row.RelativeItem(1.05f).PaddingLeft(4).Table(t =>
+                row.RelativeItem(1.05f).PaddingLeft(5).Table(t =>
                 {
                     t.ColumnsDefinition(cd =>
                     {
                         cd.RelativeColumn();
-                        cd.ConstantColumn(84);
+                        cd.ConstantColumn(92);
                     });
 
-                    RenderSectionTitleRow(t, 2, "IX. REGIONAL FINANCIAL STATUS (COLLECTIONS & DEPOSITS)");
-                    RenderTableHeaderCell(t, "REVENUE SOURCE / PARTICULAR", alignLeft: true);
-                    RenderTableHeaderCell(t, "AMOUNT (PHP)");
+                    t.Header(h =>
+                    {
+                        RenderMisBanner(h, 2, "IX. REGIONAL FINANCIAL STATUS", MisSectionBannerBg);
+                        RenderMisHeaderCell(h, "COLLECTION / REMITTANCE PARTICULAR", alignLeft: true);
+                        RenderMisHeaderCell(h, "AMOUNT (PHP)");
+                    });
 
-                    RenderBodyCell(t, "A. Permit Fees (Purchase / Possess / Construction / Temp)", alignLeft: true);
+                    RenderBodyCell(t, "A) Permit Fees", alignLeft: true);
                     RenderBodyCell(t, FormatCurrency(uacsTotals.PermitFees), alignRight: true);
 
-                    RenderBodyCell(t, "B. Radio Station & Operator License Fees", alignLeft: true);
-                    RenderBodyCell(t, FormatCurrency(uacsTotals.LicenseFees), alignRight: true);
-
-                    RenderBodyCell(t, "C. Registration Fees (Radio / Telecom / CPE / VAS)", alignLeft: true);
+                    RenderBodyCell(t, "B) Registration Fees", alignLeft: true);
                     RenderBodyCell(t, FormatCurrency(uacsTotals.RegistrationFees), alignRight: true);
 
-                    RenderBodyCell(t, "D. Spectrum User's Fee (SUF)", alignLeft: true);
-                    RenderBodyCell(t, FormatCurrency(uacsTotals.SpectrumSuf), alignRight: true);
+                    RenderBodyCell(t, "C) Clearance and Certification Fees", alignLeft: true);
+                    RenderBodyCell(t, FormatCurrency(uacsTotals.ClearanceFees), alignRight: true);
 
-                    RenderBodyCell(t, "E. Supervision and Regulation Enforcement Fee (SRF)", alignLeft: true);
+                    RenderBodyCell(t, "D) Licensing Fees (RSL / ROC)", alignLeft: true);
+                    RenderBodyCell(t, FormatCurrency(uacsTotals.LicenseFees), alignRight: true);
+
+                    RenderBodyCell(t, "E) Supervision and Regulation Fees (SRF)", alignLeft: true);
                     RenderBodyCell(t, FormatCurrency(uacsTotals.SupervisionFees), alignRight: true);
 
-                    RenderBodyCell(t, "F. Clearance / Certification / Examination / Filing Fees", alignLeft: true);
-                    RenderBodyCell(t, FormatCurrency(uacsTotals.ClearanceFees + uacsTotals.ExamFees + uacsTotals.OtherIncome), alignRight: true);
+                    RenderBodyCell(t, "F) Spectrum Usage Fees (SUF)", alignLeft: true);
+                    RenderBodyCell(t, FormatCurrency(uacsTotals.SpectrumSuf), alignRight: true);
 
-                    RenderBodyCell(t, "G. Fines, Penalties & Surcharges", alignLeft: true);
+                    RenderBodyCell(t, "J) Fines and Penalties (Service Income)", alignLeft: true);
                     RenderBodyCell(t, FormatCurrency(uacsTotals.FinesPenalties), alignRight: true);
 
-                    RenderBodyCell(t, "TOTAL NGP REGULATORY COLLECTIONS (A to G)", alignLeft: true, bold: true);
+                    RenderBodyCell(t, "L) Examination Fees", alignLeft: true);
+                    RenderBodyCell(t, FormatCurrency(uacsTotals.ExamFees), alignRight: true);
+
+                    RenderBodyCell(t, "K / N) Other Service & Miscellaneous Income", alignLeft: true);
+                    RenderBodyCell(t, FormatCurrency(uacsTotals.OtherIncome), alignRight: true);
+
+                    RenderBodyCell(t, "Amount of Regulatory Collection this Period (Net of DST)", alignLeft: true, bold: true);
                     RenderBodyCell(t, FormatCurrency(netNgp), alignRight: true, bold: true);
 
-                    RenderBodyCell(t, "DOCUMENTARY STAMP TAX (DST) COLLECTED / DEPOSITED", alignLeft: true);
+                    RenderBodyCell(t, "Documentary Stamp Tax (DST) Collected / Deposited", alignLeft: true);
                     RenderBodyCell(t, $"{FormatCurrency(uacsTotals.Dst)} / {FormatCurrency(depositMetrics.DstDeposited)}", alignRight: true);
 
-                    RenderBodyCell(t, "AMOUNT DEPOSITED TO AGDB / BTr (UNDEPOSITED ON HAND)", alignLeft: true, bold: true);
+                    RenderBodyCell(t, "Amount Deposited this Period (Undeposited on Hand)", alignLeft: true, bold: true);
                     RenderBodyCell(t, $"{FormatCurrency(depositMetrics.TotalDeposited)} ({FormatCurrency(depositMetrics.UndepositedBalance)})", alignRight: true, bold: true);
 
                     RenderTotalCell(t, "GRAND TOTAL AMOUNT COLLECTED", alignLeft: true);
@@ -292,14 +570,14 @@ public partial class StatutoryReportDocument
             });
 
             var misPrepared = ResolveMisOfficer("MIS / Planning Officer");
-            var chiefEod = ResolveChiefEod("Chief, EOD / Chief, FAD");
+            var chiefEod = ResolveChiefEod("Chief, EOD / OIC-EOD");
             var director = ResolveRegionalDirector("Regional Director");
 
             col.Item().PaddingTop(8).Element(c => ComposeSignatories(
                 c,
-                ("PREPARED BY:", misPrepared.Name, misPrepared.Role),
-                ("REVIEWED / NOTED BY:", chiefEod.Name, chiefEod.Role),
-                ("APPROVED BY:", director.Name, director.Role)));
+                ("Prepared by:", misPrepared.Name, misPrepared.Role),
+                ("Noted by:", chiefEod.Name, chiefEod.Role),
+                ("Approved by:", director.Name, director.Role)));
         });
     }
 }

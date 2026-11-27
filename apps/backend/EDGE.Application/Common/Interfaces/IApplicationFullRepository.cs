@@ -37,6 +37,7 @@ public interface IApplicationFullRepository
     Task<StatementOfAccount?> GetSoaByIdAsync(Guid soaId, CancellationToken cancellationToken = default);
     Task<bool> SoaNumberExistsAsync(Guid tenantId, string soaNumber, Guid? excludeSoaId = null, CancellationToken cancellationToken = default);
     Task AddSoaAsync(StatementOfAccount soa, CancellationToken cancellationToken = default);
+    Task AddSoaLineItemAsync(SoaLineItem lineItem, CancellationToken cancellationToken = default);
     Task<OrderOfPayment?> GetOpByIdAsync(Guid opId, CancellationToken cancellationToken = default);
     Task<bool> OpNumberExistsAsync(Guid tenantId, string opNumber, Guid? excludeOpId = null, CancellationToken cancellationToken = default);
     Task AddOpAsync(OrderOfPayment op, CancellationToken cancellationToken = default);
